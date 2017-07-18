@@ -1,0 +1,6 @@
+usr/local/bin/biblepay-qt usr/bin
+share/pixmaps/biblepay32.xpm usr/share/pixmaps
+share/pixmaps/biblepay16.xpm usr/share/pixmaps
+share/pixmaps/biblepay128.png usr/share/pixmaps
+debian/biblepay-qt.desktop usr/share/applications
+debian/biblepay-qt.protocol usr/share/kde4/services/

@@ -1,0 +1,3 @@
+debian/manpages/biblepayd.1
+debian/manpages/biblepay.conf.5
+debian/manpages/biblepay-cli.1

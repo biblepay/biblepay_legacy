@@ -1,0 +1,11 @@
+[Protocol]
+exec=biblepay-qt '%u'
+protocol=biblepay
+input=none
+output=none
+helper=true
+listing=
+reading=false
+writing=false
+makedir=false
+deleting=false

@@ -1,0 +1,12 @@
+[Desktop Entry]
+Encoding=UTF-8
+Name=biblepay
+Comment=biblepay P2P Cryptocurrency
+Comment[fr]=biblepay, monnaie virtuelle cryptographique pair à pair
+Comment[tr]=biblepay, e?ten e?e kriptografik sanal para birimi
+Exec=biblepay-qt %u
+Terminal=false
+Type=Application
+Icon=biblepay128
+MimeType=x-scheme-handler/biblepay;
+Categories=Office;Finance;
