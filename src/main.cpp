@@ -99,7 +99,7 @@ std::string TimestampToHRDate(double dtm);
 extern std::string RoundToString(double d, int place);
 extern std::string GetArrayElement(std::string s, std::string delim, int iPos);
 double GetDifficultyN(const CBlockIndex* blockindex, double N);
-uint256 BibleHash(uint256 hash);
+uint256 BibleHash(uint256 hash,int64_t nBlockTime,int64_t nPrevBlockTime);
 
 bool fImporting = false;
 bool fReindex = false;
@@ -1777,7 +1777,9 @@ bool ReadBlockFromDisk(CBlock& block, const CDiskBlockPos& pos, const Consensus:
     }
 
     // Check the header
-    if (!CheckProofOfWork(block.GetHash(), block.nBits, consensusParams))
+	CBlockIndex* pindexAncestor=mapBlockIndex[block.hashPrevBlock];
+    int64_t nAncestorTime = (pindexAncestor==NULL) ? 0 : pindexAncestor->nTime;     
+    if (!CheckProofOfWork(block.GetHash(), block.nBits, consensusParams, block.GetBlockTime(), nAncestorTime))
 	{
         LogPrintf("ReadBlockFromDisk: Errors in block header at %s", pos.ToString());
 		return false;
@@ -2620,7 +2622,8 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     int64_t nTimeStart = GetTimeMicros();
 
     // Check it again in case a previous version let a bad block in
-    if (!CheckBlock(block, state, !fJustCheck, !fJustCheck))
+	int64_t nAncestorTime = pindex->pprev ? pindex->pprev->nTime : 0 ;
+    if (!CheckBlock(block, state, !fJustCheck, !fJustCheck, pindex->nTime, nAncestorTime))
         return false;
 
     // verify that the view's current state corresponds to the previous block
@@ -3740,7 +3743,8 @@ bool FindBlockPos(CValidationState &state, CDiskBlockPos &pos, unsigned int nAdd
                 fCheckForPruning = true;
             if (CheckDiskSpace(nNewChunks * BLOCKFILE_CHUNK_SIZE - pos.nPos)) {
                 FILE *file = OpenBlockFile(pos);
-                if (file) {
+                if (file) 
+				{
                     LogPrintf("Pre-allocating up to position 0x%x in blk%05u.dat\n", nNewChunks * BLOCKFILE_CHUNK_SIZE, pos.nFile);
                     AllocateFileRange(file, pos.nPos, nNewChunks * BLOCKFILE_CHUNK_SIZE - pos.nPos);
                     fclose(file);
@@ -3788,22 +3792,22 @@ bool FindUndoPos(CValidationState &state, int nFile, CDiskBlockPos &pos, unsigne
 
 
 
-bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, bool fCheckPOW)
+bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, bool fCheckPOW, int64_t nBlockTime, int64_t nPrevBlockTime)
 {
     // Check proof of work matches claimed amount
-	if (fCheckPOW && !CheckProofOfWork(block.GetHash(), block.nBits, Params().GetConsensus()))
+	if (fCheckPOW && !CheckProofOfWork(block.GetHash(), block.nBits, Params().GetConsensus(), nBlockTime, nPrevBlockTime))
         return state.DoS(50, error("CheckBlockHeader(): proof of work failed"),
                          REJECT_INVALID, "high-hash");
 
-    // Check timestamp
+    // BiblePay - Check timestamp (reject if > 15 minutes in future).  This is is important since we lower the difficulty after all online nodes cannot solve block in one hour!  
     if (block.GetBlockTime() > GetAdjustedTime() + (15 * 60))
-        return state.Invalid(error("CheckBlockHeader(): block timestamp too far in the future"),
+        return state.Invalid(error("CheckBlockHeader(): BiblePay: Block timestamp too far in the future"),
                              REJECT_INVALID, "time-too-new");
 
     return true;
 }
 
-bool CheckBlock(const CBlock& block, CValidationState& state, bool fCheckPOW, bool fCheckMerkleRoot)
+bool CheckBlock(const CBlock& block, CValidationState& state, bool fCheckPOW, bool fCheckMerkleRoot, int64_t nBlockTime, int64_t nPrevBlockTime)
 {
     // These are checks that are independent of context.
 
@@ -3812,7 +3816,7 @@ bool CheckBlock(const CBlock& block, CValidationState& state, bool fCheckPOW, bo
 
     // Check that the header is valid (particularly PoW).  This is mostly
     // redundant with the call in AcceptBlockHeader.
-    if (!CheckBlockHeader(block, state, fCheckPOW))
+    if (!CheckBlockHeader(block, state, fCheckPOW, nBlockTime, nPrevBlockTime))
         return false;
 
     // Check the merkle root.
@@ -3994,9 +3998,10 @@ static bool AcceptBlockHeader(const CBlockHeader& block, CValidationState& state
     BlockMap::iterator miSelf = mapBlockIndex.find(hash);
     CBlockIndex *pindex = NULL;
 
-    if (hash != cblockGenesis.GetHash()) {
-
-        if (miSelf != mapBlockIndex.end()) {
+    if (hash != cblockGenesis.GetHash()) 
+	{
+        if (miSelf != mapBlockIndex.end()) 
+		{
             // Block header is already known.
             pindex = miSelf->second;
             if (ppindex)
@@ -4006,23 +4011,24 @@ static bool AcceptBlockHeader(const CBlockHeader& block, CValidationState& state
             return true;
         }
 
-        if (!CheckBlockHeader(block, state))
+        // Get prev block index
+		CBlockIndex* pindexAncestor = NULL;
+        BlockMap::iterator mi = mapBlockIndex.find(block.hashPrevBlock);
+        if (mi != mapBlockIndex.end()) pindexAncestor = (*mi).second;
+        
+        if (!CheckBlockHeader(block, state, true, block.GetBlockTime(), pindexAncestor ? pindexAncestor->nTime : 0))
             return false;
 
-        // Get prev block index
-        CBlockIndex* pindexPrev = NULL;
-        BlockMap::iterator mi = mapBlockIndex.find(block.hashPrevBlock);
         if (mi == mapBlockIndex.end())
             return state.DoS(10, error("%s: prev block not found", __func__), 0, "bad-prevblk");
-        pindexPrev = (*mi).second;
-        if (pindexPrev->nStatus & BLOCK_FAILED_MASK)
+        if (pindexAncestor->nStatus & BLOCK_FAILED_MASK)
             return state.DoS(100, error("%s: prev block invalid", __func__), REJECT_INVALID, "bad-prevblk");
 
-        assert(pindexPrev);
-        if (fCheckpointsEnabled && !CheckIndexAgainstCheckpoint(pindexPrev, state, chainparams, hash))
+        assert(pindexAncestor);
+        if (fCheckpointsEnabled && !CheckIndexAgainstCheckpoint(pindexAncestor, state, chainparams, hash))
             return error("%s: CheckIndexAgainstCheckpoint(): %s", __func__, state.GetRejectReason().c_str());
 
-        if (!ContextualCheckBlockHeader(block, state, pindexPrev))
+        if (!ContextualCheckBlockHeader(block, state, pindexAncestor))
             return false;
     }
     if (pindex == NULL)
@@ -4063,7 +4069,8 @@ static bool AcceptBlock(const CBlock& block, CValidationState& state, const CCha
         if (fTooFarAhead) return true;      // Block height is too high
     }
 
-    if ((!CheckBlock(block, state)) || !ContextualCheckBlock(block, state, pindex->pprev)) {
+    if ((!CheckBlock(block, state, true, true, block.GetBlockTime(), pindex->pprev ? pindex->pprev->nTime : 0)) || !ContextualCheckBlock(block, state, pindex->pprev)) 
+	{
         if (state.IsInvalid() && !state.CorruptionPossible()) {
             pindex->nStatus |= BLOCK_FAILED_VALID;
             setDirtyBlockIndex.insert(pindex);
@@ -4112,13 +4119,15 @@ static bool IsSuperMajority(int minVersion, const CBlockIndex* pstart, unsigned 
 bool ProcessNewBlock(CValidationState& state, const CChainParams& chainparams, const CNode* pfrom, const CBlock* pblock, bool fForceProcessing, CDiskBlockPos* dbp)
 {
     // Preliminary checks
-    bool checked = CheckBlock(*pblock, state);
-
+	CBlockIndex* pindexAncestor=mapBlockIndex[pblock->hashPrevBlock];
+    int64_t nAncestorTime = (pindexAncestor==NULL) ? 0 : pindexAncestor->nTime;     
+    bool checked = CheckBlock(*pblock, state, true, true, pblock->GetBlockTime(), nAncestorTime);
     {
         LOCK(cs_main);
         bool fRequested = MarkBlockAsReceived(pblock->GetHash());
         fRequested |= fForceProcessing;
-        if (!checked) {
+        if (!checked) 
+		{
             return error("%s: CheckBlock FAILED", __func__);
         }
 
@@ -4163,7 +4172,7 @@ bool TestBlockValidity(CValidationState& state, const CChainParams& chainparams,
     // NOTE: CheckBlockHeader is called by CheckBlock
     if (!ContextualCheckBlockHeader(block, state, pindexPrev))
         return false;
-    if (!CheckBlock(block, state, fCheckPOW, fCheckMerkleRoot))
+    if (!CheckBlock(block, state, fCheckPOW, fCheckMerkleRoot, block.GetBlockTime(), pindexPrev ? pindexPrev->nTime : 0))
         return false;
     if (!ContextualCheckBlock(block, state, pindexPrev))
         return false;
@@ -4507,7 +4516,7 @@ bool CVerifyDB::VerifyDB(const CChainParams& chainparams, CCoinsView *coinsview,
         if (!ReadBlockFromDisk(block, pindex, chainparams.GetConsensus()))
             return error("VerifyDB(): *** ReadBlockFromDisk failed at %d, hash=%s", pindex->nHeight, pindex->GetBlockHash().ToString());
         // check level 1: verify block validity
-        if (nCheckLevel >= 1 && !CheckBlock(block, state))
+        if (nCheckLevel >= 1 && !CheckBlock(block, state, true, true, block.GetBlockTime(), pindex->pprev ? pindex->pprev->nTime : 0))
             return error("VerifyDB(): *** found bad block at %d, hash=%s\n", pindex->nHeight, pindex->GetBlockHash().ToString());
         // check level 2: verify undo validity
         if (nCheckLevel >= 2 && pindex) {
@@ -6082,7 +6091,8 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
                 Misbehaving(pfrom->GetId(), 18);
                 return error("non-continuous headers sequence");
             }
-            if (!AcceptBlockHeader(header, state, chainparams, &pindexLast)) {
+            if (!AcceptBlockHeader(header, state, chainparams, &pindexLast)) 
+			{
                 int nDoS;
                 if (state.IsInvalid(nDoS)) {
                     if (nDoS > 0)

@@ -30,14 +30,13 @@ void CheckGenesisBlock(CBlock block, uint256 targetBlockHash, uint256 targetMerk
  *    timestamp before)
  * + Contains no strange transactions
  */
-uint256 BibleHash(uint256 hash);
+uint256 BibleHash(uint256 hash,int64_t nBlockTime,int64_t nPrevBlockTime);
 
 
 
 class CMainParams : public CChainParams {
 public:
-	uint256 BibleHash(uint256 hash);
-
+	
     CMainParams() {
         strNetworkID = "main";
         consensus.nSubsidyHalvingInterval = BLOCKS_PER_DAY * 365; // We produce approx 74,825 blocks per year (205 per day)

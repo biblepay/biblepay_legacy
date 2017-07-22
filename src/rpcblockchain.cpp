@@ -37,7 +37,8 @@ extern std::string TimestampToHRDate(double dtm);
 void GetBookStartEnd(std::string sBook, int& iStart, int& iEnd);
 
 UniValue GetDataList(std::string sType, int iMaxAgeInDays, int& iSpecificEntry, std::string& outEntry);
-uint256 BibleHash(uint256 hash);
+uint256 BibleHash(uint256 hash,int64_t nBlockTime,int64_t nPrevBlockTime);
+
 void MemorizeBlockChainPrayers(bool fDuringConnectBlock);
 std::string GetVerse(std::string sBook, int iChapter, int iVerse, int iStart, int iEnd);
 
@@ -45,7 +46,8 @@ std::string GetBookByName(std::string sName);
 std::string GetBook(int iBookNumber);
 
 std::string GetMessagesFromBlock(const CBlock& block, std::string sMessages);
-std::string GetBibleHashVerses(uint256 hash);
+std::string GetBibleHashVerses(uint256 hash, uint64_t nBlockTime, uint64_t nPrevBlockTime);
+
 
 
 double cdbl(std::string s, int place);
@@ -162,18 +164,18 @@ UniValue blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool tx
 		CAmount MasterNodeReward = GetBlockSubsidy(blockindex->pprev, blockindex->pprev->nBits, blockindex->pprev->nHeight, consensusParams, true);
 		result.push_back(Pair("masternodereward", MasterNodeReward));
         result.push_back(Pair("previousblockhash", blockindex->pprev->GetBlockHash().GetHex()));
+		std::string sVerses = GetBibleHashVerses(block.GetHash(), block.GetBlockTime(), blockindex->pprev->nTime);
+		result.push_back(Pair("verses", sVerses));
+    	// Check work against BibleHash
+		arith_uint256 hashTarget = arith_uint256().SetCompact(blockindex->nBits);
+		uint256 hashWork = blockindex->GetBlockHash();
+		uint256 bibleHash = BibleHash(hashWork,block.GetBlockTime(),blockindex->pprev->nTime);
+		bool bSatisfiesBibleHash = (UintToArith256(bibleHash) <= hashTarget);
+		result.push_back(Pair("satisfiesbiblehash", bSatisfiesBibleHash ? "true" : "false"));
+		result.push_back(Pair("biblehash", bibleHash.GetHex()));
 	}
 	std::string sPrayers = GetMessagesFromBlock(block, "PRAYER");
 	result.push_back(Pair("prayers", sPrayers));
-	std::string sVerses = GetBibleHashVerses(block.GetHash());
-	result.push_back(Pair("verses", sVerses));
-	// Check work against BibleHash
-    arith_uint256 hashTarget = arith_uint256().SetCompact(blockindex->nBits);
-    uint256 hashWork = blockindex->GetBlockHash();
-	uint256 bibleHash = BibleHash(hashWork);
-	bool bSatisfiesBibleHash = (UintToArith256(bibleHash) <= hashTarget);
-	result.push_back(Pair("satisfiesbiblehash", bSatisfiesBibleHash ? "true":"false"));
-	result.push_back(Pair("biblehash", BibleHash(block.GetHash()).GetHex()));
     CBlockIndex *pnext = chainActive.Next(blockindex);
     if (pnext)
         result.push_back(Pair("nextblockhash", pnext->GetBlockHash().GetHex()));

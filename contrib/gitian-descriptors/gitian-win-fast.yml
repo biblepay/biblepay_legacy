@@ -23,8 +23,8 @@ packages:
 - "python"
 reference_datetime: "2016-01-01 00:00:00"
 remotes:
-- "url": "https://github.com/biblepay/biblepay5.git"
-  "dir": "biblepay5"
+- "url": "https://github.com/biblepay/biblepay.git"
+  "dir": "biblepay"
 files: []
 script: |
   WRAP_DIR=$HOME/wrapped
@@ -95,7 +95,7 @@ script: |
   export PATH=${WRAP_DIR}:${PATH}
   #fix genbuild permission denied issue
   
-  cd biblepay5
+  cd biblepay
   chmod 777 share/genbuild.sh
   chmod 777 contrib/devtools/*.py
   chmod 755 src/leveldb/build_detect_platform

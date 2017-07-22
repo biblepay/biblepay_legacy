@@ -48,7 +48,7 @@ using namespace std;
 
 uint64_t nLastBlockTx = 0;
 uint64_t nLastBlockSize = 0;
-uint256 BibleHash(uint256 hash);
+uint256 BibleHash(uint256 hash,int64_t nBlockTime,int64_t nPrevBlockTime);
 
 class ScoreCompare
 {
@@ -480,10 +480,9 @@ recover:
 					// BiblePay: Proof of BibleHash requires the blockHash to not only be less than the Hash Target, but also,
 					// the BibleHash of the blockhash must be less than the target.
 					// The BibleHash is generated from chained bible verses, a historical tx lookup, one AES encryption operation, and MD5 hash
-					uint256 hash = BibleHash(pblock->GetHash());
+					uint256 hash = BibleHash(pblock->GetHash(),pblock->GetBlockTime(),pindexPrev->nTime);
 					if (UintToArith256(hash) <= hashTarget && UintToArith256(pblock->GetHash()) <= hashTarget)
-				    //if (CheckProofOfWork(hash, pblock->nBits, Params().GetConsensus())) 
-					{
+				    {
 							// Found a solution
 							SetThreadPriority(THREAD_PRIORITY_NORMAL);
 							ProcessBlockFound(pblock, chainparams);

@@ -252,7 +252,7 @@ unsigned int CalculateNextWorkRequired(const CBlockIndex* pindexLast, int64_t nF
     return bnNew.GetCompact();
 }
 
-bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params& params)
+bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params& params, int64_t nBlockTime, int64_t nPrevBlockTime)
 {
     bool fNegative;
     bool fOverflow;
@@ -271,7 +271,7 @@ bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params&
   	   return error("CheckProofOfWork(): hash doesn't match nBits");
 	}
 
-	if (UintToArith256(BibleHash(hash)) > bnTarget)
+	if (UintToArith256(BibleHash(hash,nBlockTime,nPrevBlockTime)) > bnTarget)
 	{
 		return error("CheckProofOfWork(): BibleHash does not meet POW level");
 	}
