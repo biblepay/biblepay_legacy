@@ -1,0 +1,22 @@
+Build BiblePay - Unix
+
+cd /home/yourname
+git clone https://github.com/biblepay/biblepay
+cd biblepay
+sudo chmod 777 share/genbuild.sh
+sudo chmod 777 autogen.sh
+./autogen.sh
+BP_ROOT=$(pwd)
+# Note: Berkeley DB4.8 must be installed, the next step points to the db4 location
+BDB_PREFIX="${BP_ROOT}/db4"
+./configure LDFLAGS="-L${BDB_PREFIX}/lib/" CPPFLAGS="-I${BDB_PREFIX}/include/"
+sudo make
+
+Gitian Builder:
+
+cd /home/yourname/gitian-builder
+sudo ./build.sh
+cd inputs/biblepay
+sudo chown debian depends -R
+cp /inputs/biblepay/depends/*.* /inputs/biblepay/depends
+cp /inputs/biblepay/src/univalue/gen/*.* /inputs/biblepay/univalue/gen
