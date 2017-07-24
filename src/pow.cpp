@@ -271,7 +271,7 @@ bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params&
   	   return error("CheckProofOfWork(): hash doesn't match nBits");
 	}
 
-	if (UintToArith256(BibleHash(hash,nBlockTime,nPrevBlockTime)) > bnTarget)
+	if (UintToArith256(BibleHash(hash,nBlockTime,nPrevBlockTime,true)) > bnTarget)
 	{
 		return error("CheckProofOfWork(): BibleHash does not meet POW level");
 	}

@@ -516,7 +516,9 @@ void OverviewPage::privateSendStatus()
         // Show how many keys left in advanced PS UI mode only
         if (fShowAdvancedPSUI) strEnabled += ", " + strKeysLeftText;
         ui->labelPrivateSendEnabled->setText(strEnabled);
-
+		// BiblePay - Per forum, it is confusing to show the Private Send: Disabled before Sanctuaries go live - Make this invisible
+		ui->labelPrivateSendEnabled->setVisible(false);
+		ui->labelPrivateSendEnabledText->setVisible(false);
         return;
     }
 

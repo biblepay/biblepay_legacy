@@ -96,7 +96,7 @@ CWallet* pwalletMain = NULL;
 
 void initkjv();
 
-uint256 BibleHash(uint256 hash,int64_t nBlockTime,int64_t nPrevBlockTime);
+uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining);
 
 std::string RetrieveMd5(std::string s1);
 void MemorizeBlockChainPrayers(bool fDuringConnectBlock);
@@ -235,7 +235,7 @@ void PrepareShutdown()
     if (pwalletMain)
         pwalletMain->Flush(false);
 #endif
-    GenerateBitcoins(false, 0, Params());
+    GenerateBiblecoins(false, 0, Params());
     StopNode();
 
     // STORE DATA CACHES INTO SERIALIZED DAT FILES
@@ -422,7 +422,7 @@ void CheckGenesisBlock(CBlock bl1, uint256 targetBlockHash, uint256 targetMerkle
             uint256 thash;
             while (true)
             {
-            	thash = BibleHash(block.GetHash(),block.GetBlockTime(),block.GetBlockTime());
+            	thash = BibleHash(block.GetHash(),block.GetBlockTime(),block.GetBlockTime(),false);
 				if (UintToArith256(thash) <= hashTarget && UintToArith256(block.GetHash()) <= hashTarget)  break;
 
                 if ((block.nNonce & 0xFFF) == 0)
@@ -2122,7 +2122,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     // --- end disabled ---
 
     // Generate coins in the background
-    GenerateBitcoins(GetBoolArg("-gen", DEFAULT_GENERATE), GetArg("-genproclimit", DEFAULT_GENERATE_THREADS), chainparams);
+    GenerateBiblecoins(GetBoolArg("-gen", DEFAULT_GENERATE), GetArg("-genproclimit", DEFAULT_GENERATE_THREADS), chainparams);
 
     // ********************************************************* Step 13: finished
 

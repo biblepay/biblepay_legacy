@@ -30,7 +30,7 @@ void CheckGenesisBlock(CBlock block, uint256 targetBlockHash, uint256 targetMerk
  *    timestamp before)
  * + Contains no strange transactions
  */
-uint256 BibleHash(uint256 hash,int64_t nBlockTime,int64_t nPrevBlockTime);
+uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining);
 
 
 
@@ -121,10 +121,12 @@ public:
         nFulfilledRequestExpireTime = 60*60; // fulfilled requests expire in 1 hour
         strSporkPubKey = "0";
         strMasternodePaymentsPubKey = "0";
+
 	    checkpointData = (CCheckpointData) 
 		{
             boost::assign::map_list_of
-            ( 7, uint256S("0x00022b1be28b1deb9a51d4d69f3fa393f4ea36621039b6313a6c0796546621de")),
+            (   7, uint256S("0x00022b1be28b1deb9a51d4d69f3fa393f4ea36621039b6313a6c0796546621de"))
+			( 120, uint256S("0x00002fc6c9e4889a8d1a9bd5919a6bd4a4b09091e55049480509da14571e5653")),
             0, // * UNIX timestamp of last checkpoint block
             1, // * total number of transactions between genesis and last checkpoint
                //   (the tx=... number in the SetBestChain debug.log lines)

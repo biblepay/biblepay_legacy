@@ -48,7 +48,7 @@ using namespace std;
 
 uint64_t nLastBlockTx = 0;
 uint64_t nLastBlockSize = 0;
-uint256 BibleHash(uint256 hash,int64_t nBlockTime,int64_t nPrevBlockTime);
+uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining);
 
 class ScoreCompare
 {
@@ -439,7 +439,7 @@ recover:
                     }
 		            if ((!fvNodesEmpty && !IsInitialBlockDownload()) || fDebug) 
 					{
-				        MilliSleep(9000); // Avoid races
+				        MilliSleep(1000); // Avoid races
 						break;
 					}
 					// if (chainActive.Tip()->nHeight < 60000 || masternodeSync.IsSynced()))
@@ -480,7 +480,7 @@ recover:
 					// BiblePay: Proof of BibleHash requires the blockHash to not only be less than the Hash Target, but also,
 					// the BibleHash of the blockhash must be less than the target.
 					// The BibleHash is generated from chained bible verses, a historical tx lookup, one AES encryption operation, and MD5 hash
-					uint256 hash = BibleHash(pblock->GetHash(),pblock->GetBlockTime(),pindexPrev->nTime);
+					uint256 hash = BibleHash(pblock->GetHash(),pblock->GetBlockTime(),pindexPrev->nTime,true);
 					if (UintToArith256(hash) <= hashTarget && UintToArith256(pblock->GetHash()) <= hashTarget)
 				    {
 							// Found a solution
@@ -509,19 +509,22 @@ recover:
                     break;
                 if (mempool.GetTransactionsUpdated() != nTransactionsUpdatedLast && GetTime() - nStart > 60)
                     break;
-                if (pindexPrev != chainActive.Tip())
+                if (pindexPrev != chainActive.Tip() || pindexPrev==NULL || chainActive.Tip()==NULL)
                     break;
 
                 // Update nTime every few seconds
-			     
-                if (UpdateTime(pblock, chainparams.GetConsensus(), pindexPrev) < 0)
-                    break; // Recreate the block if the clock has run backwards,
-                           // so that we can use the correct time.
-                if (chainparams.GetConsensus().fPowAllowMinDifficultyBlocks)
-                {
-                    // Changing pblock->nTime can change work required on testnet:
-                    hashTarget.SetCompact(pblock->nBits);
-                }
+			    if (pindexPrev)
+				{
+					if (UpdateTime(pblock, chainparams.GetConsensus(), pindexPrev) < 0)
+						break; // Recreate the block if the clock has run backwards,
+							   // so that we can use the correct time.
+				}
+				if (chainparams.GetConsensus().fPowAllowMinDifficultyBlocks)
+				{
+					// Changing pblock->nTime can change work required on testnet:
+					hashTarget.SetCompact(pblock->nBits);
+				}
+				
             }
         }
     }
@@ -537,7 +540,7 @@ recover:
     }
 }
 
-void GenerateBitcoins(bool fGenerate, int nThreads, const CChainParams& chainparams)
+void GenerateBiblecoins(bool fGenerate, int nThreads, const CChainParams& chainparams)
 {
     static boost::thread_group* minerThreads = NULL;
 	 
@@ -559,6 +562,6 @@ void GenerateBitcoins(bool fGenerate, int nThreads, const CChainParams& chainpar
     for (int i = 0; i < nThreads; i++)
 	{
         minerThreads->create_thread(boost::bind(&BibleMiner, boost::cref(chainparams)));
-		break;
 	}
+	LogPrintf(" ** Started %f BibleMiner threads. ** \r\n",(double)nThreads);
 }

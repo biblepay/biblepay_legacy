@@ -35,7 +35,7 @@
 #include <univalue.h>
 
 using namespace std;
-uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime);
+uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining);
 
 double GetDifficultyN(const CBlockIndex* blockindex, double N);
 
@@ -233,7 +233,7 @@ UniValue setgenerate(const UniValue& params, bool fHelp)
 
     mapArgs["-gen"] = (fGenerate ? "1" : "0");
     mapArgs ["-genproclimit"] = itostr(nGenProcLimit);
-    GenerateBitcoins(fGenerate, nGenProcLimit, Params());
+    GenerateBiblecoins(fGenerate, nGenProcLimit, Params());
 
     return NullUniValue;
 }
