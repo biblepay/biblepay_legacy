@@ -472,9 +472,9 @@ recover:
             //
             int64_t nStart = GetTime();
             arith_uint256 hashTarget = arith_uint256().SetCompact(pblock->nBits);
-            while (true)
+		    while (true)
             {
-                unsigned int nHashesDone = 0;
+				unsigned int nHashesDone = 0;
                 while (true)
                 {
 					// BiblePay: Proof of BibleHash requires the blockHash to not only be less than the Hash Target, but also,
@@ -496,22 +496,26 @@ recover:
 					}
                     pblock->nNonce += 1;
                     nHashesDone += 1;
-                    if ((pblock->nNonce & 0xFFF) == 0)
+                    if ((pblock->nNonce & 0xFF) == 0)
                         break;
                 }
+
+				// Update HashesPerSec
+				nHashCounter += nHashesDone;
+				dHashesPerSec = 1000.0 * nHashCounter / (GetTimeMillis() - nHPSTimerStart);
 
                 // Check for stop or if block needs to be rebuilt
                 boost::this_thread::interruption_point();
                 // Regtest mode doesn't require peers
                 if (vNodes.empty() && chainparams.MiningRequiresPeers())
                     break;
-                if (pblock->nNonce >= 0xFFF)
+                if (pblock->nNonce >= 0xFF)
                     break;
                 if (mempool.GetTransactionsUpdated() != nTransactionsUpdatedLast && GetTime() - nStart > 60)
                     break;
                 if (pindexPrev != chainActive.Tip() || pindexPrev==NULL || chainActive.Tip()==NULL)
                     break;
-
+	                        
                 // Update nTime every few seconds
 			    if (pindexPrev)
 				{
@@ -563,5 +567,9 @@ void GenerateBiblecoins(bool fGenerate, int nThreads, const CChainParams& chainp
 	{
         minerThreads->create_thread(boost::bind(&BibleMiner, boost::cref(chainparams)));
 	}
+	// Maintain the HashPS
+	nHPSTimerStart = GetTimeMillis();
+	nHashCounter = 0;
+				
 	LogPrintf(" ** Started %f BibleMiner threads. ** \r\n",(double)nThreads);
 }

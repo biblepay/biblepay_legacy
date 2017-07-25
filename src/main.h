@@ -186,6 +186,9 @@ extern std::string msGlobalStatus;
 extern std::string msGlobalStatus2;
 extern std::string msGlobalStatus3;
 extern int PRAYER_MODULUS;
+extern int64_t nHPSTimerStart;
+extern int64_t nHashCounter;
+extern double dHashesPerSec;
 
 extern int SIN_MODULUS;
 extern bool fLoadingIndex;

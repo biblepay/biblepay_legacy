@@ -72,6 +72,9 @@ CBlockIndex *pindexBestHeader = NULL;
 int64_t nTimeBestReceived = 0;
 int SIN_MODULUS = 0;
 int PRAYER_MODULUS = 0;
+int64_t nHPSTimerStart = 0;
+int64_t nHashCounter = 0;
+double dHashesPerSec = 0;
 
 CWaitableCriticalSection csBestBlock;
 CConditionVariable cvBlockChange;
@@ -4157,8 +4160,9 @@ bool TestBlockValidity(CValidationState& state, const CChainParams& chainparams,
 	// assert(pindexPrev && pindexPrev == chainActive.Tip());
 	if (!(pindexPrev && pindexPrev == chainActive.Tip()))
 	{
-		LogPrintf(" Rebooting wallet - pindexNew->pprev != chainActive.Tip() (assert(pindexNew->pprev == chainActive.Tip())); ");
-		fReboot2=true;
+		LogPrintf(" TestBlockValidity FAILED - pindexNew->pprev != chainActive.Tip() (assert(pindexNew->pprev == chainActive.Tip())); ");
+		// fReboot2=true;
+		return false;
 	}
 
     if (fCheckpointsEnabled && !CheckIndexAgainstCheckpoint(pindexPrev, state, chainparams, block.GetHash()))
