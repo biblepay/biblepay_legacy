@@ -779,8 +779,8 @@ void ReprocessBlocks(int nBlocks);
 bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pindex, CCoinsViewCache& coins, bool fJustCheck = false);
 
 /** Context-independent validity checks */
-bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, bool fCheckPOW, int64_t nBlockTime, int64_t nPrevBlockTime);
-bool CheckBlock(const CBlock& block, CValidationState& state, bool fCheckPOW, bool fCheckMerkleRoot, int64_t nBlockTime, int64_t nPrevBlockTime);
+bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, bool fCheckPOW, int64_t nBlockTime, int64_t nPrevBlockTime, int nPrevHeight);
+bool CheckBlock(const CBlock& block, CValidationState& state, bool fCheckPOW, bool fCheckMerkleRoot, int64_t nBlockTime, int64_t nPrevBlockTime, int nPrevHeight);
 
 /** Context-dependent validity checks */
 bool ContextualCheckBlockHeader(const CBlockHeader& block, CValidationState& state, CBlockIndex *pindexPrev);

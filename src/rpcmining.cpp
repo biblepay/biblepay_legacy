@@ -35,7 +35,7 @@
 #include <univalue.h>
 
 using namespace std;
-uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining);
+uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight);
 
 double GetDifficultyN(const CBlockIndex* blockindex, double N);
 
@@ -190,7 +190,7 @@ UniValue generate(const UniValue& params, bool fHelp)
             IncrementExtraNonce(pblock, chainActive.Tip(), nExtraNonce);
         }
 	
-        while (!CheckProofOfWork(pblock->GetHash(), pblock->nBits, Params().GetConsensus(), pblock->GetBlockTime(), chainActive.Tip()->nTime)) 
+        while (!CheckProofOfWork(pblock->GetHash(), pblock->nBits, Params().GetConsensus(), pblock->GetBlockTime(), chainActive.Tip()->nTime, chainActive.Tip()->nHeight)) 
 		{
             // Yes, there is a chance every nonce could fail to satisfy the -regtest
             // target -- 1 in 2^(2^32). That ain't gonna happen.

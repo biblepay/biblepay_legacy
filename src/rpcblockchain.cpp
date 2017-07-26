@@ -37,7 +37,7 @@ extern std::string TimestampToHRDate(double dtm);
 void GetBookStartEnd(std::string sBook, int& iStart, int& iEnd);
 
 UniValue GetDataList(std::string sType, int iMaxAgeInDays, int& iSpecificEntry, std::string& outEntry);
-uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining);
+uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight);
 void MemorizeBlockChainPrayers(bool fDuringConnectBlock);
 std::string GetVerse(std::string sBook, int iChapter, int iVerse, int iStart, int iEnd);
 
@@ -45,7 +45,7 @@ std::string GetBookByName(std::string sName);
 std::string GetBook(int iBookNumber);
 
 std::string GetMessagesFromBlock(const CBlock& block, std::string sMessages);
-std::string GetBibleHashVerses(uint256 hash, uint64_t nBlockTime, uint64_t nPrevBlockTime);
+std::string GetBibleHashVerses(uint256 hash, uint64_t nBlockTime, uint64_t nPrevBlockTime, int nPrevHeight);
 
 
 
@@ -163,12 +163,12 @@ UniValue blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool tx
 		CAmount MasterNodeReward = GetBlockSubsidy(blockindex->pprev, blockindex->pprev->nBits, blockindex->pprev->nHeight, consensusParams, true);
 		result.push_back(Pair("masternodereward", MasterNodeReward));
         result.push_back(Pair("previousblockhash", blockindex->pprev->GetBlockHash().GetHex()));
-		std::string sVerses = GetBibleHashVerses(block.GetHash(), block.GetBlockTime(), blockindex->pprev->nTime);
+		std::string sVerses = GetBibleHashVerses(block.GetHash(), block.GetBlockTime(), blockindex->pprev->nTime, blockindex->pprev->nHeight);
 		result.push_back(Pair("verses", sVerses));
     	// Check work against BibleHash
 		arith_uint256 hashTarget = arith_uint256().SetCompact(blockindex->nBits);
 		uint256 hashWork = blockindex->GetBlockHash();
-		uint256 bibleHash = BibleHash(hashWork,block.GetBlockTime(),blockindex->pprev->nTime,false);
+		uint256 bibleHash = BibleHash(hashWork,block.GetBlockTime(),blockindex->pprev->nTime,false,blockindex->pprev->nHeight);
 		bool bSatisfiesBibleHash = (UintToArith256(bibleHash) <= hashTarget);
 		result.push_back(Pair("satisfiesbiblehash", bSatisfiesBibleHash ? "true" : "false"));
 		result.push_back(Pair("biblehash", bibleHash.GetHex()));

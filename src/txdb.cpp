@@ -31,7 +31,7 @@ static const char DB_FLAG = 'F';
 static const char DB_REINDEX_FLAG = 'R';
 static const char DB_LAST_BLOCK = 'l';
 
-uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining);
+uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight);
 
 
 CCoinsViewDB::CCoinsViewDB(size_t nCacheSize, bool fMemory, bool fWipe) : db(GetDataDir() / "chainstate", nCacheSize, fMemory, fWipe, true) 
@@ -338,7 +338,7 @@ bool CBlockTreeDB::LoadBlockIndexGuts()
 				pindexNew->sBlockMessage  = diskindex.sBlockMessage;
 				pindexNew->hashBibleHash  = diskindex.hashBibleHash;
 
-                if (!CheckProofOfWork(pindexNew->GetBlockHash(), pindexNew->nBits, Params().GetConsensus(), pindexNew->nTime, pindexNew->pprev ? pindexNew->pprev->nTime : 0))
+                if (!CheckProofOfWork(pindexNew->GetBlockHash(), pindexNew->nBits, Params().GetConsensus(), pindexNew->nTime, pindexNew->pprev ? pindexNew->pprev->nTime : 0, pindexNew->pprev ? pindexNew->pprev->nHeight : 0))
                     return error("LoadBlockIndex(): CheckProofOfWork failed: %s", pindexNew->ToString());
 
                 pcursor->Next();

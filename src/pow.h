@@ -27,7 +27,7 @@ unsigned int CalculateNextWorkRequired(const CBlockIndex* pindexLast, int64_t nF
 
 
 /** Check whether a block hash satisfies the proof-of-work requirement specified by nBits */
-bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params& params, int64_t nBlockTime, int64_t nPrevBlockTime);
+bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params& params, int64_t nBlockTime, int64_t nPrevBlockTime, int nPrevHeight);
 
 arith_uint256 GetBlockProof(const CBlockIndex& block);
 

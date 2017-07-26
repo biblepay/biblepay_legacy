@@ -13,7 +13,7 @@
 #include <vector>
 #include "kjv.h"
 
-uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining);
+uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight);
 
 struct CDNSSeedData {
     std::string name, host;

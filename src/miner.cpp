@@ -48,7 +48,7 @@ using namespace std;
 
 uint64_t nLastBlockTx = 0;
 uint64_t nLastBlockSize = 0;
-uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining);
+uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight);
 
 class ScoreCompare
 {
@@ -480,7 +480,7 @@ recover:
 					// BiblePay: Proof of BibleHash requires the blockHash to not only be less than the Hash Target, but also,
 					// the BibleHash of the blockhash must be less than the target.
 					// The BibleHash is generated from chained bible verses, a historical tx lookup, one AES encryption operation, and MD5 hash
-					uint256 hash = BibleHash(pblock->GetHash(),pblock->GetBlockTime(),pindexPrev->nTime,true);
+					uint256 hash = BibleHash(pblock->GetHash(),pblock->GetBlockTime(),pindexPrev->nTime,true,pindexPrev->nHeight);
 					if (UintToArith256(hash) <= hashTarget && UintToArith256(pblock->GetHash()) <= hashTarget)
 				    {
 							// Found a solution
