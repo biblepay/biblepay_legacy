@@ -75,6 +75,7 @@ int PRAYER_MODULUS = 0;
 int64_t nHPSTimerStart = 0;
 int64_t nHashCounter = 0;
 double dHashesPerSec = 0;
+std::map<std::string, double> mvBlockVersion;
 
 CWaitableCriticalSection csBestBlock;
 CConditionVariable cvBlockChange;
@@ -88,6 +89,8 @@ std::map<std::string, int64_t> mvApplicationCacheTimestamp;
 
 extern void SetOverviewStatus();
 extern const CBlockIndex* GetBlockIndexByTransactionHash(const uint256 &hash);
+extern int32_t ComputeBlockVersion(const CBlockIndex* pindexPrev, const Consensus::Params& params);
+
 
 std::string ExtractXML(std::string XMLdata, std::string key, std::string key_end);
 UniValue GetDataList(std::string sType, int iMaxAgeInDays, int& iSpecificEntry, std::string& outEntry);
@@ -2637,8 +2640,8 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
 	//Issue here - BiblePay 07-14-2017
 	if (!(hashPrevBlock == view.GetBestBlock()))
 	{
-		LogPrintf(" ** ConnectBlock: PrevBlock != BestBlock; Rebooting Node.");
-		fReboot2=true;
+		LogPrintf(" ** ConnectBlock: PrevBlock != BestBlock; Rebooting Node.  Pray this never happens. ** \r\n");
+		fReboot2 = true;
 		return false;
 	}
 
@@ -3223,8 +3226,8 @@ bool static ConnectTip(CValidationState& state, const CChainParams& chainparams,
 {
 	if (!(pindexNew->pprev == chainActive.Tip()))
 	{
-		LogPrintf(" Rebooting wallet - pindexNew->pprev != chainActive.Tip() (assert(pindexNew->pprev == chainActive.Tip())); ");
-		fReboot2=true;
+		LogPrintf(" ConnectTip(): Rebooting wallet - pindexNew->pprev != chainActive.Tip() (assert(pindexNew->pprev == chainActive.Tip())); ");
+		fReboot2 = true;
 		return false;
 	}
 
@@ -4162,11 +4165,9 @@ bool ProcessNewBlock(CValidationState& state, const CChainParams& chainparams, c
 bool TestBlockValidity(CValidationState& state, const CChainParams& chainparams, const CBlock& block, CBlockIndex* pindexPrev, bool fCheckPOW, bool fCheckMerkleRoot)
 {
     AssertLockHeld(cs_main);
-	// assert(pindexPrev && pindexPrev == chainActive.Tip());
 	if (!(pindexPrev && pindexPrev == chainActive.Tip()))
 	{
-		LogPrintf(" TestBlockValidity FAILED - pindexNew->pprev != chainActive.Tip() (assert(pindexNew->pprev == chainActive.Tip())); ");
-		// fReboot2=true;
+		LogPrintf(" \r\n ** TestBlockValidity FAILED - pindexNew->pprev != chainActive.Tip() (assert(pindexNew->pprev == chainActive.Tip())); ** \r\n");
 		return false;
 	}
 
@@ -5169,8 +5170,9 @@ void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParam
 					{
                         //assert(!"cannot load block from disk");
 						LogPrintf("\r\n** ProcessGetData:Cannot load block from disk.\r\n");
-						// BiblePay : Restart the node
-						fReboot2=true;
+						// BiblePay : If we cant load the block, we probably wrote this block while on a fork and reorganized - now the block does not meet POBh
+						pfrom->fDisconnect = true;
+						send=false; 
 					}
 					else
 					{
@@ -5513,11 +5515,11 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
                 CAddress addr = GetLocalAddress(&pfrom->addr);
                 if (addr.IsRoutable())
                 {
-                    LogPrintf("ProcessMessages: advertising address %s\n", addr.ToString());
+                    if (fDebugMaster) LogPrintf("ProcessMessages: advertising address %s\n", addr.ToString());
                     pfrom->PushAddress(addr);
                 } else if (IsPeerAddrLocalGood(pfrom)) {
                     addr.SetIP(pfrom->addrLocal);
-                    LogPrintf("ProcessMessages: advertising address %s\n", addr.ToString());
+                    if (fDebugMaster) LogPrintf("ProcessMessages: advertising address %s\n", addr.ToString());
                     pfrom->PushAddress(addr);
                 }
             }
@@ -5550,7 +5552,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
         if (fLogIPs)
             remoteAddr = ", peeraddr=" + pfrom->addr.ToString();
 
-        LogPrintf("receive version message: %s: version %d, blocks=%d, us=%s, peer=%d%s\n",
+        if (fDebugMaster) LogPrintf("receive version message: %s: version %d, blocks=%d, us=%s, peer=%d%s\n",
                   pfrom->cleanSubVer, pfrom->nVersion,
                   pfrom->nStartingHeight, addrMe.ToString(), pfrom->id,
                   remoteAddr);

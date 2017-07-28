@@ -29,6 +29,8 @@
 using namespace std;
 
 extern void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry);
+int32_t ComputeBlockVersion(const CBlockIndex* pindexPrev, const Consensus::Params& params);
+std::string ExtractXML(std::string XMLdata, std::string key, std::string key_end);
 void ScriptPubKeyToJSON(const CScript& scriptPubKey, UniValue& out, bool fIncludeHex);
 std::string PubKeyToAddress(const CScript& scriptPubKey);
 UniValue ContributionReport();
@@ -154,8 +156,9 @@ UniValue blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool tx
     result.push_back(Pair("bits", strprintf("%08x", block.nBits)));
     result.push_back(Pair("difficulty", GetDifficultyN(blockindex,10)));
     result.push_back(Pair("chainwork", blockindex->nChainWork.GetHex()));
-	
 	result.push_back(Pair("subsidy", block.vtx[0].vout[0].nValue/COIN));
+	result.push_back(Pair("blockversion", ExtractXML(block.vtx[0].vout[0].sTxOutMessage,"<VER>","</VER>")));
+	
 	const Consensus::Params& consensusParams = Params().GetConsensus();
 	
 	if (blockindex->pprev)
@@ -1035,6 +1038,63 @@ UniValue mempoolInfoToJSON()
 }
 
 
+void ScanBlockChainVersion(int nLookback)
+{
+    mvBlockVersion.clear();
+    int nMaxDepth = chainActive.Tip()->nHeight;
+    int nMinDepth = (nMaxDepth - nLookback);
+    if (nMinDepth < 1) nMinDepth = 1;
+    CBlock block;
+    CBlockIndex* pblockindex = chainActive.Tip();
+ 	const Consensus::Params& consensusParams = Params().GetConsensus();
+    while (pblockindex->nHeight > nMinDepth)
+    {
+         if (!pblockindex || !pblockindex->pprev) return;
+         pblockindex = pblockindex->pprev;
+         if (ReadBlockFromDisk(block, pblockindex, consensusParams)) 
+		 {
+			//std::string sVersion = RoundToString(block.nVersion,0); // In case we ever add a version suffix
+			std::string sVersion2 = ExtractXML(block.vtx[0].vout[0].sTxOutMessage,"<VER>","</VER>");
+			//mvBlockVersion[sVersion]++;
+			mvBlockVersion[sVersion2]++;
+
+		 }
+    }
+}
+
+
+UniValue GetVersionReport()
+{
+	  UniValue ret(UniValue::VOBJ);
+      //Returns a report of the BiblePay version that has been solving blocks over the last N blocks
+	  ScanBlockChainVersion(BLOCKS_PER_DAY);
+      std::string sBlockVersion = "";
+      std::string sReport = "Version, Popularity\r\n";
+      std::string sRow = "";
+      double dPct = 0;
+      ret.push_back(Pair("Version","Popularity,Percent %"));
+      double Votes = 0;
+	  for(map<std::string,double>::iterator ii=mvBlockVersion.begin(); ii!=mvBlockVersion.end(); ++ii) 
+      {
+            double Popularity = mvBlockVersion[(*ii).first];
+			Votes += Popularity;
+      }
+      
+      for(map<std::string,double>::iterator ii=mvBlockVersion.begin(); ii!=mvBlockVersion.end(); ++ii) 
+      {
+            double Popularity = mvBlockVersion[(*ii).first];
+            sBlockVersion = (*ii).first;
+            if (Popularity > 0)
+            {
+                sRow = sBlockVersion + "," + RoundToString(Popularity,0);
+                sReport += sRow + "\r\n";
+                dPct = Popularity / (Votes+.01) * 100;
+                ret.push_back(Pair(sBlockVersion,RoundToString(Popularity,0) + "; " + RoundToString(dPct,2) + "%"));
+            }
+      }
+      return ret;
+}
+
 
 UniValue run(const UniValue& params, bool fHelp)
 {
@@ -1072,6 +1132,23 @@ UniValue run(const UniValue& params, bool fHelp)
 		std::string sResult = SendBlockchainMessage(sType, sPrimaryKey, sValue, 1);
 		results.push_back(Pair("Sent",sValue));
 		results.push_back(Pair("TXID",sResult));
+	}
+	else if (sItem == "getversion")
+	{
+		const Consensus::Params& consensusParams = Params().GetConsensus();
+		int32_t nMyVersion = ComputeBlockVersion(chainActive.Tip(), consensusParams);
+		results.push_back(Pair("Block Version",(double)nMyVersion));
+		if (pwalletMain) 
+		{
+			results.push_back(Pair("walletversion", pwalletMain->GetVersion()));
+			results.push_back(Pair("wallet_fullversion", FormatFullVersion()));
+		}
+    
+	}
+	else if (sItem == "versionreport")
+	{
+		UniValue uVersionReport = GetVersionReport();
+		return uVersionReport;
 	}
 	else if (sItem == "datalist")
 	{
@@ -1356,22 +1433,21 @@ UniValue ContributionReport()
 			{
 				LogPrintf("Reading %f ",(double)ii);
 
-					BOOST_FOREACH(CTransaction& tx, block.vtx)
-					{
-						 for (int i=0; i < (int)tx.vout.size(); i++)
-						 {
-								std::string sRecipient = PubKeyToAddress(tx.vout[i].scriptPubKey);
-								double dAmount = tx.vout[i].nValue/COIN;
-								if (sRecipient == consensusParams.FoundationAddress)
-								{
-									dTotal += dAmount;
-							        ret.push_back(Pair("Block ", ii));
-									ret.push_back(Pair("Amount", dAmount));
-									LogPrintf("Amount %f ",dAmount);
-
-								}
-						 }
+				BOOST_FOREACH(CTransaction& tx, block.vtx)
+				{
+					 for (int i=0; i < (int)tx.vout.size(); i++)
+					 {
+				 		std::string sRecipient = PubKeyToAddress(tx.vout[i].scriptPubKey);
+						double dAmount = tx.vout[i].nValue/COIN;
+						if (sRecipient == consensusParams.FoundationAddress)
+						{
+								dTotal += dAmount;
+						        ret.push_back(Pair("Block ", ii));
+								ret.push_back(Pair("Amount", dAmount));
+								LogPrintf("Amount %f ",dAmount);
+						}
 					 }
+				 }
 			}
 	}
 	ret.push_back(Pair("Grand Total", dTotal));

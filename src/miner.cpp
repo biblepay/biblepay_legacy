@@ -14,6 +14,7 @@
 #include "consensus/consensus.h"
 #include "consensus/merkle.h"
 #include "consensus/validation.h"
+#include "clientversion.h"
 #include "hash.h"
 #include "main.h"
 #include "net.h"
@@ -294,6 +295,10 @@ CBlockTemplate* CreateNewBlock(const CChainParams& chainparams, const CScript& s
         // Compute regular coinbase transaction.
         txNew.vout[0].nValue = blockReward;
         txNew.vin[0].scriptSig = CScript() << nHeight << OP_0;
+
+		// Add BiblePay version to the subsidy tx message
+		std::string sVersion = FormatFullVersion();
+		txNew.vout[0].sTxOutMessage = "<VER>" + sVersion + "</VER>";
 	
         // Update coinbase transaction with additional info about masternode and governance payments,
         // get some info back to pass to getblocktemplate
@@ -407,9 +412,10 @@ static bool ProcessBlockFound(const CBlock* pblock, const CChainParams& chainpar
 
 void static BibleMiner(const CChainParams& chainparams)
 {
+	LogPrintf("BibleMiner -- started\n");
+   
 recover:
-	MilliSleep(5000);
-    LogPrintf("BibleMiner -- started\n");
+	MilliSleep(1000);
     SetThreadPriority(THREAD_PRIORITY_LOWEST);
     RenameThread("biblepay-miner");
 
@@ -496,7 +502,8 @@ recover:
 					}
                     pblock->nNonce += 1;
                     nHashesDone += 1;
-                    if ((pblock->nNonce & 0xFF) == 0)
+					// 0x4FFF is approximately 15 seconds, then we update hashmeter
+                    if ((pblock->nNonce & 0x4FFF) == 0)
                         break;
                 }
 
@@ -535,11 +542,13 @@ recover:
     catch (const boost::thread_interrupted&)
     {
         LogPrintf("\r\nBiblepayMiner -- terminated\n");
+		dHashesPerSec = 0;
         throw;
     }
     catch (const std::runtime_error &e)
     {
         LogPrintf("\r\nBiblepayMiner -- runtime error: %s\n", e.what());
+		dHashesPerSec = 0;
         goto recover;
     }
 }
@@ -558,7 +567,6 @@ void GenerateBiblecoins(bool fGenerate, int nThreads, const CChainParams& chainp
         minerThreads = NULL;
     }
 
-	
     if (nThreads == 0 || !fGenerate)
         return;
 
@@ -566,6 +574,7 @@ void GenerateBiblecoins(bool fGenerate, int nThreads, const CChainParams& chainp
     for (int i = 0; i < nThreads; i++)
 	{
         minerThreads->create_thread(boost::bind(&BibleMiner, boost::cref(chainparams)));
+	    MilliSleep(300); // Avoid races by starting one thread every 300ms
 	}
 	// Maintain the HashPS
 	nHPSTimerStart = GetTimeMillis();

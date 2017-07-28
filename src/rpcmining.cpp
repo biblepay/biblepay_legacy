@@ -286,7 +286,7 @@ UniValue getmininginfo(const UniValue& params, bool fHelp)
     obj.push_back(Pair("difficulty",       (double)GetDifficultyN(NULL,10)));
     obj.push_back(Pair("errors",           GetWarnings("statusbar")));
     obj.push_back(Pair("genproclimit",     (int)GetArg("-genproclimit", DEFAULT_GENERATE_THREADS)));
-    obj.push_back(Pair("networkhashps",    getnetworkhashps(params, false)));
+    obj.push_back(Pair("network_khashps",    getnetworkhashps(params, false)));
 	// BiblePay: Add users HashPS
 	obj.push_back(Pair("hashps",           dHashesPerSec));
 	obj.push_back(Pair("minerstarttime",   nHPSTimerStart));

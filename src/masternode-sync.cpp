@@ -23,15 +23,19 @@ bool CMasternodeSync::CheckNodeHeight(CNode* pnode, bool fDisconnectStuckNodes)
     if(!GetNodeStateStats(pnode->id, stats) || stats.nCommonHeight == -1 || stats.nSyncHeight == -1) return false; // not enough info about this peer
 
     // Check blocks and headers, allow a small error margin of 1 block
-    if(pCurrentBlockIndex->nHeight - 1 > stats.nCommonHeight) {
+    if(pCurrentBlockIndex->nHeight - 1 > stats.nCommonHeight) 
+	{
         // This peer probably stuck, don't sync any additional data from it
-        if(fDisconnectStuckNodes) {
+        if(fDisconnectStuckNodes) 
+		{
             // Disconnect to free this connection slot for another peer.
             pnode->fDisconnect = true;
             LogPrintf("CMasternodeSync::CheckNodeHeight -- disconnecting from stuck peer, nHeight=%d, nCommonHeight=%d, peer=%d\n",
                         pCurrentBlockIndex->nHeight, stats.nCommonHeight, pnode->id);
-        } else {
-            LogPrintf("CMasternodeSync::CheckNodeHeight -- skipping stuck peer, nHeight=%d, nCommonHeight=%d, peer=%d\n",
+        }
+		else 
+		{
+            if (fDebugMaster) LogPrintf("CMasternodeSync::CheckNodeHeight -- skipping stuck peer, nHeight=%d, nCommonHeight=%d, peer=%d\n",
                         pCurrentBlockIndex->nHeight, stats.nCommonHeight, pnode->id);
         }
         return false;

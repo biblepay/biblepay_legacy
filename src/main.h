@@ -189,11 +189,10 @@ extern int PRAYER_MODULUS;
 extern int64_t nHPSTimerStart;
 extern int64_t nHashCounter;
 extern double dHashesPerSec;
-
+extern std::map<std::string, double> mvBlockVersion;
 extern int SIN_MODULUS;
 extern bool fLoadingIndex;
 extern int iPrayerIndex;
-
 
 extern std::map<uint256, int64_t> mapRejectedBlocks;
 

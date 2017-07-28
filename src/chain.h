@@ -326,9 +326,7 @@ public:
         READWRITE(nBits);
         READWRITE(nNonce);
 		READWRITE(hashBibleHash);
-		//sBlockMessage = sBlockMessage.substr(0,1000);
 		READWRITE(LIMITED_STRING(sBlockMessage,2000));
-   
     }
 
     uint256 GetBlockHash() const

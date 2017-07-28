@@ -413,7 +413,6 @@ static void SendMoney(const CTxDestination &address, CAmount nValue, bool fSubtr
 
 static void SendMoneyToDestinationWithMinimumBalance(const CTxDestination& address, CAmount nValue, CAmount nMinimumBalanceRequired, CWalletTx& wtxNew)
 {
-	//LogPrintf("Sending money to dest with min balance, message %s ",wtxNew.sTxMessage.c_str());
     if (pwalletMain->GetBalance() < nMinimumBalanceRequired || nValue > pwalletMain->GetBalance()) throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "Insufficient funds");
     SendMoney(address, nValue, false, wtxNew, false, false);
 }
