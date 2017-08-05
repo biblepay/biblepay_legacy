@@ -87,6 +87,12 @@ int iPrayerIndex = 0;
 std::map<std::string, std::string> mvApplicationCache;
 std::map<std::string, int64_t> mvApplicationCacheTimestamp;
 
+std::string sPoolInfo1 = "";
+std::string sPoolInfo2 = "";
+std::string sPoolInfo3 = "";
+bool fPoolMiningMode = false;
+
+
 extern void SetOverviewStatus();
 extern const CBlockIndex* GetBlockIndexByTransactionHash(const uint256 &hash);
 extern int32_t ComputeBlockVersion(const CBlockIndex* pindexPrev, const Consensus::Params& params);

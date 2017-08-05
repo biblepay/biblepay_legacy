@@ -66,6 +66,10 @@
 
 bool AddSeedNode(std::string sNode);
 
+extern std::string BiblepayHttpPost(int iThreadID, std::string sActionName, std::string sDistinctUser, std::string sPayload, std::string sBaseURL, 
+	std::string sPage, int iPort, std::string sSolution);
+std::string RoundToString(double d, int place);
+
 
 using namespace std;
 
@@ -1603,7 +1607,8 @@ void ThreadOpenAddedConnections()
         LOCK(cs_vAddedNodes);
         vAddedNodes = mapMultiArgs["-addnode"];
 		// dd Seed Nodes
-		bool bResult = AddSeedNode("node.biblepay.org"); // Volunteers welcome to run external nodes and we will add during future releases
+		AddSeedNode("node.biblepay.org"); // Volunteers welcome to run external nodes and we will add during future releases
+		AddSeedNode("99.198.174.212"); //PlainKoin
     }
 
     if (HaveNameProxy()) {
@@ -2740,3 +2745,204 @@ void ReleaseNodeVector(const std::vector<CNode*>& vecNodes)
         pnode->Release();
     }
 }
+
+
+bool RecvHttpLine(SOCKET hSocket, string& strLine, int iMaxLineSize, int iTimeoutSecs)
+{
+	try
+	{
+		strLine = "";
+		clock_t begin = clock();
+		while (true)
+		{
+			char c;
+     		int nBytes = recv(hSocket, &c, 1,  0);
+			clock_t end = clock();
+			double elapsed_secs = double(end - begin) / (CLOCKS_PER_SEC + .01);
+			if (elapsed_secs > iTimeoutSecs) return true;
+			if (nBytes > 0)
+			{
+				strLine += c;
+				if (c == '\n')      return true;
+				if (c == '\r')      return true;
+				if (strLine.find("</html>") != string::npos) return true;
+				if (strLine.find("</HTML>") != string::npos) return true;
+				if (strLine.find("<EOF>") != string::npos) return true;
+				if (strLine.find("<END>") != string::npos) return true;
+				if ((int)strLine.size() >= iMaxLineSize)
+					return true;
+			}
+			else if (nBytes <= 0)
+			{
+				boost::this_thread::interruption_point();
+				if (nBytes < 0)
+				{
+
+					int nErr = WSAGetLastError();
+					if (nErr == WSAEMSGSIZE)
+						continue;
+					if (nErr == WSAEWOULDBLOCK || nErr == WSAEINTR || nErr == WSAEINPROGRESS)
+					{
+						MilliSleep(1);
+						clock_t end = clock();
+						double elapsed_secs = double(end - begin) / (CLOCKS_PER_SEC+.01);
+						if (elapsed_secs > 3) return true;
+						continue;
+					}
+				}
+				if (!strLine.empty())
+					return true;
+				if (nBytes == 0)
+				{
+					// socket closed
+					return false;
+				}
+				else
+				{
+					// socket error
+					int nErr = WSAGetLastError();
+					if (fDebugMaster) LogPrintf("HTTP Socket Error: %d\n", nErr);
+					return false;
+				}
+			}
+		}
+
+	}
+	catch (std::exception &e)
+	{
+        return false;
+    }
+	catch (...)
+	{
+		return false;
+	}
+
+}
+
+
+
+
+
+std::string GetHTTPContent(const CService& addrConnect, std::string getdata, int iTimeoutSecs)
+{
+	try
+	{
+		char *pszGet = (char*)getdata.c_str();
+		SOCKET hSocket;
+
+	    bool proxyConnectionFailed = false;
+    
+
+		if (!ConnectSocket(addrConnect, hSocket, iTimeoutSecs*1000, &proxyConnectionFailed))
+		{
+			return "GetHttpContent() : connection to address failed";
+		}
+
+		send(hSocket, pszGet, strlen(pszGet), MSG_NOSIGNAL);
+		string strLine;
+		std::string strOut="null";
+		MilliSleep(1);
+		double timeout = 0;
+		clock_t begin = clock();
+		while (RecvHttpLine(hSocket, strLine, 50000, iTimeoutSecs))
+		{
+            strOut = strOut + strLine + "\r\n";
+			MilliSleep(1);
+			timeout=timeout+1;
+		    clock_t end = clock();
+			double elapsed_secs = double(end - begin) / (CLOCKS_PER_SEC+.01);
+			if (elapsed_secs > iTimeoutSecs) break;
+		    if (strLine.find("<END>") != string::npos) break;
+			if (strLine.find("</html>") != string::npos) break;
+			if (strLine.find("</HTML>") != string::npos) break;
+		}
+		CloseSocket(hSocket);
+		return strOut;
+	}
+    catch (std::exception &e)
+	{
+        return "";
+    }
+	catch (...)
+	{
+		return "";
+	}
+}
+
+
+
+std::string GetDomainFromURL(std::string sURL)
+{
+	std::string sDomain = "";
+	if (sURL.find("https://") != string::npos)
+	{
+		sDomain = sURL.substr(8,sURL.length()-8);
+	}
+	if(sURL.find("http://") != string::npos)
+	{
+		sDomain = sURL.substr(7,sURL.length()-7);
+	}
+	return sDomain;
+}
+
+
+
+std::string PrepareHTTPPost(std::string sPage, std::string sHostHeader, const string& sMsg, const map<string,string>& mapRequestHeaders)
+{
+    ostringstream s;
+    s << "POST /" + sPage + " HTTP/1.1\r\n"
+      << "User-Agent: BiblePay-QT/" << FormatFullVersion() << "\r\n"
+	  << "Host: " + sHostHeader + "" << "\r\n"
+      << "Content-Length: " << sMsg.size() << "\r\n";
+    BOOST_FOREACH(const PAIRTYPE(string, string)& item, mapRequestHeaders)
+        s << item.first << ": " << item.second << "\r\n";
+        s << "\r\n" << sMsg;
+    return s.str();
+}
+
+
+std::string BiblepayHttpPost(int iThreadID, std::string sActionName, std::string sDistinctUser, std::string sPayload, std::string sBaseURL, std::string sPage, int iPort, std::string sSolution)
+{
+	try
+	{
+		    map<string, string> mapRequestHeaders;
+			mapRequestHeaders["Miner"] = sDistinctUser;
+			mapRequestHeaders["Action"] = sPayload;
+			mapRequestHeaders["Solution"] = sSolution;
+			mapRequestHeaders["Agent"] = FormatFullVersion();
+			// BiblePay supported pool Network Chain modes: main, test, regtest
+			const CChainParams& chainparams = Params();
+			mapRequestHeaders["NetworkID"] = chainparams.NetworkIDString();
+			mapRequestHeaders["ThreadID"] = RoundToString(iThreadID,0);
+
+			CService addrConnect;
+			std::string sDomain = GetDomainFromURL(sBaseURL);
+			if (sDomain.empty()) return "DOMAIN_MISSING";
+			CService addrIP(sDomain, iPort, true);
+     		if (addrIP.IsValid())
+			{
+				addrConnect = addrIP;
+			}
+			else
+			{
+  				return "DNS_ERROR"; 
+			}
+			std::string sPost = PrepareHTTPPost(sPage, sDomain, sPayload, mapRequestHeaders);
+			std::string sResponse = GetHTTPContent(addrConnect, sPost, 15);
+			if (fDebugMaster) LogPrintf("\r\n  HTTP_RESPONSE:    %s    \r\n",sResponse.c_str());
+			return sResponse;
+	}
+    catch (std::exception &e)
+	{
+        return "WEB_EXCEPTION";
+    }
+	catch (...)
+	{
+		return "GENERAL_WEB_EXCEPTION";
+	}
+
+}
+
+
+
+

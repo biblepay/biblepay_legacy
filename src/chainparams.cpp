@@ -153,7 +153,7 @@ public:
         consensus.nBudgetPaymentsCycleBlocks = 50;
         consensus.nBudgetPaymentsWindowBlocks = 10;
         consensus.nBudgetProposalEstablishingTime = 60*20;
-		consensus.FoundationAddress = "tfoundation";
+		consensus.FoundationAddress = "yadZnJ3hD3FRC8CiLZEVNqejvQFgNtu5ci";
 
         consensus.nSuperblockStartBlock = 1000; // NOTE: Should satisfy nSuperblockStartBlock > nBudgetPeymentsStartBlock
         consensus.nSuperblockCycle = 24; // Superblocks can be issued hourly on testnet
@@ -263,7 +263,7 @@ public:
         consensus.nMajorityWindow = 1000;
         consensus.BIP34Height = 1; 
         consensus.BIP34Hash = uint256();
-		consensus.FoundationAddress = "rfoundation";
+		consensus.FoundationAddress = "yedEtKvuw9CMBKdzGNVM1ezzMMy2ibtXDR";
 
         consensus.powLimit = uint256S("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
         consensus.nPowTargetTimespan = 24 * 60 * 60; // Biblepay: 1 day

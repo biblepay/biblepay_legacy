@@ -193,6 +193,10 @@ extern std::map<std::string, double> mvBlockVersion;
 extern int SIN_MODULUS;
 extern bool fLoadingIndex;
 extern int iPrayerIndex;
+extern std::string sPoolInfo1;
+extern std::string sPoolInfo2;
+extern std::string sPoolInfo3;
+extern bool fPoolMiningMode;
 
 extern std::map<uint256, int64_t> mapRejectedBlocks;
 

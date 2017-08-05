@@ -31,6 +31,7 @@ using namespace std;
 extern void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry);
 int32_t ComputeBlockVersion(const CBlockIndex* pindexPrev, const Consensus::Params& params);
 std::string ExtractXML(std::string XMLdata, std::string key, std::string key_end);
+std::string BiblepayHttpPost(int iThreadID, std::string sActionName, std::string sDistinctUser, std::string sPayload, std::string sBaseURL, std::string sPage, int iPort, std::string sSolution);
 void ScriptPubKeyToJSON(const CScript& scriptPubKey, UniValue& out, bool fIncludeHex);
 std::string PubKeyToAddress(const CScript& scriptPubKey);
 UniValue ContributionReport();
@@ -1145,10 +1146,59 @@ UniValue run(const UniValue& params, bool fHelp)
 		}
     
 	}
+	else if (sItem == "betatestpoolpost")
+	{
+		std::string sResponse = BiblepayHttpPost(0,"POST","USER_A","PostSpeed","http://www.biblepay.org","home.html",80,"");
+		results.push_back(Pair("beta_post", sResponse));
+		results.push_back(Pair("beta_post_length", sResponse.length()));
+		std::string sResponse2 = BiblepayHttpPost(0,"POST","USER_A","PostSpeed","http://www.biblepay.org","404.html",80,"");
+		results.push_back(Pair("beta_post_404", sResponse2));
+		results.push_back(Pair("beta_post_length_404", sResponse2.length()));
+
+	}
 	else if (sItem == "versionreport")
 	{
 		UniValue uVersionReport = GetVersionReport();
 		return uVersionReport;
+	}
+	else if (sItem == "biblehash")
+	{
+		if (params.size() != 5)
+			throw runtime_error("You must specify blockhash, blocktime, prevblocktime and prevheight, IE: run biblehash blockhash 12345 12234 100.");
+		std::string sBlockHash = params[1].get_str();
+		std::string sBlockTime = params[2].get_str();
+		std::string sPrevBlockTime = params[3].get_str();
+		std::string sPrevHeight = params[4].get_str();
+		uint256 blockHash = uint256S("0x" + sBlockHash);
+		//(int64_t)
+		uint256 hash = BibleHash(blockHash,(int64_t)cdbl(sBlockTime,0),(int64_t)cdbl(sPrevBlockTime,0),true,(int64_t)cdbl(sPrevHeight,0));
+		results.push_back(Pair("BibleHash",hash.GetHex()));
+	}
+	else if (sItem == "subsidy")
+	{
+		if (params.size() != 2) 
+			throw runtime_error("You must specify height.");
+		std::string sHeight = params[1].get_str();
+		int64_t nHeight = (int64_t)cdbl(sHeight,0);
+		if (nHeight <= chainActive.Tip()->nHeight)
+		{
+			CBlockIndex* pindex = FindBlockByHeight(nHeight);
+			const Consensus::Params& consensusParams = Params().GetConsensus();
+			if (pindex)
+			{
+				CBlock block;
+				if (ReadBlockFromDisk(block, pindex, consensusParams)) 
+				{
+        				results.push_back(Pair("subsidy", block.vtx[0].vout[0].nValue/COIN));
+						std::string sRecipient = PubKeyToAddress(block.vtx[0].vout[0].scriptPubKey);
+						results.push_back(Pair("recipient", sRecipient));
+				}
+			}
+		}
+		else
+		{
+			results.push_back(Pair("error","block not found"));
+		}
 	}
 	else if (sItem == "datalist")
 	{

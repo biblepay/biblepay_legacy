@@ -26,16 +26,15 @@
 #endif
 #include "utilstrencodings.h"
 #include "validationinterface.h"
-
 #include <stdint.h>
-
 #include <boost/assign/list_of.hpp>
 #include <boost/shared_ptr.hpp>
-
 #include <univalue.h>
 
 using namespace std;
+
 uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight);
+std::string TimestampToHRDate(double dtm);
 
 double GetDifficultyN(const CBlockIndex* blockindex, double N);
 
@@ -181,7 +180,7 @@ UniValue generate(const UniValue& params, bool fHelp)
     UniValue blockHashes(UniValue::VARR);
     while (nHeight < nHeightEnd)
     {
-        auto_ptr<CBlockTemplate> pblocktemplate(CreateNewBlock(Params(), coinbaseScript->reserveScript));
+        auto_ptr<CBlockTemplate> pblocktemplate(CreateNewBlock(Params(), coinbaseScript->reserveScript, ""));
         if (!pblocktemplate.get())
             throw JSONRPCError(RPC_INTERNAL_ERROR, "Couldn't create new block");
         CBlock *pblock = &pblocktemplate->block;
@@ -289,11 +288,17 @@ UniValue getmininginfo(const UniValue& params, bool fHelp)
     obj.push_back(Pair("network_khashps",    getnetworkhashps(params, false)));
 	// BiblePay: Add users HashPS
 	obj.push_back(Pair("hashps",           dHashesPerSec));
-	obj.push_back(Pair("minerstarttime",   nHPSTimerStart));
+	obj.push_back(Pair("minerstarttime",   TimestampToHRDate(nHPSTimerStart/1000)));
     obj.push_back(Pair("pooledtx",         (uint64_t)mempool.size()));
     obj.push_back(Pair("testnet",          Params().TestnetToBeDeprecatedFieldRPC()));
     obj.push_back(Pair("chain",            Params().NetworkIDString()));
     obj.push_back(Pair("biblepay-generate",getgenerate(params, false)));
+	obj.push_back(Pair("poolinfo1",        sPoolInfo1));
+    obj.push_back(Pair("poolinfo2",        sPoolInfo2));
+    obj.push_back(Pair("poolinfo3",        sPoolInfo3));
+	obj.push_back(Pair("poolmining",       fPoolMiningMode));
+
+    
     return obj;
 }
 
@@ -558,7 +563,7 @@ UniValue getblocktemplate(const UniValue& params, bool fHelp)
             pblocktemplate = NULL;
         }
         CScript scriptDummy = CScript() << OP_TRUE;
-        pblocktemplate = CreateNewBlock(Params(), scriptDummy);
+        pblocktemplate = CreateNewBlock(Params(), scriptDummy, "");
         if (!pblocktemplate)
             throw JSONRPCError(RPC_OUT_OF_MEMORY, "Out of memory");
 

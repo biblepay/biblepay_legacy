@@ -50,6 +50,12 @@ using namespace std;
 uint64_t nLastBlockTx = 0;
 uint64_t nLastBlockSize = 0;
 uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight);
+std::string ExtractXML(std::string XMLdata, std::string key, std::string key_end);
+std::string BiblepayHttpPost(int iThreadID, std::string sActionName, std::string sDistinctUser, std::string sPayload, std::string sBaseURL, std::string sPage, int iPort, std::string sSolution);
+std::string RoundToString(double d, int place);
+std::string PoolRequest(int iThreadID, std::string sAction, std::string sPoolURL, std::string sMinerID, std::string sSolution);
+double cdbl(std::string s, int place);
+
 
 class ScoreCompare
 {
@@ -77,7 +83,7 @@ int64_t UpdateTime(CBlockHeader* pblock, const Consensus::Params& consensusParam
     return nNewTime - nOldTime;
 }
 
-CBlockTemplate* CreateNewBlock(const CChainParams& chainparams, const CScript& scriptPubKeyIn)
+CBlockTemplate* CreateNewBlock(const CChainParams& chainparams, const CScript& scriptPubKeyIn, std::string sPoolMiningPublicKey)
 {
     // Create new block
     auto_ptr<CBlockTemplate> pblocktemplate(new CBlockTemplate());
@@ -92,12 +98,20 @@ CBlockTemplate* CreateNewBlock(const CChainParams& chainparams, const CScript& s
     txNew.vout.resize(1);
     txNew.vout[0].scriptPubKey = scriptPubKeyIn;
 	CBlockIndex* pindexPrev = chainActive.Tip();
-    
+	
+	// BiblePay - Add support for Pools - this section applies during Non-Tithe blocks
+	if (!sPoolMiningPublicKey.empty())
+	{
+		CBitcoinAddress cbaPoolAddress(sPoolMiningPublicKey);
+        CScript spkPoolScript = GetScriptForDestination(cbaPoolAddress.Get());
+    	txNew.vout[0].scriptPubKey = spkPoolScript;
+	}
+
 	if (((pindexPrev->nHeight+1) % TITHE_MODULUS)==0)
 	{
 		//LogPrintf("\r\nTithe to Foundation being created_\r\n");
 	    CBitcoinAddress cbaFoundationAddress(chainparams.GetConsensus().FoundationAddress);
-        CScript  spkFoundationAddress = GetScriptForDestination(cbaFoundationAddress.Get());
+        CScript spkFoundationAddress = GetScriptForDestination(cbaFoundationAddress.Get());
     	txNew.vout[0].scriptPubKey = spkFoundationAddress;
 	}
     
@@ -387,11 +401,40 @@ void IncrementExtraNonce(CBlock* pblock, const CBlockIndex* pindexPrev, unsigned
 //    }
 //}
 
+
+void UpdatePoolProgress(const CBlock* pblock, std::string sPoolAddress, arith_uint256 hashPoolTarget, CBlockIndex* pindexPrev, std::string sMinerGuid, std::string sWorkID, 
+	int iThreadID, unsigned int iThreadWork, int64_t nThreadStart)
+{
+	uint256 hashSolution = BibleHash(pblock->GetHash(),pblock->GetBlockTime(),pindexPrev->nTime,true,pindexPrev->nHeight);
+	if (!sPoolAddress.empty())
+	{
+		std::string sWorkerID = GetArg("-workerid","");
+		std::string sPoolURL = GetArg("-pool", "");
+		if (sWorkerID.empty() || sPoolURL.empty()) return;
+		std::string sSolution = pblock->GetHash().ToString() 
+			+ "," + RoundToString(pblock->GetBlockTime(),0) 
+			+ "," + RoundToString(pindexPrev->nTime,0) 
+			+ "," + RoundToString(pindexPrev->nHeight,0) 
+			+ "," + hashSolution.GetHex() 
+			+ "," + sMinerGuid 
+			+ "," + sWorkID 
+			+ "," + RoundToString(iThreadID,0) 
+			+ "," + RoundToString(iThreadWork,0) 
+			+ "," + RoundToString(nThreadStart,0) 
+			+ "," + RoundToString(nHashCounter,0) 
+			+ "," + RoundToString(nHPSTimerStart,0)
+			+ "," + RoundToString(GetTimeMillis(),0);
+
+		std::string sResult = PoolRequest(iThreadID,"solution",sPoolURL,sWorkerID,sSolution);
+		if (fDebugMaster) LogPrintf(" PoolStatus: %s, URL %s, workerid %s, solu %s ",sResult.c_str(), sPoolURL.c_str(), sWorkerID.c_str(), sSolution.c_str());
+	}
+}
+
 static bool ProcessBlockFound(const CBlock* pblock, const CChainParams& chainparams)
 {
     LogPrintf("%s\n", pblock->ToString());
     LogPrintf("generated %s\n", FormatMoney(pblock->vtx[0].vout[0].nValue));
-
+				
     // Found a solution
     {
         LOCK(cs_main);
@@ -410,26 +453,136 @@ static bool ProcessBlockFound(const CBlock* pblock, const CChainParams& chainpar
     return true;
 }
 
-void static BibleMiner(const CChainParams& chainparams)
+
+std::string PoolRequest(int iThreadID, std::string sAction, std::string sPoolURL, std::string sMinerID, std::string sSolution)
 {
-	LogPrintf("BibleMiner -- started\n");
-   
+	int iPoolPort = (int)cdbl(GetArg("-poolport", "80"),0);
+	std::string sPoolPage = "Action.aspx";
+	std::string sMultiResponse = BiblepayHttpPost(iThreadID,"POST",sMinerID,sAction,sPoolURL,sPoolPage,iPoolPort,sSolution);
+	// Glean the pool responses
+	std::string sError = ExtractXML(sMultiResponse,"<ERROR>","</ERROR>");
+	std::string sResponse = ExtractXML(sMultiResponse,"<RESPONSE>","</RESPONSE>");
+	return sResponse;
+}
+
+bool GetPoolMiningMode(int iThreadID, std::string& out_PoolAddress, arith_uint256& out_HashTargetPool, std::string& out_MinerGuid, std::string& out_WorkID)
+{
+	// If user is not pool mining, return false.
+	// If user is pool mining, and pool is down, return false so that the client reverts back to solo mining mode automatically.
+	// Honor TestNet and RegTestNet when communicating with pools, so we support all three NetworkID types for robust support/testing.
+	std::string sPoolURL = GetArg("-pool", "");
+	sPoolInfo1 = "";
+	sPoolInfo2 = "";
+	sPoolInfo3 = "";
+	out_MinerGuid = "";
+	out_WorkID = "";
+	out_PoolAddress = "";
+
+	// If pool URL is empty, user is not pool mining
+	if (sPoolURL.empty()) return false;
+	std::string sWorkerID = GetArg("-workerid",""); //This is the setting reqd to communicate with the pool that points to the pools web account workerID, so the owner of the worker can receive credit for work
+	if (sWorkerID.empty()) 
+	{
+		LogPrintf("\r\n ** NOTE: NODE WANTS TO POOL MINE, BUT NO WORKER SET UP IN CONFIG FILE.  SET workerid=webaccount_worker_id in order to pool mine.  Reverting to Solo Mining ** \r\n");
+		return false;
+	}
+	// Test Pool to ensure it can send us work before committing to being a pool miner
+	std::string sResult = PoolRequest(iThreadID, "readytomine", sPoolURL, sWorkerID, "");
+	if (fDebugMaster) LogPrintf(" POOL RESULT %s ",sResult.c_str());
+
+	std::string sPoolAddress = ExtractXML(sResult,"<ADDRESS>","</ADDRESS>");
+	if (sPoolAddress.empty() || sPoolAddress == "HEALTH_DOWN") 
+	{
+		LogPrintf(";POOL DOWN %s, reverting to solo mining;",sPoolURL.c_str());
+		MilliSleep(2000);
+		return false;
+	}
+	else
+	{
+		 CBitcoinAddress cbaPoolAddress(sPoolAddress);
+		 if (!cbaPoolAddress.IsValid())
+		 {
+			 LogPrintf("INVALID POOL ADDRESS");
+			 return false;  // Ensure pool returns a valid address for this network
+		 }
+		 // Verify pool has a hash target for this miner
+		 std::string sHashTarget = ExtractXML(sResult,"<HASHTARGET>","</HASHTARGET>");
+		 if (sHashTarget.empty())
+		 {
+			 LogPrintf("\r\n ** POOL HAS NO AVAILABLE WORK ** \r\n");
+			 return false; //Revert to solo mining
+		 }
+		
+		 out_HashTargetPool = UintToArith256(uint256S("0x" + sHashTarget));
+		 out_MinerGuid = ExtractXML(sResult,"<MINERGUID>","</MINERGUID>");
+		 out_WorkID = ExtractXML(sResult,"<WORKID>","</WORKID>");
+		 if (out_MinerGuid.empty()) 
+		 {
+			
+			 LogPrintf("MINER_GUID IS EMPTY");
+			 return false;
+		 }
+		 if (out_WorkID.empty()) 
+		 {
+				LogPrintf("POOL HAS NO AVAILABLE WORK");
+				return false;
+		 }
+		 out_PoolAddress=sPoolAddress;
+		 // Start Pool Mining
+	 	 sPoolInfo1 = sPoolURL;
+		 sPoolInfo2 = out_MinerGuid;
+		 
+		 return true;
+	}
+	return false;
+}
+
+
+std::string GetPoolMiningNarr(std::string sPoolAddress)
+{
+	const CChainParams& chainparams = Params();
+	std::string sNetwork = chainparams.NetworkIDString();
+
+	if (sPoolAddress.empty())
+	{
+		return "SOLO MINING AGAINST " + sNetwork + " NET";
+	}
+	else
+	{
+		std::string sPoolURL = GetArg("-pool", "");
+		std::string sNarr = "POOL MINING WITH POOL " + sPoolURL + " AGAINST " + sNetwork + " NET, POOL RECV ADDRESS " + sPoolAddress;
+		return sNarr;
+	}
+}
+
+void static BibleMiner(const CChainParams& chainparams, int iThreadID)
+{
+	LogPrintf("BibleMiner -- started thread %f \n",(double)iThreadID);
+    unsigned int iBibleMinerCount = 0;
+	int64_t nThreadStart = GetTimeMillis();
+	int64_t nThreadWork = 0;
+
 recover:
 	MilliSleep(1000);
     SetThreadPriority(THREAD_PRIORITY_LOWEST);
     RenameThread("biblepay-miner");
 
     unsigned int nExtraNonce = 0;
-
+	
     boost::shared_ptr<CReserveScript> coinbaseScript;
     GetMainSignals().ScriptForMining(coinbaseScript);
-
+	std::string sPoolMiningAddress = "";
+	std::string sMinerGuid = "";
+	std::string sWorkID = "";
+			
     try {
         // Throw an error if no script was provided.  This can happen
         // due to some internal error but also if the keypool is empty.
         // In the latter case, already the pointer is NULL.
         if (!coinbaseScript || coinbaseScript->reserveScript.empty())
             throw std::runtime_error("No coinbase script available (mining requires a wallet)");
+
+		arith_uint256 hashTargetPool = UintToArith256(uint256S("0x0"));
 
         while (true) 
 		{
@@ -454,6 +607,12 @@ recover:
                 } while (true);
             }
 
+			// Pool Support
+			if (!fPoolMiningMode || hashTargetPool == 0)
+			{
+				fPoolMiningMode = GetPoolMiningMode(iThreadID, sPoolMiningAddress, hashTargetPool, sMinerGuid, sWorkID);
+				if (fDebugMaster) LogPrintf("Checking with Pool: Mode %f, Pool Address %s \r\n",(double)fPoolMiningMode,sPoolMiningAddress.c_str());
+			}
 		    
             //
             // Create new block
@@ -462,7 +621,7 @@ recover:
             CBlockIndex* pindexPrev = chainActive.Tip();
             if(!pindexPrev) break;
 
-            auto_ptr<CBlockTemplate> pblocktemplate(CreateNewBlock(chainparams, coinbaseScript->reserveScript));
+		    auto_ptr<CBlockTemplate> pblocktemplate(CreateNewBlock(chainparams, coinbaseScript->reserveScript, sPoolMiningAddress));
             if (!pblocktemplate.get())
             {
                 LogPrintf("BiblepayMiner -- Keypool ran out, please call keypoolrefill before restarting the mining thread\n");
@@ -470,14 +629,17 @@ recover:
             }
             CBlock *pblock = &pblocktemplate->block;
             IncrementExtraNonce(pblock, pindexPrev, nExtraNonce);
+			std::string sPoolNarr = GetPoolMiningNarr(sPoolMiningAddress);
 
-            if (fDebugMaster) LogPrintf("BiblepayMiner -- Running miner with %u transactions in block (%u bytes)\n", pblock->vtx.size(), ::GetSerializeSize(*pblock, SER_NETWORK, PROTOCOL_VERSION));
+            if (fDebugMaster) LogPrintf("BiblepayMiner -- Running miner %s with %u transactions in block (%u bytes)\n", sPoolNarr.c_str(), 
+				pblock->vtx.size(), ::GetSerializeSize(*pblock, SER_NETWORK, PROTOCOL_VERSION));
 
             //
             // Search
             //
             int64_t nStart = GetTime();
             arith_uint256 hashTarget = arith_uint256().SetCompact(pblock->nBits);
+			
 		    while (true)
             {
 				unsigned int nHashesDone = 0;
@@ -486,7 +648,8 @@ recover:
 					// BiblePay: Proof of BibleHash requires the blockHash to not only be less than the Hash Target, but also,
 					// the BibleHash of the blockhash must be less than the target.
 					// The BibleHash is generated from chained bible verses, a historical tx lookup, one AES encryption operation, and MD5 hash
-					uint256 hash = BibleHash(pblock->GetHash(),pblock->GetBlockTime(),pindexPrev->nTime,true,pindexPrev->nHeight);
+					uint256 hash = BibleHash(pblock->GetHash(), pblock->GetBlockTime(), pindexPrev->nTime, true, pindexPrev->nHeight);
+				
 					if (UintToArith256(hash) <= hashTarget && UintToArith256(pblock->GetHash()) <= hashTarget)
 				    {
 							// Found a solution
@@ -498,24 +661,66 @@ recover:
 							// allows developers to controllably generate a block on demand.
 							if (chainparams.MineBlocksOnDemand())
 								throw boost::thread_interrupted();
+
+							if (fPoolMiningMode)
+							{
+								nHashCounter += nHashesDone;
+								nHashesDone = 0;
+								// NOTE: The pools do not trust the hashesdone or the metrics sent by the client, but it is useful for the pool to receive this for debugging and for calibration
+								UpdatePoolProgress(pblock, sPoolMiningAddress, hashTargetPool, pindexPrev, sMinerGuid, sWorkID, iThreadID, nThreadWork, nThreadStart);
+								hashTargetPool = UintToArith256(uint256S("0x0"));
+								nThreadStart = GetTimeMillis();
+								nThreadWork = 0;
+							}
 							break;
+					}
+					if (fPoolMiningMode)
+					{
+						if (UintToArith256(hash) <= hashTargetPool && UintToArith256(pblock->GetHash()) <= hashTargetPool)
+						{
+							nHashCounter += nHashesDone;
+							nHashesDone = 0;
+							UpdatePoolProgress(pblock, sPoolMiningAddress, hashTargetPool, pindexPrev, sMinerGuid, sWorkID, iThreadID, nThreadWork, nThreadStart);
+							hashTargetPool = UintToArith256(uint256S("0x0"));
+							nThreadStart = GetTimeMillis();
+							nThreadWork = 0;
+						}
 					}
                     pblock->nNonce += 1;
                     nHashesDone += 1;
-					// 0x4FFF is approximately 15 seconds, then we update hashmeter
-                    if ((pblock->nNonce & 0x4FFF) == 0)
+					nThreadWork += 1;
+					// 0x7FFF is approximately 30 seconds, then we update hashmeter
+                    if ((pblock->nNonce & 0x7FFF) == 0)
                         break;
                 }
 
 				// Update HashesPerSec
 				nHashCounter += nHashesDone;
 				dHashesPerSec = 1000.0 * nHashCounter / (GetTimeMillis() - nHPSTimerStart);
+				iBibleMinerCount++;
 
                 // Check for stop or if block needs to be rebuilt
                 boost::this_thread::interruption_point();
                 // Regtest mode doesn't require peers
-                if (vNodes.empty() && chainparams.MiningRequiresPeers())
+                
+				if (fPoolMiningMode && ((iBibleMinerCount % 5) == 0) && hashTargetPool < hashTarget && hashTargetPool > 0)
+				{
+					if (fDebugMaster) LogPrintf(" Pool mining hard block; checking for more work;  ");
+					hashTargetPool = UintToArith256(uint256S("0x0"));
+					break;
+				}
+
+				if (fPoolMiningMode && (sPoolMiningAddress.empty()) && (iBibleMinerCount % 5) == 0)
+				{
+					// This happens when the user wants to pool mine, the pool was down, so we are solo mining, now we need to check to see if the pool is back up during the next iteration
+					LogPrintf(" Checking on Pool Health to see if back up... ");
+					hashTargetPool = UintToArith256(uint256S("0x0"));
+					break;
+				}
+
+				if (vNodes.empty() && chainparams.MiningRequiresPeers())
                     break;
+
                 if (pblock->nNonce >= 0xFF)
                     break;
                 if (mempool.GetTransactionsUpdated() != nTransactionsUpdatedLast && GetTime() - nStart > 60)
@@ -535,6 +740,8 @@ recover:
 					// Changing pblock->nTime can change work required on testnet:
 					hashTarget.SetCompact(pblock->nBits);
 				}
+
+				
 				
             }
         }
@@ -549,7 +756,8 @@ recover:
     {
         LogPrintf("\r\nBiblepayMiner -- runtime error: %s\n", e.what());
 		dHashesPerSec = 0;
-        goto recover;
+        // (This used to be goto recover; remove after tests pass)
+		throw;
     }
 }
 
@@ -573,7 +781,7 @@ void GenerateBiblecoins(bool fGenerate, int nThreads, const CChainParams& chainp
     minerThreads = new boost::thread_group();
     for (int i = 0; i < nThreads; i++)
 	{
-        minerThreads->create_thread(boost::bind(&BibleMiner, boost::cref(chainparams)));
+        minerThreads->create_thread(boost::bind(&BibleMiner, boost::cref(chainparams), boost::cref(i)));
 	    MilliSleep(300); // Avoid races by starting one thread every 300ms
 	}
 	// Maintain the HashPS
