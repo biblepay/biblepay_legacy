@@ -1146,16 +1146,6 @@ UniValue run(const UniValue& params, bool fHelp)
 		}
     
 	}
-	else if (sItem == "betatestpoolpost")
-	{
-		std::string sResponse = BiblepayHttpPost(0,"POST","USER_A","PostSpeed","http://www.biblepay.org","home.html",80,"");
-		results.push_back(Pair("beta_post", sResponse));
-		results.push_back(Pair("beta_post_length", sResponse.length()));
-		std::string sResponse2 = BiblepayHttpPost(0,"POST","USER_A","PostSpeed","http://www.biblepay.org","404.html",80,"");
-		results.push_back(Pair("beta_post_404", sResponse2));
-		results.push_back(Pair("beta_post_length_404", sResponse2.length()));
-
-	}
 	else if (sItem == "versionreport")
 	{
 		UniValue uVersionReport = GetVersionReport();
