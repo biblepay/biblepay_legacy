@@ -1141,7 +1141,8 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     // ********************************************************* Step 3: parameter-to-internal-flags
 
     fDebug = !mapMultiArgs["-debug"].empty();
-	fDebugMaster = false;
+	fDebugMaster = !mapMultiArgs["-debugmaster"].empty();
+
 	fReboot2 = false;
     // Special-case: if -debug=0/-nodebug is set, turn off debugging messages
     const vector<string>& categories = mapMultiArgs["-debug"];

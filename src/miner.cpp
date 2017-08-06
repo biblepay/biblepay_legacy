@@ -462,6 +462,12 @@ std::string PoolRequest(int iThreadID, std::string sAction, std::string sPoolURL
 	// Glean the pool responses
 	std::string sError = ExtractXML(sMultiResponse,"<ERROR>","</ERROR>");
 	std::string sResponse = ExtractXML(sMultiResponse,"<RESPONSE>","</RESPONSE>");
+	if (!sError.empty())
+	{
+		// Notify User of Mining Problem with Pool (for example, if they entered an invalid workerid in conf file)
+		sPoolInfo3 = sError;
+		return "";
+	}
 	return sResponse;
 }
 
