@@ -2756,13 +2756,18 @@ bool RecvHttpLine(SOCKET hSocket, string& strLine, int iMaxLineSize, int iTimeou
 		while (true)
 		{
 			char c;
-     		int nBytes = recv(hSocket, &c, 1,  0);
+     		int nBytes = recv(hSocket, &c, 1, MSG_DONTWAIT);
 			clock_t end = clock();
 			double elapsed_secs = double(end - begin) / (CLOCKS_PER_SEC + .01);
-			if (elapsed_secs > iTimeoutSecs) return true;
+			if (elapsed_secs > iTimeoutSecs) 
+			{
+				if (fDebugMaster) LogPrintf(" http timeout ");
+				return true;
+			}
 			if (nBytes > 0)
 			{
 				strLine += c;
+				if (fDebugMaster) LogPrintf(" Line %s ",strLine.c_str());
 				if (c == '\n')      return true;
 				if (c == '\r')      return true;
 				if (strLine.find("</html>") != string::npos) return true;
@@ -2786,7 +2791,7 @@ bool RecvHttpLine(SOCKET hSocket, string& strLine, int iMaxLineSize, int iTimeou
 						MilliSleep(1);
 						clock_t end = clock();
 						double elapsed_secs = double(end - begin) / (CLOCKS_PER_SEC+.01);
-						if (elapsed_secs > 3) return true;
+						if (elapsed_secs > iTimeoutSecs) return true;
 						continue;
 					}
 				}
@@ -2801,8 +2806,11 @@ bool RecvHttpLine(SOCKET hSocket, string& strLine, int iMaxLineSize, int iTimeou
 				{
 					// socket error
 					int nErr = WSAGetLastError();
-					if (fDebugMaster) LogPrintf("HTTP Socket Error: %d\n", nErr);
-					return false;
+					if (nErr > 0)
+					{
+						if (fDebugMaster) LogPrintf("HTTP Socket Error: %d\n", nErr);
+						return false;
+					}
 				}
 			}
 		}
@@ -2818,8 +2826,6 @@ bool RecvHttpLine(SOCKET hSocket, string& strLine, int iMaxLineSize, int iTimeou
 	}
 
 }
-
-
 
 
 
