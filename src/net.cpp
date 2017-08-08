@@ -2767,7 +2767,6 @@ bool RecvHttpLine(SOCKET hSocket, string& strLine, int iMaxLineSize, int iTimeou
 			if (nBytes > 0)
 			{
 				strLine += c;
-				if (fDebugMaster) LogPrintf(" Line %s ",strLine.c_str());
 				if (c == '\n')      return true;
 				if (c == '\r')      return true;
 				if (strLine.find("</html>") != string::npos) return true;

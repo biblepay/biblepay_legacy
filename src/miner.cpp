@@ -646,6 +646,8 @@ recover:
             int64_t nStart = GetTime();
             arith_uint256 hashTarget = arith_uint256().SetCompact(pblock->nBits);
 			
+			SetThreadPriority(THREAD_PRIORITY_ABOVE_NORMAL);
+							
 		    while (true)
             {
 				unsigned int nHashesDone = 0;
@@ -654,10 +656,13 @@ recover:
 					// BiblePay: Proof of BibleHash requires the blockHash to not only be less than the Hash Target, but also,
 					// the BibleHash of the blockhash must be less than the target.
 					// The BibleHash is generated from chained bible verses, a historical tx lookup, one AES encryption operation, and MD5 hash
-					uint256 hash = BibleHash(pblock->GetHash(), pblock->GetBlockTime(), pindexPrev->nTime, true, pindexPrev->nHeight);
+					uint256 x11_hash = pblock->GetHash();
+					if (UintToArith256(x11_hash) <= hashTarget)
+					{
+						uint256 hash = BibleHash(x11_hash, pblock->GetBlockTime(), pindexPrev->nTime, true, pindexPrev->nHeight);
 				
-					if (UintToArith256(hash) <= hashTarget && UintToArith256(pblock->GetHash()) <= hashTarget)
-				    {
+					    if (UintToArith256(hash) <= hashTarget && UintToArith256(x11_hash) <= hashTarget)
+				        {
 							// Found a solution
 							SetThreadPriority(THREAD_PRIORITY_NORMAL);
 							ProcessBlockFound(pblock, chainparams);
@@ -679,25 +684,27 @@ recover:
 								nThreadWork = 0;
 							}
 							break;
-					}
-					if (fPoolMiningMode)
-					{
-						if (UintToArith256(hash) <= hashTargetPool && UintToArith256(pblock->GetHash()) <= hashTargetPool)
+						}
+						if (fPoolMiningMode)
 						{
-							nHashCounter += nHashesDone;
-							nHashesDone = 0;
-							UpdatePoolProgress(pblock, sPoolMiningAddress, hashTargetPool, pindexPrev, sMinerGuid, sWorkID, iThreadID, nThreadWork, nThreadStart);
-							hashTargetPool = UintToArith256(uint256S("0x0"));
-							nThreadStart = GetTimeMillis();
-							nThreadWork = 0;
+							if (UintToArith256(hash) <= hashTargetPool && UintToArith256(pblock->GetHash()) <= hashTargetPool)
+							{
+								nHashCounter += nHashesDone;
+								nHashesDone = 0;
+								UpdatePoolProgress(pblock, sPoolMiningAddress, hashTargetPool, pindexPrev, sMinerGuid, sWorkID, iThreadID, nThreadWork, nThreadStart);
+								hashTargetPool = UintToArith256(uint256S("0x0"));
+								nThreadStart = GetTimeMillis();
+								nThreadWork = 0;
+							}
 						}
 					}
-                    pblock->nNonce += 1;
-                    nHashesDone += 1;
+					pblock->nNonce += 1;
+					nHashesDone += 1;
 					nThreadWork += 1;
 					// 0x7FFF is approximately 30 seconds, then we update hashmeter
-                    if ((pblock->nNonce & 0x7FFF) == 0)
-                        break;
+					if ((pblock->nNonce & 0x7FFF) == 0)
+						break;
+					
                 }
 
 				// Update HashesPerSec
@@ -762,8 +769,12 @@ recover:
     {
         LogPrintf("\r\nBiblepayMiner -- runtime error: %s\n", e.what());
 		dHashesPerSec = 0;
-        // (This used to be goto recover; remove after tests pass)
-		throw;
+		// This happens occasionally when TestBlockValidity fails; I suppose the best thing to do for now is start the thread over.
+		nThreadStart = GetTimeMillis();
+		nThreadWork = 0;
+		MilliSleep(1000);
+		goto recover;
+		// throw;
     }
 }
 
