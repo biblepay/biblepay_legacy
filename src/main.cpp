@@ -65,6 +65,7 @@ using namespace std;
  */
 
 CCriticalSection cs_main;
+CCriticalSection cs_pool;
 
 BlockMap mapBlockIndex;
 CChain chainActive;

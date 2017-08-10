@@ -456,6 +456,8 @@ static bool ProcessBlockFound(const CBlock* pblock, const CChainParams& chainpar
 
 std::string PoolRequest(int iThreadID, std::string sAction, std::string sPoolURL, std::string sMinerID, std::string sSolution)
 {
+	LOCK(cs_pool); // Global Lock to update sPoolInfo3
+
 	int iPoolPort = (int)cdbl(GetArg("-poolport", "80"),0);
 	std::string sPoolPage = "Action.aspx";
 	std::string sMultiResponse = BiblepayHttpPost(iThreadID,"POST",sMinerID,sAction,sPoolURL,sPoolPage,iPoolPort,sSolution);
@@ -476,10 +478,9 @@ bool GetPoolMiningMode(int iThreadID, std::string& out_PoolAddress, arith_uint25
 	// If user is not pool mining, return false.
 	// If user is pool mining, and pool is down, return false so that the client reverts back to solo mining mode automatically.
 	// Honor TestNet and RegTestNet when communicating with pools, so we support all three NetworkID types for robust support/testing.
+	LOCK(cs_pool);  // Global lock to write to sPoolInfo1-3
+
 	std::string sPoolURL = GetArg("-pool", "");
-	sPoolInfo1 = "";
-	sPoolInfo2 = "";
-	sPoolInfo3 = "";
 	out_MinerGuid = "";
 	out_WorkID = "";
 	out_PoolAddress = "";
@@ -489,6 +490,7 @@ bool GetPoolMiningMode(int iThreadID, std::string& out_PoolAddress, arith_uint25
 	std::string sWorkerID = GetArg("-workerid",""); //This is the setting reqd to communicate with the pool that points to the pools web account workerID, so the owner of the worker can receive credit for work
 	if (sWorkerID.empty()) 
 	{
+		sPoolInfo3="NO WORKER SET IN CONFIG FILE.";
 		LogPrintf("\r\n ** NOTE: NODE WANTS TO POOL MINE, BUT NO WORKER SET UP IN CONFIG FILE.  SET workerid=webaccount_worker_id in order to pool mine.  Reverting to Solo Mining ** \r\n");
 		return false;
 	}
@@ -499,6 +501,7 @@ bool GetPoolMiningMode(int iThreadID, std::string& out_PoolAddress, arith_uint25
 	std::string sPoolAddress = ExtractXML(sResult,"<ADDRESS>","</ADDRESS>");
 	if (sPoolAddress.empty() || sPoolAddress == "HEALTH_DOWN") 
 	{
+		sPoolInfo3="POOL DOWN, REVERTING TO SOLO MINING";
 		LogPrintf(";POOL DOWN %s, reverting to solo mining;",sPoolURL.c_str());
 		MilliSleep(2000);
 		return false;
@@ -508,6 +511,7 @@ bool GetPoolMiningMode(int iThreadID, std::string& out_PoolAddress, arith_uint25
 		 CBitcoinAddress cbaPoolAddress(sPoolAddress);
 		 if (!cbaPoolAddress.IsValid())
 		 {
+			 sPoolInfo3="INVALID POOL ADDRESS";
 			 LogPrintf("INVALID POOL ADDRESS");
 			 return false;  // Ensure pool returns a valid address for this network
 		 }
@@ -515,6 +519,7 @@ bool GetPoolMiningMode(int iThreadID, std::string& out_PoolAddress, arith_uint25
 		 std::string sHashTarget = ExtractXML(sResult,"<HASHTARGET>","</HASHTARGET>");
 		 if (sHashTarget.empty())
 		 {
+			 sPoolInfo3="POOL HAS NO AVAILABLE WORK";
 			 LogPrintf("\r\n ** POOL HAS NO AVAILABLE WORK ** \r\n");
 			 return false; //Revert to solo mining
 		 }
@@ -524,12 +529,13 @@ bool GetPoolMiningMode(int iThreadID, std::string& out_PoolAddress, arith_uint25
 		 out_WorkID = ExtractXML(sResult,"<WORKID>","</WORKID>");
 		 if (out_MinerGuid.empty()) 
 		 {
-			
+			 sPoolInfo3="MINER_GUID IS EMPTY";
 			 LogPrintf("MINER_GUID IS EMPTY");
 			 return false;
 		 }
 		 if (out_WorkID.empty()) 
 		 {
+			    sPoolInfo3="POOL HAS NO AVAILABLE WORK";
 				LogPrintf("POOL HAS NO AVAILABLE WORK");
 				return false;
 		 }
@@ -716,14 +722,14 @@ recover:
                 boost::this_thread::interruption_point();
                 // Regtest mode doesn't require peers
                 
-				if (fPoolMiningMode && ((iBibleMinerCount % 5) == 0) && hashTargetPool < hashTarget && hashTargetPool > 0)
+				if (fPoolMiningMode && ((iBibleMinerCount % 10) == 0) && hashTargetPool < hashTarget && hashTargetPool > 0)
 				{
 					if (fDebugMaster) LogPrintf(" Pool mining hard block; checking for more work;  ");
 					hashTargetPool = UintToArith256(uint256S("0x0"));
 					break;
 				}
 
-				if (fPoolMiningMode && (sPoolMiningAddress.empty()) && (iBibleMinerCount % 5) == 0)
+				if (fPoolMiningMode && (sPoolMiningAddress.empty()) && (iBibleMinerCount % 20) == 0)
 				{
 					// This happens when the user wants to pool mine, the pool was down, so we are solo mining, now we need to check to see if the pool is back up during the next iteration
 					LogPrintf(" Checking on Pool Health to see if back up... ");
@@ -753,8 +759,6 @@ recover:
 					// Changing pblock->nTime can change work required on testnet:
 					hashTarget.SetCompact(pblock->nBits);
 				}
-
-				
 				
             }
         }
