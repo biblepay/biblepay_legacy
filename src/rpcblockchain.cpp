@@ -38,6 +38,8 @@ UniValue ContributionReport();
 std::string RoundToString(double d, int place);
 extern std::string TimestampToHRDate(double dtm);
 void GetBookStartEnd(std::string sBook, int& iStart, int& iEnd);
+void ClearCache(std::string section);
+void WriteCache(std::string section, std::string key, std::string value, int64_t locktime);
 
 UniValue GetDataList(std::string sType, int iMaxAgeInDays, int& iSpecificEntry, std::string& outEntry);
 uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight);
@@ -1213,6 +1215,24 @@ UniValue run(const UniValue& params, bool fHelp)
 		std::string sEntry = "";
 		UniValue aDataList = GetDataList(sType, (int)dDays, iSpecificEntry, sEntry);
 		return aDataList;
+	}
+	else if (sItem == "clearcache")
+	{
+		if (params.size() != 2 && params.size() != 3)
+			throw runtime_error("You must specify type: IE 'run clearcache PRAYER'.");
+		std::string sType = params[1].get_str();
+		ClearCache(sType);
+		results.push_back(Pair("Cleared",sType));
+	}
+	else if (sItem == "writecache")
+	{
+		if (params.size() != 4)
+			throw runtime_error("You must specify type, key and value: IE 'run writecache type key value'.");
+		std::string sType = params[1].get_str();
+		std::string sKey = params[2].get_str();
+		std::string sValue = params[3].get_str();
+		WriteCache(sType,sKey,sValue,GetAdjustedTime());
+		results.push_back(Pair("WriteCache",sValue));
 	}
 	else if (sItem == "sins")
 	{

@@ -154,7 +154,6 @@ struct BlockHasher
 
 extern CScript COINBASE_FLAGS;
 extern CCriticalSection cs_main;
-extern CCriticalSection cs_pool;
 
 extern CTxMemPool mempool;
 typedef boost::unordered_map<uint256, CBlockIndex*, BlockHasher> BlockMap;
@@ -190,14 +189,14 @@ extern std::string msGlobalStatus3;
 extern int PRAYER_MODULUS;
 extern int64_t nHPSTimerStart;
 extern int64_t nHashCounter;
+extern int64_t nBibleMinerPulse;
+
 extern double dHashesPerSec;
 extern std::map<std::string, double> mvBlockVersion;
 extern int SIN_MODULUS;
 extern bool fLoadingIndex;
 extern int iPrayerIndex;
-extern std::string sPoolInfo1;
-extern std::string sPoolInfo2;
-extern std::string sPoolInfo3;
+extern int iMinerThreadCount;
 extern bool fPoolMiningMode;
 
 extern std::map<uint256, int64_t> mapRejectedBlocks;

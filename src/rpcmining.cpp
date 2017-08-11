@@ -35,7 +35,8 @@ using namespace std;
 
 uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight);
 std::string TimestampToHRDate(double dtm);
-
+std::string RoundToString(double d, int place);
+std::string ReadCache(std::string section, std::string key);
 double GetDifficultyN(const CBlockIndex* blockindex, double N);
 
 /**
@@ -251,6 +252,18 @@ UniValue setgenerate(const UniValue& params, bool fHelp)
     return NullUniValue;
 }
 
+std::string ConcatenatePoolHealth(std::string sPoolKey)
+{
+	// Gets the values from the current threads that are pool mining and puts them in a consolidated string so getmininginfo isnt cluttered
+	std::string sCat = "";
+	for (int i = 0; i <= iMinerThreadCount; i++)
+	{
+		std::string sPoolEntry = ReadCache("poolthread" + RoundToString(i,0), sPoolKey);
+		if (!sPoolEntry.empty()) sCat += sPoolEntry + "; ";
+	}
+	return sCat;
+}
+
 UniValue getmininginfo(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 0)
@@ -293,12 +306,11 @@ UniValue getmininginfo(const UniValue& params, bool fHelp)
     obj.push_back(Pair("testnet",          Params().TestnetToBeDeprecatedFieldRPC()));
     obj.push_back(Pair("chain",            Params().NetworkIDString()));
     obj.push_back(Pair("biblepay-generate",getgenerate(params, false)));
-	obj.push_back(Pair("poolinfo1",        sPoolInfo1));
-    obj.push_back(Pair("poolinfo2",        sPoolInfo2));
-    obj.push_back(Pair("poolinfo3",        sPoolInfo3));
+	obj.push_back(Pair("poolinfo1",        ConcatenatePoolHealth("poolinfo1")));
+    obj.push_back(Pair("poolinfo2",        ConcatenatePoolHealth("poolinfo2")));
+    obj.push_back(Pair("poolinfo3",        ConcatenatePoolHealth("poolinfo3")));
+	obj.push_back(Pair("miningpulse",      nBibleMinerPulse));
 	obj.push_back(Pair("poolmining",       fPoolMiningMode));
-
-    
     return obj;
 }
 

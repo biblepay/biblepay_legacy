@@ -65,7 +65,6 @@ using namespace std;
  */
 
 CCriticalSection cs_main;
-CCriticalSection cs_pool;
 
 BlockMap mapBlockIndex;
 CChain chainActive;
@@ -75,6 +74,8 @@ int SIN_MODULUS = 0;
 int PRAYER_MODULUS = 0;
 int64_t nHPSTimerStart = 0;
 int64_t nHashCounter = 0;
+int64_t nBibleMinerPulse;
+
 double dHashesPerSec = 0;
 std::map<std::string, double> mvBlockVersion;
 
@@ -87,18 +88,13 @@ bool fMasternodesEnabled = false;
 int iPrayerIndex = 0;
 std::map<std::string, std::string> mvApplicationCache;
 std::map<std::string, int64_t> mvApplicationCacheTimestamp;
-
-std::string sPoolInfo1 = "";
-std::string sPoolInfo2 = "";
-std::string sPoolInfo3 = "";
 bool fPoolMiningMode = false;
-
+int iMinerThreadCount = 0;
 
 extern void SetOverviewStatus();
 extern const CBlockIndex* GetBlockIndexByTransactionHash(const uint256 &hash);
 extern int32_t ComputeBlockVersion(const CBlockIndex* pindexPrev, const Consensus::Params& params);
-
-
+extern void ClearCache(std::string section);
 std::string ExtractXML(std::string XMLdata, std::string key, std::string key_end);
 UniValue GetDataList(std::string sType, int iMaxAgeInDays, int& iSpecificEntry, std::string& outEntry);
 double GetDifficulty(const CBlockIndex* blockindex);
@@ -6697,23 +6693,26 @@ double cdbl(std::string s, int place)
 	return d;
 }
 
-std::string ReadCache(std::string section, std::string key)
+std::string ReadCache(std::string sSection, std::string sKey)
 {
-	if (section.empty() || key.empty()) return "";
+	boost::to_upper(sSection);
+	boost::to_upper(sKey);
+	
+	if (sSection.empty() || sKey.empty()) return "";
 	try
 	{
-		std::string value = mvApplicationCache[section + ";" + key];
-		if (value.empty())
+		std::string sValue = mvApplicationCache[sSection + ";" + sKey];
+		if (sValue.empty())
 		{
-			mvApplicationCache.insert(map<std::string,std::string>::value_type(section + ";" + key,""));
-			mvApplicationCache[section + ";" + key]="";
+			mvApplicationCache.insert(map<std::string,std::string>::value_type(sSection + ";" + sKey,""));
+			mvApplicationCache[sSection + ";" + sKey]="";
 			return "";
 		}
-		return value;
+		return sValue;
 	}
 	catch(...)
 	{
-		printf("ReadCache error %s",section.c_str());
+		printf("ReadCache error %s",sSection.c_str());
 		return "";
 	}
 }
@@ -6737,25 +6736,26 @@ bool TimerMain(std::string timer_name, int max_ms)
 }
 
 
-void WriteCache(std::string section, std::string key, std::string value, int64_t locktime)
+void WriteCache(std::string sSection, std::string sKey, std::string sValue, int64_t locktime)
 {
-	if (section.empty() || key.empty()) return;
-	std::string temp_value = mvApplicationCache[section + ";" + key];
+	if (sSection.empty() || sKey.empty()) return;
+	boost::to_upper(sSection);
+	boost::to_upper(sKey);
+	std::string temp_value = mvApplicationCache[sSection + ";" + sKey];
 	if (temp_value.empty())
 	{
-		mvApplicationCache.insert(map<std::string,std::string>::value_type(section + ";" + key,value));
-	    mvApplicationCache[section + ";" + key]=value;
+		mvApplicationCache.insert(map<std::string,std::string>::value_type(sSection + ";" + sKey, sValue));
+	    mvApplicationCache[sSection + ";" + sKey] = sValue;
 	}
-	mvApplicationCache[section + ";" + key]=value;
+	mvApplicationCache[sSection + ";" + sKey] = sValue;
 	// Record Cache Entry timestamp
-	int64_t temp_locktime = mvApplicationCacheTimestamp[section + ";" + key];
+	int64_t temp_locktime = mvApplicationCacheTimestamp[sSection + ";" + sKey];
 	if (temp_locktime == 0)
 	{
-		mvApplicationCacheTimestamp.insert(map<std::string,int64_t>::value_type(section+";"+key,1));
-		mvApplicationCacheTimestamp[section+";"+key]=locktime;
+		mvApplicationCacheTimestamp.insert(map<std::string,int64_t>::value_type(sSection + ";" + sKey,1));
+		mvApplicationCacheTimestamp[sSection + ";" + sKey]=locktime;
 	}
-	mvApplicationCacheTimestamp[section+";"+key] = locktime;
-
+	mvApplicationCacheTimestamp[sSection + ";" + sKey] = locktime;
 }
 
 
@@ -6782,21 +6782,23 @@ void PurgeCacheAsOfExpiration(std::string section, int64_t expiration)
 }
 
 
-void ClearCache(std::string section)
+void ClearCache(std::string sSection)
 {
-	   for(map<string,string>::iterator ii=mvApplicationCache.begin(); ii!=mvApplicationCache.end(); ++ii)
-	   {
-				std::string key_section = mvApplicationCache[(*ii).first];
-				if (key_section.length() > section.length())
-				{
-					if (key_section.substr(0,section.length())==section)
-					{
-						printf("\r\nClearing the cache....of value %s \r\n",mvApplicationCache[key_section].c_str());
-						mvApplicationCache[key_section]="";
-						mvApplicationCacheTimestamp[key_section]=1;
-					}
-				}
-	   }
+	boost::to_upper(sSection);
+	for(map<string,string>::iterator ii=mvApplicationCache.begin(); ii!=mvApplicationCache.end(); ++ii)
+	{
+		std::string sKey = (*ii).first;
+		boost::to_upper(sKey);
+		if (sKey.length() > sSection.length())
+		{
+			if (sKey.substr(0,sSection.length())==sSection)
+			{
+				if (fDebugMaster) printf("\r\nClearing the cache....of value %s \r\n",mvApplicationCache[sKey].c_str());
+				mvApplicationCache[sKey]="";
+				mvApplicationCacheTimestamp[sKey]=1;
+			}
+		}
+	}
 
 }
 
