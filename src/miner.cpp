@@ -714,7 +714,7 @@ recover:
                 boost::this_thread::interruption_point();
                 // Regtest mode doesn't require peers
                 
-				if (fPoolMiningMode && ((iBibleMinerCount % 30) == 0) && hashTargetPool < hashTarget && hashTargetPool > 0)
+				if (fPoolMiningMode && ((iBibleMinerCount % 10) == 0) && hashTargetPool > 0)
 				{
 					if (fDebugMaster) LogPrintf(" Pool mining hard block; checking for more work;  ");
 					hashTargetPool = UintToArith256(uint256S("0x0"));
