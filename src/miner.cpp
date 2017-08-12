@@ -564,6 +564,7 @@ void static BibleMiner(const CChainParams& chainparams, int iThreadID)
     unsigned int iBibleMinerCount = 0;
 	int64_t nThreadStart = GetTimeMillis();
 	int64_t nThreadWork = 0;
+	int64_t nLastPool = GetAdjustedTime();
 
 recover:
 	MilliSleep(1000);
@@ -614,6 +615,7 @@ recover:
 			if (!fPoolMiningMode || hashTargetPool == 0)
 			{
 				fPoolMiningMode = GetPoolMiningMode(iThreadID, sPoolMiningAddress, hashTargetPool, sMinerGuid, sWorkID);
+				nLastPool = GetAdjustedTime();
 				if (fDebugMaster) LogPrintf("Checking with Pool: Mode %f, Pool Address %s \r\n",(double)fPoolMiningMode,sPoolMiningAddress.c_str());
 			}
 		    
@@ -714,20 +716,20 @@ recover:
                 boost::this_thread::interruption_point();
                 // Regtest mode doesn't require peers
                 
-				if (fPoolMiningMode && ((iBibleMinerCount % 10) == 0) && hashTargetPool > 0)
+				if (fPoolMiningMode && ((GetAdjustedTime() - nLastPool) > 60) && hashTargetPool < hashTarget && hashTargetPool > 0)
 				{
 					if (fDebugMaster) LogPrintf(" Pool mining hard block; checking for more work;  ");
 					hashTargetPool = UintToArith256(uint256S("0x0"));
 					break;
 				}
 
-				if ((iBibleMinerCount % 60) == 0)
+				if ((GetAdjustedTime() - nLastPool) > 60)
 				{
 					// Every minute, clear the pool buffer
 					ClearCache("poolthread" + RoundToString(iThreadID,0));
 				}
 
-				if (fPoolMiningMode && (sPoolMiningAddress.empty()) && (iBibleMinerCount % 140) == 0)
+				if (fPoolMiningMode && (sPoolMiningAddress.empty()) && (GetAdjustedTime() - nLastPool) > 7*60)
 				{
 					// This happens when the user wants to pool mine, the pool was down, so we are solo mining, now we need to check to see if the pool is back up during the next iteration
 					LogPrintf(" Checking on Pool Health to see if back up... ");
