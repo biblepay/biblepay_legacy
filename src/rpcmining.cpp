@@ -44,7 +44,8 @@ double GetDifficultyN(const CBlockIndex* blockindex, double N);
  * or from the last difficulty change if 'lookup' is nonpositive.
  * If 'height' is nonnegative, compute the estimate at the time when a given block was found.
  */
-UniValue GetNetworkHashPS(int lookup, int height) {
+UniValue GetNetworkHashPS(int lookup, int height) 
+{
     CBlockIndex *pb = chainActive.Tip();
 
     if (height >= 0 && height < chainActive.Height())
@@ -85,7 +86,7 @@ UniValue getnetworkhashps(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() > 2)
         throw runtime_error(
-            "getnetworkhashps ( blocks height )\n"
+            "getnetworkhashps ( highestblocknumber lowestblocknumber )\n"
             "\nReturns the estimated network hashes per second based on the last n blocks.\n"
             "Pass in [blocks] to override # of blocks, -1 specifies since last difficulty change.\n"
             "Pass in [height] to estimate the network speed at the time when a certain block was found.\n"
@@ -298,7 +299,7 @@ UniValue getmininginfo(const UniValue& params, bool fHelp)
     obj.push_back(Pair("difficulty",       (double)GetDifficultyN(NULL,10)));
     obj.push_back(Pair("errors",           GetWarnings("statusbar")));
     obj.push_back(Pair("genproclimit",     (int)GetArg("-genproclimit", DEFAULT_GENERATE_THREADS)));
-    obj.push_back(Pair("network_khashps",    getnetworkhashps(params, false)));
+    obj.push_back(Pair("network_khashps",  GetNetworkHashPS(chainActive.Height(), chainActive.Height() - (BLOCKS_PER_DAY/24)))); // Network KHPS over last hour
 	// BiblePay: Add users HashPS
 	obj.push_back(Pair("hashps",           dHashesPerSec));
 	obj.push_back(Pair("minerstarttime",   TimestampToHRDate(nHPSTimerStart/1000)));

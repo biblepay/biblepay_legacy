@@ -560,6 +560,7 @@ std::string GetPoolMiningNarr(std::string sPoolAddress)
 
 void static BibleMiner(const CChainParams& chainparams, int iThreadID)
 {
+	
 	LogPrintf("BibleMiner -- started thread %f \n",(double)iThreadID);
     unsigned int iBibleMinerCount = 0;
 	int64_t nThreadStart = GetTimeMillis();
@@ -567,8 +568,10 @@ void static BibleMiner(const CChainParams& chainparams, int iThreadID)
 	int64_t nLastPool = GetAdjustedTime();
 
 recover:
-	MilliSleep(1000);
-    SetThreadPriority(THREAD_PRIORITY_LOWEST);
+	int iStart = rand() % 1000;
+	MilliSleep(iStart);
+    
+	SetThreadPriority(THREAD_PRIORITY_LOWEST);
     RenameThread("biblepay-miner");
 
     unsigned int nExtraNonce = 0;
@@ -650,6 +653,8 @@ recover:
 		    while (true)
             {
 				unsigned int nHashesDone = 0;
+				pblock->nNonce = iThreadID * 16384; // start each blocks nonce in a different place, so we ensure each thread is doing distinct hashing.
+
                 while (true)
                 {
 					// BiblePay: Proof of BibleHash requires the blockHash to not only be less than the Hash Target, but also,
@@ -804,7 +809,7 @@ void GenerateBiblecoins(bool fGenerate, int nThreads, const CChainParams& chainp
 	{
 		ClearCache("poolthread" + RoundToString(i,0));
 	    minerThreads->create_thread(boost::bind(&BibleMiner, boost::cref(chainparams), boost::cref(i)));
-	    MilliSleep(300); // Avoid races by starting one thread every 300ms
+	    MilliSleep(100); // Avoid races
 	}
 	iMinerThreadCount = nThreads;
 
