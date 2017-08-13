@@ -4175,7 +4175,9 @@ bool TestBlockValidity(CValidationState& state, const CChainParams& chainparams,
 	}
 
     if (fCheckpointsEnabled && !CheckIndexAgainstCheckpoint(pindexPrev, state, chainparams, block.GetHash()))
+	{
         return error("%s: CheckIndexAgainstCheckpoint(): %s", __func__, state.GetRejectReason().c_str());
+	}
 
     CCoinsViewCache viewNew(pcoinsTip);
     CBlockIndex indexDummy(block);
@@ -6713,7 +6715,7 @@ std::string ReadCache(std::string sSection, std::string sKey)
 	}
 	catch(...)
 	{
-		printf("ReadCache error %s",sSection.c_str());
+		LogPrintf("ReadCache error %s",sSection.c_str());
 		return "";
 	}
 }
@@ -6794,7 +6796,6 @@ void ClearCache(std::string sSection)
 		{
 			if (sKey.substr(0,sSection.length())==sSection)
 			{
-				if (fDebugMaster) printf("\r\nClearing the cache....of value %s \r\n",mvApplicationCache[sKey].c_str());
 				mvApplicationCache[sKey]="";
 				mvApplicationCacheTimestamp[sKey]=1;
 			}
@@ -6898,7 +6899,6 @@ void MemorizePrayer(std::string sMessage, int64_t nTime, double dAmount, int iPo
 			  // Were using the Block time here because tx time returns seconds past epoch, and adjusting the time by the vout position (so the user can see what time the prayer was accepted in the block).
 			  std::string sAdjMessageKey = sMessageKey + " (" + sTimestamp + ")";
 			  WriteCache(sMessageType, sAdjMessageKey, sMessageValue, nTime);
-			  // if (fDebugMaster) LogPrintf(" MV %s ",sMessageValue.c_str());
 		  }
 	  }
 }

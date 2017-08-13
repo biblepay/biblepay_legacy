@@ -116,7 +116,6 @@ CBlockTemplate* CreateNewBlock(const CChainParams& chainparams, const CScript& s
         CScript spkFoundationAddress = GetScriptForDestination(cbaFoundationAddress.Get());
     	txNew.vout[0].scriptPubKey = spkFoundationAddress;
 	}
-    
 
     // Largest block you're willing to create:
     unsigned int nBlockMaxSize = GetArg("-blockmaxsize", DEFAULT_BLOCK_MAX_SIZE);
@@ -279,13 +278,11 @@ CBlockTemplate* CreateNewBlock(const CChainParams& chainparams, const CScript& s
                 double dPriority = iter->GetPriority(nHeight);
                 CAmount dummy;
                 mempool.ApplyDeltas(tx.GetHash(), dPriority, dummy);
-                LogPrintf("priority %.1f fee %s txid %s\n",
-                          dPriority , CFeeRate(iter->GetModifiedFee(), nTxSize).ToString(), tx.GetHash().ToString());
+                if (fDebugMaster) LogPrintf("priority %.1f fee %s txid %s\n", dPriority , CFeeRate(iter->GetModifiedFee(), nTxSize).ToString(), tx.GetHash().ToString());
             }
 
             inBlock.insert(iter);
-
-            // Add transactions that depend on this one to the priority queue
+	        // Add transactions that depend on this one to the priority queue
             BOOST_FOREACH(CTxMemPool::txiter child, mempool.GetMemPoolChildren(iter))
             {
                 if (fPriorityBlock) {
@@ -311,19 +308,19 @@ CBlockTemplate* CreateNewBlock(const CChainParams& chainparams, const CScript& s
         // Compute regular coinbase transaction.
         txNew.vout[0].nValue = blockReward;
         txNew.vin[0].scriptSig = CScript() << nHeight << OP_0;
-
+		
 		// Add BiblePay version to the subsidy tx message
 		std::string sVersion = FormatFullVersion();
 		txNew.vout[0].sTxOutMessage = "<VER>" + sVersion + "</VER>";
-	
+		
         // Update coinbase transaction with additional info about masternode and governance payments,
         // get some info back to pass to getblocktemplate
         FillBlockPayments(txNew, nHeight, blockReward, pblock->txoutMasternode, pblock->voutSuperblock);
         //             nHeight, blockReward, pblock->txoutMasternode.ToString(), txNew.ToString());
 
-        nLastBlockTx = nBlockTx;
+	    nLastBlockTx = nBlockTx;
         nLastBlockSize = nBlockSize;
-		//if (fDebugMaster) LogPrintf("CreateNewBlock(): total size %u txs: %u fees: %ld sigops %d\n", nBlockSize, nBlockTx, nFees, nBlockSigOps);
+		if (fDebugMaster) LogPrintf("CreateNewBlock(): total size %u txs: %u fees: %ld sigops %d\n", nBlockSize, nBlockTx, nFees, nBlockSigOps);
 
         // Update block coinbase
         pblock->vtx[0] = txNew;
@@ -337,11 +334,12 @@ CBlockTemplate* CreateNewBlock(const CChainParams& chainparams, const CScript& s
         pblocktemplate->vTxSigOps[0] = GetLegacySigOpCount(pblock->vtx[0]);
 
         CValidationState state;
-        if (!TestBlockValidity(state, chainparams, *pblock, pindexPrev, false, false)) {
-            throw std::runtime_error(strprintf("%s: TestBlockValidity failed: %s", __func__, FormatStateMessage(state)));
+
+        if (!TestBlockValidity(state, chainparams, *pblock, pindexPrev, false, false)) 
+		{
+	        throw std::runtime_error(strprintf("%s: TestBlockValidity failed: %s", __func__, FormatStateMessage(state)));
         }
     }
-
     return pblocktemplate.release();
 }
 
@@ -517,8 +515,7 @@ bool GetPoolMiningMode(int iThreadID, std::string& out_PoolAddress, arith_uint25
 	 		 WriteCache("poolthread" + RoundToString(iThreadID,0),"poolinfo3","POOL HAS NO AVAILABLE WORK",GetAdjustedTime());
 			 return false; //Revert to solo mining
 		 }
-		
-		 out_HashTargetPool = UintToArith256(uint256S("0x" + sHashTarget));
+		 out_HashTargetPool = UintToArith256(uint256S("0x" + sHashTarget.substr(0, 64)));
 		 out_MinerGuid = ExtractXML(sResult,"<MINERGUID>","</MINERGUID>");
 		 out_WorkID = ExtractXML(sResult,"<WORKID>","</WORKID>");
 		 if (out_MinerGuid.empty()) 
@@ -617,18 +614,19 @@ recover:
 			// Pool Support
 			if (!fPoolMiningMode || hashTargetPool == 0)
 			{
-				fPoolMiningMode = GetPoolMiningMode(iThreadID, sPoolMiningAddress, hashTargetPool, sMinerGuid, sWorkID);
 				nLastPool = GetAdjustedTime();
-				if (fDebugMaster) LogPrintf("Checking with Pool: Mode %f, Pool Address %s \r\n",(double)fPoolMiningMode,sPoolMiningAddress.c_str());
+				fPoolMiningMode = GetPoolMiningMode(iThreadID, sPoolMiningAddress, hashTargetPool, sMinerGuid, sWorkID);
+				if (fDebugMaster) LogPrintf("Checking with Pool: Pool Address %s \r\n",sPoolMiningAddress.c_str());
 			}
 		    
             //
             // Create new block
             //
+
             unsigned int nTransactionsUpdatedLast = mempool.GetTransactionsUpdated();
             CBlockIndex* pindexPrev = chainActive.Tip();
             if(!pindexPrev) break;
-
+		
 		    auto_ptr<CBlockTemplate> pblocktemplate(CreateNewBlock(chainparams, coinbaseScript->reserveScript, sPoolMiningAddress));
             if (!pblocktemplate.get())
             {
@@ -637,9 +635,10 @@ recover:
             }
             CBlock *pblock = &pblocktemplate->block;
             IncrementExtraNonce(pblock, pindexPrev, nExtraNonce);
+			
 			std::string sPoolNarr = GetPoolMiningNarr(sPoolMiningAddress);
-
-            if (fDebugMaster) LogPrintf("BiblepayMiner -- Running miner %s with %u transactions in block (%u bytes)\n", sPoolNarr.c_str(), 
+			
+			if (fDebugMaster) LogPrintf("BiblepayMiner -- Running miner %s with %u transactions in block (%u bytes)\n", sPoolNarr.c_str(),
 				pblock->vtx.size(), ::GetSerializeSize(*pblock, SER_NETWORK, PROTOCOL_VERSION));
 
             //
@@ -728,16 +727,16 @@ recover:
 					break;
 				}
 
-				if ((GetAdjustedTime() - nLastPool) > 60)
+				if ((nBibleMinerPulse % 20) == 0)
 				{
-					// Every minute, clear the pool buffer
-					ClearCache("poolthread" + RoundToString(iThreadID,0));
+					// Every 20 pulses, clear the pool buffer
+					ClearCache("poolthread" + RoundToString(iThreadID, 0));
 				}
 
-				if (fPoolMiningMode && (sPoolMiningAddress.empty()) && (GetAdjustedTime() - nLastPool) > 7*60)
+				if (fPoolMiningMode && (sPoolMiningAddress.empty()) && ((GetAdjustedTime() - nLastPool) > 7*60 || ((nBibleMinerPulse % 100) == 0)))
 				{
 					// This happens when the user wants to pool mine, the pool was down, so we are solo mining, now we need to check to see if the pool is back up during the next iteration
-					LogPrintf(" Checking on Pool Health to see if back up... ");
+					if (fDebugMaster) LogPrintf(" Checking on Pool Health to see if back up... ");
 					hashTargetPool = UintToArith256(uint256S("0x0"));
 					break;
 				}
@@ -816,6 +815,5 @@ void GenerateBiblecoins(bool fGenerate, int nThreads, const CChainParams& chainp
 	// Maintain the HashPS
 	nHPSTimerStart = GetTimeMillis();
 	nHashCounter = 0;
-				
 	LogPrintf(" ** Started %f BibleMiner threads. ** \r\n",(double)nThreads);
 }
