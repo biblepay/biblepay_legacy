@@ -57,6 +57,7 @@ std::string RoundToString(double d, int place);
 std::string PoolRequest(int iThreadID, std::string sAction, std::string sPoolURL, std::string sMinerID, std::string sSolution);
 double cdbl(std::string s, int place);
 void ClearCache(std::string section);
+std::string TimestampToHRDate(double dtm);
 
 
 class ScoreCompare
@@ -426,6 +427,8 @@ void UpdatePoolProgress(const CBlock* pblock, std::string sPoolAddress, arith_ui
 			+ "," + RoundToString(GetTimeMillis(),0);
 
 		std::string sResult = PoolRequest(iThreadID,"solution",sPoolURL,sWorkerID,sSolution);
+		WriteCache("poolthread"+RoundToString(iThreadID,0),"poolinfo2","Submitting Solution " + TimestampToHRDate(GetAdjustedTime()),GetAdjustedTime());
+			
 		if (fDebugMaster) LogPrintf(" PoolStatus: %s, URL %s, workerid %s, solu %s ",sResult.c_str(), sPoolURL.c_str(), sWorkerID.c_str(), sSolution.c_str());
 	}
 }
@@ -497,7 +500,7 @@ bool GetPoolMiningMode(int iThreadID, std::string& out_PoolAddress, arith_uint25
 	std::string sPoolAddress = ExtractXML(sResult,"<ADDRESS>","</ADDRESS>");
 	if (sPoolAddress.empty()) 
 	{
-		WriteCache("poolthread" + RoundToString(iThreadID,0),"poolinfo2","POOL DOWN-REVERTING TO SOLO MINING",GetAdjustedTime());
+		WriteCache("poolthread" + RoundToString(iThreadID,0),"poolinfo3","POOL DOWN-REVERTING TO SOLO MINING",GetAdjustedTime());
 		return false;
 	}
 	else
@@ -530,8 +533,8 @@ bool GetPoolMiningMode(int iThreadID, std::string& out_PoolAddress, arith_uint25
 		 }
 		 out_PoolAddress=sPoolAddress;
 		 // Start Pool Mining
-		 WriteCache("poolthread" + RoundToString(iThreadID,0),"poolinfo1",sPoolAddress,GetAdjustedTime());
-		 WriteCache("poolthread" + RoundToString(iThreadID,0),"poolinfo2",out_MinerGuid,GetAdjustedTime());
+		 WriteCache("poolthread" + RoundToString(iThreadID,0), "poolinfo1", sPoolAddress,GetAdjustedTime());
+		 WriteCache("poolthread" + RoundToString(iThreadID,0), "poolinfo2", "RM_" + TimestampToHRDate(GetAdjustedTime()), GetAdjustedTime());
 		 return true;
 	}
 	return false;
@@ -562,7 +565,8 @@ void static BibleMiner(const CChainParams& chainparams, int iThreadID)
     unsigned int iBibleMinerCount = 0;
 	int64_t nThreadStart = GetTimeMillis();
 	int64_t nThreadWork = 0;
-	int64_t nLastPool = GetAdjustedTime();
+	int64_t nLastReadyToMine = GetAdjustedTime();
+	int64_t nLastShareSubmitted = GetAdjustedTime();
 
 recover:
 	int iStart = rand() % 1000;
@@ -614,7 +618,7 @@ recover:
 			// Pool Support
 			if (!fPoolMiningMode || hashTargetPool == 0)
 			{
-				nLastPool = GetAdjustedTime();
+				nLastReadyToMine = GetAdjustedTime();
 				fPoolMiningMode = GetPoolMiningMode(iThreadID, sPoolMiningAddress, hashTargetPool, sMinerGuid, sWorkID);
 				if (fDebugMaster) LogPrintf("Checking with Pool: Pool Address %s \r\n",sPoolMiningAddress.c_str());
 			}
@@ -646,24 +650,29 @@ recover:
             //
             int64_t nStart = GetTime();
             arith_uint256 hashTarget = arith_uint256().SetCompact(pblock->nBits);
-			
+			arith_uint256 x11_hashTarget = arith_uint256().SetCompact(pblock->nBits);
+			if ((!fProd && pindexPrev->nHeight >= 1350)	|| (fProd && pindexPrev->nHeight >= 7000))
+			{
+				x11_hashTarget = x11_hashTarget * 3; 
+			}
+	
+			unsigned int nBibleHashesDone = 0;
 			SetThreadPriority(THREAD_PRIORITY_ABOVE_NORMAL);
 							
 		    while (true)
             {
 				unsigned int nHashesDone = 0;
-				pblock->nNonce = iThreadID * 16384; // start each blocks nonce in a different place, so we ensure each thread is doing distinct hashing.
-
-                while (true)
+			    while (true)
                 {
 					// BiblePay: Proof of BibleHash requires the blockHash to not only be less than the Hash Target, but also,
 					// the BibleHash of the blockhash must be less than the target.
 					// The BibleHash is generated from chained bible verses, a historical tx lookup, one AES encryption operation, and MD5 hash
 					uint256 x11_hash = pblock->GetHash();
-					if (UintToArith256(x11_hash) <= hashTarget)
+					if (UintToArith256(x11_hash) <= x11_hashTarget)
 					{
 						uint256 hash = BibleHash(x11_hash, pblock->GetBlockTime(), pindexPrev->nTime, true, pindexPrev->nHeight);
-				
+						nBibleHashesDone += 1;
+						
 					    if (UintToArith256(hash) <= hashTarget && UintToArith256(x11_hash) <= hashTarget)
 				        {
 							// Found a solution
@@ -681,6 +690,7 @@ recover:
 								nHashCounter += nHashesDone;
 								nHashesDone = 0;
 								// NOTE: The pools do not trust the hashesdone or the metrics sent by the client, but it is useful for the pool to receive this for debugging and for calibration
+								nLastShareSubmitted = GetAdjustedTime();
 								UpdatePoolProgress(pblock, sPoolMiningAddress, hashTargetPool, pindexPrev, sMinerGuid, sWorkID, iThreadID, nThreadWork, nThreadStart);
 								hashTargetPool = UintToArith256(uint256S("0x0"));
 								nThreadStart = GetTimeMillis();
@@ -694,6 +704,7 @@ recover:
 							{
 								nHashCounter += nHashesDone;
 								nHashesDone = 0;
+								nLastShareSubmitted = GetAdjustedTime();
 								UpdatePoolProgress(pblock, sPoolMiningAddress, hashTargetPool, pindexPrev, sMinerGuid, sWorkID, iThreadID, nThreadWork, nThreadStart);
 								hashTargetPool = UintToArith256(uint256S("0x0"));
 								nThreadStart = GetTimeMillis();
@@ -712,6 +723,7 @@ recover:
 
 				// Update HashesPerSec
 				nHashCounter += nHashesDone;
+				nBibleHashCounter += nBibleHashesDone;
 				nBibleMinerPulse++;
 				dHashesPerSec = 1000.0 * nHashCounter / (GetTimeMillis() - nHPSTimerStart);
 				iBibleMinerCount++;
@@ -720,23 +732,26 @@ recover:
                 boost::this_thread::interruption_point();
                 // Regtest mode doesn't require peers
                 
-				if (fPoolMiningMode && ((GetAdjustedTime() - nLastPool) > 60) && hashTargetPool < hashTarget && hashTargetPool > 0)
+				if (fPoolMiningMode && (!sPoolMiningAddress.empty()) && ((GetAdjustedTime() - nLastReadyToMine) > 360))
 				{
-					if (fDebugMaster) LogPrintf(" Pool mining hard block; checking for more work;  ");
+					if (fDebugMaster) LogPrintf(" Pool mining hard block; checking for new work;  ");
 					hashTargetPool = UintToArith256(uint256S("0x0"));
+					WriteCache("poolthread"+RoundToString(iThreadID,0),"poolinfo3","CFW " + TimestampToHRDate(GetAdjustedTime()),GetAdjustedTime());
 					break;
 				}
 
-				if ((nBibleMinerPulse % 20) == 0)
+				if ((nBibleMinerPulse % 40) == 0)
 				{
-					// Every 20 pulses, clear the pool buffer
+					// Every N pulses, clear the pool buffer
 					ClearCache("poolthread" + RoundToString(iThreadID, 0));
 				}
 
-				if (fPoolMiningMode && (sPoolMiningAddress.empty()) && ((GetAdjustedTime() - nLastPool) > 7*60 || ((nBibleMinerPulse % 100) == 0)))
+				if ( (fPoolMiningMode && sPoolMiningAddress.empty() && ((GetAdjustedTime() - nLastReadyToMine) > (7*60)))
+				 	  ||
+					 ( ((nBibleMinerPulse % 100) == 0) && sPoolMiningAddress.empty())  )
 				{
 					// This happens when the user wants to pool mine, the pool was down, so we are solo mining, now we need to check to see if the pool is back up during the next iteration
-					if (fDebugMaster) LogPrintf(" Checking on Pool Health to see if back up... ");
+					WriteCache("poolthread"+RoundToString(iThreadID,0),"poolinfo3","Checking on Pool Health to see if back up..." + TimestampToHRDate(GetAdjustedTime()),GetAdjustedTime());
 					hashTargetPool = UintToArith256(uint256S("0x0"));
 					break;
 				}
@@ -815,5 +830,6 @@ void GenerateBiblecoins(bool fGenerate, int nThreads, const CChainParams& chainp
 	// Maintain the HashPS
 	nHPSTimerStart = GetTimeMillis();
 	nHashCounter = 0;
+	nBibleHashCounter = 0;
 	LogPrintf(" ** Started %f BibleMiner threads. ** \r\n",(double)nThreads);
 }

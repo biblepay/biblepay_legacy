@@ -1086,6 +1086,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
 	{
 		cblockGenesis = CreateGenesisBlock(1496347844, 12, 0x207fffff, 1, 50 * COIN);
 		targetGenesisHash = hashGenesisBlock;
+		fProd = true;
 	}
 	else if (chainparams.NetworkIDString()=="test")
 	{
@@ -1103,11 +1104,9 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
         throw runtime_error("Invalid Network Chain Parameter");
   	}
 
+	LogPrintf("ProdMode: Prod %f",(double)fProd);
 
     CheckGenesisBlock(cblockGenesis,targetGenesisHash,hashWalletMerkleRoot);
-
-
-	
 
 
     // also see: InitParameterInteraction()

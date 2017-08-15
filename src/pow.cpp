@@ -95,7 +95,7 @@ bool LogLimiter(int iMax1000)
 
 unsigned int static DarkGravityWave(const CBlockIndex* pindexLast, const Consensus::Params& params) 
 {
-    /* current difficulty formula, biblepay - DarkGravity v3, written by Evan Duffield */
+    /* current difficulty formula, Biblepay - DarkGravity v3, written by Evan Duffield */
     const CBlockIndex *BlockLastSolved = pindexLast;
     const CBlockIndex *BlockReading = pindexLast;
     int64_t nActualTimespan = 0;
@@ -105,6 +105,18 @@ unsigned int static DarkGravityWave(const CBlockIndex* pindexLast, const Consens
     int64_t CountBlocks = 0;
     arith_uint256 PastDifficultyAverage;
     arith_uint256 PastDifficultyAveragePrev;
+	bool fProdChain = Params().NetworkIDString() == "main" ? true : false;
+
+	// BiblePay - Mandatory Upgrade at block 7000 (As of 08-15-2017 we are @3265 in prod & @1349 in testnet)
+	// This change should prevents blocks from being solved in clumps
+	if (pindexLast)
+	{
+		if ((!fProdChain && pindexLast->nHeight >= 1350) || (fProdChain && pindexLast->nHeight >= 7000))
+		{
+			PastBlocksMin = 1;
+			PastBlocksMax = 1;
+		}
+	}
 
     if (BlockLastSolved == NULL || BlockLastSolved->nHeight == 0 || BlockLastSolved->nHeight < PastBlocksMin) 
 	{
@@ -257,18 +269,26 @@ bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params&
     bool fNegative;
     bool fOverflow;
     arith_uint256 bnTarget;
-
+	bool fProdChain = Params().NetworkIDString() == "main" ? true : false;
     bnTarget.SetCompact(nBits, &fNegative, &fOverflow);
-
     // Check range
     if (fNegative || bnTarget == 0 || fOverflow || bnTarget > UintToArith256(params.powLimit))
         return error("CheckProofOfWork(): nBits below minimum work");
-
-
-    // Check proof of work matches claimed amount
-    if (UintToArith256(hash) > bnTarget) 
+	
+	// Check proof of work matches claimed amount
+	if ((!fProdChain && nPrevHeight >= 1350) || (fProdChain && nPrevHeight >= 7000))
 	{
-  	   return error("CheckProofOfWork(): hash doesn't match nBits");
+		if (UintToArith256(hash) > (bnTarget * 3)) 
+		{
+			return error("CheckProofOfWork(): hash doesn't meet X11 POW Level");
+		}
+	}
+	else
+	{
+		if (UintToArith256(hash) > bnTarget) 
+		{
+			return error("CheckProofOfWork(): hash doesn't meet X11 POW Level (Deprecated)");
+		}
 	}
 
 	if (UintToArith256(BibleHash(hash,nBlockTime,nPrevBlockTime,true,nPrevHeight)) > bnTarget)

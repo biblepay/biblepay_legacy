@@ -27,12 +27,14 @@ public:
         about,
         cmdline,
         pshelp,
-		prayer
+		prayer,
+		readbible
     };
 
     explicit HelpMessageDialog(QWidget *parent, HelpMode helpMode, int iPrayer);
     ~HelpMessageDialog();
 
+	
     void printToConsole();
     void showOrPrint();
 
@@ -42,6 +44,8 @@ private:
 
 private Q_SLOTS:
     void on_okButton_accepted();
+	void on_comboBookClicked(int iClick);
+	void on_comboChapterClicked(int iClick);
 };
 
 

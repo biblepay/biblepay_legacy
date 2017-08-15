@@ -40,15 +40,15 @@ public:
     CMainParams() {
         strNetworkID = "main";
         consensus.nSubsidyHalvingInterval = BLOCKS_PER_DAY * 365; // We produce approx 74,825 blocks per year (205 per day)
-        consensus.nMasternodePaymentsStartBlock = 40000; // Must be less then nMasternodePaymentsIncreaseBlock
-        consensus.nMasternodePaymentsIncreaseBlock = 40001; 
+        consensus.nMasternodePaymentsStartBlock = 400000; // Must be less then nMasternodePaymentsIncreaseBlock
+        consensus.nMasternodePaymentsIncreaseBlock = 400001; 
         consensus.nMasternodePaymentsIncreasePeriod = BLOCKS_PER_DAY * 30; // One month
         consensus.nInstantSendKeepLock = 24;
-        consensus.nBudgetPaymentsStartBlock = 41000; 
+        consensus.nBudgetPaymentsStartBlock = 410000; 
         consensus.nBudgetPaymentsCycleBlocks = BLOCKS_PER_DAY * 30; //One month of blocks
         consensus.nBudgetPaymentsWindowBlocks = 100;
         consensus.nBudgetProposalEstablishingTime = 60*60*24;
-        consensus.nSuperblockStartBlock = 40001; // The block at which 12.1 goes live
+        consensus.nSuperblockStartBlock = 400001; // The block at which 12.1 goes live
         consensus.nSuperblockCycle = BLOCKS_PER_DAY * 30; // Once per month
         consensus.nGovernanceMinQuorum = 10;
         consensus.nGovernanceFilterElements = 20000;

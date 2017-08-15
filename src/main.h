@@ -189,7 +189,9 @@ extern std::string msGlobalStatus3;
 extern int PRAYER_MODULUS;
 extern int64_t nHPSTimerStart;
 extern int64_t nHashCounter;
+extern int64_t nBibleHashCounter;
 extern int64_t nBibleMinerPulse;
+extern bool fProd;
 
 extern double dHashesPerSec;
 extern std::map<std::string, double> mvBlockVersion;

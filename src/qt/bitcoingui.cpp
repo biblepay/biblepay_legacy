@@ -102,6 +102,7 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *platformStyle, const NetworkStyle *n
 	TheLordsPrayerAction(0),
 	TheApostlesCreedAction(0),
 	TheNiceneCreedAction(0),
+	ReadBibleAction(0),
 	TheTenCommandmentsAction(0),
 	JesusConciseCommandmentsAction(0),
     receiveCoinsAction(0),
@@ -417,6 +418,10 @@ void BitcoinGUI::createActions()
     JesusConciseCommandmentsAction->setMenuRole(QAction::AboutRole);
     JesusConciseCommandmentsAction->setEnabled(false);
 
+	ReadBibleAction = new QAction(QIcon(":/icons/" + theme + "/sinnersprayer"), tr("Read Bible"), this);
+    ReadBibleAction->setStatusTip(tr("Read Bible"));
+    ReadBibleAction->setMenuRole(QAction::AboutRole);
+    ReadBibleAction->setEnabled(false);
 
 	aboutQtAction = new QAction(QIcon(":/icons/" + theme + "/about_qt"), tr("About &Qt"), this);
     aboutQtAction->setStatusTip(tr("Show information about Qt"));
@@ -489,6 +494,7 @@ void BitcoinGUI::createActions()
 	connect(TheLordsPrayerAction, SIGNAL(triggered()), this, SLOT(TheLordsPrayerClicked()));
 	connect(TheApostlesCreedAction, SIGNAL(triggered()), this, SLOT(TheApostlesCreedClicked()));
 	connect(TheNiceneCreedAction, SIGNAL(triggered()), this, SLOT(TheNiceneCreedClicked()));
+	connect(ReadBibleAction, SIGNAL(triggered()), this, SLOT(ReadBibleClicked()));
 	connect(TheTenCommandmentsAction, SIGNAL(triggered()), this, SLOT(TheTenCommandmentsClicked()));
 	connect(JesusConciseCommandmentsAction, SIGNAL(triggered()), this, SLOT(JesusConciseCommandmentsClicked()));
 
@@ -601,7 +607,7 @@ void BitcoinGUI::createMenuBar()
 	help->addAction(TheNiceneCreedAction);
 	help->addAction(TheTenCommandmentsAction);
 	help->addAction(JesusConciseCommandmentsAction);
-	
+	help->addAction(ReadBibleAction);
 }
 
 void BitcoinGUI::createToolBars()
@@ -841,6 +847,13 @@ void BitcoinGUI::TheNiceneCreedClicked()
     if(!clientModel) return;
     HelpMessageDialog dlg(this, HelpMessageDialog::prayer, 3);
     dlg.exec();
+}
+
+void BitcoinGUI::ReadBibleClicked()
+{
+	if(!clientModel) return;
+	HelpMessageDialog dlg(this, HelpMessageDialog::readbible, 0);
+	dlg.exec();
 }
 
 void BitcoinGUI::TheTenCommandmentsClicked()
@@ -1282,6 +1295,7 @@ void BitcoinGUI::showEvent(QShowEvent *event)
 	TheLordsPrayerAction->setEnabled(true);
 	TheApostlesCreedAction->setEnabled(true);
 	TheNiceneCreedAction->setEnabled(true);
+	ReadBibleAction->setEnabled(true);
 	TheTenCommandmentsAction->setEnabled(true);
 	JesusConciseCommandmentsAction->setEnabled(true);
 

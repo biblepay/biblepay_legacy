@@ -78,17 +78,18 @@ UniValue GetNetworkHashPS(int lookup, int height)
 
     arith_uint256 workDiff = pb->nChainWork - pb0->nChainWork;
     int64_t timeDiff = maxTime - minTime;
-
-    return workDiff.getdouble() / timeDiff;
+	double dHashPs = workDiff.getdouble() / timeDiff;
+	// BiblePay - PoBh algorithm 10000* harder than X11, return appropriate value
+	return dHashPs*10000;
 }
 
 UniValue getnetworkhashps(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() > 2)
         throw runtime_error(
-            "getnetworkhashps ( highestblocknumber lowestblocknumber )\n"
+            "getnetworkhashps ( lookup_block_count height )\n"
             "\nReturns the estimated network hashes per second based on the last n blocks.\n"
-            "Pass in [blocks] to override # of blocks, -1 specifies since last difficulty change.\n"
+            "Pass in [lookup_block_count] to override # of blocks, -1 specifies since last difficulty change.\n"
             "Pass in [height] to estimate the network speed at the time when a certain block was found.\n"
             "\nArguments:\n"
             "1. blocks     (numeric, optional, default=120) The number of blocks, or -1 for blocks since last difficulty change.\n"
@@ -291,7 +292,8 @@ UniValue getmininginfo(const UniValue& params, bool fHelp)
 
 
     LOCK(cs_main);
-
+	const CChainParams& chainparams = Params();
+	
     UniValue obj(UniValue::VOBJ);
     obj.push_back(Pair("blocks",           (int)chainActive.Height()));
     obj.push_back(Pair("currentblocksize", (uint64_t)nLastBlockSize));
@@ -299,11 +301,17 @@ UniValue getmininginfo(const UniValue& params, bool fHelp)
     obj.push_back(Pair("difficulty",       (double)GetDifficultyN(NULL,10)));
     obj.push_back(Pair("errors",           GetWarnings("statusbar")));
     obj.push_back(Pair("genproclimit",     (int)GetArg("-genproclimit", DEFAULT_GENERATE_THREADS)));
-    obj.push_back(Pair("network_khashps",  GetNetworkHashPS(chainActive.Height(), chainActive.Height() - (BLOCKS_PER_DAY/24)))); // Network KHPS over last hour
+    obj.push_back(Pair("networkhashps",  GetNetworkHashPS((BLOCKS_PER_DAY/24), chainActive.Height()))); // Network KHPS over last hour
 	// BiblePay: Add users HashPS
 	obj.push_back(Pair("hashps",           dHashesPerSec));
 	obj.push_back(Pair("minerstarttime",   TimestampToHRDate(nHPSTimerStart/1000)));
-    obj.push_back(Pair("pooledtx",         (uint64_t)mempool.size()));
+	if (chainparams.NetworkIDString()=="test")
+	{
+		obj.push_back(Pair("ratio", nBibleHashCounter/(nHashCounter+1)));
+		obj.push_back(Pair("hc1", nHashCounter));
+		obj.push_back(Pair("bhc2", nBibleHashCounter));
+	}
+	obj.push_back(Pair("pooledtx",         (uint64_t)mempool.size()));
     obj.push_back(Pair("testnet",          Params().TestnetToBeDeprecatedFieldRPC()));
     obj.push_back(Pair("chain",            Params().NetworkIDString()));
     obj.push_back(Pair("biblepay-generate",getgenerate(params, false)));

@@ -74,7 +74,9 @@ int SIN_MODULUS = 0;
 int PRAYER_MODULUS = 0;
 int64_t nHPSTimerStart = 0;
 int64_t nHashCounter = 0;
+int64_t nBibleHashCounter = 0;
 int64_t nBibleMinerPulse;
+bool fProd = false;
 
 double dHashesPerSec = 0;
 std::map<std::string, double> mvBlockVersion;
