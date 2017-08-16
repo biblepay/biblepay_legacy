@@ -582,7 +582,8 @@ recover:
 	std::string sPoolMiningAddress = "";
 	std::string sMinerGuid = "";
 	std::string sWorkID = "";
-			
+	std::string sPoolConfURL = GetArg("-pool", "");
+		
     try {
         // Throw an error if no script was provided.  This can happen
         // due to some internal error but also if the keypool is empty.
@@ -651,9 +652,10 @@ recover:
             int64_t nStart = GetTime();
             arith_uint256 hashTarget = arith_uint256().SetCompact(pblock->nBits);
 			arith_uint256 x11_hashTarget = arith_uint256().SetCompact(pblock->nBits);
+			bool f7000 = false;
 			if ((!fProd && pindexPrev->nHeight >= 1350)	|| (fProd && pindexPrev->nHeight >= 7000))
 			{
-				x11_hashTarget = x11_hashTarget * 3; 
+				f7000=true;
 			}
 	
 			unsigned int nBibleHashesDone = 0;
@@ -668,12 +670,12 @@ recover:
 					// the BibleHash of the blockhash must be less than the target.
 					// The BibleHash is generated from chained bible verses, a historical tx lookup, one AES encryption operation, and MD5 hash
 					uint256 x11_hash = pblock->GetHash();
-					if (UintToArith256(x11_hash) <= x11_hashTarget)
+					if (UintToArith256(x11_hash) <= x11_hashTarget || f7000)
 					{
 						uint256 hash = BibleHash(x11_hash, pblock->GetBlockTime(), pindexPrev->nTime, true, pindexPrev->nHeight);
 						nBibleHashesDone += 1;
 						
-					    if (UintToArith256(hash) <= hashTarget && UintToArith256(x11_hash) <= hashTarget)
+					    if (UintToArith256(hash) <= hashTarget)
 				        {
 							// Found a solution
 							SetThreadPriority(THREAD_PRIORITY_NORMAL);
@@ -700,7 +702,7 @@ recover:
 						}
 						if (fPoolMiningMode)
 						{
-							if (UintToArith256(hash) <= hashTargetPool && UintToArith256(pblock->GetHash()) <= hashTargetPool)
+							if (UintToArith256(hash) <= hashTargetPool)
 							{
 								nHashCounter += nHashesDone;
 								nHashesDone = 0;
@@ -750,10 +752,13 @@ recover:
 				 	  ||
 					 ( ((nBibleMinerPulse % 100) == 0) && sPoolMiningAddress.empty())  )
 				{
-					// This happens when the user wants to pool mine, the pool was down, so we are solo mining, now we need to check to see if the pool is back up during the next iteration
-					WriteCache("poolthread"+RoundToString(iThreadID,0),"poolinfo3","Checking on Pool Health to see if back up..." + TimestampToHRDate(GetAdjustedTime()),GetAdjustedTime());
-					hashTargetPool = UintToArith256(uint256S("0x0"));
-					break;
+					if (!sPoolConfURL.empty())
+					{
+						// This happens when the user wants to pool mine, the pool was down, so we are solo mining, now we need to check to see if the pool is back up during the next iteration
+						WriteCache("poolthread" + RoundToString(iThreadID,0), "poolinfo3", "Checking on Pool Health to see if back up..." + TimestampToHRDate(GetAdjustedTime()),GetAdjustedTime());
+						hashTargetPool = UintToArith256(uint256S("0x0"));
+						break;
+					}
 				}
 
 				if (vNodes.empty() && chainparams.MiningRequiresPeers())

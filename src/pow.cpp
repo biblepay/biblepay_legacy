@@ -276,18 +276,16 @@ bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params&
         return error("CheckProofOfWork(): nBits below minimum work");
 	
 	// Check proof of work matches claimed amount
+	bool f7000 = false;
 	if ((!fProdChain && nPrevHeight >= 1350) || (fProdChain && nPrevHeight >= 7000))
 	{
-		if (UintToArith256(hash) > (bnTarget * 3)) 
-		{
-			return error("CheckProofOfWork(): hash doesn't meet X11 POW Level");
-		}
+		f7000=true;
 	}
 	else
 	{
 		if (UintToArith256(hash) > bnTarget) 
 		{
-			return error("CheckProofOfWork(): hash doesn't meet X11 POW Level (Deprecated)");
+			return error("CheckProofOfWork(): hash doesn't meet X11 POW Level");
 		}
 	}
 
