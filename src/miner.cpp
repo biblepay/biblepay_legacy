@@ -653,7 +653,7 @@ recover:
             arith_uint256 hashTarget = arith_uint256().SetCompact(pblock->nBits);
 			arith_uint256 x11_hashTarget = arith_uint256().SetCompact(pblock->nBits);
 			bool f7000 = false;
-			if ((!fProd && pindexPrev->nHeight >= 1350)	|| (fProd && pindexPrev->nHeight >= 7000))
+			if ((!fProd && pindexPrev->nHeight > 1225)	|| (fProd && pindexPrev->nHeight > 7000))
 			{
 				f7000=true;
 			}

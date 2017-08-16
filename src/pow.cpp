@@ -111,7 +111,7 @@ unsigned int static DarkGravityWave(const CBlockIndex* pindexLast, const Consens
 	// This change should prevents blocks from being solved in clumps
 	if (pindexLast)
 	{
-		if ((!fProdChain && pindexLast->nHeight >= 1350) || (fProdChain && pindexLast->nHeight >= 7000))
+		if ((!fProdChain && pindexLast->nHeight >= 1225) || (fProdChain && pindexLast->nHeight >= 7000))
 		{
 			PastBlocksMin = 1;
 			PastBlocksMax = 1;
@@ -277,7 +277,7 @@ bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params&
 	
 	// Check proof of work matches claimed amount
 	bool f7000 = false;
-	if ((!fProdChain && nPrevHeight >= 1350) || (fProdChain && nPrevHeight >= 7000))
+	if (nPrevHeight == 0 || (!fProdChain && nPrevHeight >= 1224) || (fProdChain && nPrevHeight >= 6999))
 	{
 		f7000=true;
 	}
@@ -285,7 +285,7 @@ bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params&
 	{
 		if (UintToArith256(hash) > bnTarget) 
 		{
-			return error("CheckProofOfWork(): hash doesn't meet X11 POW Level");
+			return error("\r\nCheckProofOfWork(): hash doesn't meet X11 POW Level, Prod %f, Network %s, PrevHeight %f \r\n", (double)fProdChain, Params().NetworkIDString().c_str(), nPrevHeight);
 		}
 	}
 
