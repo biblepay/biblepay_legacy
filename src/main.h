@@ -192,6 +192,7 @@ extern int64_t nHashCounter;
 extern int64_t nBibleHashCounter;
 extern int64_t nBibleMinerPulse;
 extern bool fProd;
+extern bool fMineSlow;
 
 extern double dHashesPerSec;
 extern std::map<std::string, double> mvBlockVersion;

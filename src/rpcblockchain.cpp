@@ -66,9 +66,9 @@ void SendMoneyToDestinationWithMinimumBalance(const CTxDestination& address, CAm
 double GetDifficultyN(const CBlockIndex* blockindex, double N)
 {
 	// Returns Difficulty * N (Most likely this will be used to display the Diff in the wallet, since the BibleHash is much harder to solve than an ASIC hash)
-	if ((blockindex && !fProd && blockindex->nHeight > 1225) || (blockindex && fProd && blockindex->nHeight > 7000))
+	if ((blockindex && !fProd && blockindex->nHeight >= 1) || (blockindex && fProd && blockindex->nHeight >= 7000))
 	{
-		return GetDifficulty(blockindex)*(N/100);
+		return GetDifficulty(blockindex)*(N/10);
 	}
 	else
 	{
@@ -162,6 +162,7 @@ UniValue blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool tx
     result.push_back(Pair("tx", txs));
     result.push_back(Pair("time", block.GetBlockTime()));
     result.push_back(Pair("mediantime", (int64_t)blockindex->GetMedianTimePast()));
+	result.push_back(Pair("hrtime",   TimestampToHRDate(block.GetBlockTime())));
     result.push_back(Pair("nonce", (uint64_t)block.nNonce));
     result.push_back(Pair("bits", strprintf("%08x", block.nBits)));
     result.push_back(Pair("difficulty", GetDifficultyN(blockindex,10)));

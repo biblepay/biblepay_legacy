@@ -656,7 +656,7 @@ recover:
             arith_uint256 hashTarget = arith_uint256().SetCompact(pblock->nBits);
 			arith_uint256 x11_hashTarget = arith_uint256().SetCompact(pblock->nBits);
 			bool f7000 = false;
-			if ((!fProd && pindexPrev->nHeight > 1225)	|| (fProd && pindexPrev->nHeight > 7000))
+			if ((!fProd && pindexPrev->nHeight >= 1) || (fProd && pindexPrev->nHeight >= 7000))
 			{
 				f7000=true;
 			}
@@ -667,13 +667,14 @@ recover:
 		    while (true)
             {
 				unsigned int nHashesDone = 0;
+			
 			    while (true)
                 {
 					// BiblePay: Proof of BibleHash requires the blockHash to not only be less than the Hash Target, but also,
 					// the BibleHash of the blockhash must be less than the target.
 					// The BibleHash is generated from chained bible verses, a historical tx lookup, one AES encryption operation, and MD5 hash
 					uint256 x11_hash = pblock->GetHash();
-					if (UintToArith256(x11_hash) <= x11_hashTarget || f7000)
+					if (f7000 || (UintToArith256(x11_hash) <= x11_hashTarget))
 					{
 						uint256 hash = BibleHash(x11_hash, pblock->GetBlockTime(), pindexPrev->nTime, true, pindexPrev->nHeight);
 						nBibleHashesDone += 1;
@@ -720,6 +721,11 @@ recover:
 					pblock->nNonce += 1;
 					nHashesDone += 1;
 					nThreadWork += 1;
+					if (!fProd)
+					{
+						if ((pblock->nNonce & 0xFF) == 0 && fMineSlow)
+							MilliSleep(1000);
+					}
 					// 0x7FFF is approximately 30 seconds, then we update hashmeter
 					if ((pblock->nNonce & 0x7FFF) == 0)
 						break;

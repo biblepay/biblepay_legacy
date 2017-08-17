@@ -111,10 +111,10 @@ unsigned int static DarkGravityWave(const CBlockIndex* pindexLast, const Consens
 	// This change should prevents blocks from being solved in clumps
 	if (pindexLast)
 	{
-		if ((!fProdChain && pindexLast->nHeight >= 1225) || (fProdChain && pindexLast->nHeight >= 7000))
+		if ((!fProdChain && pindexLast->nHeight >= 1) || (fProdChain && pindexLast->nHeight >= 7000))
 		{
-			PastBlocksMin = 1;
-			PastBlocksMax = 1;
+			PastBlocksMin = 4;
+			PastBlocksMax = 4;
 		}
 	}
 
@@ -164,7 +164,7 @@ unsigned int static DarkGravityWave(const CBlockIndex* pindexLast, const Consens
     bnNew /= _nTargetTimespan;
 
 	//runtime error - not enough conversion specifiers
-	if (false && LogLimiter(1)) LogPrintf("DGW: Height %f, NewDiff %08x     nActualTimespan %f    nTargetTimespan %f   Before %s, After %s \r\n",		
+	if (true && LogLimiter(1)) LogPrintf("DGW: Height %f, NewDiff %08x     nActualTimespan %f    nTargetTimespan %f   Before %s, After %s \r\n",		
 		(double)pindexLast->nHeight, bnNew.GetCompact(),	(double)nActualTimespan,(double)_nTargetTimespan, bnOld.ToString(), bnNew.ToString());
 
     if (bnNew > UintToArith256(params.powLimit))
@@ -269,7 +269,9 @@ bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params&
     bool fNegative;
     bool fOverflow;
     arith_uint256 bnTarget;
+
 	bool fProdChain = Params().NetworkIDString() == "main" ? true : false;
+
     bnTarget.SetCompact(nBits, &fNegative, &fOverflow);
     // Check range
     if (fNegative || bnTarget == 0 || fOverflow || bnTarget > UintToArith256(params.powLimit))
@@ -277,7 +279,7 @@ bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params&
 	
 	// Check proof of work matches claimed amount
 	bool f7000 = false;
-	if (nPrevHeight == 0 || (!fProdChain && nPrevHeight >= 1224) || (fProdChain && nPrevHeight >= 6999))
+	if (nPrevHeight == 0 || (!fProdChain && nPrevHeight >= 1) || (fProdChain && nPrevHeight >= 7000))
 	{
 		f7000=true;
 	}

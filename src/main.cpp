@@ -77,6 +77,7 @@ int64_t nHashCounter = 0;
 int64_t nBibleHashCounter = 0;
 int64_t nBibleMinerPulse;
 bool fProd = false;
+bool fMineSlow = false;
 
 double dHashesPerSec = 0;
 std::map<std::string, double> mvBlockVersion;
@@ -1860,10 +1861,10 @@ CAmount GetBlockSubsidy(const CBlockIndex* pindexPrev, int nPrevBits, int nPrevH
 	double dDiff;
     CAmount nSubsidyBase;
     dDiff = ConvertBitsToDouble(nPrevBits);
-	if ((pindexPrev && !fProd && pindexPrev->nHeight > 1225) || (fProd && pindexPrev && pindexPrev->nHeight > 7000))
+	if ((pindexPrev && !fProd && pindexPrev->nHeight >= 1) || (fProd && pindexPrev && pindexPrev->nHeight >= 7000))
 	{
-		// All this does is regulate to what extent the block subsidy is lowered by exploding diff; once we remove the x11 component from the biblehash, diff will increase, so this keeps the subsidy close to 20000 bbp, but still allows a reduction with exploding diff
-		dDiff = dDiff / 100;
+		// This setting regulates the extent in which the block subsidy is lowered by increasing diff; once we remove the x11 component from the biblehash, it was necessary to recalculate the reduction to match the prior regulation level.
+		dDiff = dDiff / 5000;
 	}
 		
     nSubsidyBase = (20000 / (pow((dDiff+1.0),2.0))) + 1;
@@ -3642,14 +3643,18 @@ bool ReconsiderBlock(CValidationState& state, CBlockIndex *pindex) {
 
 CBlockIndex* AddToBlockIndex(const CBlockHeader& block)
 {
+	
     // Check for duplicate
     uint256 hash = block.GetHash();
     BlockMap::iterator it = mapBlockIndex.find(hash);
+
     if (it != mapBlockIndex.end())
         return it->second;
 
     // Construct new block index object
+
     CBlockIndex* pindexNew = new CBlockIndex(block);
+
     assert(pindexNew);
     // We assign the sequence id to blocks only when the full data is available,
     // to avoid miners withholding blocks but broadcasting headers, to get a
@@ -3658,16 +3663,24 @@ CBlockIndex* AddToBlockIndex(const CBlockHeader& block)
     BlockMap::iterator mi = mapBlockIndex.insert(make_pair(hash, pindexNew)).first;
     pindexNew->phashBlock = &((*mi).first);
     BlockMap::iterator miPrev = mapBlockIndex.find(block.hashPrevBlock);
+
     if (miPrev != mapBlockIndex.end())
     {
         pindexNew->pprev = (*miPrev).second;
-        pindexNew->nHeight = pindexNew->pprev->nHeight + 1;
+		// BiblePay: Rebuilding index results in a pindexNew->pprev == NULL under some circumstances (apparently, only during expirimentation)
+		if (pindexNew->pprev)
+		{
+			pindexNew->nHeight = pindexNew->pprev->nHeight + 1;
+		}
         pindexNew->BuildSkip();
     }
+
     pindexNew->nChainWork = (pindexNew->pprev ? pindexNew->pprev->nChainWork : 0) + GetBlockProof(*pindexNew);
     pindexNew->RaiseValidity(BLOCK_VALID_TREE);
+
     if (pindexBestHeader == NULL || pindexBestHeader->nChainWork < pindexNew->nChainWork)
         pindexBestHeader = pindexNew;
+
 
     setDirtyBlockIndex.insert(pindexNew);
 
@@ -3813,6 +3826,7 @@ bool FindUndoPos(CValidationState &state, int nFile, CDiskBlockPos &pos, unsigne
 
 bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, bool fCheckPOW, int64_t nBlockTime, int64_t nPrevBlockTime, int nPrevHeight)
 {
+	
     // Check proof of work matches claimed amount
 	if (fCheckPOW && !CheckProofOfWork(block.GetHash(), block.nBits, Params().GetConsensus(), nBlockTime, nPrevBlockTime, nPrevHeight))
         return state.DoS(50, error("CheckBlockHeader(): proof of work failed"),
@@ -3822,7 +3836,7 @@ bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, bool f
     if (block.GetBlockTime() > GetAdjustedTime() + (15 * 60))
         return state.Invalid(error("CheckBlockHeader(): BiblePay: Block timestamp too far in the future"),
                              REJECT_INVALID, "time-too-new");
-
+	
     return true;
 }
 
@@ -4016,7 +4030,7 @@ static bool AcceptBlockHeader(const CBlockHeader& block, CValidationState& state
     uint256 hash = block.GetHash();
     BlockMap::iterator miSelf = mapBlockIndex.find(hash);
     CBlockIndex *pindex = NULL;
-
+	
     if (hash != cblockGenesis.GetHash()) 
 	{
         if (miSelf != mapBlockIndex.end()) 
@@ -4034,7 +4048,7 @@ static bool AcceptBlockHeader(const CBlockHeader& block, CValidationState& state
 		CBlockIndex* pindexAncestor = NULL;
         BlockMap::iterator mi = mapBlockIndex.find(block.hashPrevBlock);
         if (mi != mapBlockIndex.end()) pindexAncestor = (*mi).second;
-        
+	    
         if (!CheckBlockHeader(block, state, true, block.GetBlockTime(), pindexAncestor ? pindexAncestor->nTime : 0, pindexAncestor ? pindexAncestor->nHeight : 0))
             return false;
 
@@ -4050,6 +4064,7 @@ static bool AcceptBlockHeader(const CBlockHeader& block, CValidationState& state
         if (!ContextualCheckBlockHeader(block, state, pindexAncestor))
             return false;
     }
+	
     if (pindex == NULL)
         pindex = AddToBlockIndex(block);
 
@@ -4068,7 +4083,7 @@ static bool AcceptBlock(const CBlock& block, CValidationState& state, const CCha
 
     if (!AcceptBlockHeader(block, state, chainparams, &pindex))
         return false;
-
+	
     // Try to process all requested blocks that we don't have, but only
     // process an unrequested block if it's new and has enough work to
     // advance our tip, and isn't too many blocks ahead.
@@ -4100,7 +4115,8 @@ static bool AcceptBlock(const CBlock& block, CValidationState& state, const CCha
     int nHeight = pindex->nHeight;
 
     // Write block to history file
-    try {
+    try 
+	{
         unsigned int nBlockSize = ::GetSerializeSize(block, SER_DISK, CLIENT_VERSION);
         CDiskBlockPos blockPos;
         if (dbp != NULL)
@@ -4138,9 +4154,11 @@ static bool IsSuperMajority(int minVersion, const CBlockIndex* pstart, unsigned 
 bool ProcessNewBlock(CValidationState& state, const CChainParams& chainparams, const CNode* pfrom, const CBlock* pblock, bool fForceProcessing, CDiskBlockPos* dbp)
 {
     // Preliminary checks
+	LogPrintf("8");
 	CBlockIndex* pindexAncestor=mapBlockIndex[pblock->hashPrevBlock];
     int64_t nAncestorTime = (pindexAncestor==NULL) ? 0 : pindexAncestor->nTime;
 	int nAncestorHeight = (pindexAncestor==NULL) ? 0 : pindexAncestor->nHeight;
+	LogPrintf("9");
 
     bool checked = CheckBlock(*pblock, state, true, true, pblock->GetBlockTime(), nAncestorTime, nAncestorHeight);
     {
@@ -4154,14 +4172,17 @@ bool ProcessNewBlock(CValidationState& state, const CChainParams& chainparams, c
 
         // Store to disk
         CBlockIndex *pindex = NULL;
-        bool ret = AcceptBlock(*pblock, state, chainparams, &pindex, fRequested, dbp);
-        if (pindex && pfrom) {
+		bool ret = AcceptBlock(*pblock, state, chainparams, &pindex, fRequested, dbp);
+		if (pindex && pfrom) 
+		{
             mapBlockSource[pindex->GetBlockHash()] = pfrom->GetId();
         }
+
         CheckBlockIndex(chainparams.GetConsensus());
         if (!ret)
             return error("%s: AcceptBlock FAILED", __func__);
     }
+
 
     if (!ActivateBestChain(state, chainparams, pblock))
         return error("%s: ActivateBestChain failed", __func__);
@@ -4689,20 +4710,23 @@ bool LoadExternalBlockFile(const CChainParams& chainparams, FILE* fileIn, CDiskB
     // Map of disk positions for blocks with unknown parent (only used for reindex)
     static std::multimap<uint256, CDiskBlockPos> mapBlocksUnknownParent;
     int64_t nStart = GetTimeMillis();
+	LogPrintf("Starting reindex operation... ");
 
     int nLoaded = 0;
     try {
         // This takes over fileIn and calls fclose() on it in the CBufferedFile destructor
         CBufferedFile blkdat(fileIn, 2*MAX_BLOCK_SIZE, MAX_BLOCK_SIZE+8, SER_DISK, CLIENT_VERSION);
         uint64_t nRewind = blkdat.GetPos();
-        while (!blkdat.eof()) {
+        while (!blkdat.eof()) 
+		{
             boost::this_thread::interruption_point();
 
             blkdat.SetPos(nRewind);
             nRewind++; // start one byte further next time, in case of failure
             blkdat.SetLimit(); // remove former limit
             unsigned int nSize = 0;
-            try {
+            try 
+			{
                 // locate a header
                 unsigned char buf[MESSAGE_START_SIZE];
                 blkdat.FindByte(chainparams.MessageStart()[0]);
@@ -4714,7 +4738,8 @@ bool LoadExternalBlockFile(const CChainParams& chainparams, FILE* fileIn, CDiskB
                 blkdat >> nSize;
                 if (nSize < 80 || nSize > MAX_BLOCK_SIZE)
                     continue;
-            } catch (const std::exception&) {
+            } catch (const std::exception&) 
+			{
                 // no valid block header found; don't complain
                 break;
             }
@@ -4725,12 +4750,14 @@ bool LoadExternalBlockFile(const CChainParams& chainparams, FILE* fileIn, CDiskB
                     dbp->nPos = nBlockPos;
                 blkdat.SetLimit(nBlockPos + nSize);
                 blkdat.SetPos(nBlockPos);
+				LogPrintf("1");
                 CBlock block;
                 blkdat >> block;
                 nRewind = blkdat.GetPos();
 
                 // detect out of order blocks, and store them for later
                 uint256 hash = block.GetHash();
+		
                 if (hash != cblockGenesis.GetHash() && mapBlockIndex.find(block.hashPrevBlock) == mapBlockIndex.end()) {
                     LogPrint("reindex", "%s: Out of order block %s, parent %s not known\n", __func__, hash.ToString(),
                             block.hashPrevBlock.ToString());
@@ -4739,31 +4766,41 @@ bool LoadExternalBlockFile(const CChainParams& chainparams, FILE* fileIn, CDiskB
                     continue;
                 }
 
+		
                 // process in case the block isn't known yet
-                if (mapBlockIndex.count(hash) == 0 || (mapBlockIndex[hash]->nStatus & BLOCK_HAVE_DATA) == 0) {
+                if (mapBlockIndex.count(hash) == 0 || (mapBlockIndex[hash]->nStatus & BLOCK_HAVE_DATA) == 0) 
+				{
                     CValidationState state;
+		
                     if (ProcessNewBlock(state, chainparams, NULL, &block, true, dbp))
                         nLoaded++;
+					LogPrintf(" %f ",(double)nLoaded);
                     if (state.IsError())
                         break;
-                } else if (hash != cblockGenesis.GetHash() && mapBlockIndex[hash]->nHeight % 1000 == 0) {
+                } 
+				else if (hash != cblockGenesis.GetHash() && mapBlockIndex[hash]->nHeight % 1000 == 0) 
+				{
                     LogPrintf("Block Import: already had block %s at height %d\n", hash.ToString(), mapBlockIndex[hash]->nHeight);
                 }
 
                 // Recursively process earlier encountered successors of this block
                 deque<uint256> queue;
                 queue.push_back(hash);
-                while (!queue.empty()) {
+                while (!queue.empty()) 
+				{
                     uint256 head = queue.front();
                     queue.pop_front();
                     std::pair<std::multimap<uint256, CDiskBlockPos>::iterator, std::multimap<uint256, CDiskBlockPos>::iterator> range = mapBlocksUnknownParent.equal_range(head);
-                    while (range.first != range.second) {
+                    while (range.first != range.second) 
+					{
                         std::multimap<uint256, CDiskBlockPos>::iterator it = range.first;
-                        if (ReadBlockFromDisk(block, it->second, chainparams.GetConsensus()))
+	                    if (ReadBlockFromDisk(block, it->second, chainparams.GetConsensus()))
                         {
                             LogPrintf("%s: Processing out of order child %s of %s\n", __func__, block.GetHash().ToString(),
                                     head.ToString());
                             CValidationState dummy;
+							LogPrintf(".");
+
                             if (ProcessNewBlock(dummy, chainparams, NULL, &block, true, &it->second))
                             {
                                 nLoaded++;
@@ -4774,11 +4811,16 @@ bool LoadExternalBlockFile(const CChainParams& chainparams, FILE* fileIn, CDiskB
                         mapBlocksUnknownParent.erase(it);
                     }
                 }
-            } catch (const std::exception& e) {
+            } catch (const std::exception& e) 
+			{
                 LogPrintf("%s: Deserialize or I/O error - %s\n", __func__, e.what());
             }
         }
-    } catch (const std::runtime_error& e) {
+    } 
+	catch (const std::runtime_error& e) 
+	{
+		LogPrintf("System Error");
+
         AbortNode(std::string("System error: ") + e.what());
     }
     if (nLoaded > 0)
@@ -4788,6 +4830,7 @@ bool LoadExternalBlockFile(const CChainParams& chainparams, FILE* fileIn, CDiskB
 
 void static CheckBlockIndex(const Consensus::Params& consensusParams)
 {
+	
     if (!fCheckBlockIndex) {
         return;
     }
@@ -4808,6 +4851,7 @@ void static CheckBlockIndex(const Consensus::Params& consensusParams)
         forward.insert(std::make_pair(it->second->pprev, it->second));
     }
 
+	
     assert(forward.size() == mapBlockIndex.size());
 
     std::pair<std::multimap<CBlockIndex*,CBlockIndex*>::iterator,std::multimap<CBlockIndex*,CBlockIndex*>::iterator> rangeGenesis = forward.equal_range(NULL);
@@ -4827,6 +4871,8 @@ void static CheckBlockIndex(const Consensus::Params& consensusParams)
     CBlockIndex* pindexFirstNotTransactionsValid = NULL; // Oldest ancestor of pindex which does not have BLOCK_VALID_TRANSACTIONS (regardless of being valid or not).
     CBlockIndex* pindexFirstNotChainValid = NULL; // Oldest ancestor of pindex which does not have BLOCK_VALID_CHAIN (regardless of being valid or not).
     CBlockIndex* pindexFirstNotScriptsValid = NULL; // Oldest ancestor of pindex which does not have BLOCK_VALID_SCRIPTS (regardless of being valid or not).
+
+	
     while (pindex != NULL) {
         nNodes++;
         if (pindexFirstInvalid == NULL && pindex->nStatus & BLOCK_FAILED_VALID) pindexFirstInvalid = pindex;
@@ -4966,6 +5012,7 @@ void static CheckBlockIndex(const Consensus::Params& consensusParams)
         }
     }
 
+	
     // Check that we actually traversed the entire map.
     assert(nNodes == forward.size());
 }
@@ -6662,7 +6709,7 @@ void SetOverviewStatus()
 	double dDiff = GetDifficultyN(chainActive.Tip(),10);
 	std::string sPrayer = "NA";
 	GetDataList("PRAYER", 7, iPrayerIndex, sPrayer);
-	msGlobalStatus = "Blocks: " + RoundToString((double)chainActive.Tip()->nHeight,0) + "; Difficulty: " + RoundToString(dDiff*10,6);
+	msGlobalStatus = "Blocks: " + RoundToString((double)chainActive.Tip()->nHeight,0) + "; Difficulty: " + RoundToString(dDiff,4);
 	msGlobalStatus2="<font color=blue>Prayer Request:<br>";
 	msGlobalStatus3="<font color=red>" + FormatHTML(sPrayer,5,"<br>") + "</font><br>&nbsp;";
 }
