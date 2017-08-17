@@ -298,7 +298,7 @@ UniValue getmininginfo(const UniValue& params, bool fHelp)
     obj.push_back(Pair("blocks",           (int)chainActive.Height()));
     obj.push_back(Pair("currentblocksize", (uint64_t)nLastBlockSize));
     obj.push_back(Pair("currentblocktx",   (uint64_t)nLastBlockTx));
-    obj.push_back(Pair("difficulty",       (double)GetDifficultyN(NULL,10)));
+    obj.push_back(Pair("difficulty",       (double)GetDifficultyN(chainActive.Tip(),10)));
     obj.push_back(Pair("errors",           GetWarnings("statusbar")));
     obj.push_back(Pair("genproclimit",     (int)GetArg("-genproclimit", DEFAULT_GENERATE_THREADS)));
     obj.push_back(Pair("networkhashps",  GetNetworkHashPS((BLOCKS_PER_DAY/24), chainActive.Height()))); // Network KHPS over last hour

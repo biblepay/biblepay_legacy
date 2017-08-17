@@ -338,7 +338,9 @@ CBlockTemplate* CreateNewBlock(const CChainParams& chainparams, const CScript& s
 
         if (!TestBlockValidity(state, chainparams, *pblock, pindexPrev, false, false)) 
 		{
-	        throw std::runtime_error(strprintf("%s: TestBlockValidity failed: %s", __func__, FormatStateMessage(state)));
+	        //throw std::runtime_error(strprintf("%s: TestBlockValidity failed: %s", __func__, FormatStateMessage(state)));
+			LogPrintf("TestBlockValidity failed while creating new block\r\n");
+			return NULL; //This allows the miner to recover by itself
         }
     }
     return pblocktemplate.release();
@@ -636,7 +638,8 @@ recover:
             if (!pblocktemplate.get())
             {
                 LogPrintf("BiblepayMiner -- Keypool ran out, please call keypoolrefill before restarting the mining thread\n");
-                return;
+				MilliSleep(5000);
+				goto recover;
             }
             CBlock *pblock = &pblocktemplate->block;
             IncrementExtraNonce(pblock, pindexPrev, nExtraNonce);

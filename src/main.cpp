@@ -1857,10 +1857,15 @@ const CBlockIndex* GetLookbackIndex(int64_t iMinimumBackSpacing, int64_t iFirstM
 
 CAmount GetBlockSubsidy(const CBlockIndex* pindexPrev, int nPrevBits, int nPrevHeight, const Consensus::Params& consensusParams, bool fSuperblockPartOnly)
 {
-
 	double dDiff;
     CAmount nSubsidyBase;
     dDiff = ConvertBitsToDouble(nPrevBits);
+	if ((pindexPrev && !fProd && pindexPrev->nHeight > 1225) || (fProd && pindexPrev && pindexPrev->nHeight > 7000))
+	{
+		// All this does is regulate to what extent the block subsidy is lowered by exploding diff; once we remove the x11 component from the biblehash, diff will increase, so this keeps the subsidy close to 20000 bbp, but still allows a reduction with exploding diff
+		dDiff = dDiff / 100;
+	}
+		
     nSubsidyBase = (20000 / (pow((dDiff+1.0),2.0))) + 1;
     if(nSubsidyBase > 20000) nSubsidyBase = 20000;
         else if(nSubsidyBase < 5000) nSubsidyBase = 5000;

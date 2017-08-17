@@ -66,7 +66,14 @@ void SendMoneyToDestinationWithMinimumBalance(const CTxDestination& address, CAm
 double GetDifficultyN(const CBlockIndex* blockindex, double N)
 {
 	// Returns Difficulty * N (Most likely this will be used to display the Diff in the wallet, since the BibleHash is much harder to solve than an ASIC hash)
-	return GetDifficulty(blockindex)*N;
+	if ((blockindex && !fProd && blockindex->nHeight > 1225) || (blockindex && fProd && blockindex->nHeight > 7000))
+	{
+		return GetDifficulty(blockindex)*(N/100);
+	}
+	else
+	{
+		return GetDifficulty(blockindex)*N;
+	}
 }
 
 double GetDifficulty(const CBlockIndex* blockindex)
@@ -873,7 +880,7 @@ UniValue getblockchaininfo(const UniValue& params, bool fHelp)
     obj.push_back(Pair("blocks",                (int)chainActive.Height()));
     obj.push_back(Pair("headers",               pindexBestHeader ? pindexBestHeader->nHeight : -1));
     obj.push_back(Pair("bestblockhash",         chainActive.Tip()->GetBlockHash().GetHex()));
-    obj.push_back(Pair("difficulty",            (double)GetDifficultyN(NULL,10)));
+    obj.push_back(Pair("difficulty",            (double)GetDifficultyN(chainActive.Tip(),10)));
     obj.push_back(Pair("mediantime",            (int64_t)chainActive.Tip()->GetMedianTimePast()));
     obj.push_back(Pair("verificationprogress",  Checkpoints::GuessVerificationProgress(Params().Checkpoints(), chainActive.Tip())));
     obj.push_back(Pair("chainwork",             chainActive.Tip()->nChainWork.GetHex()));
