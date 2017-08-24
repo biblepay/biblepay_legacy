@@ -33,7 +33,9 @@
 
 using namespace std;
 
-uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight);
+uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight, const CBlockIndex* pindexLast, bool bRequireTxIndex);
+
+
 std::string TimestampToHRDate(double dtm);
 std::string RoundToString(double d, int place);
 std::string ReadCache(std::string section, std::string key);
@@ -79,8 +81,8 @@ UniValue GetNetworkHashPS(int lookup, int height)
     arith_uint256 workDiff = pb->nChainWork - pb0->nChainWork;
     int64_t timeDiff = maxTime - minTime;
 	double dHashPs = workDiff.getdouble() / timeDiff;
-	// BiblePay - PoBh algorithm 10000* harder than X11, return appropriate value
-	return dHashPs*10000;
+	// BiblePay - PoBh algorithm 10* harder than X11, return appropriate value
+	return dHashPs*10;
 }
 
 UniValue getnetworkhashps(const UniValue& params, bool fHelp)
@@ -192,7 +194,7 @@ UniValue generate(const UniValue& params, bool fHelp)
             IncrementExtraNonce(pblock, chainActive.Tip(), nExtraNonce);
         }
 	
-        while (!CheckProofOfWork(pblock->GetHash(), pblock->nBits, Params().GetConsensus(), pblock->GetBlockTime(), chainActive.Tip()->nTime, chainActive.Tip()->nHeight)) 
+        while (!CheckProofOfWork(pblock->GetHash(), pblock->nBits, Params().GetConsensus(), pblock->GetBlockTime(), chainActive.Tip()->nTime, chainActive.Tip()->nHeight, chainActive.Tip(), false)) 
 		{
             // Yes, there is a chance every nonce could fail to satisfy the -regtest
             // target -- 1 in 2^(2^32). That ain't gonna happen.

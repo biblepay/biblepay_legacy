@@ -49,7 +49,7 @@ using namespace std;
 
 uint64_t nLastBlockTx = 0;
 uint64_t nLastBlockSize = 0;
-uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight);
+uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight, const CBlockIndex* pindexLast, bool bRequireTxIndex);
 std::string ExtractXML(std::string XMLdata, std::string key, std::string key_end);
 void WriteCache(std::string section, std::string key, std::string value, int64_t locktime);
 std::string BiblepayHttpPost(int iThreadID, std::string sActionName, std::string sDistinctUser, std::string sPayload, std::string sBaseURL, std::string sPage, int iPort, std::string sSolution);
@@ -408,7 +408,7 @@ void IncrementExtraNonce(CBlock* pblock, const CBlockIndex* pindexPrev, unsigned
 void UpdatePoolProgress(const CBlock* pblock, std::string sPoolAddress, arith_uint256 hashPoolTarget, CBlockIndex* pindexPrev, std::string sMinerGuid, std::string sWorkID, 
 	int iThreadID, unsigned int iThreadWork, int64_t nThreadStart)
 {
-	uint256 hashSolution = BibleHash(pblock->GetHash(),pblock->GetBlockTime(),pindexPrev->nTime,true,pindexPrev->nHeight);
+	uint256 hashSolution = BibleHash(pblock->GetHash(),pblock->GetBlockTime(),pindexPrev->nTime,true,pindexPrev->nHeight,pindexPrev,false);
 	if (!sPoolAddress.empty())
 	{
 		std::string sWorkerID = GetArg("-workerid","");
@@ -658,12 +658,13 @@ recover:
 			bool f7000 = false;
 			if ((!fProd && pindexPrev->nHeight >= 1) || (fProd && pindexPrev->nHeight >= 7000))
 			{
-				f7000=true;
+				f7000 = true;
 			}
 	
 			unsigned int nBibleHashesDone = 0;
 			SetThreadPriority(THREAD_PRIORITY_ABOVE_NORMAL);
-							
+     		uint256 hash_withTxInfo = uint256S("0x0");
+	
 		    while (true)
             {
 				unsigned int nHashesDone = 0;
@@ -676,10 +677,26 @@ recover:
 					uint256 x11_hash = pblock->GetHash();
 					if (f7000 || (UintToArith256(x11_hash) <= x11_hashTarget))
 					{
-						uint256 hash = BibleHash(x11_hash, pblock->GetBlockTime(), pindexPrev->nTime, true, pindexPrev->nHeight);
+						uint256 hash = BibleHash(x11_hash, pblock->GetBlockTime(), pindexPrev->nTime, true, pindexPrev->nHeight, NULL, false);
 						nBibleHashesDone += 1;
 						
-					    if (UintToArith256(hash) <= hashTarget)
+						if (f7000)
+						{
+							hash_withTxInfo = BibleHash(x11_hash, pblock->GetBlockTime(), pindexPrev->nTime, true, pindexPrev->nHeight, pindexPrev, true);
+							nBibleHashesDone += 1;
+						}
+						
+						bool bBlockSolved = false;
+						if (!f7000)
+						{
+							bBlockSolved = UintToArith256(hash) <= hashTarget;
+						}
+						else
+						{
+							bBlockSolved = UintToArith256(hash) <= hashTarget && UintToArith256(hash_withTxInfo) <= hashTarget;
+						}
+
+					    if (bBlockSolved)
 				        {
 							// Found a solution
 							SetThreadPriority(THREAD_PRIORITY_NORMAL);

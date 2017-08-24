@@ -30,7 +30,6 @@ void CheckGenesisBlock(CBlock block, uint256 targetBlockHash, uint256 targetMerk
  *    timestamp before)
  * + Contains no strange transactions
  */
-uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight);
 
 
 

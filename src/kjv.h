@@ -8,6 +8,6 @@
 extern void initkjv();
 extern double iVerseFactor;
 extern std::string sChainedVerses;
-extern uint256 BibleHash(uint256 hash);
+
 
 #endif

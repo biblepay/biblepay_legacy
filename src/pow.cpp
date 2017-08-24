@@ -11,9 +11,11 @@
 #include "primitives/block.h"
 #include "uint256.h"
 #include "util.h"
+#include "kjv.h"
 #include <math.h>
 
 extern bool LogLimiter(int iMax1000);
+uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight, const CBlockIndex* pindexLast, bool bRequireTxIndex);
 
 
 unsigned int static KimotoGravityWell(const CBlockIndex* pindexLast, const Consensus::Params& params) {
@@ -107,7 +109,7 @@ unsigned int static DarkGravityWave(const CBlockIndex* pindexLast, const Consens
     arith_uint256 PastDifficultyAveragePrev;
 	bool fProdChain = Params().NetworkIDString() == "main" ? true : false;
 
-	// BiblePay - Mandatory Upgrade at block 7000 (As of 08-15-2017 we are @3265 in prod & @1349 in testnet)
+	// BiblePay - Mandatory Upgrade at block f7000 (As of 08-15-2017 we are @3265 in prod & @1349 in testnet)
 	// This change should prevents blocks from being solved in clumps
 	if (pindexLast)
 	{
@@ -264,7 +266,8 @@ unsigned int CalculateNextWorkRequired(const CBlockIndex* pindexLast, int64_t nF
     return bnNew.GetCompact();
 }
 
-bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params& params, int64_t nBlockTime, int64_t nPrevBlockTime, int nPrevHeight)
+bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params& params, 
+	int64_t nBlockTime, int64_t nPrevBlockTime, int nPrevHeight, const CBlockIndex* pindexPrev, bool bLoadingBlockIndex)
 {
     bool fNegative;
     bool fOverflow;
@@ -278,23 +281,31 @@ bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params&
         return error("CheckProofOfWork(): nBits below minimum work");
 	
 	// Check proof of work matches claimed amount
-	bool f7000 = false;
-	if (nPrevHeight == 0 || (!fProdChain && nPrevHeight >= 1) || (fProdChain && nPrevHeight >= 7000))
+	bool f7000 = ((!fProdChain && nPrevHeight >= 1) || (fProdChain && nPrevHeight >= 7000)) ? true : false;
+    if (!f7000)
 	{
-		f7000=true;
-	}
-	else
-	{
-		if (UintToArith256(hash) > bnTarget) 
+		bool bSecurityPass = (bLoadingBlockIndex && nPrevHeight==0) ? true : false;
+		if (UintToArith256(hash) > bnTarget && !bSecurityPass) 
 		{
 			return error("\r\nCheckProofOfWork(): hash doesn't meet X11 POW Level, Prod %f, Network %s, PrevHeight %f \r\n", (double)fProdChain, Params().NetworkIDString().c_str(), nPrevHeight);
 		}
 	}
 
-	if (UintToArith256(BibleHash(hash,nBlockTime,nPrevBlockTime,true,nPrevHeight)) > bnTarget)
+	if (UintToArith256(BibleHash(hash,nBlockTime,nPrevBlockTime,true,nPrevHeight,NULL,false)) > bnTarget)
 	{
-		return error("CheckProofOfWork(): BibleHash does not meet POW level");
+		uint256 h1 = (pindexPrev != NULL) ? pindexPrev->GetBlockHash() : uint256S("0x0");
+		return error("CheckProofOfWork(): BibleHash does not meet POW level, prevheight %f pindexPrev %s ",(double)nPrevHeight,h1.GetHex().c_str());
 	}
+
+	if (f7000 && !bLoadingBlockIndex)
+	{
+		if	(UintToArith256(BibleHash(hash,nBlockTime,nPrevBlockTime,true,nPrevHeight,pindexPrev,true)) > bnTarget)
+		{
+			uint256 h2 = (pindexPrev != NULL) ? pindexPrev->GetBlockHash() : uint256S("0x0");
+			return error("CheckProofOfWork(): BibleHash does not meet POW level with TxIndex Lookup, prevheight %f pindexPrev %s ",(double)nPrevHeight,h2.GetHex().c_str());
+		}
+	}
+
     return true;
 }
 

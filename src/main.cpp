@@ -98,6 +98,7 @@ extern void SetOverviewStatus();
 extern const CBlockIndex* GetBlockIndexByTransactionHash(const uint256 &hash);
 extern int32_t ComputeBlockVersion(const CBlockIndex* pindexPrev, const Consensus::Params& params);
 extern void ClearCache(std::string section);
+extern std::string RetrieveTxOutInfo(const CBlockIndex* pindex, int iLookback, int iTxOffset, int ivOutOffset, int iDataType);
 std::string ExtractXML(std::string XMLdata, std::string key, std::string key_end);
 UniValue GetDataList(std::string sType, int iMaxAgeInDays, int& iSpecificEntry, std::string& outEntry);
 double GetDifficulty(const CBlockIndex* blockindex);
@@ -111,7 +112,8 @@ std::string TimestampToHRDate(double dtm);
 extern std::string RoundToString(double d, int place);
 extern std::string GetArrayElement(std::string s, std::string delim, int iPos);
 double GetDifficultyN(const CBlockIndex* blockindex, double N);
-uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight);
+uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight, const CBlockIndex* pindexLast, bool bRequireTxIndex);
+
 
 bool fImporting = false;
 bool fReindex = false;
@@ -1793,7 +1795,7 @@ bool ReadBlockFromDisk(CBlock& block, const CDiskBlockPos& pos, const Consensus:
     int64_t nAncestorTime = (pindexAncestor==NULL) ? 0 : pindexAncestor->nTime;
 	int nPrevHeight = (pindexAncestor==NULL) ? 0 : pindexAncestor->nHeight;
 
-    if (!CheckProofOfWork(block.GetHash(), block.nBits, consensusParams, block.GetBlockTime(), nAncestorTime, nPrevHeight))
+    if (!CheckProofOfWork(block.GetHash(), block.nBits, consensusParams, block.GetBlockTime(), nAncestorTime, nPrevHeight, pindexAncestor, true))
 	{
         LogPrintf("ReadBlockFromDisk: Errors in block header at %s", pos.ToString());
 		return false;
@@ -1863,8 +1865,20 @@ CAmount GetBlockSubsidy(const CBlockIndex* pindexPrev, int nPrevBits, int nPrevH
     dDiff = ConvertBitsToDouble(nPrevBits);
 	if ((pindexPrev && !fProd && pindexPrev->nHeight >= 1) || (fProd && pindexPrev && pindexPrev->nHeight >= 7000))
 	{
-		// This setting regulates the extent in which the block subsidy is lowered by increasing diff; once we remove the x11 component from the biblehash, it was necessary to recalculate the reduction to match the prior regulation level.
-		dDiff = dDiff / 5000;
+		// This setting included in f7000 regulates the extent in which the block subsidy is lowered by increasing diff; once we remove the x11 component from the biblehash, it was necessary to recalculate the reduction to match the prior regulation level.
+		dDiff = dDiff / 8777;
+		/*		BiblePay Difficulty Level Chart:
+		 1            19998.2933653649 
+		51            19863.6590388237 
+		101           19730.3798134583 
+		151           19598.4375645471 
+		201           19467.8144693848		
+		251           19338.4930012641 
+		301           19210.4559235953 
+		351           19083.6862841633 
+		401           18958.1674095155 
+		451           18833.8828994796 
+		*/
 	}
 		
     nSubsidyBase = (20000 / (pow((dDiff+1.0),2.0))) + 1;
@@ -2643,7 +2657,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     // Check it again in case a previous version let a bad block in
 	int64_t nAncestorTime = pindex->pprev ? pindex->pprev->nTime : 0 ;
 	int nAncestorHeight = pindex->pprev ? pindex->pprev->nHeight : 0;
-    if (!CheckBlock(block, state, !fJustCheck, !fJustCheck, pindex->nTime, nAncestorTime, nAncestorHeight))
+    if (!CheckBlock(block, state, !fJustCheck, !fJustCheck, pindex->nTime, nAncestorTime, nAncestorHeight, pindex->pprev))
         return false;
 
     // verify that the view's current state corresponds to the previous block
@@ -3824,11 +3838,11 @@ bool FindUndoPos(CValidationState &state, int nFile, CDiskBlockPos &pos, unsigne
 
 
 
-bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, bool fCheckPOW, int64_t nBlockTime, int64_t nPrevBlockTime, int nPrevHeight)
+bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, bool fCheckPOW, int64_t nBlockTime, int64_t nPrevBlockTime, int nPrevHeight, const CBlockIndex* pindexPrev)
 {
 	
     // Check proof of work matches claimed amount
-	if (fCheckPOW && !CheckProofOfWork(block.GetHash(), block.nBits, Params().GetConsensus(), nBlockTime, nPrevBlockTime, nPrevHeight))
+	if (fCheckPOW && !CheckProofOfWork(block.GetHash(), block.nBits, Params().GetConsensus(), nBlockTime, nPrevBlockTime, nPrevHeight, pindexPrev, false))
         return state.DoS(50, error("CheckBlockHeader(): proof of work failed"),
                          REJECT_INVALID, "high-hash");
 
@@ -3840,7 +3854,7 @@ bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, bool f
     return true;
 }
 
-bool CheckBlock(const CBlock& block, CValidationState& state, bool fCheckPOW, bool fCheckMerkleRoot, int64_t nBlockTime, int64_t nPrevBlockTime, int nPrevHeight)
+bool CheckBlock(const CBlock& block, CValidationState& state, bool fCheckPOW, bool fCheckMerkleRoot, int64_t nBlockTime, int64_t nPrevBlockTime, int nPrevHeight, CBlockIndex* pindexPrev)
 {
     // These are checks that are independent of context.
 
@@ -3849,7 +3863,7 @@ bool CheckBlock(const CBlock& block, CValidationState& state, bool fCheckPOW, bo
 
     // Check that the header is valid (particularly PoW).  This is mostly
     // redundant with the call in AcceptBlockHeader.
-    if (!CheckBlockHeader(block, state, fCheckPOW, nBlockTime, nPrevBlockTime, nPrevHeight))
+    if (!CheckBlockHeader(block, state, fCheckPOW, nBlockTime, nPrevBlockTime, nPrevHeight, pindexPrev))
         return false;
 
     // Check the merkle root.
@@ -4049,7 +4063,7 @@ static bool AcceptBlockHeader(const CBlockHeader& block, CValidationState& state
         BlockMap::iterator mi = mapBlockIndex.find(block.hashPrevBlock);
         if (mi != mapBlockIndex.end()) pindexAncestor = (*mi).second;
 	    
-        if (!CheckBlockHeader(block, state, true, block.GetBlockTime(), pindexAncestor ? pindexAncestor->nTime : 0, pindexAncestor ? pindexAncestor->nHeight : 0))
+        if (!CheckBlockHeader(block, state, true, block.GetBlockTime(), pindexAncestor ? pindexAncestor->nTime : 0, pindexAncestor ? pindexAncestor->nHeight : 0, pindexAncestor))
             return false;
 
         if (mi == mapBlockIndex.end())
@@ -4103,7 +4117,7 @@ static bool AcceptBlock(const CBlock& block, CValidationState& state, const CCha
         if (fTooFarAhead) return true;      // Block height is too high
     }
 
-    if ((!CheckBlock(block, state, true, true, block.GetBlockTime(), pindex->pprev ? pindex->pprev->nTime : 0, pindex->pprev ? pindex->pprev->nHeight : 0)) || !ContextualCheckBlock(block, state, pindex->pprev)) 
+    if ((!CheckBlock(block, state, true, true, block.GetBlockTime(), pindex->pprev ? pindex->pprev->nTime : 0, pindex->pprev ? pindex->pprev->nHeight : 0, pindex->pprev)) || !ContextualCheckBlock(block, state, pindex->pprev)) 
 	{
         if (state.IsInvalid() && !state.CorruptionPossible()) {
             pindex->nStatus |= BLOCK_FAILED_VALID;
@@ -4160,7 +4174,7 @@ bool ProcessNewBlock(CValidationState& state, const CChainParams& chainparams, c
 	int nAncestorHeight = (pindexAncestor==NULL) ? 0 : pindexAncestor->nHeight;
 	LogPrintf("9");
 
-    bool checked = CheckBlock(*pblock, state, true, true, pblock->GetBlockTime(), nAncestorTime, nAncestorHeight);
+    bool checked = CheckBlock(*pblock, state, true, true, pblock->GetBlockTime(), nAncestorTime, nAncestorHeight, pindexAncestor);
     {
         LOCK(cs_main);
         bool fRequested = MarkBlockAsReceived(pblock->GetHash());
@@ -4215,7 +4229,7 @@ bool TestBlockValidity(CValidationState& state, const CChainParams& chainparams,
     // NOTE: CheckBlockHeader is called by CheckBlock
     if (!ContextualCheckBlockHeader(block, state, pindexPrev))
         return false;
-    if (!CheckBlock(block, state, fCheckPOW, fCheckMerkleRoot, block.GetBlockTime(), pindexPrev ? pindexPrev->nTime : 0, pindexPrev ? pindexPrev->nHeight : 0))
+    if (!CheckBlock(block, state, fCheckPOW, fCheckMerkleRoot, block.GetBlockTime(), pindexPrev ? pindexPrev->nTime : 0, pindexPrev ? pindexPrev->nHeight : 0, pindexPrev))
         return false;
     if (!ContextualCheckBlock(block, state, pindexPrev))
         return false;
@@ -4559,7 +4573,7 @@ bool CVerifyDB::VerifyDB(const CChainParams& chainparams, CCoinsView *coinsview,
         if (!ReadBlockFromDisk(block, pindex, chainparams.GetConsensus()))
             return error("VerifyDB(): *** ReadBlockFromDisk failed at %d, hash=%s", pindex->nHeight, pindex->GetBlockHash().ToString());
         // check level 1: verify block validity
-        if (nCheckLevel >= 1 && !CheckBlock(block, state, true, true, block.GetBlockTime(), pindex->pprev ? pindex->pprev->nTime : 0, pindex->pprev ? pindex->pprev->nHeight : 0))
+        if (nCheckLevel >= 1 && !CheckBlock(block, state, true, true, block.GetBlockTime(), pindex->pprev ? pindex->pprev->nTime : 0, pindex->pprev ? pindex->pprev->nHeight : 0, pindex->pprev))
             return error("VerifyDB(): *** found bad block at %d, hash=%s\n", pindex->nHeight, pindex->GetBlockHash().ToString());
         // check level 2: verify undo validity
         if (nCheckLevel >= 2 && pindex) {
@@ -6711,7 +6725,7 @@ void SetOverviewStatus()
 	GetDataList("PRAYER", 7, iPrayerIndex, sPrayer);
 	msGlobalStatus = "Blocks: " + RoundToString((double)chainActive.Tip()->nHeight,0) + "; Difficulty: " + RoundToString(dDiff,4);
 	msGlobalStatus2="<font color=blue>Prayer Request:<br>";
-	msGlobalStatus3="<font color=red>" + FormatHTML(sPrayer,5,"<br>") + "</font><br>&nbsp;";
+	msGlobalStatus3="<font color=red>" + FormatHTML(sPrayer, 8, "<br>") + "</font><br>&nbsp;";
 }
 
 
@@ -6934,6 +6948,54 @@ void MemorizeBlockChainPrayers(bool fDuringConnectBlock)
 	}
 	
 }
+
+
+std::string RetrieveTxOutInfo(const CBlockIndex* pindexLast, int iLookback, int iTxOffset, int ivOutOffset, int iDataType)
+{
+	// When DataType == 1, returns txOut Address
+	// When DataType == 2, returns TxId
+	// When DataType == 3, returns Blockhash
+
+    if (pindexLast == NULL || pindexLast->nHeight == 0) 
+	{
+        return "";
+    }
+
+    for (int i = 1; i < iLookback; i++) 
+	{
+        if (pindexLast->pprev == NULL) { break; }
+        pindexLast = pindexLast->pprev;
+    }
+	if (iDataType < 1 || iDataType > 3) return "DATA_TYPE_OUT_OF_RANGE";
+
+	if (iDataType == 3) return pindexLast ? pindexLast->GetBlockHash().GetHex() : "";	
+	
+	const Consensus::Params& consensusParams = Params().GetConsensus();
+	CBlock block;
+	if (ReadBlockFromDisk(block, pindexLast, consensusParams))
+	{
+		if (iTxOffset >= (int)block.vtx.size()) iTxOffset=block.vtx.size()-1;
+		if (ivOutOffset >= (int)block.vtx[iTxOffset].vout.size()) ivOutOffset=block.vtx[iTxOffset].vout.size()-1;
+		if (iTxOffset >= 0 && ivOutOffset >= 0)
+		{
+			if (iDataType == 1)
+			{
+				std::string sPKAddr = PubKeyToAddress(block.vtx[iTxOffset].vout[ivOutOffset].scriptPubKey);
+				return sPKAddr;
+			}
+			else if (iDataType == 2)
+			{
+				std::string sTxId = block.vtx[iTxOffset].GetHash().ToString();
+				return sTxId;
+			}
+		}
+	}
+	
+	return "";
+
+}
+
+
 
 
 

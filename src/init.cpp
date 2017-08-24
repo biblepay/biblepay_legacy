@@ -96,7 +96,7 @@ CWallet* pwalletMain = NULL;
 
 void initkjv();
 
-uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight);
+uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight, const CBlockIndex* pindexLast, bool bRequireTxIndex);
 
 std::string RetrieveMd5(std::string s1);
 void MemorizeBlockChainPrayers(bool fDuringConnectBlock);
@@ -422,7 +422,7 @@ void CheckGenesisBlock(CBlock bl1, uint256 targetBlockHash, uint256 targetMerkle
             uint256 thash;
             while (true)
             {
-            	thash = BibleHash(block.GetHash(),block.GetBlockTime(),block.GetBlockTime(),false,0);
+            	thash = BibleHash(block.GetHash(),block.GetBlockTime(),block.GetBlockTime(),false,0,NULL,false);
 				if (UintToArith256(thash) <= hashTarget && UintToArith256(block.GetHash()) <= hashTarget)  break;
 
                 if ((block.nNonce & 0xFFF) == 0)

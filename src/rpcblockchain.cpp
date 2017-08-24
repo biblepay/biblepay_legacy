@@ -42,7 +42,9 @@ void ClearCache(std::string section);
 void WriteCache(std::string section, std::string key, std::string value, int64_t locktime);
 
 UniValue GetDataList(std::string sType, int iMaxAgeInDays, int& iSpecificEntry, std::string& outEntry);
-uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight);
+uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight, const CBlockIndex* pindexLast, bool bRequireTxIndex);
+
+
 void MemorizeBlockChainPrayers(bool fDuringConnectBlock);
 std::string GetVerse(std::string sBook, int iChapter, int iVerse, int iStart, int iEnd);
 
@@ -50,10 +52,7 @@ std::string GetBookByName(std::string sName);
 std::string GetBook(int iBookNumber);
 
 std::string GetMessagesFromBlock(const CBlock& block, std::string sMessages);
-std::string GetBibleHashVerses(uint256 hash, uint64_t nBlockTime, uint64_t nPrevBlockTime, int nPrevHeight);
-
-
-
+std::string GetBibleHashVerses(uint256 hash, uint64_t nBlockTime, uint64_t nPrevBlockTime, int nPrevHeight, CBlockIndex* pindexprev);
 double cdbl(std::string s, int place);
 
 CBlockIndex* FindBlockByHeight(int nHeight);
@@ -68,7 +67,7 @@ double GetDifficultyN(const CBlockIndex* blockindex, double N)
 	// Returns Difficulty * N (Most likely this will be used to display the Diff in the wallet, since the BibleHash is much harder to solve than an ASIC hash)
 	if ((blockindex && !fProd && blockindex->nHeight >= 1) || (blockindex && fProd && blockindex->nHeight >= 7000))
 	{
-		return GetDifficulty(blockindex)*(N/10);
+		return GetDifficulty(blockindex)*(N/10); //f7000 feature
 	}
 	else
 	{
@@ -177,15 +176,20 @@ UniValue blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool tx
 		CAmount MasterNodeReward = GetBlockSubsidy(blockindex->pprev, blockindex->pprev->nBits, blockindex->pprev->nHeight, consensusParams, true);
 		result.push_back(Pair("masternodereward", MasterNodeReward));
         result.push_back(Pair("previousblockhash", blockindex->pprev->GetBlockHash().GetHex()));
-		std::string sVerses = GetBibleHashVerses(block.GetHash(), block.GetBlockTime(), blockindex->pprev->nTime, blockindex->pprev->nHeight);
+		std::string sVerses = GetBibleHashVerses(block.GetHash(), block.GetBlockTime(), blockindex->pprev->nTime, blockindex->pprev->nHeight, blockindex->pprev);
 		result.push_back(Pair("verses", sVerses));
     	// Check work against BibleHash
 		arith_uint256 hashTarget = arith_uint256().SetCompact(blockindex->nBits);
 		uint256 hashWork = blockindex->GetBlockHash();
-		uint256 bibleHash = BibleHash(hashWork,block.GetBlockTime(),blockindex->pprev->nTime,false,blockindex->pprev->nHeight);
+		uint256 bibleHash = BibleHash(hashWork, block.GetBlockTime(), blockindex->pprev->nTime, false, blockindex->pprev->nHeight, blockindex->pprev, false);
+		uint256 bibleHashTx = BibleHash(hashWork, block.GetBlockTime(), blockindex->pprev->nTime, false, blockindex->pprev->nHeight, blockindex->pprev, true);
+
 		bool bSatisfiesBibleHash = (UintToArith256(bibleHash) <= hashTarget);
 		result.push_back(Pair("satisfiesbiblehash", bSatisfiesBibleHash ? "true" : "false"));
+		bool bSatisfiesBibleHashTx = (UintToArith256(bibleHashTx) <= hashTarget);
+		result.push_back(Pair("satisfiesbiblehash_tx", bSatisfiesBibleHashTx ? "true" : "false"));
 		result.push_back(Pair("biblehash", bibleHash.GetHex()));
+		result.push_back(Pair("biblehash_tx", bibleHashTx.GetHex()));
 	}
 	std::string sPrayers = GetMessagesFromBlock(block, "PRAYER");
 	result.push_back(Pair("prayers", sPrayers));
@@ -1178,10 +1182,14 @@ UniValue run(const UniValue& params, bool fHelp)
 		std::string sBlockTime = params[2].get_str();
 		std::string sPrevBlockTime = params[3].get_str();
 		std::string sPrevHeight = params[4].get_str();
+		int64_t nHeight = cdbl(sPrevHeight,0);
 		uint256 blockHash = uint256S("0x" + sBlockHash);
-		//(int64_t)
-		uint256 hash = BibleHash(blockHash,(int64_t)cdbl(sBlockTime,0),(int64_t)cdbl(sPrevBlockTime,0),true,(int64_t)cdbl(sPrevHeight,0));
+		CBlockIndex* pindexLast = FindBlockByHeight(nHeight);
+		uint256 hash = BibleHash(blockHash,(int64_t)cdbl(sBlockTime,0),(int64_t)cdbl(sPrevBlockTime,0),true,nHeight,NULL,false);
+		uint256 hashTx = BibleHash(blockHash,(int64_t)cdbl(sBlockTime,0),(int64_t)cdbl(sPrevBlockTime,0),true,nHeight,pindexLast,true);
 		results.push_back(Pair("BibleHash",hash.GetHex()));
+		results.push_back(Pair("BibleHashTx",hashTx.GetHex()));
+
 	}
 	else if (sItem == "subsidy")
 	{
