@@ -1186,9 +1186,29 @@ UniValue run(const UniValue& params, bool fHelp)
 		uint256 blockHash = uint256S("0x" + sBlockHash);
 		CBlockIndex* pindexLast = FindBlockByHeight(nHeight);
 		uint256 hash = BibleHash(blockHash,(int64_t)cdbl(sBlockTime,0),(int64_t)cdbl(sPrevBlockTime,0),true,nHeight,NULL,false);
-		uint256 hashTx = BibleHash(blockHash,(int64_t)cdbl(sBlockTime,0),(int64_t)cdbl(sPrevBlockTime,0),true,nHeight,pindexLast,true);
 		results.push_back(Pair("BibleHash",hash.GetHex()));
-		results.push_back(Pair("BibleHashTx",hashTx.GetHex()));
+	}
+	else if (sItem == "biblehashtx")
+	{
+		if (params.size() != 5)
+			throw runtime_error("You must specify blockhash, blocktime, prevblocktime and prevheight, IE: run biblehash blockhash 12345 12234 100.");
+		std::string sBlockHash = params[1].get_str();
+		std::string sBlockTime = params[2].get_str();
+		std::string sPrevBlockTime = params[3].get_str();
+		std::string sPrevHeight = params[4].get_str();
+		int64_t nHeight = cdbl(sPrevHeight,0);
+		uint256 blockHash = uint256S("0x" + sBlockHash);
+		uint256 hash = BibleHash(blockHash,(int64_t)cdbl(sBlockTime,0),(int64_t)cdbl(sPrevBlockTime,0),true,nHeight,NULL,false);
+		results.push_back(Pair("BibleHash",hash.GetHex()));
+		if (nHeight > 0)
+		{
+			CBlockIndex* pindexLast = FindBlockByHeight(nHeight);
+			if (pindexLast)
+			{
+				uint256 hashTx = BibleHash(blockHash,(int64_t)cdbl(sBlockTime,0),(int64_t)cdbl(sPrevBlockTime,0),true,nHeight,pindexLast,true);
+				results.push_back(Pair("BibleHashTx",hashTx.GetHex()));
+			}
+		}
 
 	}
 	else if (sItem == "subsidy")
