@@ -1184,7 +1184,6 @@ UniValue run(const UniValue& params, bool fHelp)
 		std::string sPrevHeight = params[4].get_str();
 		int64_t nHeight = cdbl(sPrevHeight,0);
 		uint256 blockHash = uint256S("0x" + sBlockHash);
-		CBlockIndex* pindexLast = FindBlockByHeight(nHeight);
 		uint256 hash = BibleHash(blockHash,(int64_t)cdbl(sBlockTime,0),(int64_t)cdbl(sPrevBlockTime,0),true,nHeight,NULL,false);
 		results.push_back(Pair("BibleHash",hash.GetHex()));
 	}
