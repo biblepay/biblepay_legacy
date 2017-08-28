@@ -496,7 +496,7 @@ bool GetPoolMiningMode(int iThreadID, std::string& out_PoolAddress, arith_uint25
 		return false;
 	}
 	// Test Pool to ensure it can send us work before committing to being a pool miner
-	std::string sResult = PoolRequest(iThreadID, "readytomine", sPoolURL, sWorkerID, "");
+	std::string sResult = PoolRequest(iThreadID, "readytomine2", sPoolURL, sWorkerID, "");
 	if (fDebugMaster) LogPrintf(" POOL RESULT %s ",sResult.c_str());
 
 	std::string sPoolAddress = ExtractXML(sResult,"<ADDRESS>","</ADDRESS>");
@@ -738,11 +738,14 @@ recover:
 					pblock->nNonce += 1;
 					nHashesDone += 1;
 					nThreadWork += 1;
+					/*
 					if (!fProd)
 					{
 						if ((pblock->nNonce & 0xFF) == 0 && fMineSlow)
 							MilliSleep(1000);
 					}
+					*/
+
 					// 0x7FFF is approximately 30 seconds, then we update hashmeter
 					if ((pblock->nNonce & 0x7FFF) == 0)
 						break;
@@ -774,9 +777,9 @@ recover:
 					ClearCache("poolthread" + RoundToString(iThreadID, 0));
 				}
 
-				if ( (fPoolMiningMode && sPoolMiningAddress.empty() && ((GetAdjustedTime() - nLastReadyToMine) > (7*60)))
+				if ( (fPoolMiningMode && sPoolMiningAddress.empty() && ((GetAdjustedTime() - nLastReadyToMine) > (10*60)))
 				 	  ||
-					 ( ((nBibleMinerPulse % 100) == 0) && sPoolMiningAddress.empty())  )
+					 ( ((nBibleMinerPulse % 500) == 0) && sPoolMiningAddress.empty())  )
 				{
 					if (!sPoolConfURL.empty())
 					{

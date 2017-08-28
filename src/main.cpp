@@ -1866,7 +1866,7 @@ CAmount GetBlockSubsidy(const CBlockIndex* pindexPrev, int nPrevBits, int nPrevH
 	if ((pindexPrev && !fProd && pindexPrev->nHeight >= 1) || (fProd && pindexPrev && pindexPrev->nHeight >= 7000))
 	{
 		// This setting included in f7000 regulates the extent in which the block subsidy is lowered by increasing diff; once we remove the x11 component from the biblehash, it was necessary to recalculate the reduction to match the prior regulation level.
-		dDiff = dDiff / 8777;
+		dDiff = dDiff / 700;
 		/*		BiblePay Difficulty Level Chart:
 		 1            19998.2933653649 
 		51            19863.6590388237 
@@ -6725,7 +6725,7 @@ void SetOverviewStatus()
 	GetDataList("PRAYER", 7, iPrayerIndex, sPrayer);
 	msGlobalStatus = "Blocks: " + RoundToString((double)chainActive.Tip()->nHeight,0) + "; Difficulty: " + RoundToString(dDiff,4);
 	msGlobalStatus2="<font color=blue>Prayer Request:<br>";
-	msGlobalStatus3="<font color=red>" + FormatHTML(sPrayer, 8, "<br>") + "</font><br>&nbsp;";
+	msGlobalStatus3="<font color=red>" + FormatHTML(sPrayer, 12, "<br>") + "</font><br>&nbsp;";
 }
 
 
