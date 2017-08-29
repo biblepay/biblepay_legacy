@@ -1184,8 +1184,13 @@ UniValue run(const UniValue& params, bool fHelp)
 		std::string sPrevHeight = params[4].get_str();
 		int64_t nHeight = cdbl(sPrevHeight,0);
 		uint256 blockHash = uint256S("0x" + sBlockHash);
-		uint256 hash = BibleHash(blockHash,(int64_t)cdbl(sBlockTime,0),(int64_t)cdbl(sPrevBlockTime,0),true,nHeight,NULL,false);
-		results.push_back(Pair("BibleHash",hash.GetHex()));
+		int64_t nBlockTime = (int64_t)cdbl(sBlockTime,0);
+		int64_t nPrevBlockTime = (int64_t)cdbl(sPrevBlockTime,0);
+		if (!sBlockHash.empty() && nBlockTime > 0 && nPrevBlockTime > 0 && nHeight >= 0)
+		{
+			uint256 hash = BibleHash(blockHash,nBlockTime,nPrevBlockTime,true,nHeight,NULL,false);
+			results.push_back(Pair("BibleHash",hash.GetHex()));
+		}
 	}
 	else if (sItem == "biblehashtx")
 	{
@@ -1216,7 +1221,7 @@ UniValue run(const UniValue& params, bool fHelp)
 			throw runtime_error("You must specify height.");
 		std::string sHeight = params[1].get_str();
 		int64_t nHeight = (int64_t)cdbl(sHeight,0);
-		if (nHeight <= chainActive.Tip()->nHeight)
+		if (nHeight >= 1 && nHeight <= chainActive.Tip()->nHeight)
 		{
 			CBlockIndex* pindex = FindBlockByHeight(nHeight);
 			const Consensus::Params& consensusParams = Params().GetConsensus();
