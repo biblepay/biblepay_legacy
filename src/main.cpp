@@ -92,6 +92,7 @@ int iPrayerIndex = 0;
 std::map<std::string, std::string> mvApplicationCache;
 std::map<std::string, int64_t> mvApplicationCacheTimestamp;
 bool fPoolMiningMode = false;
+bool fCommunicatingWithPool = false;
 int iMinerThreadCount = 0;
 
 extern void SetOverviewStatus();

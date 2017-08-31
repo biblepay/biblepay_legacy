@@ -201,6 +201,7 @@ extern bool fLoadingIndex;
 extern int iPrayerIndex;
 extern int iMinerThreadCount;
 extern bool fPoolMiningMode;
+extern bool fCommunicatingWithPool;
 
 extern std::map<uint256, int64_t> mapRejectedBlocks;
 

@@ -191,6 +191,18 @@ UniValue blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool tx
 		result.push_back(Pair("biblehash", bibleHash.GetHex()));
 		result.push_back(Pair("biblehash_tx", bibleHashTx.GetHex()));
 	}
+	else
+	{
+		if (blockindex->nHeight==0)
+		{
+			int iStart=0;
+			int iEnd=0;
+			// Display a verse from Genesis 1:1 for The Genesis Block:
+			GetBookStartEnd("Gen",iStart,iEnd);
+			std::string sVerse = GetVerse("Gen",1,1,iStart,iEnd);
+			result.push_back(Pair("verses", sVerse));
+    	}
+	}
 	std::string sPrayers = GetMessagesFromBlock(block, "PRAYER");
 	result.push_back(Pair("prayers", sPrayers));
     CBlockIndex *pnext = chainActive.Next(blockindex);

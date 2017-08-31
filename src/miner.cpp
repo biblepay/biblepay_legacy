@@ -52,6 +52,7 @@ uint64_t nLastBlockSize = 0;
 uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight, const CBlockIndex* pindexLast, bool bRequireTxIndex);
 std::string ExtractXML(std::string XMLdata, std::string key, std::string key_end);
 void WriteCache(std::string section, std::string key, std::string value, int64_t locktime);
+std::string ReadCache(std::string section, std::string key);
 std::string BiblepayHttpPost(int iThreadID, std::string sActionName, std::string sDistinctUser, std::string sPayload, std::string sBaseURL, std::string sPage, int iPort, std::string sSolution);
 std::string RoundToString(double d, int place);
 std::string PoolRequest(int iThreadID, std::string sAction, std::string sPoolURL, std::string sMinerID, std::string sSolution);
@@ -427,10 +428,13 @@ void UpdatePoolProgress(const CBlock* pblock, std::string sPoolAddress, arith_ui
 			+ "," + RoundToString(nHashCounter,0) 
 			+ "," + RoundToString(nHPSTimerStart,0)
 			+ "," + RoundToString(GetTimeMillis(),0);
-
+		fCommunicatingWithPool = true;
+		SetThreadPriority(THREAD_PRIORITY_NORMAL);
+		// Clear the pool cache
+		ClearCache("poolcache");
 		std::string sResult = PoolRequest(iThreadID,"solution",sPoolURL,sWorkerID,sSolution);
+		fCommunicatingWithPool = false;
 		WriteCache("poolthread"+RoundToString(iThreadID,0),"poolinfo2","Submitting Solution " + TimestampToHRDate(GetAdjustedTime()),GetAdjustedTime());
-			
 		if (fDebugMaster) LogPrintf(" PoolStatus: %s, URL %s, workerid %s, solu %s ",sResult.c_str(), sPoolURL.c_str(), sWorkerID.c_str(), sSolution.c_str());
 	}
 }
@@ -476,7 +480,7 @@ std::string PoolRequest(int iThreadID, std::string sAction, std::string sPoolURL
 	return sResponse;
 }
 
-bool GetPoolMiningMode(int iThreadID, std::string& out_PoolAddress, arith_uint256& out_HashTargetPool, std::string& out_MinerGuid, std::string& out_WorkID)
+bool GetPoolMiningMode(int iThreadID, int& iFailCount, std::string& out_PoolAddress, arith_uint256& out_HashTargetPool, std::string& out_MinerGuid, std::string& out_WorkID)
 {
 	// If user is not pool mining, return false.
 	// If user is pool mining, and pool is down, return false so that the client reverts back to solo mining mode automatically.
@@ -495,14 +499,46 @@ bool GetPoolMiningMode(int iThreadID, std::string& out_PoolAddress, arith_uint25
  		WriteCache("poolthread" + RoundToString(iThreadID,0),"poolinfo3","WORKER ID EMPTY IN POOL CONFIG",GetAdjustedTime());
 		return false;
 	}
+	// Before hitting the pool with a request, see if the pool recently gave us fully qualified work, if so prefer it
+	SetThreadPriority(THREAD_PRIORITY_NORMAL);
+	if (iThreadID > 0) MilliSleep(iThreadID * 100);
+	// 10 second Busy Wait while communicating with pool
+	for (int busy = 0; busy < 100; busy++)
+	{
+		if (!fCommunicatingWithPool) break;
+		MilliSleep(100);
+	}
+	std::string sCachedAddress = ReadCache("poolcache", "pooladdress");
+	std::string sCachedHashTarget = ReadCache("poolcache", "poolhashtarget");
+	std::string sCachedMinerGuid = ReadCache("poolcache", "minerguid");
+	std::string sCachedWorkID = ReadCache("poolcache", "workid");
+
+	if (!sCachedAddress.empty() && !sCachedHashTarget.empty() && !sCachedMinerGuid.empty() && !sCachedWorkID.empty())
+	{
+		iFailCount = 0;
+		out_PoolAddress = sCachedAddress;
+	    out_HashTargetPool = UintToArith256(uint256S("0x" + sCachedHashTarget.substr(0, 64)));
+		out_MinerGuid = sCachedMinerGuid;
+		out_WorkID = sCachedWorkID;
+		WriteCache("poolthread" + RoundToString(iThreadID,0), "poolinfo1", out_PoolAddress, GetAdjustedTime());
+		WriteCache("poolthread" + RoundToString(iThreadID,0), "poolinfo2", "RMC_" + TimestampToHRDate(GetAdjustedTime()), GetAdjustedTime());
+		return true;
+	}
+
 	// Test Pool to ensure it can send us work before committing to being a pool miner
+	fCommunicatingWithPool = true;
 	std::string sResult = PoolRequest(iThreadID, "readytomine2", sPoolURL, sWorkerID, "");
+	fCommunicatingWithPool = false;
 	if (fDebugMaster) LogPrintf(" POOL RESULT %s ",sResult.c_str());
 
 	std::string sPoolAddress = ExtractXML(sResult,"<ADDRESS>","</ADDRESS>");
 	if (sPoolAddress.empty()) 
 	{
-		WriteCache("poolthread" + RoundToString(iThreadID,0),"poolinfo3","POOL DOWN-REVERTING TO SOLO MINING",GetAdjustedTime());
+		iFailCount++;
+		if (iFailCount >= 5)
+		{
+			WriteCache("poolthread" + RoundToString(iThreadID,0),"poolinfo3","POOL DOWN-REVERTING TO SOLO MINING",GetAdjustedTime());
+		}
 		return false;
 	}
 	else
@@ -510,14 +546,14 @@ bool GetPoolMiningMode(int iThreadID, std::string& out_PoolAddress, arith_uint25
 		 CBitcoinAddress cbaPoolAddress(sPoolAddress);
 		 if (!cbaPoolAddress.IsValid())
 		 {
-		     WriteCache("poolthread" + RoundToString(iThreadID,0),"poolinfo3","INVALID POOL ADDRESS",GetAdjustedTime());
+		     WriteCache("poolthread" + RoundToString(iThreadID,0), "poolinfo3", "INVALID POOL ADDRESS",GetAdjustedTime());
 			 return false;  // Ensure pool returns a valid address for this network
 		 }
 		 // Verify pool has a hash target for this miner
 		 std::string sHashTarget = ExtractXML(sResult,"<HASHTARGET>","</HASHTARGET>");
 		 if (sHashTarget.empty())
 		 {
-	 		 WriteCache("poolthread" + RoundToString(iThreadID,0),"poolinfo3","POOL HAS NO AVAILABLE WORK",GetAdjustedTime());
+	 		 WriteCache("poolthread" + RoundToString(iThreadID,0), "poolinfo3", "POOL HAS NO AVAILABLE WORK",GetAdjustedTime());
 			 return false; //Revert to solo mining
 		 }
 		 out_HashTargetPool = UintToArith256(uint256S("0x" + sHashTarget.substr(0, 64)));
@@ -525,18 +561,25 @@ bool GetPoolMiningMode(int iThreadID, std::string& out_PoolAddress, arith_uint25
 		 out_WorkID = ExtractXML(sResult,"<WORKID>","</WORKID>");
 		 if (out_MinerGuid.empty()) 
 		 {
-		 	 WriteCache("poolthread" + RoundToString(iThreadID,0),"poolinfo3","MINER GUID IS EMPTY",GetAdjustedTime());
+		 	 WriteCache("poolthread" + RoundToString(iThreadID,0), "poolinfo3", "MINER GUID IS EMPTY",GetAdjustedTime());
 			 return false;
 		 }
 		 if (out_WorkID.empty()) 
 		 {
-		 	 WriteCache("poolthread" + RoundToString(iThreadID,0),"poolinfo3","POOL HAS NO AVAILABLE WORK",GetAdjustedTime());
+		 	 WriteCache("poolthread" + RoundToString(iThreadID,0), "poolinfo3", "POOL HAS NO AVAILABLE WORK",GetAdjustedTime());
 			 return false;
 		 }
 		 out_PoolAddress=sPoolAddress;
 		 // Start Pool Mining
 		 WriteCache("poolthread" + RoundToString(iThreadID,0), "poolinfo1", sPoolAddress,GetAdjustedTime());
 		 WriteCache("poolthread" + RoundToString(iThreadID,0), "poolinfo2", "RM_" + TimestampToHRDate(GetAdjustedTime()), GetAdjustedTime());
+		 iFailCount=0;
+		 // Cache pool mining settings to share across threads to decrease pool load
+		 WriteCache("poolcache", "pooladdress", out_PoolAddress, GetAdjustedTime());
+		 WriteCache("poolcache", "poolhashtarget", sHashTarget, GetAdjustedTime());
+		 WriteCache("poolcache", "minerguid", out_MinerGuid, GetAdjustedTime());
+		 WriteCache("poolcache", "workid", out_WorkID, GetAdjustedTime());
+		 MilliSleep(1000);
 		 return true;
 	}
 	return false;
@@ -567,9 +610,9 @@ void static BibleMiner(const CChainParams& chainparams, int iThreadID)
     unsigned int iBibleMinerCount = 0;
 	int64_t nThreadStart = GetTimeMillis();
 	int64_t nThreadWork = 0;
-	int64_t nLastReadyToMine = GetAdjustedTime();
+	int64_t nLastReadyToMine = GetAdjustedTime() - 120;
 	int64_t nLastShareSubmitted = GetAdjustedTime();
-
+	int iFailCount = 0;
 recover:
 	int iStart = rand() % 1000;
 	MilliSleep(iStart);
@@ -621,9 +664,12 @@ recover:
 			// Pool Support
 			if (!fPoolMiningMode || hashTargetPool == 0)
 			{
-				nLastReadyToMine = GetAdjustedTime();
-				fPoolMiningMode = GetPoolMiningMode(iThreadID, sPoolMiningAddress, hashTargetPool, sMinerGuid, sWorkID);
-				if (fDebugMaster) LogPrintf("Checking with Pool: Pool Address %s \r\n",sPoolMiningAddress.c_str());
+				if ((GetAdjustedTime() - nLastReadyToMine) > (1*60))
+				{
+					nLastReadyToMine = GetAdjustedTime();
+					fPoolMiningMode = GetPoolMiningMode(iThreadID, iFailCount, sPoolMiningAddress, hashTargetPool, sMinerGuid, sWorkID);
+					if (fDebugMaster) LogPrintf("Checking with Pool: Pool Address %s \r\n",sPoolMiningAddress.c_str());
+				}
 			}
 		    
             //
@@ -775,15 +821,22 @@ recover:
 				{
 					// Every N pulses, clear the pool buffer
 					ClearCache("poolthread" + RoundToString(iThreadID, 0));
+					fCommunicatingWithPool = false;
+				}
+
+				if ((GetAdjustedTime() - nLastReadyToMine) > (7*60))
+				{
+					ClearCache("poolcache");
 				}
 
 				if ( (fPoolMiningMode && sPoolMiningAddress.empty() && ((GetAdjustedTime() - nLastReadyToMine) > (10*60)))
-				 	  ||
-					 ( ((nBibleMinerPulse % 500) == 0) && sPoolMiningAddress.empty())  )
+				   ||
+				   ( ((nBibleMinerPulse % 500) == 0) && sPoolMiningAddress.empty() &&  ((GetAdjustedTime() - nLastReadyToMine) > (5*60))) )
 				{
 					if (!sPoolConfURL.empty())
 					{
 						// This happens when the user wants to pool mine, the pool was down, so we are solo mining, now we need to check to see if the pool is back up during the next iteration
+						ClearCache("poolcache");
 						WriteCache("poolthread" + RoundToString(iThreadID,0), "poolinfo3", "Checking on Pool Health to see if back up..." + TimestampToHRDate(GetAdjustedTime()),GetAdjustedTime());
 						hashTargetPool = UintToArith256(uint256S("0x0"));
 						break;
@@ -853,6 +906,8 @@ void GenerateBiblecoins(bool fGenerate, int nThreads, const CChainParams& chainp
         return;
 
     minerThreads = new boost::thread_group();
+	ClearCache("poolcache");
+				
     for (int i = 0; i < nThreads; i++)
 	{
 		ClearCache("poolthread" + RoundToString(i,0));
