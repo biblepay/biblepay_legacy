@@ -428,12 +428,12 @@ void UpdatePoolProgress(const CBlock* pblock, std::string sPoolAddress, arith_ui
 			+ "," + RoundToString(nHashCounter,0) 
 			+ "," + RoundToString(nHPSTimerStart,0)
 			+ "," + RoundToString(GetTimeMillis(),0);
-		fCommunicatingWithPool = true;
+		WriteCache("pool","communication","1",GetAdjustedTime());
 		SetThreadPriority(THREAD_PRIORITY_NORMAL);
 		// Clear the pool cache
 		ClearCache("poolcache");
 		std::string sResult = PoolRequest(iThreadID,"solution",sPoolURL,sWorkerID,sSolution);
-		fCommunicatingWithPool = false;
+		WriteCache("pool","communication","0",GetAdjustedTime());
 		WriteCache("poolthread"+RoundToString(iThreadID,0),"poolinfo2","Submitting Solution " + TimestampToHRDate(GetAdjustedTime()),GetAdjustedTime());
 		if (fDebugMaster) LogPrintf(" PoolStatus: %s, URL %s, workerid %s, solu %s ",sResult.c_str(), sPoolURL.c_str(), sWorkerID.c_str(), sSolution.c_str());
 	}
@@ -505,7 +505,7 @@ bool GetPoolMiningMode(int iThreadID, int& iFailCount, std::string& out_PoolAddr
 	// 10 second Busy Wait while communicating with pool
 	for (int busy = 0; busy < 100; busy++)
 	{
-		if (!fCommunicatingWithPool) break;
+		if (ReadCache("pool","communication") != "1") break;
 		MilliSleep(100);
 	}
 	std::string sCachedAddress = ReadCache("poolcache", "pooladdress");
@@ -526,11 +526,10 @@ bool GetPoolMiningMode(int iThreadID, int& iFailCount, std::string& out_PoolAddr
 	}
 
 	// Test Pool to ensure it can send us work before committing to being a pool miner
-	fCommunicatingWithPool = true;
+	WriteCache("pool","communication","1",GetAdjustedTime());
 	std::string sResult = PoolRequest(iThreadID, "readytomine2", sPoolURL, sWorkerID, "");
-	fCommunicatingWithPool = false;
+	WriteCache("pool","communication","0",GetAdjustedTime());
 	if (fDebugMaster) LogPrintf(" POOL RESULT %s ",sResult.c_str());
-
 	std::string sPoolAddress = ExtractXML(sResult,"<ADDRESS>","</ADDRESS>");
 	if (sPoolAddress.empty()) 
 	{
@@ -821,7 +820,7 @@ recover:
 				{
 					// Every N pulses, clear the pool buffer
 					ClearCache("poolthread" + RoundToString(iThreadID, 0));
-					fCommunicatingWithPool = false;
+					WriteCache("pool","communication","0",GetAdjustedTime());
 				}
 
 				if ((GetAdjustedTime() - nLastReadyToMine) > (7*60))

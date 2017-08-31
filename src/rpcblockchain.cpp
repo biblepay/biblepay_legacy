@@ -24,6 +24,7 @@
 #include "wallet/rpcwallet.cpp"
 #include <boost/lexical_cast.hpp>
 #include <boost/algorithm/string/case_conv.hpp> // for to_lower()
+#include <boost/algorithm/string.hpp> // for trim()
 #include <stdint.h>
 #include <univalue.h>
 using namespace std;
@@ -198,8 +199,9 @@ UniValue blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool tx
 			int iStart=0;
 			int iEnd=0;
 			// Display a verse from Genesis 1:1 for The Genesis Block:
-			GetBookStartEnd("Gen",iStart,iEnd);
-			std::string sVerse = GetVerse("Gen",1,1,iStart,iEnd);
+			GetBookStartEnd("gen",iStart,iEnd);
+			std::string sVerse = GetVerse("gen",1,1,iStart-1,iEnd);
+			boost::trim(sVerse);
 			result.push_back(Pair("verses", sVerse));
     	}
 	}
