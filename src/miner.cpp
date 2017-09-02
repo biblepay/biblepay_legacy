@@ -428,12 +428,12 @@ void UpdatePoolProgress(const CBlock* pblock, std::string sPoolAddress, arith_ui
 			+ "," + RoundToString(nHashCounter,0) 
 			+ "," + RoundToString(nHPSTimerStart,0)
 			+ "," + RoundToString(GetTimeMillis(),0);
-		WriteCache("pool","communication","1",GetAdjustedTime());
+		WriteCache("pool" + RoundToString(iThreadID, 0),"communication","1",GetAdjustedTime());
 		SetThreadPriority(THREAD_PRIORITY_NORMAL);
 		// Clear the pool cache
 		ClearCache("poolcache");
 		std::string sResult = PoolRequest(iThreadID,"solution",sPoolURL,sWorkerID,sSolution);
-		WriteCache("pool","communication","0",GetAdjustedTime());
+		WriteCache("pool" + RoundToString(iThreadID, 0),"communication","0",GetAdjustedTime());
 		WriteCache("poolthread"+RoundToString(iThreadID,0),"poolinfo2","Submitting Solution " + TimestampToHRDate(GetAdjustedTime()),GetAdjustedTime());
 		if (fDebugMaster) LogPrintf(" PoolStatus: %s, URL %s, workerid %s, solu %s ",sResult.c_str(), sPoolURL.c_str(), sWorkerID.c_str(), sSolution.c_str());
 	}
@@ -462,6 +462,25 @@ static bool ProcessBlockFound(const CBlock* pblock, const CChainParams& chainpar
     return true;
 }
 
+static CCriticalSection csBusyWait;
+void BusyWait()
+{
+	LOCK(csBusyWait);
+	for (int busy = 0; busy < 100; busy++)
+	{
+		bool bCommunicating = false;
+		for (int i = 0; i < iMinerThreadCount; i++)
+		{
+			if (ReadCache("pool" + RoundToString(i, 0), "communication") == "1") 
+			{
+				bCommunicating = true; 
+				break;
+			}
+		}
+		if (!bCommunicating) break;
+		MilliSleep(100);
+	}
+}
 
 std::string PoolRequest(int iThreadID, std::string sAction, std::string sPoolURL, std::string sMinerID, std::string sSolution)
 {
@@ -503,11 +522,7 @@ bool GetPoolMiningMode(int iThreadID, int& iFailCount, std::string& out_PoolAddr
 	SetThreadPriority(THREAD_PRIORITY_NORMAL);
 	if (iThreadID > 0) MilliSleep(iThreadID * 100);
 	// 10 second Busy Wait while communicating with pool
-	for (int busy = 0; busy < 100; busy++)
-	{
-		if (ReadCache("pool","communication") != "1") break;
-		MilliSleep(100);
-	}
+	BusyWait();
 	std::string sCachedAddress = ReadCache("poolcache", "pooladdress");
 	std::string sCachedHashTarget = ReadCache("poolcache", "poolhashtarget");
 	std::string sCachedMinerGuid = ReadCache("poolcache", "minerguid");
@@ -526,9 +541,9 @@ bool GetPoolMiningMode(int iThreadID, int& iFailCount, std::string& out_PoolAddr
 	}
 
 	// Test Pool to ensure it can send us work before committing to being a pool miner
-	WriteCache("pool","communication","1",GetAdjustedTime());
+	WriteCache("pool" + RoundToString(iThreadID, 0),"communication","1",GetAdjustedTime());
 	std::string sResult = PoolRequest(iThreadID, "readytomine2", sPoolURL, sWorkerID, "");
-	WriteCache("pool","communication","0",GetAdjustedTime());
+	WriteCache("pool" + RoundToString(iThreadID, 0),"communication","0",GetAdjustedTime());
 	if (fDebugMaster) LogPrintf(" POOL RESULT %s ",sResult.c_str());
 	std::string sPoolAddress = ExtractXML(sResult,"<ADDRESS>","</ADDRESS>");
 	if (sPoolAddress.empty()) 
@@ -820,7 +835,7 @@ recover:
 				{
 					// Every N pulses, clear the pool buffer
 					ClearCache("poolthread" + RoundToString(iThreadID, 0));
-					WriteCache("pool","communication","0",GetAdjustedTime());
+					WriteCache("pool" + RoundToString(iThreadID, 0),"communication","0",GetAdjustedTime());
 				}
 
 				if ((GetAdjustedTime() - nLastReadyToMine) > (7*60))
