@@ -1319,7 +1319,7 @@ UniValue run(const UniValue& params, bool fHelp)
 		GetBookStartEnd(sBook,iStart,iEnd);
 		for (int i = iVerse; i < 99; i++)
 		{
-			std::string sVerse = GetVerse(sBook,iChapter,i,iStart,iEnd);
+			std::string sVerse = GetVerse(sBook,iChapter,i,iStart-1,iEnd);
 			if (iVerse > 0 && i > iVerse) break;
 			if (!sVerse.empty())
 			{
