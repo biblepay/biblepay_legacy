@@ -1092,6 +1092,8 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
 	{
 		cblockGenesis = CreateGenesisBlock(1496347850, 15, 0x207fffff, 1, 50 * COIN);
 		targetGenesisHash = hashGenesisBlockTestNet;
+		fProd = false;
+		fMasternodesEnabled = true;
 	}
 	else if (chainparams.NetworkIDString()=="regtest")
 	{

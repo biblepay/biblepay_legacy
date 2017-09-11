@@ -2480,7 +2480,7 @@ void ThreadCheckDarkSendPool()
 
     while (true)
     {
-        MilliSleep(1000);
+        MilliSleep(1001);
 
         // try to sync from all available nodes, one step at a time
         masternodeSync.ProcessTick();

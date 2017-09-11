@@ -166,7 +166,7 @@ unsigned int static DarkGravityWave(const CBlockIndex* pindexLast, const Consens
     bnNew /= _nTargetTimespan;
 
 	//runtime error - not enough conversion specifiers
-	if (true && LogLimiter(1)) LogPrintf("DGW: Height %f, NewDiff %08x     nActualTimespan %f    nTargetTimespan %f   Before %s, After %s \r\n",		
+	if (LogLimiter(1)) LogPrintf("DGW: Height %f, NewDiff %08x     nActualTimespan %f    nTargetTimespan %f   Before %s, After %s \r\n",		
 		(double)pindexLast->nHeight, bnNew.GetCompact(),	(double)nActualTimespan,(double)_nTargetTimespan, bnOld.ToString(), bnNew.ToString());
 
     if (bnNew > UintToArith256(params.powLimit))

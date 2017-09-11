@@ -1795,7 +1795,6 @@ bool ReadBlockFromDisk(CBlock& block, const CDiskBlockPos& pos, const Consensus:
 	CBlockIndex* pindexAncestor=mapBlockIndex[block.hashPrevBlock];
     int64_t nAncestorTime = (pindexAncestor==NULL) ? 0 : pindexAncestor->nTime;
 	int nPrevHeight = (pindexAncestor==NULL) ? 0 : pindexAncestor->nHeight;
-
     if (!CheckProofOfWork(block.GetHash(), block.nBits, consensusParams, block.GetBlockTime(), nAncestorTime, nPrevHeight, pindexAncestor, true))
 	{
         LogPrintf("ReadBlockFromDisk: Errors in block header at %s", pos.ToString());
