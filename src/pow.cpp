@@ -166,7 +166,7 @@ unsigned int static DarkGravityWave(const CBlockIndex* pindexLast, const Consens
     bnNew /= _nTargetTimespan;
 
 	//runtime error - not enough conversion specifiers
-	if (LogLimiter(1)) LogPrintf("DGW: Height %f, NewDiff %08x     nActualTimespan %f    nTargetTimespan %f   Before %s, After %s \r\n",		
+	if (LogLimiter(1) && false) LogPrintf("DGW: Height %f, NewDiff %08x     nActualTimespan %f    nTargetTimespan %f   Before %s, After %s \r\n",		
 		(double)pindexLast->nHeight, bnNew.GetCompact(),	(double)nActualTimespan,(double)_nTargetTimespan, bnOld.ToString(), bnNew.ToString());
 
     if (bnNew > UintToArith256(params.powLimit))
@@ -274,6 +274,7 @@ bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params&
     arith_uint256 bnTarget;
 
 	bool fProdChain = Params().NetworkIDString() == "main" ? true : false;
+	bool bRequireTxIndexLookup = false;  // This is a project currently in TestNet, slated to go live after Sanctuaries are enabled and fully tested by slack team
 
     bnTarget.SetCompact(nBits, &fNegative, &fOverflow);
     // Check range
@@ -284,7 +285,7 @@ bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params&
 	bool f7000 = ((!fProdChain && nPrevHeight >= 1) || (fProdChain && nPrevHeight >= 7000)) ? true : false;
     if (!f7000)
 	{
-		bool bSecurityPass = (bLoadingBlockIndex && nPrevHeight==0) ? true : false;
+		bool bSecurityPass = (bLoadingBlockIndex && nPrevHeight==0 || nPrevHeight==0) ? true : false;
 		if (UintToArith256(hash) > bnTarget && !bSecurityPass) 
 		{
 			return error("\r\nCheckProofOfWork(): hash doesn't meet X11 POW Level, Prod %f, Network %s, PrevHeight %f \r\n", (double)fProdChain, Params().NetworkIDString().c_str(), nPrevHeight);
@@ -293,11 +294,14 @@ bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params&
 
 	if (UintToArith256(BibleHash(hash,nBlockTime,nPrevBlockTime,true,nPrevHeight,NULL,false)) > bnTarget)
 	{
-		uint256 h1 = (pindexPrev != NULL) ? pindexPrev->GetBlockHash() : uint256S("0x0");
-		return error("CheckProofOfWork(): BibleHash does not meet POW level, prevheight %f pindexPrev %s ",(double)nPrevHeight,h1.GetHex().c_str());
+		if (!bLoadingBlockIndex)
+		{
+			uint256 h1 = (pindexPrev != NULL) ? pindexPrev->GetBlockHash() : uint256S("0x0");
+			return error("CheckProofOfWork(): BibleHash does not meet POW level, prevheight %f pindexPrev %s ",(double)nPrevHeight,h1.GetHex().c_str());
+		}
 	}
 
-	if (f7000 && !bLoadingBlockIndex)
+	if (f7000 && !bLoadingBlockIndex && bRequireTxIndexLookup)
 	{
 		if	(UintToArith256(BibleHash(hash,nBlockTime,nPrevBlockTime,true,nPrevHeight,pindexPrev,true)) > bnTarget)
 		{

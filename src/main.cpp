@@ -1866,7 +1866,7 @@ CAmount GetBlockSubsidy(const CBlockIndex* pindexPrev, int nPrevBits, int nPrevH
 	if ((pindexPrev && !fProd && pindexPrev->nHeight >= 1) || (fProd && pindexPrev && pindexPrev->nHeight >= 7000))
 	{
 		// This setting included in f7000 regulates the extent in which the block subsidy is lowered by increasing diff; once we remove the x11 component from the biblehash, it was necessary to recalculate the reduction to match the prior regulation level.
-		dDiff = dDiff / 700;
+		dDiff = dDiff / 14000;
 		/*		BiblePay Difficulty Level Chart:
 		 1            19998.2933653649 
 		51            19863.6590388237 
@@ -3843,8 +3843,11 @@ bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, bool f
 	
     // Check proof of work matches claimed amount
 	if (fCheckPOW && !CheckProofOfWork(block.GetHash(), block.nBits, Params().GetConsensus(), nBlockTime, nPrevBlockTime, nPrevHeight, pindexPrev, false))
-        return state.DoS(50, error("CheckBlockHeader(): proof of work failed"),
+	{
+		// PhaseShiftUK reports that pool server occasionally returns a high-hash, yet we dont want to ban the pool server, Temporary solution: Change DoS level to prevent pool from being banned
+        return state.DoS(1, error("CheckBlockHeader(): proof of work failed"),
                          REJECT_INVALID, "high-hash");
+	}
 
     // BiblePay - Check timestamp (reject if > 15 minutes in future).  This is is important since we lower the difficulty after all online nodes cannot solve block in one hour!  
     if (block.GetBlockTime() > GetAdjustedTime() + (15 * 60))
