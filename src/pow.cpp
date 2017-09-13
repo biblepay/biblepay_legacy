@@ -285,19 +285,20 @@ bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params&
 	bool f7000 = ((!fProdChain && nPrevHeight >= 1) || (fProdChain && nPrevHeight >= 7000)) ? true : false;
     if (!f7000)
 	{
-		bool bSecurityPass = (bLoadingBlockIndex && nPrevHeight==0 || nPrevHeight==0) ? true : false;
+		bool bSecurityPass = ((bLoadingBlockIndex && nPrevHeight==0) || nPrevHeight == 0) ? true : false;
 		if (UintToArith256(hash) > bnTarget && !bSecurityPass) 
 		{
-			return error("\r\nCheckProofOfWork(): hash doesn't meet X11 POW Level, Prod %f, Network %s, PrevHeight %f \r\n", (double)fProdChain, Params().NetworkIDString().c_str(), nPrevHeight);
+			return error("\r\nCheckProofOfWork(): hash doesn't meet X11 POW Level, Prod %f, Network %s, PrevHeight %f \r\n", 
+				(double)fProdChain, Params().NetworkIDString().c_str(), nPrevHeight);
 		}
 	}
 
-	if (UintToArith256(BibleHash(hash,nBlockTime,nPrevBlockTime,true,nPrevHeight,NULL,false)) > bnTarget)
+	if (f7000)
 	{
-		if (!bLoadingBlockIndex)
+		if (UintToArith256(BibleHash(hash,nBlockTime,nPrevBlockTime,true,nPrevHeight,NULL,false)) > bnTarget)
 		{
 			uint256 h1 = (pindexPrev != NULL) ? pindexPrev->GetBlockHash() : uint256S("0x0");
-			return error("CheckProofOfWork(): BibleHash does not meet POW level, prevheight %f pindexPrev %s ",(double)nPrevHeight,h1.GetHex().c_str());
+			return error("CheckProofOfWork(1): BibleHash does not meet POW level, prevheight %f pindexPrev %s ",(double)nPrevHeight,h1.GetHex().c_str());
 		}
 	}
 
@@ -306,7 +307,7 @@ bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params&
 		if	(UintToArith256(BibleHash(hash,nBlockTime,nPrevBlockTime,true,nPrevHeight,pindexPrev,true)) > bnTarget)
 		{
 			uint256 h2 = (pindexPrev != NULL) ? pindexPrev->GetBlockHash() : uint256S("0x0");
-			return error("CheckProofOfWork(): BibleHash does not meet POW level with TxIndex Lookup, prevheight %f pindexPrev %s ",(double)nPrevHeight,h2.GetHex().c_str());
+			return error("CheckProofOfWork(2): BibleHash does not meet POW level with TxIndex Lookup, prevheight %f pindexPrev %s ",(double)nPrevHeight,h2.GetHex().c_str());
 		}
 	}
 

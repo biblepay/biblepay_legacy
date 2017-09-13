@@ -1863,10 +1863,10 @@ CAmount GetBlockSubsidy(const CBlockIndex* pindexPrev, int nPrevBits, int nPrevH
 	double dDiff;
     CAmount nSubsidyBase;
     dDiff = ConvertBitsToDouble(nPrevBits);
-	if ((pindexPrev && !fProd && pindexPrev->nHeight >= 1) || (fProd && pindexPrev && pindexPrev->nHeight >= 7000))
+	if ((pindexPrev && !fProd && pindexPrev->nHeight >= 1) || (fProd && pindexPrev && pindexPrev->nHeight >= 7000 && pindexPrev->nHeight < 7500))
 	{
 		// This setting included in f7000 regulates the extent in which the block subsidy is lowered by increasing diff; once we remove the x11 component from the biblehash, it was necessary to recalculate the reduction to match the prior regulation level.
-		dDiff = dDiff / 14000;
+		dDiff = dDiff / 700;
 		/*		BiblePay Difficulty Level Chart:
 		 1            19998.2933653649 
 		51            19863.6590388237 
@@ -1879,6 +1879,10 @@ CAmount GetBlockSubsidy(const CBlockIndex* pindexPrev, int nPrevBits, int nPrevH
 		401           18958.1674095155 
 		451           18833.8828994796 
 		*/
+	}
+	else if (fProd && pindexPrev && pindexPrev->nHeight >= 7500)
+	{
+		dDiff = dDiff / 14000;
 	}
 		
     nSubsidyBase = (20000 / (pow((dDiff+1.0),2.0))) + 1;
@@ -3842,12 +3846,11 @@ bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, bool f
 {
 	
     // Check proof of work matches claimed amount
-	if (fCheckPOW && !CheckProofOfWork(block.GetHash(), block.nBits, Params().GetConsensus(), nBlockTime, nPrevBlockTime, nPrevHeight, pindexPrev, false))
-	{
 		// PhaseShiftUK reports that pool server occasionally returns a high-hash, yet we dont want to ban the pool server, Temporary solution: Change DoS level to prevent pool from being banned
+
+	if (fCheckPOW && !CheckProofOfWork(block.GetHash(), block.nBits, Params().GetConsensus(), nBlockTime, nPrevBlockTime, nPrevHeight, pindexPrev, false))
         return state.DoS(1, error("CheckBlockHeader(): proof of work failed"),
-                         REJECT_INVALID, "high-hash");
-	}
+		REJECT_INVALID, "high-hash");
 
     // BiblePay - Check timestamp (reject if > 15 minutes in future).  This is is important since we lower the difficulty after all online nodes cannot solve block in one hour!  
     if (block.GetBlockTime() > GetAdjustedTime() + (15 * 60))
@@ -4171,11 +4174,9 @@ static bool IsSuperMajority(int minVersion, const CBlockIndex* pstart, unsigned 
 bool ProcessNewBlock(CValidationState& state, const CChainParams& chainparams, const CNode* pfrom, const CBlock* pblock, bool fForceProcessing, CDiskBlockPos* dbp)
 {
     // Preliminary checks
-	LogPrintf("8");
 	CBlockIndex* pindexAncestor=mapBlockIndex[pblock->hashPrevBlock];
     int64_t nAncestorTime = (pindexAncestor==NULL) ? 0 : pindexAncestor->nTime;
 	int nAncestorHeight = (pindexAncestor==NULL) ? 0 : pindexAncestor->nHeight;
-	LogPrintf("9");
 
     bool checked = CheckBlock(*pblock, state, true, true, pblock->GetBlockTime(), nAncestorTime, nAncestorHeight, pindexAncestor);
     {
@@ -4767,8 +4768,7 @@ bool LoadExternalBlockFile(const CChainParams& chainparams, FILE* fileIn, CDiskB
                     dbp->nPos = nBlockPos;
                 blkdat.SetLimit(nBlockPos + nSize);
                 blkdat.SetPos(nBlockPos);
-				LogPrintf("1");
-                CBlock block;
+				CBlock block;
                 blkdat >> block;
                 nRewind = blkdat.GetPos();
 
@@ -4776,7 +4776,7 @@ bool LoadExternalBlockFile(const CChainParams& chainparams, FILE* fileIn, CDiskB
                 uint256 hash = block.GetHash();
 		
                 if (hash != cblockGenesis.GetHash() && mapBlockIndex.find(block.hashPrevBlock) == mapBlockIndex.end()) {
-                    LogPrint("reindex", "%s: Out of order block %s, parent %s not known\n", __func__, hash.ToString(),
+                    LogPrintf("reindex", "%s: Out of order block %s, parent %s not known\n", __func__, hash.ToString(),
                             block.hashPrevBlock.ToString());
                     if (dbp)
                         mapBlocksUnknownParent.insert(std::make_pair(block.hashPrevBlock, *dbp));
