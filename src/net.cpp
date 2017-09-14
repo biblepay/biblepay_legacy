@@ -2919,6 +2919,7 @@ std::string BiblepayHttpPost(int iThreadID, std::string sActionName, std::string
 			const CChainParams& chainparams = Params();
 			mapRequestHeaders["NetworkID"] = chainparams.NetworkIDString();
 			mapRequestHeaders["ThreadID"] = RoundToString(iThreadID,0);
+			mapRequestHeaders["OS"] = sOS;
 
 			CService addrConnect;
 			std::string sDomain = GetDomainFromURL(sBaseURL);

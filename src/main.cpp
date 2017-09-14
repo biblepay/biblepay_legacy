@@ -89,6 +89,8 @@ bool fLoadingIndex = false;
 bool fMasternodesEnabled = false;
 
 int iPrayerIndex = 0;
+std::string sOS = "";
+
 std::map<std::string, std::string> mvApplicationCache;
 std::map<std::string, int64_t> mvApplicationCacheTimestamp;
 bool fPoolMiningMode = false;
@@ -7016,7 +7018,11 @@ void MemorizePrayer(std::string sMessage, int64_t nTime, double dAmount, int iPo
 			  boost::to_upper(sMessageKey);
 		      std::string sTimestamp = TimestampToHRDate((double)nTime+iPosition);
 			  // Were using the Block time here because tx time returns seconds past epoch, and adjusting the time by the vout position (so the user can see what time the prayer was accepted in the block).
-			  std::string sAdjMessageKey = sMessageKey + " (" + sTimestamp + ")";
+			  std::string sAdjMessageKey = sMessageKey;
+			  if (!(Contains(sMessageKey, "(") && Contains(sMessageKey,")")))
+			  {
+			       sAdjMessageKey = sMessageKey + " (" + sTimestamp + ")";
+			  }
 			  WriteCache(sMessageType, sAdjMessageKey, sMessageValue, nTime);
 		  }
 	  }

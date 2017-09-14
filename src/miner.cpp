@@ -625,6 +625,7 @@ void static BibleMiner(const CChainParams& chainparams, int iThreadID)
 	int64_t nThreadStart = GetTimeMillis();
 	int64_t nThreadWork = 0;
 	int64_t nLastReadyToMine = GetAdjustedTime() - 120;
+	int64_t nLastClearCache = GetAdjustedTime() - 120;
 	int64_t nLastShareSubmitted = GetAdjustedTime();
 	int iFailCount = 0;
 recover:
@@ -838,8 +839,10 @@ recover:
 					WriteCache("pool" + RoundToString(iThreadID, 0),"communication","0",GetAdjustedTime());
 				}
 
-				if ((GetAdjustedTime() - nLastReadyToMine) > (7*60))
+				if ((GetAdjustedTime() - nLastClearCache) > (7*60))
 				{
+					nLastClearCache=GetAdjustedTime();
+					WriteCache("poolcache", "pooladdress", "", GetAdjustedTime());
 					ClearCache("poolcache");
 				}
 

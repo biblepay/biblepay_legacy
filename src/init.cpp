@@ -1144,6 +1144,16 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     fDebug = !mapMultiArgs["-debug"].empty();
 	fDebugMaster = !mapMultiArgs["-debugmaster"].empty();
 	fMineSlow = !mapMultiArgs["-mineslow"].empty();
+	// Set flag for platform
+	sOS="LIN";
+
+	#ifdef Q_OS_MAC
+		sOS="MAC";
+	#endif
+
+	#ifdef WIN32
+		sOS="WIN";
+	#endif
 
 	fReboot2 = false;
     // Special-case: if -debug=0/-nodebug is set, turn off debugging messages

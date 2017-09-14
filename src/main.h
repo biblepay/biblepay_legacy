@@ -199,6 +199,7 @@ extern std::map<std::string, double> mvBlockVersion;
 extern int SIN_MODULUS;
 extern bool fLoadingIndex;
 extern int iPrayerIndex;
+extern std::string sOS;
 extern int iMinerThreadCount;
 extern bool fPoolMiningMode;
 extern bool fCommunicatingWithPool;
