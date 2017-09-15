@@ -409,7 +409,9 @@ void IncrementExtraNonce(CBlock* pblock, const CBlockIndex* pindexPrev, unsigned
 void UpdatePoolProgress(const CBlock* pblock, std::string sPoolAddress, arith_uint256 hashPoolTarget, CBlockIndex* pindexPrev, std::string sMinerGuid, std::string sWorkID, 
 	int iThreadID, unsigned int iThreadWork, int64_t nThreadStart)
 {
-	uint256 hashSolution = BibleHash(pblock->GetHash(),pblock->GetBlockTime(),pindexPrev->nTime,true,pindexPrev->nHeight,pindexPrev,false);
+	// (OLD) uint256 hashSolution = BibleHash(pblock->GetHash(),pblock->GetBlockTime(),pindexPrev->nTime,true,pindexPrev->nHeight,pindexPrev,false);
+	uint256 hashSolution = BibleHash(pblock->GetHash(),pblock->GetBlockTime(),pindexPrev->nTime,true,pindexPrev->nHeight,NULL,false);
+
 	if (!sPoolAddress.empty())
 	{
 		std::string sWorkerID = GetArg("-workerid","");

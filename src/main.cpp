@@ -1794,7 +1794,7 @@ bool ReadBlockFromDisk(CBlock& block, const CDiskBlockPos& pos, const Consensus:
 	{
 		bCheckPOW = true;
 	}
-	else if (Context=="PROCESSGETDATA" || Context=="DISCONNECTTIP") 
+	else if (Context=="PROCESSGETDATA" || Context=="DISCONNECTTIP" || Context=="GETSUBSIDY") 
 	{
 		bCheckPOW = false;
 	}
