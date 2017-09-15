@@ -228,7 +228,7 @@ UniValue showblock(const UniValue& params, bool fHelp)
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
     CBlock block;
     const Consensus::Params& consensusParams = Params().GetConsensus();
-	ReadBlockFromDisk(block, pblockindex, consensusParams);
+	ReadBlockFromDisk(block, pblockindex, consensusParams, "SHOWBLOCK");
 	return blockToJSON(block, pblockindex, false);
 }
 
@@ -642,7 +642,7 @@ UniValue getblock(const UniValue& params, bool fHelp)
     if (fHavePruned && !(pblockindex->nStatus & BLOCK_HAVE_DATA) && pblockindex->nTx > 0)
         throw JSONRPCError(RPC_INTERNAL_ERROR, "Block not available (pruned data)");
 
-    if(!ReadBlockFromDisk(block, pblockindex, Params().GetConsensus()))
+    if(!ReadBlockFromDisk(block, pblockindex, Params().GetConsensus(), "GETBLOCK"))
         throw JSONRPCError(RPC_INTERNAL_ERROR, "Can't read block from disk");
 
     if (!fVerbose)
@@ -1077,7 +1077,7 @@ void ScanBlockChainVersion(int nLookback)
     {
          if (!pblockindex || !pblockindex->pprev) return;
          pblockindex = pblockindex->pprev;
-         if (ReadBlockFromDisk(block, pblockindex, consensusParams)) 
+         if (ReadBlockFromDisk(block, pblockindex, consensusParams, "SCANBLOCKCHAINVERSION")) 
 		 {
 			//std::string sVersion = RoundToString(block.nVersion,0); // In case we ever add a version suffix
 			std::string sVersion2 = ExtractXML(block.vtx[0].vout[0].sTxOutMessage,"<VER>","</VER>");
@@ -1239,7 +1239,7 @@ UniValue run(const UniValue& params, bool fHelp)
 			if (pindex)
 			{
 				CBlock block;
-				if (ReadBlockFromDisk(block, pindex, consensusParams)) 
+				if (ReadBlockFromDisk(block, pindex, consensusParams, "GETSUBSIDY")) 
 				{
         				results.push_back(Pair("subsidy", block.vtx[0].vout[0].nValue/COIN));
 						std::string sRecipient = PubKeyToAddress(block.vtx[0].vout[0].scriptPubKey);
@@ -1549,7 +1549,7 @@ UniValue ContributionReport()
 	for (int ii = nMinDepth; ii <= nMaxDepth; ii++)
 	{
    			CBlockIndex* pblockindex = FindBlockByHeight(ii);
-			if (ReadBlockFromDisk(block, pblockindex, consensusParams))
+			if (ReadBlockFromDisk(block, pblockindex, consensusParams, "CONTRIBUTIONREPORT"))
 			{
 				LogPrintf("Reading %f ",(double)ii);
 

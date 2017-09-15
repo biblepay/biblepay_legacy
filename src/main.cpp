@@ -1731,7 +1731,8 @@ bool GetTransaction(const uint256 &hash, CTransaction &txOut, const Consensus::P
 
     if (pindexSlow) {
         CBlock block;
-        if (ReadBlockFromDisk(block, pindexSlow, consensusParams)) {
+        if (ReadBlockFromDisk(block, pindexSlow, consensusParams, "GetTransaction")) 
+		{
             BOOST_FOREACH(const CTransaction &tx, block.vtx) {
                 if (tx.GetHash() == hash) {
                     txOut = tx;
@@ -1776,39 +1777,65 @@ bool WriteBlockToDisk(const CBlock& block, CDiskBlockPos& pos, const CMessageHea
     return true;
 }
 
-bool ReadBlockFromDisk(CBlock& block, const CDiskBlockPos& pos, const Consensus::Params& consensusParams)
+bool ReadBlockFromDisk(CBlock& block, const CDiskBlockPos& pos, const Consensus::Params& consensusParams, std::string Context)
 {
+
+	// September 14th, 2017 - Robert Andrew - BiblePay
+	// Depending on the context of the call, ensure the block is read from the disk without a CheckProofOfWork Error
+
+	boost::to_upper(Context);
+	bool bCheckPOW = true;
+	if  (  Context=="RETRIEVETXOUTINFO" 
+		|| Context=="GETTRANSACTION" 
+		|| Context=="CONNECTTIP"
+		|| Context=="VERIFYDB" 
+		|| Context=="LOADEXTERNALBLOCKFILE" 
+	    ) 
+	{
+		bCheckPOW = true;
+	}
+	else if (Context=="PROCESSGETDATA" || Context=="DISCONNECTTIP") 
+	{
+		bCheckPOW = false;
+	}
+	else
+	{
+		bCheckPOW = true;
+	}
+
     block.SetNull();
 
     // Open history file to read
     CAutoFile filein(OpenBlockFile(pos, true), SER_DISK, CLIENT_VERSION);
     if (filein.IsNull())
-        return error("ReadBlockFromDisk: OpenBlockFile failed for %s", pos.ToString());
+        return error("ReadBlockFromDisk: OpenBlockFile failed for %s with Context %s", pos.ToString(), Context.c_str());
 
     // Read block
     try {
         filein >> block;
     }
     catch (const std::exception& e) {
-        return error("%s: Deserialize or I/O error - %s at %s", __func__, e.what(), pos.ToString());
+        return error("%s: Deserialize or I/O error - %s at %s, Context %s", __func__, e.what(), pos.ToString(), Context.c_str());
     }
 
     // Check the header
 	CBlockIndex* pindexAncestor=mapBlockIndex[block.hashPrevBlock];
     int64_t nAncestorTime = (pindexAncestor==NULL) ? 0 : pindexAncestor->nTime;
 	int nPrevHeight = (pindexAncestor==NULL) ? 0 : pindexAncestor->nHeight;
-    if (!CheckProofOfWork(block.GetHash(), block.nBits, consensusParams, block.GetBlockTime(), nAncestorTime, nPrevHeight, pindexAncestor, true))
+	if (bCheckPOW)
 	{
-        LogPrintf("ReadBlockFromDisk: Errors in block header at %s", pos.ToString());
-		return false;
+		if (!CheckProofOfWork(block.GetHash(), block.nBits, consensusParams, block.GetBlockTime(), nAncestorTime, nPrevHeight, pindexAncestor, true))
+		{
+			LogPrintf("ReadBlockFromDisk (Context %s): Errors in block header at %s", Context.c_str(), pos.ToString());
+			return false;
+		}
 	}
-
     return true;
 }
 
-bool ReadBlockFromDisk(CBlock& block, const CBlockIndex* pindex, const Consensus::Params& consensusParams)
+bool ReadBlockFromDisk(CBlock& block, const CBlockIndex* pindex, const Consensus::Params& consensusParams, std::string Context)
 {
-    if (!ReadBlockFromDisk(block, pindex->GetBlockPos(), consensusParams))
+    if (!ReadBlockFromDisk(block, pindex->GetBlockPos(), consensusParams, Context))
         return false;
     if (block.GetHash() != pindex->GetBlockHash())
         return error("ReadBlockFromDisk(CBlock&, CBlockIndex*): GetHash() doesn't match index for %s at %s",
@@ -3201,7 +3228,7 @@ bool static DisconnectTip(CValidationState& state, const Consensus::Params& cons
     assert(pindexDelete);
     // Read block from disk.
     CBlock block;
-    if (!ReadBlockFromDisk(block, pindexDelete, consensusParams))
+    if (!ReadBlockFromDisk(block, pindexDelete, consensusParams, "DisconnectTip"))
         return AbortNode(state, "Failed to read block");
     // Apply the block atomically to the chain state.
     int64_t nStart = GetTimeMicros();
@@ -3266,7 +3293,7 @@ bool static ConnectTip(CValidationState& state, const CChainParams& chainparams,
     int64_t nTime1 = GetTimeMicros();
     CBlock block;
     if (!pblock) {
-        if (!ReadBlockFromDisk(block, pindexNew, chainparams.GetConsensus()))
+        if (!ReadBlockFromDisk(block, pindexNew, chainparams.GetConsensus(), "ConnectTip"))
             return AbortNode(state, "Failed to read block");
         pblock = &block;
     }
@@ -4576,7 +4603,7 @@ bool CVerifyDB::VerifyDB(const CChainParams& chainparams, CCoinsView *coinsview,
             break;
         CBlock block;
         // check level 0: read from disk
-        if (!ReadBlockFromDisk(block, pindex, chainparams.GetConsensus()))
+        if (!ReadBlockFromDisk(block, pindex, chainparams.GetConsensus(), "VerifyDB"))
             return error("VerifyDB(): *** ReadBlockFromDisk failed at %d, hash=%s", pindex->nHeight, pindex->GetBlockHash().ToString());
         // check level 1: verify block validity
         if (nCheckLevel >= 1 && !CheckBlock(block, state, true, true, block.GetBlockTime(), pindex->pprev ? pindex->pprev->nTime : 0, pindex->pprev ? pindex->pprev->nHeight : 0, pindex->pprev))
@@ -4616,7 +4643,7 @@ bool CVerifyDB::VerifyDB(const CChainParams& chainparams, CCoinsView *coinsview,
             uiInterface.ShowProgress(_("Verifying blocks..."), std::max(1, std::min(99, 100 - (int)(((double)(chainActive.Height() - pindex->nHeight)) / (double)nCheckDepth * 50))));
             pindex = chainActive.Next(pindex);
             CBlock block;
-            if (!ReadBlockFromDisk(block, pindex, chainparams.GetConsensus()))
+            if (!ReadBlockFromDisk(block, pindex, chainparams.GetConsensus(), "VerifyDB"))
                 return error("VerifyDB(): *** ReadBlockFromDisk failed at %d, hash=%s", pindex->nHeight, pindex->GetBlockHash().ToString());
             if (!ConnectBlock(block, state, pindex, coins))
                 return error("VerifyDB(): *** found unconnectable block at %d, hash=%s", pindex->nHeight, pindex->GetBlockHash().ToString());
@@ -4813,7 +4840,7 @@ bool LoadExternalBlockFile(const CChainParams& chainparams, FILE* fileIn, CDiskB
                     while (range.first != range.second) 
 					{
                         std::multimap<uint256, CDiskBlockPos>::iterator it = range.first;
-	                    if (ReadBlockFromDisk(block, it->second, chainparams.GetConsensus()))
+	                    if (ReadBlockFromDisk(block, it->second, chainparams.GetConsensus(), "LoadExternalBlockFile"))
                         {
                             LogPrintf("%s: Processing out of order child %s of %s\n", __func__, block.GetHash().ToString(),
                                     head.ToString());
@@ -5244,7 +5271,7 @@ void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParam
 				{
                     // Send block from disk
                     CBlock block;
-                    if (!ReadBlockFromDisk(block, (*mi).second, consensusParams))
+                    if (!ReadBlockFromDisk(block, (*mi).second, consensusParams, "ProcessGetData"))
 					{
                         //assert(!"cannot load block from disk");
 						LogPrintf("\r\n** ProcessGetData:Cannot load block from disk.\r\n");
@@ -5530,7 +5557,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
         if (pfrom->nVersion < MIN_PEER_PROTO_VERSION)
         {
             // disconnect from peers older than this proto version
-            LogPrintf("peer=%d using obsolete version %i; disconnecting\n", pfrom->id, pfrom->nVersion);
+            if (fDebugMaster) LogPrintf("peer=%d using obsolete version %i; disconnecting\n", pfrom->id, pfrom->nVersion);
             pfrom->PushMessage(NetMsgType::REJECT, strCommand, REJECT_OBSOLETE,
                                strprintf("Version must be %d or greater", MIN_PEER_PROTO_VERSION));
             pfrom->fDisconnect = true;
@@ -6656,7 +6683,9 @@ bool ProcessMessages(CNode* pfrom)
         }
 
         if (!fRet)
-            LogPrintf("%s(%s, %u bytes) FAILED peer=%d\n", __func__, SanitizeString(strCommand), nMessageSize, pfrom->id);
+		{
+            if (fDebug) LogPrintf("%s(%s, %u bytes) FAILED peer=%d\n", __func__, SanitizeString(strCommand), nMessageSize, pfrom->id);
+		}
 
         break;
     }
@@ -6935,7 +6964,7 @@ void MemorizeBlockChainPrayers(bool fDuringConnectBlock)
 		if (!pindex) break;
 	    
 		CBlock block;
-		if (ReadBlockFromDisk(block, pindex, consensusParams)) 
+		if (ReadBlockFromDisk(block, pindex, consensusParams, "MemorizeBlockChainPrayers")) 
 		{
         	BOOST_FOREACH(const CTransaction &tx, block.vtx)
 			{
@@ -6977,7 +7006,7 @@ std::string RetrieveTxOutInfo(const CBlockIndex* pindexLast, int iLookback, int 
 	
 	const Consensus::Params& consensusParams = Params().GetConsensus();
 	CBlock block;
-	if (ReadBlockFromDisk(block, pindexLast, consensusParams))
+	if (ReadBlockFromDisk(block, pindexLast, consensusParams, "RetrieveTxOutInfo"))
 	{
 		if (iTxOffset >= (int)block.vtx.size()) iTxOffset=block.vtx.size()-1;
 		if (ivOutOffset >= (int)block.vtx[iTxOffset].vout.size()) ivOutOffset=block.vtx[iTxOffset].vout.size()-1;

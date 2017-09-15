@@ -310,7 +310,7 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionReco
 	const Consensus::Params& consensusParams = Params().GetConsensus();
     if (pindexTxList)
 	{
-		if (ReadBlockFromDisk(blockTxList, pindexTxList, consensusParams)) 
+		if (ReadBlockFromDisk(blockTxList, pindexTxList, consensusParams, "TRANSCTIONDESC")) 
 		{
 			strHTML += "<br><font color=pink><span>Height: " + QString::fromStdString(RoundToString((double)pindexTxList->nHeight,0)) + "</span></font></b>";
 			strHTML += "<br><font color=pink><span>Difficulty: " + QString::fromStdString(RoundToString(GetDifficultyN(pindexTxList,10),6)) + "</span></font></b>";

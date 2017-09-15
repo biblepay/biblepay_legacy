@@ -12,7 +12,7 @@ std::string RetrieveTxOutRecipientAddress(const CBlockIndex* pindex, int iLookba
 	}
 		
 	CBlock block;
-	if (ReadBlockFromDisk(block, pindex, consensusParams))
+	if (ReadBlockFromDisk(block, pindex, consensusParams, "RETRIEVETXOUTRECIPIENTADDRESS"))
 	{
 		if (iTxOffset > (int)block.vtx.size()) iTxOffset=block.vtx.size()-1;
 		if (ivOutOffset > (int)block.vtx[iTxOffset].vout.size()) ivOutOffset=block.vtx[iTxOffset].vout.size()-1;
