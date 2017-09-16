@@ -800,7 +800,7 @@ void SocketSendData(CNode *pnode)
                 int nErr = WSAGetLastError();
                 if (nErr != WSAEWOULDBLOCK && nErr != WSAEMSGSIZE && nErr != WSAEINTR && nErr != WSAEINPROGRESS)
                 {
-                    LogPrintf("socket send error %s\n", NetworkErrorString(nErr));
+                    if (fDebugMaster) LogPrintf("socket send error %s\n", NetworkErrorString(nErr));
                     pnode->fDisconnect = true;
                 }
             }

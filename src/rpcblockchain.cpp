@@ -1215,12 +1215,13 @@ UniValue run(const UniValue& params, bool fHelp)
 		uint256 blockHash = uint256S("0x" + sBlockHash);
 		uint256 hash = BibleHash(blockHash,(int64_t)cdbl(sBlockTime,0),(int64_t)cdbl(sPrevBlockTime,0),true,nHeight,NULL,false);
 		results.push_back(Pair("BibleHash",hash.GetHex()));
-		if (nHeight > 0)
+		if (nHeight > 0 && nHeight <= chainActive.Tip()->nHeight)
 		{
 			CBlockIndex* pindexLast = FindBlockByHeight(nHeight);
 			if (pindexLast)
 			{
-				uint256 hashTx = BibleHash(blockHash,(int64_t)cdbl(sBlockTime,0),(int64_t)cdbl(sPrevBlockTime,0),true,nHeight,pindexLast,true);
+				uint256 hashTx = BibleHash(blockHash,(int64_t)cdbl(sBlockTime,0),pindexLast->nTime,true,pindexLast->nHeight,pindexLast,true);
+				//hashSolution = BibleHash(pblock->GetHash(),pblock->GetBlockTime(),pindexPrev->nTime,true,pindexPrev->nHeight,pindexPrev,false);
 				results.push_back(Pair("BibleHashTx",hashTx.GetHex()));
 			}
 		}

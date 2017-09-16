@@ -21,6 +21,24 @@
 
 #include <boost/lexical_cast.hpp>
 
+
+std::string GJE(std::string sKey, std::string sValue, bool bIncludeDelimiter, bool bQuoteValue)
+{
+	// JSON: "key":"value",
+	std::string sQ = "\"";
+	std::string sOut = sQ + sKey + sQ + ":";
+	if (bQuoteValue)
+	{
+		sOut += sQ + sValue + sQ;
+	}
+	else
+	{
+		sOut += sValue;
+	}
+	if (bIncludeDelimiter) sOut += ",";
+	return sOut;
+}
+
 UniValue gobject(const UniValue& params, bool fHelp)
 {
     std::string strCommand;
@@ -28,7 +46,7 @@ UniValue gobject(const UniValue& params, bool fHelp)
         strCommand = params[0].get_str();
 
     if (fHelp  ||
-        (strCommand != "vote-many" && strCommand != "vote-conf" && strCommand != "vote-alias" && strCommand != "prepare" && strCommand != "submit" && strCommand != "count" &&
+        (strCommand != "vote-many" && strCommand != "vote-conf" && strCommand != "serialize" && strCommand != "vote-alias" && strCommand != "prepare" && strCommand != "submit" && strCommand != "count" &&
          strCommand != "deserialize" && strCommand != "get" && strCommand != "getvotes" && strCommand != "getcurrentvotes" && strCommand != "list" && strCommand != "diff"))
         throw std::runtime_error(
                 "gobject \"command\"...\n"
@@ -74,6 +92,54 @@ UniValue gobject(const UniValue& params, bool fHelp)
 
         return u.write().c_str();
     }
+
+	if (strCommand == "serialize")
+	{
+		/* [["proposal",{
+		"end_epoch":"1508331462",
+		"name":"TEST",
+		"payment_address":"bqd2cL18KD1v8bYJDFERM2LyvE7R6wZ8Rs",
+		"payment_amount":"5",
+		"start_epoch":"1505755982",
+		"type":1,
+		"url":"https://myproposal.biblepay.org"
+		}]]
+		*/
+		std::string sEnd = params[1].get_str();
+		std::string sName = params[2].get_str();
+		std::string sAddress = params[3].get_str();
+		std::string sAmount = params[4].get_str();
+		std::string sStart = params[5].get_str();
+		std::string sType = params[6].get_str();
+		std::string sURL = params[7].get_str();
+		std::string sQ = "\"";
+		std::string sJson = "[[" + sQ + "proposal" + sQ + ",{";
+		sJson += GJE("end_epoch",sEnd,true,true);
+		sJson += GJE("name",sName,true,true);
+		sJson += GJE("payment_address",sAddress,true,true);
+		sJson += GJE("payment_amount",sAmount,true,true);
+		sJson += GJE("start_epoch",sStart,true,true);
+		sJson += GJE("type",sType,true,false);
+		sJson += GJE("url",sURL,false,true);
+		sJson += "}]]";
+		UniValue u(UniValue::VOBJ);
+        
+		// make into hex
+	    std::vector<unsigned char> vchJson = vector<unsigned char>(sJson.begin(), sJson.end());
+		std::string sHex = HexStr(vchJson.begin(), vchJson.end());
+	    u.push_back(Pair("Hex", sHex));
+
+		/*
+		std::vector<unsigned char> v = ParseHex(sHex);
+        std::string sFromHex(v.begin(), v.end());
+	    u.push_back(Pair("Json", sJson));
+	    u.push_back(Pair("JsonFromHex", sFromHex));
+		*/
+
+        return u;
+   		
+	}
+
 
     // PREPARE THE GOVERNANCE OBJECT BY CREATING A COLLATERAL TRANSACTION
     if(strCommand == "prepare")

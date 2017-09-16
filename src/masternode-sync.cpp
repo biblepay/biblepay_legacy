@@ -105,8 +105,9 @@ bool CMasternodeSync::IsBlockchainSynced(bool fBlockAccepted)
             if(!CheckNodeHeight(pnode)) continue;
             nNodesAtSameHeight++;
             // if we have decent number of such peers, most likely we are synced now
-            if(nNodesAtSameHeight >= MASTERNODE_SYNC_ENOUGH_PEERS) {
-                LogPrintf("CMasternodeSync::IsBlockchainSynced -- found enough peers on the same height as we are, done\n");
+            if(nNodesAtSameHeight >= MASTERNODE_SYNC_ENOUGH_PEERS) 
+			{
+                if (fDebugMaster) LogPrintf("CMasternodeSync::IsBlockchainSynced -- found enough peers on the same height as we are, done\n");
                 fBlockchainSynced = true;
                 ReleaseNodeVector(vNodesCopy);
                 return true;

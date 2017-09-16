@@ -626,9 +626,9 @@ void static BibleMiner(const CChainParams& chainparams, int iThreadID)
     unsigned int iBibleMinerCount = 0;
 	int64_t nThreadStart = GetTimeMillis();
 	int64_t nThreadWork = 0;
-	int64_t nLastReadyToMine = GetAdjustedTime() - 120;
-	int64_t nLastClearCache = GetAdjustedTime() - 120;
-	int64_t nLastShareSubmitted = GetAdjustedTime();
+	int64_t nLastReadyToMine = GetAdjustedTime() - 480;
+	int64_t nLastClearCache = GetAdjustedTime() - 480;
+	int64_t nLastShareSubmitted = GetAdjustedTime() - 480;
 	int iFailCount = 0;
 recover:
 	int iStart = rand() % 1000;
@@ -681,7 +681,7 @@ recover:
 			// Pool Support
 			if (!fPoolMiningMode || hashTargetPool == 0)
 			{
-				if ((GetAdjustedTime() - nLastReadyToMine) > (1*60))
+				if ((GetAdjustedTime() - nLastReadyToMine) > (3*60))
 				{
 					nLastReadyToMine = GetAdjustedTime();
 					fPoolMiningMode = GetPoolMiningMode(iThreadID, iFailCount, sPoolMiningAddress, hashTargetPool, sMinerGuid, sWorkID);
@@ -776,11 +776,14 @@ recover:
 								nHashCounter += nHashesDone;
 								nHashesDone = 0;
 								// NOTE: The pools do not trust the hashesdone or the metrics sent by the client, but it is useful for the pool to receive this for debugging and for calibration
-								nLastShareSubmitted = GetAdjustedTime();
-								UpdatePoolProgress(pblock, sPoolMiningAddress, hashTargetPool, pindexPrev, sMinerGuid, sWorkID, iThreadID, nThreadWork, nThreadStart);
-								hashTargetPool = UintToArith256(uint256S("0x0"));
-								nThreadStart = GetTimeMillis();
-								nThreadWork = 0;
+								if ((GetAdjustedTime() - nLastShareSubmitted) > (2*60))
+								{
+									nLastShareSubmitted = GetAdjustedTime();
+									UpdatePoolProgress(pblock, sPoolMiningAddress, hashTargetPool, pindexPrev, sMinerGuid, sWorkID, iThreadID, nThreadWork, nThreadStart);
+									hashTargetPool = UintToArith256(uint256S("0x0"));
+									nThreadStart = GetTimeMillis();
+									nThreadWork = 0;
+								}
 							}
 							break;
 						}
@@ -826,7 +829,7 @@ recover:
                 boost::this_thread::interruption_point();
                 // Regtest mode doesn't require peers
                 
-				if (fPoolMiningMode && (!sPoolMiningAddress.empty()) && ((GetAdjustedTime() - nLastReadyToMine) > 360))
+				if (fPoolMiningMode && (!sPoolMiningAddress.empty()) && ((GetAdjustedTime() - nLastReadyToMine) > 7*60))
 				{
 					if (fDebugMaster) LogPrintf(" Pool mining hard block; checking for new work;  ");
 					hashTargetPool = UintToArith256(uint256S("0x0"));
@@ -834,23 +837,16 @@ recover:
 					break;
 				}
 
-				if ((nBibleMinerPulse % 40) == 0)
-				{
-					// Every N pulses, clear the pool buffer
-					ClearCache("poolthread" + RoundToString(iThreadID, 0));
-					WriteCache("pool" + RoundToString(iThreadID, 0),"communication","0",GetAdjustedTime());
-				}
-
-				if ((GetAdjustedTime() - nLastClearCache) > (7*60))
+				if ((GetAdjustedTime() - nLastClearCache) > (10*60))
 				{
 					nLastClearCache=GetAdjustedTime();
 					WriteCache("poolcache", "pooladdress", "", GetAdjustedTime());
 					ClearCache("poolcache");
+					ClearCache("poolthread" + RoundToString(iThreadID, 0));
+					WriteCache("pool" + RoundToString(iThreadID, 0),"communication","0",GetAdjustedTime());
 				}
 
-				if ( (fPoolMiningMode && sPoolMiningAddress.empty() && ((GetAdjustedTime() - nLastReadyToMine) > (10*60)))
-				   ||
-				   ( ((nBibleMinerPulse % 500) == 0) && sPoolMiningAddress.empty() &&  ((GetAdjustedTime() - nLastReadyToMine) > (5*60))) )
+				if ((sPoolMiningAddress.empty() && ((GetAdjustedTime() - nLastReadyToMine) > (10*60))))
 				{
 					if (!sPoolConfURL.empty())
 					{
