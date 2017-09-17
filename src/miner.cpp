@@ -726,13 +726,14 @@ recover:
 			}
 	
 			unsigned int nBibleHashesDone = 0;
+			uint256 hash_withTxInfo = uint256S("0x0");
 			SetThreadPriority(THREAD_PRIORITY_ABOVE_NORMAL);
-     		uint256 hash_withTxInfo = uint256S("0x0");
-	
+     		
 		    while (true)
             {
 				unsigned int nHashesDone = 0;
-			
+				SetThreadPriority(THREAD_PRIORITY_ABOVE_NORMAL);
+     		
 			    while (true)
                 {
 					// BiblePay: Proof of BibleHash requires the blockHash to not only be less than the Hash Target, but also,
@@ -1013,7 +1014,8 @@ recover:
 		    while (true)
             {
 				unsigned int nHashesDone = 0;
-			
+				SetThreadPriority(THREAD_PRIORITY_ABOVE_NORMAL);
+     		
 			    while (true)
                 {
 					// BiblePay: Proof of BibleHash requires the blockHash to not only be less than the Hash Target, but also,
@@ -1035,7 +1037,8 @@ recover:
 								hashTargetPool = UintToArith256(uint256S("0x0"));
 								nThreadStart = GetTimeMillis();
 								nThreadWork = 0;
-							}
+								SetThreadPriority(THREAD_PRIORITY_ABOVE_NORMAL);
+     						}
 						}
 					}
 
@@ -1059,7 +1062,7 @@ recover:
 					nThreadWork += 1;
 			
 					// 0x4FFF is approximately 20 seconds, then we update hashmeter
-					if ((pblock->nNonce & 0x4FFF) == 0)
+					if ((pblock->nNonce & 0x5FFF) == 0)
 						break;
 					
                 }
