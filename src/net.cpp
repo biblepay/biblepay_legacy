@@ -986,7 +986,7 @@ static void AcceptConnection(const ListenSocket& hListenSocket) {
 
     if (CNode::IsBanned(addr) && !whitelisted)
     {
-        LogPrintf("connection from %s dropped (banned)\n", addr.ToString());
+        if (fDebugMaster) LogPrintf("connection from %s dropped (banned)\n", addr.ToString());
         CloseSocket(hSocket);
         return;
     }

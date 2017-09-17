@@ -619,7 +619,8 @@ std::string GetPoolMiningNarr(std::string sPoolAddress)
 	}
 }
 
-void static BibleMiner(const CChainParams& chainparams, int iThreadID)
+
+void static BibleMiner_RETIRED(const CChainParams& chainparams, int iThreadID)
 {
 	
 	LogPrintf("BibleMiner -- started thread %f \n",(double)iThreadID);
@@ -814,6 +815,251 @@ recover:
 
 					// 0x7FFF is approximately 30 seconds, then we update hashmeter
 					if ((pblock->nNonce & 0x7FFF) == 0)
+						break;
+					
+                }
+
+				// Update HashesPerSec
+				nHashCounter += nHashesDone;
+				nBibleHashCounter += nBibleHashesDone;
+				nBibleMinerPulse++;
+				dHashesPerSec = 1000.0 * nHashCounter / (GetTimeMillis() - nHPSTimerStart);
+				iBibleMinerCount++;
+
+                // Check for stop or if block needs to be rebuilt
+                boost::this_thread::interruption_point();
+                // Regtest mode doesn't require peers
+                
+				if (fPoolMiningMode && (!sPoolMiningAddress.empty()) && ((GetAdjustedTime() - nLastReadyToMine) > 7*60))
+				{
+					if (fDebugMaster) LogPrintf(" Pool mining hard block; checking for new work;  ");
+					hashTargetPool = UintToArith256(uint256S("0x0"));
+					WriteCache("poolthread"+RoundToString(iThreadID,0),"poolinfo3","CFW " + TimestampToHRDate(GetAdjustedTime()),GetAdjustedTime());
+					break;
+				}
+
+				if ((GetAdjustedTime() - nLastClearCache) > (10*60))
+				{
+					nLastClearCache=GetAdjustedTime();
+					WriteCache("poolcache", "pooladdress", "", GetAdjustedTime());
+					ClearCache("poolcache");
+					ClearCache("poolthread" + RoundToString(iThreadID, 0));
+					WriteCache("pool" + RoundToString(iThreadID, 0),"communication","0",GetAdjustedTime());
+				}
+
+				if ((sPoolMiningAddress.empty() && ((GetAdjustedTime() - nLastReadyToMine) > (10*60))))
+				{
+					if (!sPoolConfURL.empty())
+					{
+						// This happens when the user wants to pool mine, the pool was down, so we are solo mining, now we need to check to see if the pool is back up during the next iteration
+						ClearCache("poolcache");
+						WriteCache("poolthread" + RoundToString(iThreadID,0), "poolinfo3", "Checking on Pool Health to see if back up..." + TimestampToHRDate(GetAdjustedTime()),GetAdjustedTime());
+						hashTargetPool = UintToArith256(uint256S("0x0"));
+						break;
+					}
+				}
+
+				if (vNodes.empty() && chainparams.MiningRequiresPeers())
+                    break;
+
+                if (pblock->nNonce >= 0xFF)
+                    break;
+                if (mempool.GetTransactionsUpdated() != nTransactionsUpdatedLast && GetTime() - nStart > 60)
+                    break;
+                if (pindexPrev != chainActive.Tip() || pindexPrev==NULL || chainActive.Tip()==NULL)
+                    break;
+	                        
+                // Update nTime every few seconds
+			    if (pindexPrev)
+				{
+					if (UpdateTime(pblock, chainparams.GetConsensus(), pindexPrev) < 0)
+						break; // Recreate the block if the clock has run backwards,
+							   // so that we can use the correct time.
+				}
+				if (chainparams.GetConsensus().fPowAllowMinDifficultyBlocks)
+				{
+					// Changing pblock->nTime can change work required on testnet:
+					hashTarget.SetCompact(pblock->nBits);
+				}
+				
+            }
+        }
+    }
+    catch (const boost::thread_interrupted&)
+    {
+        LogPrintf("\r\nBiblepayMiner -- terminated\n");
+		dHashesPerSec = 0;
+        throw;
+    }
+    catch (const std::runtime_error &e)
+    {
+        LogPrintf("\r\nBiblepayMiner -- runtime error: %s\n", e.what());
+		dHashesPerSec = 0;
+		// This happens occasionally when TestBlockValidity fails; I suppose the best thing to do for now is start the thread over.
+		nThreadStart = GetTimeMillis();
+		nThreadWork = 0;
+		MilliSleep(1000);
+		goto recover;
+		// throw;
+    }
+}
+
+
+void static BibleMiner(const CChainParams& chainparams, int iThreadID)
+{
+	// September 17, 2017 - Robert Andrew (BiblePay)
+	// Forking the old (Pre-F7000) version of BibleMiner so we can focus on improving hashing speed in the F7000 world on Windows
+	// Right now, Windows is 70% slower than Linux
+
+	LogPrintf("BibleMiner -- started thread %f \n",(double)iThreadID);
+    unsigned int iBibleMinerCount = 0;
+	int64_t nThreadStart = GetTimeMillis();
+	int64_t nThreadWork = 0;
+	int64_t nLastReadyToMine = GetAdjustedTime() - 480;
+	int64_t nLastClearCache = GetAdjustedTime() - 480;
+	int64_t nLastShareSubmitted = GetAdjustedTime() - 480;
+	int iFailCount = 0;
+recover:
+	int iStart = rand() % 1000;
+	MilliSleep(iStart);
+    
+	SetThreadPriority(THREAD_PRIORITY_LOWEST);
+    RenameThread("biblepay-miner");
+
+    unsigned int nExtraNonce = 0;
+	
+    boost::shared_ptr<CReserveScript> coinbaseScript;
+    GetMainSignals().ScriptForMining(coinbaseScript);
+	std::string sPoolMiningAddress = "";
+	std::string sMinerGuid = "";
+	std::string sWorkID = "";
+	std::string sPoolConfURL = GetArg("-pool", "");
+		
+    try {
+        // Throw an error if no script was provided.  This can happen
+        // due to some internal error but also if the keypool is empty.
+        // In the latter case, already the pointer is NULL.
+        if (!coinbaseScript || coinbaseScript->reserveScript.empty())
+            throw std::runtime_error("No coinbase script available (mining requires a wallet)");
+
+		arith_uint256 hashTargetPool = UintToArith256(uint256S("0x0"));
+
+        while (true) 
+		{
+            if (chainparams.MiningRequiresPeers()) 
+			{
+                // Busy-wait for the network to come online so we don't waste time mining
+                // on an obsolete chain. In regtest mode we expect to fly solo.
+                do {
+                    bool fvNodesEmpty;
+                    {
+                        LOCK(cs_vNodes);
+                        fvNodesEmpty = vNodes.empty();
+                    }
+		            if ((!fvNodesEmpty && !IsInitialBlockDownload()) || fDebug) 
+					{
+				        MilliSleep(1000); // Avoid races
+						break;
+					}
+					// if (chainActive.Tip()->nHeight < 60000 || masternodeSync.IsSynced()))
+                        
+                    MilliSleep(1000);
+                } while (true);
+            }
+
+			// Pool Support
+			if (!fPoolMiningMode || hashTargetPool == 0)
+			{
+				if ((GetAdjustedTime() - nLastReadyToMine) > (3*60))
+				{
+					nLastReadyToMine = GetAdjustedTime();
+					fPoolMiningMode = GetPoolMiningMode(iThreadID, iFailCount, sPoolMiningAddress, hashTargetPool, sMinerGuid, sWorkID);
+					if (fDebugMaster) LogPrintf("Checking with Pool: Pool Address %s \r\n",sPoolMiningAddress.c_str());
+				}
+			}
+		    
+            //
+            // Create new block
+            //
+
+            unsigned int nTransactionsUpdatedLast = mempool.GetTransactionsUpdated();
+            CBlockIndex* pindexPrev = chainActive.Tip();
+            if(!pindexPrev) break;
+		
+		    auto_ptr<CBlockTemplate> pblocktemplate(CreateNewBlock(chainparams, coinbaseScript->reserveScript, sPoolMiningAddress));
+            if (!pblocktemplate.get())
+            {
+                LogPrintf("BiblepayMiner -- Keypool ran out, please call keypoolrefill before restarting the mining thread\n");
+				MilliSleep(5000);
+				goto recover;
+            }
+            CBlock *pblock = &pblocktemplate->block;
+            IncrementExtraNonce(pblock, pindexPrev, nExtraNonce);
+			
+			std::string sPoolNarr = GetPoolMiningNarr(sPoolMiningAddress);
+			
+			if (fDebugMaster) LogPrintf("BiblepayMiner -- Running miner %s with %u transactions in block (%u bytes)\n", sPoolNarr.c_str(),
+				pblock->vtx.size(), ::GetSerializeSize(*pblock, SER_NETWORK, PROTOCOL_VERSION));
+
+            //
+            // Search
+            //
+            int64_t nStart = GetTime();
+            arith_uint256 hashTarget = arith_uint256().SetCompact(pblock->nBits);
+			
+			unsigned int nBibleHashesDone = 0;
+			SetThreadPriority(THREAD_PRIORITY_ABOVE_NORMAL);
+     		
+		    while (true)
+            {
+				unsigned int nHashesDone = 0;
+			
+			    while (true)
+                {
+					// BiblePay: Proof of BibleHash requires the blockHash to not only be less than the Hash Target, but also,
+					// the BibleHash of the blockhash must be less than the target.
+					// The BibleHash is generated from chained bible verses, a historical tx lookup, one AES encryption operation, and MD5 hash
+					uint256 x11_hash = pblock->GetHash();
+					uint256 hash = BibleHash(x11_hash, pblock->GetBlockTime(), pindexPrev->nTime, true, pindexPrev->nHeight, NULL, false);
+					nBibleHashesDone += 1;
+					if (fPoolMiningMode)
+					{
+						if (UintToArith256(hash) <= hashTargetPool)
+						{
+							nHashCounter += nHashesDone;
+							nHashesDone = 0;
+							if ((GetAdjustedTime() - nLastShareSubmitted) > (2*60))
+							{
+								nLastShareSubmitted = GetAdjustedTime();
+								UpdatePoolProgress(pblock, sPoolMiningAddress, hashTargetPool, pindexPrev, sMinerGuid, sWorkID, iThreadID, nThreadWork, nThreadStart);
+								hashTargetPool = UintToArith256(uint256S("0x0"));
+								nThreadStart = GetTimeMillis();
+								nThreadWork = 0;
+							}
+						}
+					}
+
+					if (UintToArith256(hash) <= hashTarget)
+					{
+						
+						// Found a solution
+						SetThreadPriority(THREAD_PRIORITY_NORMAL);
+						ProcessBlockFound(pblock, chainparams);
+						SetThreadPriority(THREAD_PRIORITY_LOWEST);
+						coinbaseScript->KeepScript();
+						// In regression test mode, stop mining after a block is found. This
+						// allows developers to controllably generate a block on demand.
+						if (chainparams.MineBlocksOnDemand())
+								throw boost::thread_interrupted();
+						break;
+					}
+						
+					pblock->nNonce += 1;
+					nHashesDone += 1;
+					nThreadWork += 1;
+			
+					// 0x4FFF is approximately 20 seconds, then we update hashmeter
+					if ((pblock->nNonce & 0x4FFF) == 0)
 						break;
 					
                 }
