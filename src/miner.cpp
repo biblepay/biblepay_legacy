@@ -467,7 +467,7 @@ static bool ProcessBlockFound(const CBlock* pblock, const CChainParams& chainpar
 static CCriticalSection csBusyWait;
 void BusyWait()
 {
-	LOCK(csBusyWait);
+	// LOCK(csBusyWait); - Checking to see if this speeds up XEONs
 	for (int busy = 0; busy < 100; busy++)
 	{
 		bool bCommunicating = false;
@@ -1014,8 +1014,6 @@ recover:
 		    while (true)
             {
 				unsigned int nHashesDone = 0;
-				SetThreadPriority(THREAD_PRIORITY_ABOVE_NORMAL);
-     		
 			    while (true)
                 {
 					// BiblePay: Proof of BibleHash requires the blockHash to not only be less than the Hash Target, but also,
@@ -1044,7 +1042,6 @@ recover:
 
 					if (UintToArith256(hash) <= hashTarget)
 					{
-						
 						// Found a solution
 						SetThreadPriority(THREAD_PRIORITY_NORMAL);
 						ProcessBlockFound(pblock, chainparams);
@@ -1062,7 +1059,7 @@ recover:
 					nThreadWork += 1;
 			
 					// 0x4FFF is approximately 20 seconds, then we update hashmeter
-					if ((pblock->nNonce & 0x5FFF) == 0)
+					if ((pblock->nNonce & 0x7FFF) == 0)
 						break;
 					
                 }
