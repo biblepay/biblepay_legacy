@@ -28,6 +28,10 @@
 #include <QTextCursor>
 #include <QVBoxLayout>
 
+// For BiblePay News Reader
+// #include <QWebView>
+#include <QUrl>
+
 std::string GetPrayer(int iPrayerNumber, std::string& out_Title);
 std::string GetVerse(std::string sBook, int iChapter, int iVerse, int iBookStart, int iBookEnd);
 std::string GetBook(int iBookNumber);
@@ -37,9 +41,12 @@ void GetBookStartEnd(std::string sBook, int& iStart, int& iEnd);
 QString ToQstring(std::string s);
 std::string FromQStringW(QString qs);
 std::string strReplace(std::string& str, const std::string& oldStr, const std::string& newStr);
+std::string GetTxNews(uint256 hash);
+
+
 
 /** "Help message" or "About" dialog box */
-HelpMessageDialog::HelpMessageDialog(QWidget *parent, HelpMode helpMode, int iPrayer) :
+HelpMessageDialog::HelpMessageDialog(QWidget *parent, HelpMode helpMode, int iPrayer, uint256 txid) :
     QDialog(parent),
     ui(new Ui::HelpMessageDialog)
 {
@@ -60,6 +67,10 @@ HelpMessageDialog::HelpMessageDialog(QWidget *parent, HelpMode helpMode, int iPr
 		std::string sTitle = "";
 		std::string sPrayer = GetPrayer(iPrayer, sTitle);
 	    setWindowTitle(QString::fromStdString(sTitle));
+		ui->btnPublish->setVisible(false);
+		ui->btnPreview->setVisible(false);
+		ui->btnShowHTML->setVisible(false);
+
         QString qsp = QString::fromStdString(sPrayer);
         // Make URLs clickable
         QRegExp uri("<(.*)>", Qt::CaseSensitive, QRegExp::RegExp2);
@@ -79,10 +90,85 @@ HelpMessageDialog::HelpMessageDialog(QWidget *parent, HelpMode helpMode, int iPr
 		ui->lblBook->setVisible(false);
 
 	}
+	else if (helpMode == readnews)
+	{
+		ui->comboBook->setVisible(false);
+		ui->comboChapter->setVisible(false);
+		ui->lblChapter->setVisible(false);
+		ui->lblBook->setVisible(false);
+		ui->btnPublish->setVisible(true);
+		ui->btnPreview->setVisible(true);
+		ui->btnShowHTML->setVisible(true);
+		connect(ui->btnPublish, SIGNAL(clicked()), this, SLOT(on_btnPublishClicked()));
+		connect(ui->btnPreview, SIGNAL(clicked()), this, SLOT(on_btnPreviewClicked()));
+		connect(ui->btnShowHTML, SIGNAL(clicked()), this, SLOT(on_btnShowHTMLClicked()));
+		std::string sTitle = "Read a News Article";
+		std::string sPage = "Read a News Article";
+	    setWindowTitle(QString::fromStdString(sTitle));
+        // ui->aboutMessage->setTextFormat(Qt::RichText);
+        ui->scrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+		ui->aboutMessage->setEnabled(true);
+		ui->aboutMessage->setVisible(false);
+        ui->helpMessage->setVisible(true);
+        ui->scrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+		ui->aboutMessage->setGeometry(ui->helpMessage->x(), ui->helpMessage->y(), ui->helpMessage->width(), 1);
+		ui->helpMessage->setReadOnly(false);
+		ui->helpMessage->setEnabled(true);
+		// Retrieve the news article
+		QString qsNews = QString::fromStdString(GetTxNews(txid));
+		QRegExp uri("<(.*)>", Qt::CaseSensitive, QRegExp::RegExp2);
+        uri.setMinimal(true);
+        qsNews.replace(uri, "<a href=\"\\1\">\\1</a>");
+        // Replace newlines with HTML breaks
+	    qsNews.replace("\n\n", "<br><br>");
+	    ui->helpMessage->setText(qsNews);
+		ui->helpMessage->setGeometry(ui->helpMessage->x(), ui->helpMessage->y(), ui->helpMessage->width(), ui->helpMessage->height() + 500);
+		/* Reserved for News Reader
+		 //QWebView q = new QWebView(this);
+		 //q->setGeometry(0,0,200,200);
+		 //q->load(QUrl("http://www.google.com"));
+		*/
+	}
+	else if (helpMode == createnews)
+	{
+		ui->comboBook->setVisible(false);
+		ui->comboChapter->setVisible(false);
+		ui->lblChapter->setVisible(false);
+		ui->lblBook->setVisible(false);
+		ui->btnPublish->setVisible(true);
+		ui->btnPreview->setVisible(true);
+		ui->btnShowHTML->setVisible(true);
+		connect(ui->btnPublish, SIGNAL(clicked()), this, SLOT(on_btnPublishClicked()));
+		connect(ui->btnPreview, SIGNAL(clicked()), this, SLOT(on_btnPreviewClicked()));
+		connect(ui->btnShowHTML, SIGNAL(clicked()), this, SLOT(on_btnShowHTMLClicked()));
+		std::string sTitle = "Create a News Article";
+		std::string sPage = "Create a News Article";
+	    setWindowTitle(QString::fromStdString(sTitle));
+        QString qsp = QString::fromStdString(sPage);
+        QRegExp uri("<(.*)>", Qt::CaseSensitive, QRegExp::RegExp2);
+        uri.setMinimal(true);
+        qsp.replace(uri, "<a href=\"\\1\">\\1</a>");
+		qsp.replace("|","<br><br>");
+        qsp.replace("\n\n", "<br><br>");
+        ui->scrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+		ui->aboutMessage->setEnabled(true);
+		ui->aboutMessage->setVisible(false);
+        ui->helpMessage->setVisible(true);
+        ui->scrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+        ui->helpMessage->setText(qsp);
+		ui->aboutMessage->setGeometry(ui->helpMessage->x(), ui->helpMessage->y(), ui->helpMessage->width(), 1);
+		ui->helpMessage->setGeometry(ui->helpMessage->x(), ui->helpMessage->y(), ui->helpMessage->width(), ui->helpMessage->height() + 500);
+		ui->helpMessage->setReadOnly(false);
+		ui->helpMessage->setEnabled(true);
+	}
 	else if (helpMode == readbible)
 	{
 		// Make the combobox for choosing the Book of the Bible and the Chapter visible:
 		ui->comboBook->setVisible(true);
+		ui->btnPublish->setVisible(false);
+		ui->btnPreview->setVisible(false);
+		ui->btnShowHTML->setVisible(false);
+
 		ui->comboChapter->setVisible(true);
 		ui->lblChapter->setVisible(true);
 		ui->lblBook->setVisible(true);
@@ -121,6 +207,9 @@ HelpMessageDialog::HelpMessageDialog(QWidget *parent, HelpMode helpMode, int iPr
         /// HTML-format the license message from the core
         QString licenseInfo = QString::fromStdString(LicenseInfo());
         QString licenseInfoHTML = licenseInfo;
+		ui->btnPublish->setVisible(false);
+		ui->btnPreview->setVisible(false);
+		ui->btnShowHTML->setVisible(false);
 
         // Make URLs clickable
         QRegExp uri("<(.*)>", Qt::CaseSensitive, QRegExp::RegExp2);
@@ -154,6 +243,9 @@ HelpMessageDialog::HelpMessageDialog(QWidget *parent, HelpMode helpMode, int iPr
 		ui->comboChapter->setVisible(false);
    		ui->lblChapter->setVisible(false);
 		ui->lblBook->setVisible(false);
+		ui->btnPublish->setVisible(false);
+		ui->btnPreview->setVisible(false);
+		ui->btnShowHTML->setVisible(false);
 
         std::string strUsage = HelpMessage(HMM_BITCOIN_QT);
         const bool showDebug = GetBoolArg("-help-debug", false);
@@ -167,7 +259,8 @@ HelpMessageDialog::HelpMessageDialog(QWidget *parent, HelpMode helpMode, int iPr
         strUsage += HelpMessageOpt("-rootcertificates=<file>", tr("Set SSL root certificates for payment request (default: -system-)").toStdString());
         strUsage += HelpMessageOpt("-splash", strprintf(tr("Show splash screen on startup (default: %u)").toStdString(), DEFAULT_SPLASHSCREEN));
         strUsage += HelpMessageOpt("-resetguisettings", tr("Reset all settings changes made over the GUI").toStdString());
-        if (showDebug) {
+        if (showDebug) 
+		{
             strUsage += HelpMessageOpt("-uiplatform", strprintf("Select platform to customize UI for (one of windows, macosx, other; default: %s)", BitcoinGUI::DEFAULT_UIPLATFORM));
         }
         QString coreOptions = QString::fromStdString(strUsage);
@@ -211,6 +304,9 @@ HelpMessageDialog::HelpMessageDialog(QWidget *parent, HelpMode helpMode, int iPr
 	else if (helpMode == pshelp) 
 	{
         setWindowTitle(tr("PrivateSend information"));
+		ui->btnPublish->setVisible(false);
+		ui->btnPreview->setVisible(false);
+		ui->btnShowHTML->setVisible(false);
 
         ui->aboutMessage->setTextFormat(Qt::RichText);
         ui->scrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
@@ -282,6 +378,53 @@ void HelpMessageDialog::on_okButton_accepted()
 {
     close();
 }
+
+void HelpMessageDialog::on_btnPublishClicked()
+{
+	close();
+}
+
+QString FromEscapedToHTML(QString qsp)
+{
+	// The data is stored in qt5 Rich QTextEdit control, with escaped < > / characters.  Convert back to HTML so the user can PREVIEW
+	qsp.replace("&lt;","<");
+	qsp.replace("&gt;",">"); //&amp;
+	return qsp;
+}
+
+QString FromHTMLToEscaped(QString qsp)
+{
+	// The data is stored in qt5 Rich QTextEdit control, with escaped < > / characters.  Convert back to HTML so the user can PREVIEW
+	qsp.replace("<","&lt;");
+	qsp.replace(">","&gt;"); //&amp;
+	return qsp;
+}
+
+void HelpMessageDialog::on_btnPreviewClicked()
+{
+	// The users uses this to see the finished news page
+	QString qsp = ui->helpMessage->toHtml();
+	qsp.replace("<pre>","");
+	qsp.replace("</pre>","");
+	LogPrintf(" myold hms %s ",FromQStringW(qsp).c_str());
+	//	qsp=qsp.toHtmlEscaped();
+	qsp = FromEscapedToHTML(qsp);
+	ui->helpMessage->setHtml(qsp);
+	
+}
+void HelpMessageDialog::on_btnShowHTMLClicked()
+{
+	// The user uses this to see the underlying HTML so they can manually code the news page
+	QString qsp = ui->helpMessage->toHtml();
+	qsp.replace("<pre>","");
+	qsp.replace("</pre>","");
+	qsp = "<pre>" + qsp + "</pre>";
+	qsp = FromHTMLToEscaped(qsp);
+	//	qsp=qsp.toHtmlEscaped();
+	ui->helpMessage->setHtml(qsp);
+}	
+	
+
 
 void HelpMessageDialog::on_comboBookClicked(int iClick)
 {

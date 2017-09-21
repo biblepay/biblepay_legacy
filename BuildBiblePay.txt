@@ -6,6 +6,9 @@ cd biblepay
 sudo chmod 777 share/genbuild.sh
 sudo chmod 777 autogen.sh
 ./autogen.sh
+
+sudo apt-get install libqtwebkit-dev qt4-dev-tools
+
 BP_ROOT=$(pwd)
 # Note: Berkeley DB4.8 must be installed, the next step points to the db4 location
 BDB_PREFIX="${BP_ROOT}/db4"

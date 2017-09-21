@@ -273,7 +273,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
                 const unsigned char* scriptStr = (const unsigned char*)out.script().data();
                 CScript scriptPubKey(scriptStr, scriptStr+out.script().size());
                 CAmount nAmount = out.amount();
-                CRecipient recipient = {scriptPubKey, nAmount, rcp.fSubtractFeeFromAmount, rcp.fTithe, rcp.fPrayer, rcp.fRepent, FromQStringW(rcp.txtMessage), FromQStringW(rcp.txtRepent) };
+                CRecipient recipient = {scriptPubKey, nAmount, rcp.fSubtractFeeFromAmount, rcp.fTithe, rcp.fPrayer, rcp.fRepent, FromQStringW(rcp.txtMessage), FromQStringW(rcp.txtRepent), FromQStringW("") };
                 vecSend.push_back(recipient);
             }
             if (subtotal <= 0)
@@ -296,7 +296,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
             ++nAddresses;
 
             CScript scriptPubKey = GetScriptForDestination(CBitcoinAddress(rcp.address.toStdString()).Get());
-            CRecipient recipient = {scriptPubKey, rcp.amount, rcp.fSubtractFeeFromAmount, rcp.fTithe, rcp.fPrayer, rcp.fRepent, FromQStringW(rcp.txtMessage), FromQStringW(rcp.txtRepent) };
+            CRecipient recipient = {scriptPubKey, rcp.amount, rcp.fSubtractFeeFromAmount, rcp.fTithe, rcp.fPrayer, rcp.fRepent, FromQStringW(rcp.txtMessage), FromQStringW(rcp.txtRepent), FromQStringW("") };
 			//If TITHE is Checked, add a recipient here
 
 			std::string sAddress = PubKeyToAddress(scriptPubKey);

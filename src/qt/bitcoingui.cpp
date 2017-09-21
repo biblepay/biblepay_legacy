@@ -55,6 +55,7 @@
 #include <QTimer>
 #include <QToolBar>
 #include <QVBoxLayout>
+#include <QInputDialog>
 
 #if QT_VERSION < 0x050000
 #include <QTextDocument>
@@ -74,6 +75,7 @@ const std::string BitcoinGUI::DEFAULT_UIPLATFORM =
         ;
 
 const QString BitcoinGUI::DEFAULT_WALLET = "~Default";
+std::string FromQStringW(QString qs);
 
 BitcoinGUI::BitcoinGUI(const PlatformStyle *platformStyle, const NetworkStyle *networkStyle, QWidget *parent) :
     QMainWindow(parent),
@@ -103,6 +105,8 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *platformStyle, const NetworkStyle *n
 	TheApostlesCreedAction(0),
 	TheNiceneCreedAction(0),
 	ReadBibleAction(0),
+	CreateNewsAction(0),
+	ReadNewsAction(0),
 	TheTenCommandmentsAction(0),
 	JesusConciseCommandmentsAction(0),
     receiveCoinsAction(0),
@@ -163,7 +167,7 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *platformStyle, const NetworkStyle *n
 #endif
 
     rpcConsole = new RPCConsole(platformStyle, 0);
-    helpMessageDialog = new HelpMessageDialog(this, HelpMessageDialog::cmdline, 0);
+    helpMessageDialog = new HelpMessageDialog(this, HelpMessageDialog::cmdline, 0, uint256S("0x0"));
 #ifdef ENABLE_WALLET
     if(enableWallet)
     {
@@ -423,6 +427,18 @@ void BitcoinGUI::createActions()
     ReadBibleAction->setMenuRole(QAction::AboutRole);
     ReadBibleAction->setEnabled(false);
 
+	// Create News Article Action
+
+	CreateNewsAction = new QAction(QIcon(":/icons/" + theme + "/sinnersprayer"), tr("Create News Article"), this);
+    CreateNewsAction->setStatusTip(tr("Create news Article"));
+    CreateNewsAction->setMenuRole(QAction::AboutRole);
+    CreateNewsAction->setEnabled(false);
+
+	ReadNewsAction = new QAction(QIcon(":/icons/" + theme + "/sinnersprayer"), tr("Read News Article"), this);
+    ReadNewsAction->setStatusTip(tr("Read news Article"));
+    ReadNewsAction->setMenuRole(QAction::AboutRole);
+    ReadNewsAction->setEnabled(false);
+
 	aboutQtAction = new QAction(QIcon(":/icons/" + theme + "/about_qt"), tr("About &Qt"), this);
     aboutQtAction->setStatusTip(tr("Show information about Qt"));
     aboutQtAction->setMenuRole(QAction::AboutQtRole);
@@ -495,6 +511,9 @@ void BitcoinGUI::createActions()
 	connect(TheApostlesCreedAction, SIGNAL(triggered()), this, SLOT(TheApostlesCreedClicked()));
 	connect(TheNiceneCreedAction, SIGNAL(triggered()), this, SLOT(TheNiceneCreedClicked()));
 	connect(ReadBibleAction, SIGNAL(triggered()), this, SLOT(ReadBibleClicked()));
+	connect(CreateNewsAction, SIGNAL(triggered()), this, SLOT(CreateNewsClicked()));
+	connect(ReadNewsAction, SIGNAL(triggered()), this, SLOT(ReadNewsClicked()));
+
 	connect(TheTenCommandmentsAction, SIGNAL(triggered()), this, SLOT(TheTenCommandmentsClicked()));
 	connect(JesusConciseCommandmentsAction, SIGNAL(triggered()), this, SLOT(JesusConciseCommandmentsClicked()));
 
@@ -608,6 +627,8 @@ void BitcoinGUI::createMenuBar()
 	help->addAction(TheTenCommandmentsAction);
 	help->addAction(JesusConciseCommandmentsAction);
 	help->addAction(ReadBibleAction);
+	help->addAction(CreateNewsAction);
+	help->addAction(ReadNewsAction);
 }
 
 void BitcoinGUI::createToolBars()
@@ -823,14 +844,14 @@ void BitcoinGUI::optionsClicked()
 void BitcoinGUI::sinnerClicked()
 {
     if(!clientModel) return;
-    HelpMessageDialog dlg(this, HelpMessageDialog::prayer, 0);
+    HelpMessageDialog dlg(this, HelpMessageDialog::prayer, 0, uint256S("0x0"));
     dlg.exec();
 }
 
 void BitcoinGUI::TheLordsPrayerClicked()
 {
     if(!clientModel) return;
-    HelpMessageDialog dlg(this, HelpMessageDialog::prayer, 1);
+    HelpMessageDialog dlg(this, HelpMessageDialog::prayer, 1, uint256S("0x0"));
     dlg.exec();
 }
 
@@ -838,35 +859,58 @@ void BitcoinGUI::TheLordsPrayerClicked()
 void BitcoinGUI::TheApostlesCreedClicked()
 {
     if(!clientModel) return;
-    HelpMessageDialog dlg(this, HelpMessageDialog::prayer, 2);
+    HelpMessageDialog dlg(this, HelpMessageDialog::prayer, 2, uint256S("0x0"));
     dlg.exec();
 }
 
 void BitcoinGUI::TheNiceneCreedClicked()
 {
     if(!clientModel) return;
-    HelpMessageDialog dlg(this, HelpMessageDialog::prayer, 3);
+    HelpMessageDialog dlg(this, HelpMessageDialog::prayer, 3, uint256S("0x0"));
     dlg.exec();
 }
 
 void BitcoinGUI::ReadBibleClicked()
 {
 	if(!clientModel) return;
-	HelpMessageDialog dlg(this, HelpMessageDialog::readbible, 0);
+	HelpMessageDialog dlg(this, HelpMessageDialog::readbible, 0, uint256S("0x0"));
 	dlg.exec();
 }
+
+
+void BitcoinGUI::CreateNewsClicked()
+{
+	if(!clientModel) return;
+	HelpMessageDialog dlg(this, HelpMessageDialog::createnews, 0, uint256S("0x0"));
+	dlg.exec();
+}
+
+
+void BitcoinGUI::ReadNewsClicked()
+{
+	if(!clientModel) return;
+	bool ok;
+	QString qstxid = QInputDialog::getText(this, tr("Enter TXID"),
+                                         tr("Enter News Article TXID:"), QLineEdit::Normal,"", &ok);
+    if (ok && !qstxid.isEmpty())
+	{
+     	HelpMessageDialog dlg(this, HelpMessageDialog::readnews, 0, uint256S("0x" + FromQStringW(qstxid)));
+		dlg.exec();
+	}
+}
+
 
 void BitcoinGUI::TheTenCommandmentsClicked()
 {
     if(!clientModel) return;
-    HelpMessageDialog dlg(this, HelpMessageDialog::prayer, 4);
+    HelpMessageDialog dlg(this, HelpMessageDialog::prayer, 4, uint256S("0x0"));
     dlg.exec();
 }
 
 void BitcoinGUI::JesusConciseCommandmentsClicked()
 {
     if(!clientModel) return;
-    HelpMessageDialog dlg(this, HelpMessageDialog::prayer, 5);
+    HelpMessageDialog dlg(this, HelpMessageDialog::prayer, 5, uint256S("0x0"));
     dlg.exec();
 }
 
@@ -874,7 +918,7 @@ void BitcoinGUI::JesusConciseCommandmentsClicked()
 void BitcoinGUI::aboutClicked()
 {
     if(!clientModel)        return;
-    HelpMessageDialog dlg(this, HelpMessageDialog::about, 0);
+    HelpMessageDialog dlg(this, HelpMessageDialog::about, 0, uint256S("0x0"));
     dlg.exec();
 }
 
@@ -941,7 +985,7 @@ void BitcoinGUI::showPrivateSendHelpClicked()
     if(!clientModel)
         return;
 
-    HelpMessageDialog dlg(this, HelpMessageDialog::pshelp, 0);
+    HelpMessageDialog dlg(this, HelpMessageDialog::pshelp, 0, uint256S("0x0"));
     dlg.exec();
 }
 
@@ -1296,6 +1340,8 @@ void BitcoinGUI::showEvent(QShowEvent *event)
 	TheApostlesCreedAction->setEnabled(true);
 	TheNiceneCreedAction->setEnabled(true);
 	ReadBibleAction->setEnabled(true);
+	CreateNewsAction->setEnabled(true);
+	ReadNewsAction->setEnabled(true);
 	TheTenCommandmentsAction->setEnabled(true);
 	JesusConciseCommandmentsAction->setEnabled(true);
 

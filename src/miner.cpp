@@ -1008,12 +1008,12 @@ recover:
             int64_t nStart = GetTime();
             arith_uint256 hashTarget = arith_uint256().SetCompact(pblock->nBits);
 			
+			unsigned int nHashesDone = 0;
 			unsigned int nBibleHashesDone = 0;
 			SetThreadPriority(THREAD_PRIORITY_ABOVE_NORMAL);
      		
 		    while (true)
             {
-				unsigned int nHashesDone = 0;
 			    while (true)
                 {
 					// BiblePay: Proof of BibleHash requires the blockHash to not only be less than the Hash Target, but also,
@@ -1022,41 +1022,52 @@ recover:
 					uint256 x11_hash = pblock->GetHash();
 					uint256 hash = BibleHash(x11_hash, pblock->GetBlockTime(), pindexPrev->nTime, true, pindexPrev->nHeight, NULL, false);
 					nBibleHashesDone += 1;
+					nHashesDone += 1;
+					nThreadWork += 1;
+		
 					if (fPoolMiningMode)
 					{
 						if (UintToArith256(hash) <= hashTargetPool)
 						{
-							nHashCounter += nHashesDone;
-							nHashesDone = 0;
-							if ((GetAdjustedTime() - nLastShareSubmitted) > (2*60))
+							hash = BibleHash(x11_hash, pblock->GetBlockTime(), pindexPrev->nTime, true, pindexPrev->nHeight, NULL, false);
+							if (UintToArith256(hash) <= hashTargetPool)
 							{
-								nLastShareSubmitted = GetAdjustedTime();
-								UpdatePoolProgress(pblock, sPoolMiningAddress, hashTargetPool, pindexPrev, sMinerGuid, sWorkID, iThreadID, nThreadWork, nThreadStart);
-								hashTargetPool = UintToArith256(uint256S("0x0"));
-								nThreadStart = GetTimeMillis();
-								nThreadWork = 0;
-								SetThreadPriority(THREAD_PRIORITY_ABOVE_NORMAL);
-     						}
+								nHashCounter += nHashesDone;
+								nHashesDone = 0;
+								if ((GetAdjustedTime() - nLastShareSubmitted) > (2*60))
+								{
+									nLastShareSubmitted = GetAdjustedTime();
+									UpdatePoolProgress(pblock, sPoolMiningAddress, hashTargetPool, pindexPrev, sMinerGuid, sWorkID, iThreadID, nThreadWork, nThreadStart);
+									hashTargetPool = UintToArith256(uint256S("0x0"));
+									nThreadStart = GetTimeMillis();
+									nThreadWork = 0;
+									SetThreadPriority(THREAD_PRIORITY_ABOVE_NORMAL);
+     							}
+							}
 						}
 					}
 
 					if (UintToArith256(hash) <= hashTarget)
 					{
-						// Found a solution
-						SetThreadPriority(THREAD_PRIORITY_NORMAL);
-						ProcessBlockFound(pblock, chainparams);
-						SetThreadPriority(THREAD_PRIORITY_LOWEST);
-						coinbaseScript->KeepScript();
-						// In regression test mode, stop mining after a block is found. This
-						// allows developers to controllably generate a block on demand.
-						if (chainparams.MineBlocksOnDemand())
-								throw boost::thread_interrupted();
-						break;
+						hash = BibleHash(x11_hash, pblock->GetBlockTime(), pindexPrev->nTime, true, pindexPrev->nHeight, NULL, false);
+						if (UintToArith256(hash) <= hashTarget)
+						{
+							// Found a solution
+							nHashCounter += nHashesDone;
+							nHashesDone = 0;
+							SetThreadPriority(THREAD_PRIORITY_NORMAL);
+							ProcessBlockFound(pblock, chainparams);
+							SetThreadPriority(THREAD_PRIORITY_LOWEST);
+							coinbaseScript->KeepScript();
+							// In regression test mode, stop mining after a block is found. This
+							// allows developers to controllably generate a block on demand.
+							if (chainparams.MineBlocksOnDemand())
+									throw boost::thread_interrupted();
+							break;
+						}
 					}
 						
 					pblock->nNonce += 1;
-					nHashesDone += 1;
-					nThreadWork += 1;
 			
 					// 0x4FFF is approximately 20 seconds, then we update hashmeter
 					if ((pblock->nNonce & 0x7FFF) == 0)
@@ -1066,6 +1077,7 @@ recover:
 
 				// Update HashesPerSec
 				nHashCounter += nHashesDone;
+				nHashesDone = 0;
 				nBibleHashCounter += nBibleHashesDone;
 				nBibleMinerPulse++;
 				dHashesPerSec = 1000.0 * nHashCounter / (GetTimeMillis() - nHPSTimerStart);

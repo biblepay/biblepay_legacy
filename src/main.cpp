@@ -105,7 +105,7 @@ extern std::string RetrieveTxOutInfo(const CBlockIndex* pindex, int iLookback, i
 std::string ExtractXML(std::string XMLdata, std::string key, std::string key_end);
 UniValue GetDataList(std::string sType, int iMaxAgeInDays, int& iSpecificEntry, std::string& outEntry);
 double GetDifficulty(const CBlockIndex* blockindex);
-void MemorizePrayer(std::string sMessage, int64_t nTime, double dAmount, int iPos);
+void MemorizePrayer(std::string sMessage, int64_t nTime, double dAmount, int iPos, std::string sTxID);
 extern double cdbl(std::string s, int place);
 std::string PubKeyToAddress(const CScript& scriptPubKey);
 extern std::string strReplace(std::string& str, const std::string& oldStr, const std::string& newStr);
@@ -6974,7 +6974,7 @@ void MemorizeBlockChainPrayers(bool fDuringConnectBlock)
 					  if (!tx.vout[i].sTxOutMessage.empty())
 					  {
 							dTotalSent += tx.vout[i].nValue / COIN;
-							MemorizePrayer(tx.vout[i].sTxOutMessage,block.GetBlockTime(),dTotalSent,i);
+							MemorizePrayer(tx.vout[i].sTxOutMessage,block.GetBlockTime(),dTotalSent,i, tx.GetHash().GetHex());
 					  }
 				  }
 			  }
@@ -7033,7 +7033,7 @@ std::string RetrieveTxOutInfo(const CBlockIndex* pindexLast, int iLookback, int 
 
 
 
-void MemorizePrayer(std::string sMessage, int64_t nTime, double dAmount, int iPosition)
+void MemorizePrayer(std::string sMessage, int64_t nTime, double dAmount, int iPosition, std::string sTxID)
 {
 	  if (sMessage.empty()) return;
       if (Contains(sMessage,"<MT>"))
@@ -7041,10 +7041,12 @@ void MemorizePrayer(std::string sMessage, int64_t nTime, double dAmount, int iPo
 		  std::string sMessageType      = ExtractXML(sMessage,"<MT>","</MT>");
   		  std::string sMessageKey       = ExtractXML(sMessage,"<MK>","</MK>");
 		  std::string sMessageValue     = ExtractXML(sMessage,"<MV>","</MV>");
+		  
   		  if (!sMessageType.empty() && !sMessageKey.empty() && !sMessageValue.empty())
 		  {
 			  boost::to_upper(sMessageType);
 			  boost::to_upper(sMessageKey);
+			  if (sMessageType=="NEWS") sMessageValue = sTxID;
 		      std::string sTimestamp = TimestampToHRDate((double)nTime+iPosition);
 			  // Were using the Block time here because tx time returns seconds past epoch, and adjusting the time by the vout position (so the user can see what time the prayer was accepted in the block).
 			  std::string sAdjMessageKey = sMessageKey;

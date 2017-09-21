@@ -36,6 +36,8 @@
 #include <univalue.h>
 
 using namespace std;
+extern std::string GetTxNews(uint256 hash);
+
 
 void ScriptPubKeyToJSON(const CScript& scriptPubKey, UniValue& out, bool fIncludeHex)
 {
@@ -60,6 +62,26 @@ void ScriptPubKeyToJSON(const CScript& scriptPubKey, UniValue& out, bool fInclud
         a.push_back(CBitcoinAddress(addr).ToString());
     out.push_back(Pair("addresses", a));
 }
+
+
+std::string GetTxNews(uint256 hash)
+{
+    CTransaction tx;
+    uint256 hashBlock;
+    if (!GetTransaction(hash, tx, Params().GetConsensus(), hashBlock, true))
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available about transaction");
+    string strHex = EncodeHexTx(tx);
+	std::string sNews = "";
+    for (unsigned int i = 0; i < tx.vout.size(); i++) 
+	{
+        const CTxOut& txout = tx.vout[i];
+		sNews += tx.vout[i].sTxOutMessage;
+    }
+	return sNews;
+}
+
+
+
 
 void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
 {

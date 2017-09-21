@@ -35,12 +35,16 @@ std::string ExtractXML(std::string XMLdata, std::string key, std::string key_end
 std::string BiblepayHttpPost(int iThreadID, std::string sActionName, std::string sDistinctUser, std::string sPayload, std::string sBaseURL, std::string sPage, int iPort, std::string sSolution);
 void ScriptPubKeyToJSON(const CScript& scriptPubKey, UniValue& out, bool fIncludeHex);
 std::string PubKeyToAddress(const CScript& scriptPubKey);
+std::string GetTxNews(uint256 hash);
+
 UniValue ContributionReport();
 std::string RoundToString(double d, int place);
 extern std::string TimestampToHRDate(double dtm);
 void GetBookStartEnd(std::string sBook, int& iStart, int& iEnd);
 void ClearCache(std::string section);
 void WriteCache(std::string section, std::string key, std::string value, int64_t locktime);
+std::string AddNews(std::string sPrimaryKey, std::string sHTML, double dStorageFee);
+
 
 UniValue GetDataList(std::string sType, int iMaxAgeInDays, int& iSpecificEntry, std::string& outEntry);
 uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight, const CBlockIndex* pindexLast, bool bRequireTxIndex);
@@ -1144,6 +1148,19 @@ UniValue run(const UniValue& params, bool fHelp)
 		fReboot2=true;
 		results.push_back(Pair("Reboot",1));
     }
+	else if (sItem == "getnews")
+	{
+		// getnews txid
+		uint256 hash = ParseHashV(params[1], "parameter 1");
+		results.push_back(Pair("TxID",hash.GetHex()));
+		std::string sNews = GetTxNews(hash);
+		results.push_back(Pair("News",sNews));
+	}
+	else if (sItem == "testnews")
+	{
+		std::string sTxId = AddNews("primarykey","html",250);
+		results.push_back(Pair("Sent",sTxId));
+	}
 	else if (sItem == "sendmessage")
 	{
 		std::string sError = "You must specify type, key, value: IE 'run sendmessage PRAYER mother Please_pray_for_my_mother._She_has_this_disease.'";
@@ -1382,6 +1399,71 @@ UniValue getmempoolinfo(const UniValue& params, bool fHelp)
     return mempoolInfoToJSON();
 }
 
+std::string AddNews(std::string sPrimaryKey, std::string sHTML, double dStorageFee)
+{
+	const Consensus::Params& consensusParams = Params().GetConsensus();
+    std::string sAddress = consensusParams.FoundationAddress;
+    CBitcoinAddress address(sAddress);
+    if (!address.IsValid()) throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Address");
+    CWalletTx wtx;
+	std::string sType="NEWS";
+ 	std::string sMessageType      = "<MT>" + sType + "</MT>";  
+    std::string sMessageKey       = "<MK>" + sPrimaryKey + "</MK>";
+	std::string sMessageValue     = "<MV></MV><NEWS>";
+	std::string s1 = sMessageType + sMessageKey + sMessageValue;
+	
+	CAmount curBalance = pwalletMain->GetBalance();
+    CScript scriptPubKey = GetScriptForDestination(address.Get());
+    CReserveKey reservekey(pwalletMain);
+    CAmount nFeeRequired;
+    std::string strError;
+    vector<CRecipient> vecSend;
+    int nChangePosRet = -1;
+	bool fSubtractFeeFromAmount = false;
+	
+	// Each 1k block becomes an individual vOut so we can charge a storage fee for each vOut 
+	int iStepLength = 960;
+	bool bLastStep = false;
+	int iParts = cdbl(RoundToString(sHTML.length()/iStepLength,2),0);
+	if (iParts < 1) iParts = 1;
+	CAmount nAmount = AmountFromValue(dStorageFee * iParts);
+	for (int i = 0; i <= (int)sHTML.length(); i += iStepLength)
+	{
+		int iChunkLength = sHTML.length() - i;
+		if (iChunkLength > iStepLength) 
+		{
+			iChunkLength = iStepLength;
+		} 
+		if (iChunkLength <= iStepLength) bLastStep = true;
+		std::string sChunk = sHTML.substr(i, iChunkLength);
+		if (bLastStep) sChunk += "</NEWS>";
+	    CRecipient recipient = {scriptPubKey, nAmount / iParts, fSubtractFeeFromAmount, false, false, false, "", "", ""};
+		s1 += sChunk;
+		recipient.Message = s1;
+		s1="";
+		vecSend.push_back(recipient);
+	}
+	
+    if (curBalance < nAmount) throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "Insufficient funds");
+
+	bool fUseInstantSend = false;
+	bool fUsePrivateSend = false;
+
+    if (!pwalletMain->CreateTransaction(vecSend, wtx, reservekey, nFeeRequired, nChangePosRet,
+                                         strError, NULL, true, fUsePrivateSend ? ONLY_DENOMINATED : ALL_COINS, fUseInstantSend)) 
+	{
+        if (!fSubtractFeeFromAmount && nAmount + nFeeRequired > pwalletMain->GetBalance())
+            strError = strprintf("Error: This transaction requires a transaction fee of at least %s because of its amount, complexity, or use of recently received funds!", FormatMoney(nFeeRequired));
+        throw JSONRPCError(RPC_WALLET_ERROR, strError);
+    }
+    if (!pwalletMain->CommitTransaction(wtx, reservekey, fUseInstantSend ? NetMsgType::TXLOCKREQUEST : NetMsgType::TX))
+    {
+		throw JSONRPCError(RPC_WALLET_ERROR, "Error: The transaction was rejected! This might happen if some of the coins in your wallet were already spent, such as if you used a copy of wallet.dat and coins were spent in the copy but not marked as spent here.");
+	}
+
+	std::string sTxId = wtx.GetHash().GetHex();
+	return sTxId;
+}
 
 
 

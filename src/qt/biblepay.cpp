@@ -612,7 +612,7 @@ int main(int argc, char *argv[])
     // but before showing splash screen.
     if (mapArgs.count("-?") || mapArgs.count("-h") || mapArgs.count("-help") || mapArgs.count("-version"))
     {
-        HelpMessageDialog help(NULL, mapArgs.count("-version") ? HelpMessageDialog::about : HelpMessageDialog::cmdline, 0);
+        HelpMessageDialog help(NULL, mapArgs.count("-version") ? HelpMessageDialog::about : HelpMessageDialog::cmdline, 0, uint256S("0x0"));
         help.showOrPrint();
         return EXIT_SUCCESS;
     }

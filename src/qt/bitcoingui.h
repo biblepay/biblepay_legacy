@@ -109,6 +109,8 @@ private:
 	QAction *sinnerAction;
 	QAction *TheNiceneCreedAction;
 	QAction *ReadBibleAction;
+	QAction *CreateNewsAction;
+	QAction *ReadNewsAction;
 	QAction *TheTenCommandmentsAction;
 	QAction *JesusConciseCommandmentsAction;
 	QAction *TheLordsPrayerAction;
@@ -239,6 +241,8 @@ private Q_SLOTS:
 	void TheApostlesCreedClicked();
 	void TheNiceneCreedClicked();
 	void ReadBibleClicked();
+	void CreateNewsClicked();
+	void ReadNewsClicked();
 	void TheTenCommandmentsClicked();
 	void JesusConciseCommandmentsClicked();
 

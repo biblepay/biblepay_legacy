@@ -2447,7 +2447,7 @@ bool CWallet::FundTransaction(CMutableTransaction& tx, CAmount &nFeeRet, int& nC
     {
 		////  CScript scriptPubKey;     CAmount nAmount;     bool fSubtractFeeFromAmount; 	bool fTithe; 	bool fPrayer; 	std::string txtMessage;
     
-        CRecipient recipient = {txOut.scriptPubKey, txOut.nValue, false, false, false, false, "", ""};
+        CRecipient recipient = {txOut.scriptPubKey, txOut.nValue, false, false, false, false, "", "", ""};
         vecSend.push_back(recipient);
     }
 
@@ -2856,7 +2856,7 @@ bool CWallet::GetBudgetSystemCollateralTX(CWalletTx& tx, uint256 hash, CAmount a
     std::string strFail = "";
     vector< CRecipient > vecSend;
 	//  CScript scriptPubKey;     CAmount nAmount;     bool fSubtractFeeFromAmount; 	bool fTithe; 	bool fPrayer; 	std::string txtMessage;
-    vecSend.push_back((CRecipient){scriptChange, amount, false, false, false, false, "", ""});
+    vecSend.push_back((CRecipient){scriptChange, amount, false, false, false, false, "", "", ""});
 
     CCoinControl *coinControl=NULL;
     bool success = CreateTransaction(vecSend, tx, reservekey, nFeeRet, nChangePosRet, strFail, coinControl, true, ALL_COINS, fUseInstantSend);
@@ -2995,6 +2995,11 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
                         return false;
                     }
 					txout.sTxOutMessage =  wtxNew.sTxMessageConveyed;
+					// If Recipient.Message != .empty(), add message (news support)
+					if (!recipient.Message.empty())
+					{
+						txout.sTxOutMessage = recipient.Message;
+					}
 			        txNew.vout.push_back(txout);
                 }
 

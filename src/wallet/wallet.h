@@ -160,6 +160,7 @@ struct CRecipient
 	bool fRepent;
 	std::string txtMessage;
 	std::string txtRepent;
+	std::string Message;
 };
 
 typedef std::map<std::string, std::string> mapValue_t;

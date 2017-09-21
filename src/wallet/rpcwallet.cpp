@@ -396,7 +396,7 @@ static void SendMoney(const CTxDestination &address, CAmount nValue, bool fSubtr
     std::string strError;
     vector<CRecipient> vecSend;
     int nChangePosRet = -1;
-    CRecipient recipient = {scriptPubKey, nValue, fSubtractFeeFromAmount, false, false, false, "", ""};
+    CRecipient recipient = {scriptPubKey, nValue, fSubtractFeeFromAmount, false, false, false, "", "", ""};
     vecSend.push_back(recipient);
 	
     if (!pwalletMain->CreateTransaction(vecSend, wtxNew, reservekey, nFeeRequired, nChangePosRet,
@@ -1111,7 +1111,7 @@ UniValue sendmany(const UniValue& params, bool fHelp)
                 fSubtractFeeFromAmount = true;
         }
 
-        CRecipient recipient = {scriptPubKey, nAmount, fSubtractFeeFromAmount, false, false, false, "", ""};
+        CRecipient recipient = {scriptPubKey, nAmount, fSubtractFeeFromAmount, false, false, false, "", "", ""};
         vecSend.push_back(recipient);
     }
 
