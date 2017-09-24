@@ -82,6 +82,9 @@ bool fMineSlow = false;
 double dHashesPerSec = 0;
 std::map<std::string, double> mvBlockVersion;
 
+extern bool WriteKey(std::string sKey, std::string sValue);
+extern bool InstantiateOneClickMiningEntries();
+
 CWaitableCriticalSection csBestBlock;
 CConditionVariable cvBlockChange;
 int nScriptCheckThreads = 0;
@@ -920,6 +923,79 @@ bool TestLockPointValidity(const LockPoints* lp)
     // LockPoints still valid
     return true;
 }
+
+bool InstantiateOneClickMiningEntries()
+{
+	WriteKey("addnode","node.biblepay.org");
+	WriteKey("addnode","biblepay.inspect.network");
+	int iCores = GetNumCores();
+	WriteKey("genproclimit", RoundToString(iCores * 1,0));
+	WriteKey("poolport","80");
+	WriteKey("workerid","");
+	WriteKey("pool","http://pool2.biblepay.org");
+	WriteKey("gen","1");
+	return true;
+}
+
+
+bool WriteKey(std::string sKey, std::string sValue)
+{
+    // Allows BiblePay to store the key value in the config file.
+    boost::filesystem::path pathConfigFile(GetArg("-conf", "biblepay.conf"));
+    if (!pathConfigFile.is_complete()) pathConfigFile = GetDataDir(false) / pathConfigFile;
+    if (!boost::filesystem::exists(pathConfigFile))  
+	{
+		// Config is empty, create it:
+		FILE *outFileNew = fopen(pathConfigFile.string().c_str(),"w");
+		fputs("", outFileNew);
+		fclose(outFileNew);
+		LogPrintf("** Created brand new biblepay.conf file **");
+	}
+    boost::to_lower(sKey);
+    std::string sLine = "";
+    ifstream streamConfigFile;
+    streamConfigFile.open(pathConfigFile.string().c_str());
+    std::string sConfig = "";
+    bool fWritten = false;
+    if(streamConfigFile)
+    {
+       while(getline(streamConfigFile, sLine))
+       {
+            std::vector<std::string> vEntry = Split(sLine,"=");
+            if (vEntry.size() == 2)
+            {
+                std::string sSourceKey = vEntry[0];
+                std::string sSourceValue = vEntry[1];
+                boost::to_lower(sSourceKey);
+                if (sSourceKey==sKey) 
+                {
+                    sSourceValue = sValue;
+                    sLine = sSourceKey + "=" + sSourceValue;
+                    fWritten=true;
+                }
+            }
+            sLine = strReplace(sLine,"\r","");
+            sLine = strReplace(sLine,"\n","");
+            sLine += "\r\n";
+            sConfig += sLine;
+       }
+    }
+    if (!fWritten) 
+    {
+        sLine = sKey + "=" + sValue + "\r\n";
+        sConfig += sLine;
+    }
+    
+    streamConfigFile.close();
+    FILE *outFile = fopen(pathConfigFile.string().c_str(),"w");
+    fputs(sConfig.c_str(), outFile);
+    fclose(outFile);
+    ReadConfigFile(mapArgs, mapMultiArgs);
+    return true;
+}
+
+
+
 
 bool CheckSequenceLocks(const CTransaction &tx, int flags, LockPoints* lp, bool useExistingLockPoints)
 {
@@ -7041,13 +7117,13 @@ void MemorizePrayer(std::string sMessage, int64_t nTime, double dAmount, int iPo
 		  std::string sMessageType      = ExtractXML(sMessage,"<MT>","</MT>");
   		  std::string sMessageKey       = ExtractXML(sMessage,"<MK>","</MK>");
 		  std::string sMessageValue     = ExtractXML(sMessage,"<MV>","</MV>");
-		  
+		  if (sMessageType=="NEWS") sMessageValue = sTxID;
+		      
   		  if (!sMessageType.empty() && !sMessageKey.empty() && !sMessageValue.empty())
 		  {
 			  boost::to_upper(sMessageType);
 			  boost::to_upper(sMessageKey);
-			  if (sMessageType=="NEWS") sMessageValue = sTxID;
-		      std::string sTimestamp = TimestampToHRDate((double)nTime+iPosition);
+			  std::string sTimestamp = TimestampToHRDate((double)nTime+iPosition);
 			  // Were using the Block time here because tx time returns seconds past epoch, and adjusting the time by the vout position (so the user can see what time the prayer was accepted in the block).
 			  std::string sAdjMessageKey = sMessageKey;
 			  if (!(Contains(sMessageKey, "(") && Contains(sMessageKey,")")))

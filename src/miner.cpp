@@ -467,7 +467,7 @@ static bool ProcessBlockFound(const CBlock* pblock, const CChainParams& chainpar
 static CCriticalSection csBusyWait;
 void BusyWait()
 {
-	// LOCK(csBusyWait); - Checking to see if this speeds up XEONs
+	LOCK(csBusyWait); 
 	for (int busy = 0; busy < 100; busy++)
 	{
 		bool bCommunicating = false;

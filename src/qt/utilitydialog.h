@@ -7,6 +7,7 @@
 
 #include <QDialog>
 #include <QObject>
+#include <QNetworkReply>
 #include "wallet/crypter.h"
 
 class BitcoinGUI;
@@ -31,10 +32,11 @@ public:
 		prayer,
 		readbible,
 		createnews,
-		readnews
+		readnews,
+		previewnews
     };
 
-    explicit HelpMessageDialog(QWidget *parent, HelpMode helpMode, int iPrayer, uint256 txid);
+    explicit HelpMessageDialog(QWidget *parent, HelpMode helpMode, int iPrayer, uint256 txid, std::string sPreview);
     ~HelpMessageDialog();
 	
     void printToConsole();
@@ -48,9 +50,10 @@ private Q_SLOTS:
     void on_okButton_accepted();
 	void on_btnPublishClicked();
 	void on_btnPreviewClicked();
-	void on_btnShowHTMLClicked();
 	void on_comboBookClicked(int iClick);
 	void on_comboChapterClicked(int iClick);
+	
+
 };
 
 
@@ -65,6 +68,26 @@ public:
 
 protected:
     void closeEvent(QCloseEvent *event);
+};
+
+
+/** News Preview window */
+class NewsPreviewWindow : public QWidget
+{
+	Q_OBJECT
+public:
+	NewsPreviewWindow(QWidget *parent=0, Qt::WindowFlags f=0);
+	static void showNewsPreviewWindow(QWidget *myparent);
+	static void showNewsWindow(QWidget *myparent, std::string sTXID);
+
+private Q_SLOTS:
+	void downloadFinished(QNetworkReply *reply);
+	bool DownloadImage(std::string sURL);
+	QString ReplaceImageTags(QString qsp);
+
+protected:
+	void closeEvent(QCloseEvent *event);
+
 };
 
 #endif // BITCOIN_QT_UTILITYDIALOG_H

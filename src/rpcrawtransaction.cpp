@@ -36,7 +36,10 @@
 #include <univalue.h>
 
 using namespace std;
-extern std::string GetTxNews(uint256 hash);
+
+extern std::string GetTxNews(uint256 hash, std::string& sHeadline);
+std::string ExtractXML(std::string XMLdata, std::string key, std::string key_end);
+
 
 
 void ScriptPubKeyToJSON(const CScript& scriptPubKey, UniValue& out, bool fIncludeHex)
@@ -64,19 +67,20 @@ void ScriptPubKeyToJSON(const CScript& scriptPubKey, UniValue& out, bool fInclud
 }
 
 
-std::string GetTxNews(uint256 hash)
+std::string GetTxNews(uint256 hash, std::string& sHeadline)
 {
     CTransaction tx;
     uint256 hashBlock;
-    if (!GetTransaction(hash, tx, Params().GetConsensus(), hashBlock, true))
-        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available about transaction");
+    if (!GetTransaction(hash, tx, Params().GetConsensus(), hashBlock, true)) return ""; // empty string means no news exists for this tx
     string strHex = EncodeHexTx(tx);
-	std::string sNews = "";
+	std::string sData = "";
     for (unsigned int i = 0; i < tx.vout.size(); i++) 
 	{
         const CTxOut& txout = tx.vout[i];
-		sNews += tx.vout[i].sTxOutMessage;
+		sData += tx.vout[i].sTxOutMessage;
     }
+	std::string sNews = ExtractXML(sData, "<NEWS>", "</NEWS>");
+	sHeadline = ExtractXML(sData, "<MK>", "</MK>");
 	return sNews;
 }
 

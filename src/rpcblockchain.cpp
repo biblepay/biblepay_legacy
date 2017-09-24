@@ -35,7 +35,7 @@ std::string ExtractXML(std::string XMLdata, std::string key, std::string key_end
 std::string BiblepayHttpPost(int iThreadID, std::string sActionName, std::string sDistinctUser, std::string sPayload, std::string sBaseURL, std::string sPage, int iPort, std::string sSolution);
 void ScriptPubKeyToJSON(const CScript& scriptPubKey, UniValue& out, bool fIncludeHex);
 std::string PubKeyToAddress(const CScript& scriptPubKey);
-std::string GetTxNews(uint256 hash);
+std::string GetTxNews(uint256 hash, std::string& sHeadline);
 
 UniValue ContributionReport();
 std::string RoundToString(double d, int place);
@@ -44,7 +44,6 @@ void GetBookStartEnd(std::string sBook, int& iStart, int& iEnd);
 void ClearCache(std::string section);
 void WriteCache(std::string section, std::string key, std::string value, int64_t locktime);
 std::string AddNews(std::string sPrimaryKey, std::string sHTML, double dStorageFee);
-
 
 UniValue GetDataList(std::string sType, int iMaxAgeInDays, int& iSpecificEntry, std::string& outEntry);
 uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight, const CBlockIndex* pindexLast, bool bRequireTxIndex);
@@ -1153,8 +1152,10 @@ UniValue run(const UniValue& params, bool fHelp)
 		// getnews txid
 		uint256 hash = ParseHashV(params[1], "parameter 1");
 		results.push_back(Pair("TxID",hash.GetHex()));
-		std::string sNews = GetTxNews(hash);
-		results.push_back(Pair("News",sNews));
+		std::string sHeadline = "";
+		std::string sNews = GetTxNews(hash, sHeadline);
+		results.push_back(Pair("Headline", sHeadline));
+		results.push_back(Pair("News", sNews));
 	}
 	else if (sItem == "testnews")
 	{
@@ -1399,14 +1400,17 @@ UniValue getmempoolinfo(const UniValue& params, bool fHelp)
     return mempoolInfoToJSON();
 }
 
-std::string AddNews(std::string sPrimaryKey, std::string sHTML, double dStorageFee)
+std::string AddNews(std::string sPrimaryKey, std::string sHTML, double dQuotedFee)
 {
 	const Consensus::Params& consensusParams = Params().GetConsensus();
     std::string sAddress = consensusParams.FoundationAddress;
     CBitcoinAddress address(sAddress);
-    if (!address.IsValid()) throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Address");
+    if (!address.IsValid()) 
+	{
+		return "Invalid Foundation Address";
+	}
     CWalletTx wtx;
-	std::string sType="NEWS";
+	std::string sType = "NEWS";
  	std::string sMessageType      = "<MT>" + sType + "</MT>";  
     std::string sMessageKey       = "<MK>" + sPrimaryKey + "</MK>";
 	std::string sMessageValue     = "<MV></MV><NEWS>";
@@ -1422,29 +1426,31 @@ std::string AddNews(std::string sPrimaryKey, std::string sHTML, double dStorageF
 	bool fSubtractFeeFromAmount = false;
 	
 	// Each 1k block becomes an individual vOut so we can charge a storage fee for each vOut 
-	int iStepLength = 960;
+	int iStepLength = 990 - s1.length();
 	bool bLastStep = false;
+	double dStorageFee = 500 * (sHTML.length() / 1000);
 	int iParts = cdbl(RoundToString(sHTML.length()/iStepLength,2),0);
 	if (iParts < 1) iParts = 1;
-	CAmount nAmount = AmountFromValue(dStorageFee * iParts);
+	CAmount nAmount = AmountFromValue(dStorageFee);
 	for (int i = 0; i <= (int)sHTML.length(); i += iStepLength)
 	{
 		int iChunkLength = sHTML.length() - i;
+		if (iChunkLength <= iStepLength) bLastStep = true;
 		if (iChunkLength > iStepLength) 
 		{
 			iChunkLength = iStepLength;
 		} 
-		if (iChunkLength <= iStepLength) bLastStep = true;
 		std::string sChunk = sHTML.substr(i, iChunkLength);
 		if (bLastStep) sChunk += "</NEWS>";
 	    CRecipient recipient = {scriptPubKey, nAmount / iParts, fSubtractFeeFromAmount, false, false, false, "", "", ""};
 		s1 += sChunk;
 		recipient.Message = s1;
+		LogPrintf("\r\n Creating TXID #%f, ChunkLen %f, with Chunk %s \r\n",(double)i,(double)iChunkLength,s1.c_str());
 		s1="";
 		vecSend.push_back(recipient);
 	}
 	
-    if (curBalance < nAmount) throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "Insufficient funds");
+    if (curBalance < dStorageFee) return "Insufficient funds (Unlock Wallet).";
 
 	bool fUseInstantSend = false;
 	bool fUsePrivateSend = false;

@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>1042</width>
-    <height>814</height>
+    <height>885</height>
    </rect>
   </property>
   <property name="maximumSize">
@@ -275,19 +275,6 @@ p, li { white-space: pre-wrap; }
         <widget class="QPushButton" name="btnPreview">
          <property name="text">
           <string>Preview</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QPushButton" name="btnShowHTML">
-         <property name="minimumSize">
-          <size>
-           <width>125</width>
-           <height>0</height>
-          </size>
-         </property>
-         <property name="text">
-          <string>Show HTML</string>
          </property>
         </widget>
        </item>

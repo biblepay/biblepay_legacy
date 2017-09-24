@@ -76,6 +76,8 @@ const std::string BitcoinGUI::DEFAULT_UIPLATFORM =
 
 const QString BitcoinGUI::DEFAULT_WALLET = "~Default";
 std::string FromQStringW(QString qs);
+QString ToQstring(std::string s);
+bool InstantiateOneClickMiningEntries();
 
 BitcoinGUI::BitcoinGUI(const PlatformStyle *platformStyle, const NetworkStyle *networkStyle, QWidget *parent) :
     QMainWindow(parent),
@@ -107,6 +109,7 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *platformStyle, const NetworkStyle *n
 	ReadBibleAction(0),
 	CreateNewsAction(0),
 	ReadNewsAction(0),
+	OneClickMiningAction(0),
 	TheTenCommandmentsAction(0),
 	JesusConciseCommandmentsAction(0),
     receiveCoinsAction(0),
@@ -167,7 +170,7 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *platformStyle, const NetworkStyle *n
 #endif
 
     rpcConsole = new RPCConsole(platformStyle, 0);
-    helpMessageDialog = new HelpMessageDialog(this, HelpMessageDialog::cmdline, 0, uint256S("0x0"));
+    helpMessageDialog = new HelpMessageDialog(this, HelpMessageDialog::cmdline, 0, uint256S("0x0"), "");
 #ifdef ENABLE_WALLET
     if(enableWallet)
     {
@@ -439,6 +442,11 @@ void BitcoinGUI::createActions()
     ReadNewsAction->setMenuRole(QAction::AboutRole);
     ReadNewsAction->setEnabled(false);
 
+	OneClickMiningAction = new QAction(QIcon(":/icons/" + theme + "/sinnersprayer"), tr("One Click Mining Configuration"), this);
+    OneClickMiningAction->setStatusTip(tr("One Click Mining Configuration"));
+    OneClickMiningAction->setMenuRole(QAction::AboutRole);
+    OneClickMiningAction->setEnabled(false);
+
 	aboutQtAction = new QAction(QIcon(":/icons/" + theme + "/about_qt"), tr("About &Qt"), this);
     aboutQtAction->setStatusTip(tr("Show information about Qt"));
     aboutQtAction->setMenuRole(QAction::AboutQtRole);
@@ -513,6 +521,7 @@ void BitcoinGUI::createActions()
 	connect(ReadBibleAction, SIGNAL(triggered()), this, SLOT(ReadBibleClicked()));
 	connect(CreateNewsAction, SIGNAL(triggered()), this, SLOT(CreateNewsClicked()));
 	connect(ReadNewsAction, SIGNAL(triggered()), this, SLOT(ReadNewsClicked()));
+	connect(OneClickMiningAction, SIGNAL(triggered()), this, SLOT(OneClickMiningClicked()));
 
 	connect(TheTenCommandmentsAction, SIGNAL(triggered()), this, SLOT(TheTenCommandmentsClicked()));
 	connect(JesusConciseCommandmentsAction, SIGNAL(triggered()), this, SLOT(JesusConciseCommandmentsClicked()));
@@ -629,6 +638,7 @@ void BitcoinGUI::createMenuBar()
 	help->addAction(ReadBibleAction);
 	help->addAction(CreateNewsAction);
 	help->addAction(ReadNewsAction);
+	help->addAction(OneClickMiningAction);
 }
 
 void BitcoinGUI::createToolBars()
@@ -844,14 +854,14 @@ void BitcoinGUI::optionsClicked()
 void BitcoinGUI::sinnerClicked()
 {
     if(!clientModel) return;
-    HelpMessageDialog dlg(this, HelpMessageDialog::prayer, 0, uint256S("0x0"));
+    HelpMessageDialog dlg(this, HelpMessageDialog::prayer, 0, uint256S("0x0"), "");
     dlg.exec();
 }
 
 void BitcoinGUI::TheLordsPrayerClicked()
 {
     if(!clientModel) return;
-    HelpMessageDialog dlg(this, HelpMessageDialog::prayer, 1, uint256S("0x0"));
+    HelpMessageDialog dlg(this, HelpMessageDialog::prayer, 1, uint256S("0x0"), "");
     dlg.exec();
 }
 
@@ -859,21 +869,21 @@ void BitcoinGUI::TheLordsPrayerClicked()
 void BitcoinGUI::TheApostlesCreedClicked()
 {
     if(!clientModel) return;
-    HelpMessageDialog dlg(this, HelpMessageDialog::prayer, 2, uint256S("0x0"));
+    HelpMessageDialog dlg(this, HelpMessageDialog::prayer, 2, uint256S("0x0"), "");
     dlg.exec();
 }
 
 void BitcoinGUI::TheNiceneCreedClicked()
 {
     if(!clientModel) return;
-    HelpMessageDialog dlg(this, HelpMessageDialog::prayer, 3, uint256S("0x0"));
+    HelpMessageDialog dlg(this, HelpMessageDialog::prayer, 3, uint256S("0x0"), "");
     dlg.exec();
 }
 
 void BitcoinGUI::ReadBibleClicked()
 {
 	if(!clientModel) return;
-	HelpMessageDialog dlg(this, HelpMessageDialog::readbible, 0, uint256S("0x0"));
+	HelpMessageDialog dlg(this, HelpMessageDialog::readbible, 0, uint256S("0x0"), "");
 	dlg.exec();
 }
 
@@ -881,7 +891,7 @@ void BitcoinGUI::ReadBibleClicked()
 void BitcoinGUI::CreateNewsClicked()
 {
 	if(!clientModel) return;
-	HelpMessageDialog dlg(this, HelpMessageDialog::createnews, 0, uint256S("0x0"));
+	HelpMessageDialog dlg(this, HelpMessageDialog::createnews, 0, uint256S("0x0"), "");
 	dlg.exec();
 }
 
@@ -890,27 +900,43 @@ void BitcoinGUI::ReadNewsClicked()
 {
 	if(!clientModel) return;
 	bool ok;
-	QString qstxid = QInputDialog::getText(this, tr("Enter TXID"),
-                                         tr("Enter News Article TXID:"), QLineEdit::Normal,"", &ok);
+	QString qstxid = QInputDialog::getText(this, tr("Enter TXID"), tr("Enter News Article TXID:"), QLineEdit::Normal,"", &ok);
     if (ok && !qstxid.isEmpty())
 	{
-     	HelpMessageDialog dlg(this, HelpMessageDialog::readnews, 0, uint256S("0x" + FromQStringW(qstxid)));
-		dlg.exec();
+
+     	//HelpMessageDialog dlg(this, HelpMessageDialog::readnews, 0, uint256S("0x" + FromQStringW(qstxid)), "");
+		
+		NewsPreviewWindow::showNewsWindow(this,FromQStringW(qstxid));
+
+	
 	}
 }
 
+void BitcoinGUI::OneClickMiningClicked()
+{
+	if(!clientModel) return;
+	std::string sNarr = "Are you sure you would like to configure Biblepay Mining (this means biblepay will search for new blocks in the background, and will resume during each restart)?";
+	int ret = QMessageBox::warning(this, tr("Modify Biblepay Configuration File for Mining?"), ToQstring(sNarr), QMessageBox::Ok | QMessageBox::Cancel, QMessageBox::Ok);
+	if (ret==QMessageBox::Ok)
+	{
+		// Modify user configuration file
+		bool fSuccess = InstantiateOneClickMiningEntries();
+		sNarr = fSuccess ? "Configuration Succeeded" : "Configuration Failed.";
+		QMessageBox::warning(this, ToQstring(sNarr), ToQstring(sNarr), QMessageBox::Ok, QMessageBox::Ok);
+	}
+}
 
 void BitcoinGUI::TheTenCommandmentsClicked()
 {
     if(!clientModel) return;
-    HelpMessageDialog dlg(this, HelpMessageDialog::prayer, 4, uint256S("0x0"));
+    HelpMessageDialog dlg(this, HelpMessageDialog::prayer, 4, uint256S("0x0"), "");
     dlg.exec();
 }
 
 void BitcoinGUI::JesusConciseCommandmentsClicked()
 {
     if(!clientModel) return;
-    HelpMessageDialog dlg(this, HelpMessageDialog::prayer, 5, uint256S("0x0"));
+    HelpMessageDialog dlg(this, HelpMessageDialog::prayer, 5, uint256S("0x0"), "");
     dlg.exec();
 }
 
@@ -918,7 +944,7 @@ void BitcoinGUI::JesusConciseCommandmentsClicked()
 void BitcoinGUI::aboutClicked()
 {
     if(!clientModel)        return;
-    HelpMessageDialog dlg(this, HelpMessageDialog::about, 0, uint256S("0x0"));
+    HelpMessageDialog dlg(this, HelpMessageDialog::about, 0, uint256S("0x0"), "");
     dlg.exec();
 }
 
@@ -985,7 +1011,7 @@ void BitcoinGUI::showPrivateSendHelpClicked()
     if(!clientModel)
         return;
 
-    HelpMessageDialog dlg(this, HelpMessageDialog::pshelp, 0, uint256S("0x0"));
+    HelpMessageDialog dlg(this, HelpMessageDialog::pshelp, 0, uint256S("0x0"), "");
     dlg.exec();
 }
 
@@ -1342,6 +1368,7 @@ void BitcoinGUI::showEvent(QShowEvent *event)
 	ReadBibleAction->setEnabled(true);
 	CreateNewsAction->setEnabled(true);
 	ReadNewsAction->setEnabled(true);
+	OneClickMiningAction->setEnabled(true);
 	TheTenCommandmentsAction->setEnabled(true);
 	JesusConciseCommandmentsAction->setEnabled(true);
 

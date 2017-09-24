@@ -801,8 +801,8 @@
             </property>
             <property name="minimumSize">
              <size>
-              <width>400</width>
-              <height>125</height>
+              <width>525</width>
+              <height>275</height>
              </size>
             </property>
             <property name="maximumSize">

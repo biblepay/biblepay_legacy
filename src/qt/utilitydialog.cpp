@@ -4,7 +4,6 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "utilitydialog.h"
-
 #include "ui_helpmessagedialog.h"
 
 #include "bitcoingui.h"
@@ -13,20 +12,20 @@
 #include "intro.h"
 #include "paymentrequestplus.h"
 #include "guiutil.h"
-
 #include "clientversion.h"
 #include "init.h"
 #include "util.h"
 #include "kjv.cpp"
-
 #include <stdio.h>
-
 #include <QCloseEvent>
 #include <QLabel>
 #include <QRegExp>
 #include <QTextTable>
 #include <QTextCursor>
 #include <QVBoxLayout>
+#include <QNetworkReply>
+#include <QNetworkRequest>
+#include <QInputDialog>
 
 // For BiblePay News Reader
 // #include <QWebView>
@@ -38,15 +37,21 @@ std::string GetBook(int iBookNumber);
 std::string GetBookByName(std::string sName);
 std::string RoundToString(double d, int place);
 void GetBookStartEnd(std::string sBook, int& iStart, int& iEnd);
+std::string AddNews(std::string sPrimaryKey, std::string sHTML, double dStorageFee);
+QString FromEscapedToHTML(QString qsp);
+QString FromHTMLToEscaped(QString qsp);
+QString FleeceBoilerPlate(QString qsp);
+std::string ExtractXML(std::string XMLdata, std::string key, std::string key_end);
+std::string strReplace(std::string& str, const std::string& oldStr, const std::string& newStr);
 QString ToQstring(std::string s);
 std::string FromQStringW(QString qs);
 std::string strReplace(std::string& str, const std::string& oldStr, const std::string& newStr);
-std::string GetTxNews(uint256 hash);
-
-
+std::string GetTxNews(uint256 hash, std::string& sHeadline);
+std::string ReadCache(std::string section, std::string key);
+void WriteCache(std::string section, std::string key, std::string value, int64_t locktime);
 
 /** "Help message" or "About" dialog box */
-HelpMessageDialog::HelpMessageDialog(QWidget *parent, HelpMode helpMode, int iPrayer, uint256 txid) :
+HelpMessageDialog::HelpMessageDialog(QWidget *parent, HelpMode helpMode, int iPrayer, uint256 txid, std::string sPreview) :
     QDialog(parent),
     ui(new Ui::HelpMessageDialog)
 {
@@ -69,9 +74,7 @@ HelpMessageDialog::HelpMessageDialog(QWidget *parent, HelpMode helpMode, int iPr
 	    setWindowTitle(QString::fromStdString(sTitle));
 		ui->btnPublish->setVisible(false);
 		ui->btnPreview->setVisible(false);
-		ui->btnShowHTML->setVisible(false);
-
-        QString qsp = QString::fromStdString(sPrayer);
+	    QString qsp = QString::fromStdString(sPrayer);
         // Make URLs clickable
         QRegExp uri("<(.*)>", Qt::CaseSensitive, QRegExp::RegExp2);
         uri.setMinimal(true);
@@ -88,9 +91,14 @@ HelpMessageDialog::HelpMessageDialog(QWidget *parent, HelpMode helpMode, int iPr
 		ui->comboChapter->setVisible(false);
 		ui->lblChapter->setVisible(false);
 		ui->lblBook->setVisible(false);
-
 	}
 	else if (helpMode == readnews)
+	{
+		// Retrieve the news article
+		//std::string sHeadline = "";
+		//std::string sNews = GetTxNews(txid, sHeadline);
+	}
+	else if (helpMode == previewnews)
 	{
 		ui->comboBook->setVisible(false);
 		ui->comboChapter->setVisible(false);
@@ -98,36 +106,24 @@ HelpMessageDialog::HelpMessageDialog(QWidget *parent, HelpMode helpMode, int iPr
 		ui->lblBook->setVisible(false);
 		ui->btnPublish->setVisible(true);
 		ui->btnPreview->setVisible(true);
-		ui->btnShowHTML->setVisible(true);
 		connect(ui->btnPublish, SIGNAL(clicked()), this, SLOT(on_btnPublishClicked()));
 		connect(ui->btnPreview, SIGNAL(clicked()), this, SLOT(on_btnPreviewClicked()));
-		connect(ui->btnShowHTML, SIGNAL(clicked()), this, SLOT(on_btnShowHTMLClicked()));
-		std::string sTitle = "Read a News Article";
-		std::string sPage = "Read a News Article";
-	    setWindowTitle(QString::fromStdString(sTitle));
-        // ui->aboutMessage->setTextFormat(Qt::RichText);
-        ui->scrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
-		ui->aboutMessage->setEnabled(true);
+		std::string sTitle = "Preview News Article";
+		setWindowTitle(QString::fromStdString(sTitle));
+        ui->aboutMessage->setEnabled(true);
 		ui->aboutMessage->setVisible(false);
         ui->helpMessage->setVisible(true);
         ui->scrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
 		ui->aboutMessage->setGeometry(ui->helpMessage->x(), ui->helpMessage->y(), ui->helpMessage->width(), 1);
 		ui->helpMessage->setReadOnly(false);
 		ui->helpMessage->setEnabled(true);
-		// Retrieve the news article
-		QString qsNews = QString::fromStdString(GetTxNews(txid));
+		LogPrintf(" preview %s ",sPreview.c_str());
+		QString qsPreview = QString::fromStdString(sPreview);
 		QRegExp uri("<(.*)>", Qt::CaseSensitive, QRegExp::RegExp2);
         uri.setMinimal(true);
-        qsNews.replace(uri, "<a href=\"\\1\">\\1</a>");
-        // Replace newlines with HTML breaks
-	    qsNews.replace("\n\n", "<br><br>");
-	    ui->helpMessage->setText(qsNews);
-		ui->helpMessage->setGeometry(ui->helpMessage->x(), ui->helpMessage->y(), ui->helpMessage->width(), ui->helpMessage->height() + 500);
-		/* Reserved for News Reader
-		 //QWebView q = new QWebView(this);
-		 //q->setGeometry(0,0,200,200);
-		 //q->load(QUrl("http://www.google.com"));
-		*/
+        qsPreview.replace(uri, "<a href=\"\\1\">\\1</a>");
+        qsPreview.replace("\n\n", "<br><br>");
+	    ui->helpMessage->setText(qsPreview);
 	}
 	else if (helpMode == createnews)
 	{
@@ -137,10 +133,8 @@ HelpMessageDialog::HelpMessageDialog(QWidget *parent, HelpMode helpMode, int iPr
 		ui->lblBook->setVisible(false);
 		ui->btnPublish->setVisible(true);
 		ui->btnPreview->setVisible(true);
-		ui->btnShowHTML->setVisible(true);
 		connect(ui->btnPublish, SIGNAL(clicked()), this, SLOT(on_btnPublishClicked()));
 		connect(ui->btnPreview, SIGNAL(clicked()), this, SLOT(on_btnPreviewClicked()));
-		connect(ui->btnShowHTML, SIGNAL(clicked()), this, SLOT(on_btnShowHTMLClicked()));
 		std::string sTitle = "Create a News Article";
 		std::string sPage = "Create a News Article";
 	    setWindowTitle(QString::fromStdString(sTitle));
@@ -167,8 +161,6 @@ HelpMessageDialog::HelpMessageDialog(QWidget *parent, HelpMode helpMode, int iPr
 		ui->comboBook->setVisible(true);
 		ui->btnPublish->setVisible(false);
 		ui->btnPreview->setVisible(false);
-		ui->btnShowHTML->setVisible(false);
-
 		ui->comboChapter->setVisible(true);
 		ui->lblChapter->setVisible(true);
 		ui->lblBook->setVisible(true);
@@ -209,7 +201,6 @@ HelpMessageDialog::HelpMessageDialog(QWidget *parent, HelpMode helpMode, int iPr
         QString licenseInfoHTML = licenseInfo;
 		ui->btnPublish->setVisible(false);
 		ui->btnPreview->setVisible(false);
-		ui->btnShowHTML->setVisible(false);
 
         // Make URLs clickable
         QRegExp uri("<(.*)>", Qt::CaseSensitive, QRegExp::RegExp2);
@@ -217,7 +208,6 @@ HelpMessageDialog::HelpMessageDialog(QWidget *parent, HelpMode helpMode, int iPr
         licenseInfoHTML.replace(uri, "<a href=\"\\1\">\\1</a>");
         // Replace newlines with HTML breaks
         licenseInfoHTML.replace("\n\n", "<br><br>");
-
         ui->aboutMessage->setTextFormat(Qt::RichText);
         ui->scrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
         text = version + "\n" + licenseInfo;
@@ -245,8 +235,7 @@ HelpMessageDialog::HelpMessageDialog(QWidget *parent, HelpMode helpMode, int iPr
 		ui->lblBook->setVisible(false);
 		ui->btnPublish->setVisible(false);
 		ui->btnPreview->setVisible(false);
-		ui->btnShowHTML->setVisible(false);
-
+	
         std::string strUsage = HelpMessage(HMM_BITCOIN_QT);
         const bool showDebug = GetBoolArg("-help-debug", false);
         strUsage += HelpMessageGroup(tr("UI Options:").toStdString());
@@ -306,8 +295,7 @@ HelpMessageDialog::HelpMessageDialog(QWidget *parent, HelpMode helpMode, int iPr
         setWindowTitle(tr("PrivateSend information"));
 		ui->btnPublish->setVisible(false);
 		ui->btnPreview->setVisible(false);
-		ui->btnShowHTML->setVisible(false);
-
+		
         ui->aboutMessage->setTextFormat(Qt::RichText);
         ui->scrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
         ui->aboutMessage->setText(tr("\
@@ -379,9 +367,32 @@ void HelpMessageDialog::on_okButton_accepted()
     close();
 }
 
-void HelpMessageDialog::on_btnPublishClicked()
+
+std::string ReplaceLineBreaksInUL(std::string sUL)
 {
-	close();
+	sUL = strReplace(sUL,"</p>","");
+	sUL = strReplace(sUL,"<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">","");
+	sUL = strReplace(sUL,"<br />","");
+	sUL = strReplace(sUL,"<br>","");
+	sUL = strReplace(sUL,"\n","");
+	return sUL;
+}
+
+
+QString FleeceBoilerPlate(QString qsp)
+{
+	qsp.replace("<pre>","");
+	qsp.replace("<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0//EN\" \"http://www.w3.org/TR/REC-html40/strict.dtd\">","");
+	qsp.replace("<html><head><meta name=\"qrichtext\" content=\"1\" />","");
+	qsp.replace("<style type=\"text/css\"> p, li { white-space: pre-wrap; } </style>","");
+	qsp.replace("</head><body style=\" font-family:'Cantarell'; font-size:11pt; font-weight:400; font-style:normal;\">","");
+	qsp.replace("<p style=\"-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">","");
+	qsp.replace("<br /></p></body></html>","");
+	qsp.replace("</pre>","");
+	qsp.replace("<p style=\" margin-top:12px; margin-bottom:12px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">","<p>\r\n");
+	qsp.replace("\"\"","\"");
+	qsp.replace("\"\"","\"");
+	return qsp;
 }
 
 QString FromEscapedToHTML(QString qsp)
@@ -389,41 +400,142 @@ QString FromEscapedToHTML(QString qsp)
 	// The data is stored in qt5 Rich QTextEdit control, with escaped < > / characters.  Convert back to HTML so the user can PREVIEW
 	qsp.replace("&lt;","<");
 	qsp.replace("&gt;",">"); //&amp;
+	qsp.replace("\"\"","\"");
+	// Unfortunately, no \n's can exist between the <ul>,<li>, and </ul>, as QT will render this as Text, and without the \n's, the user is forced to jumble the entire <ul> together in one line (not very friendly for news articles)
+	// So, lets fleece out all \n's between the unordered lists so the user can leave them in
+	std::string sPreview = FromQStringW(qsp);
+	std::vector<std::string> vPreview = Split(sPreview.c_str(),"<ul>");
+	std::string sOut = "";
+	if (vPreview.size() > 0)
+	{
+		for (int i=0; i < (int)vPreview.size(); i++)
+		{
+			std::string s1 = "<ul>" + vPreview[i];
+			std::string sOriginal = "<ul>" + ExtractXML(s1,"<ul>","</ul>") + "</ul>";
+			std::string sNew = ReplaceLineBreaksInUL(sOriginal);
+			sPreview = strReplace(sPreview,sOriginal,sNew);
+		}
+	}
+	qsp = ToQstring(sPreview);
 	return qsp;
+}
+
+
+void HelpMessageDialog::on_btnPublishClicked()
+{
+	if (fProd) return;
+	bool ok;
+	QString qsp = ui->helpMessage->toHtml();
+	qsp = FleeceBoilerPlate(qsp);
+	qsp = FromEscapedToHTML(qsp);
+	std::string sPreview = FromQStringW(qsp);
+	QString qsHeadline = QInputDialog::getText(this, tr("Publish New Block Chain News Article"), tr("Enter Article Name (Full Headline Name):"), QLineEdit::Normal,"", &ok);
+    if (ok && !qsHeadline.isEmpty() && qsHeadline.length() > 4 && sPreview.length() > 80)
+	{
+     	// Verify Cost is OK with user
+		LogPrintf("\r\n COST HTML %s \r\n", sPreview.c_str());
+		double dCost = cdbl(RoundToString(((sPreview.length()+500) / 1000) * 500,0), 0); 
+		std::string sNarr = "The cost to publish the article (bytesize=" + RoundToString(sPreview.length(),0) + ") is " 
+			+ RoundToString(dCost,2) + " BBP.  Press <OK> To Accept and Publish, otherwise press Cancel.";
+		int ret = QMessageBox::warning(this, tr("Verify Publishing Costs"), ToQstring(sNarr), QMessageBox::Ok | QMessageBox::Cancel, QMessageBox::Ok);
+		if (ret==QMessageBox::Ok)
+		{
+			// Publish the article
+			LogPrintf("ADDING BLOCKCHAIN ARTICLE");
+			std::string sTXID = AddNews(FromQStringW(qsHeadline), sPreview, dCost);
+			LogPrintf("TXID %s ",sTXID.c_str());
+			std::string sPublished = sTXID.empty() ? "Article not published successfully.  [Unlock wallet]." : "Article published successfully.  TXID: " + sTXID;
+			QMessageBox::warning(this, tr("Publishing Result"), ToQstring(sPublished),QMessageBox::Ok, QMessageBox::Ok);
+		}
+		else
+		{
+			LogPrintf(" USER DECLINED FEE. ");
+		}
+	}
+}
+
+std::string GetSANDirectory()
+{
+	 boost::filesystem::path pathConfigFile(GetArg("-conf", "biblepay.conf"));
+     if (!pathConfigFile.is_complete()) pathConfigFile = GetDataDir(false) / pathConfigFile;
+	 boost::filesystem::path dir = pathConfigFile.parent_path();
+	 std::string sDir = dir.string() + "/SAN/";
+	 boost::filesystem::path pathSAN(sDir);
+	 LogPrintf(" Checking if dir %s exists ",sDir.c_str());
+	 if (!boost::filesystem::exists(pathSAN))
+	 {
+		 boost::filesystem::create_directory(pathSAN);
+	 }
+	 return sDir;
+}
+
+bool FileExists(std::string sPath)
+{
+	if (!sPath.empty())
+	{
+		try
+		{
+			boost::filesystem::path pathImg(sPath);
+			return (boost::filesystem::exists(pathImg));
+		}
+		catch(const boost::filesystem::filesystem_error& e)
+		{
+			LogPrintf(" BOOST FILESYSTEM ERR ");
+			return false;
+		}
+		catch (const std::exception& e) 
+		{
+			return false;
+		}
+		catch(...)
+		{
+			return false;
+		}
+
+	}
+	return false;
+}
+	
+
+std::string NameFromURL(std::string sURL)
+{
+	std::vector<std::string> vURL = Split(sURL.c_str(),"/");
+	std::string sOut = "";
+	if (vURL.size() > 0)
+	{
+		std::string sName = vURL[vURL.size()-1];
+		sName=strReplace(sName,"'","");
+		std::string sDir = GetSANDirectory();
+		std::string sPath = sDir + sName;
+		LogPrintf(" FULL NAME %s ",sPath.c_str());
+		return sPath;
+	}
+	return "";
 }
 
 QString FromHTMLToEscaped(QString qsp)
 {
 	// The data is stored in qt5 Rich QTextEdit control, with escaped < > / characters.  Convert back to HTML so the user can PREVIEW
 	qsp.replace("<","&lt;");
-	qsp.replace(">","&gt;"); //&amp;
+	qsp.replace(">","&gt;");
+	qsp.replace("\"\"","\"");
 	return qsp;
 }
 
+
+
 void HelpMessageDialog::on_btnPreviewClicked()
 {
-	// The users uses this to see the finished news page
+	if (fProd) return;
+	// The users uses this to preview the news page as they create it
 	QString qsp = ui->helpMessage->toHtml();
-	qsp.replace("<pre>","");
-	qsp.replace("</pre>","");
-	LogPrintf(" myold hms %s ",FromQStringW(qsp).c_str());
-	//	qsp=qsp.toHtmlEscaped();
+	qsp = FleeceBoilerPlate(qsp);
 	qsp = FromEscapedToHTML(qsp);
-	ui->helpMessage->setHtml(qsp);
-	
+	std::string sPreview = FromQStringW(qsp);
+	WriteCache("preview-news","preview",sPreview,GetAdjustedTime());
+	WriteCache("preview-news","headline","BiblePay News Preview - Headline",GetAdjustedTime());
+ 	NewsPreviewWindow::showNewsPreviewWindow(this);
 }
-void HelpMessageDialog::on_btnShowHTMLClicked()
-{
-	// The user uses this to see the underlying HTML so they can manually code the news page
-	QString qsp = ui->helpMessage->toHtml();
-	qsp.replace("<pre>","");
-	qsp.replace("</pre>","");
-	qsp = "<pre>" + qsp + "</pre>";
-	qsp = FromHTMLToEscaped(qsp);
-	//	qsp=qsp.toHtmlEscaped();
-	ui->helpMessage->setHtml(qsp);
-}	
-	
 
 
 void HelpMessageDialog::on_comboBookClicked(int iClick)
@@ -433,7 +545,6 @@ void HelpMessageDialog::on_comboBookClicked(int iClick)
 	int iStart = 0;
 	int iEnd = 0;
 	std::string sReversed = GetBookByName(sBook);
-	LogPrintf(" book chosen %s reversed %s ",sBook.c_str(),sReversed.c_str());
 	GetBookStartEnd(sReversed, iStart, iEnd);
 	ui->comboChapter->clear();
 	for (int iChapter = 1; iChapter < 99; iChapter++)
@@ -508,10 +619,8 @@ void ShutdownWindow::showShutdownWindow(BitcoinGUI *window)
     // Show a simple window indicating shutdown status
     QWidget *shutdownWindow = new ShutdownWindow();
     // We don't hold a direct pointer to the shutdown window after creation, so use
-    // Qt::WA_DeleteOnClose to make sure that the window will be deleted eventually.
     shutdownWindow->setAttribute(Qt::WA_DeleteOnClose);
     shutdownWindow->setWindowTitle(window->windowTitle());
-
     // Center shutdown window at where main window was
     const QPoint global = window->mapToGlobal(window->rect().center());
     shutdownWindow->move(global.x() - shutdownWindow->width() / 2, global.y() - shutdownWindow->height() / 2);
@@ -522,3 +631,138 @@ void ShutdownWindow::closeEvent(QCloseEvent *event)
 {
     event->ignore();
 }
+
+
+/** News Preview window */
+NewsPreviewWindow *newsPreviewWindow;
+    
+NewsPreviewWindow::NewsPreviewWindow(QWidget *parent, Qt::WindowFlags f):
+    QWidget(parent, f)
+{
+    QVBoxLayout *layout = new QVBoxLayout();
+	QTextEdit *txt = new QTextEdit();
+	txt = new QTextEdit();
+	std::string sNews = ReadCache("preview-news","preview");
+	QString qsNews = QString::fromStdString(sNews);
+	qsNews = FromEscapedToHTML(qsNews);
+	qsNews = ReplaceImageTags(qsNews);
+	txt->setHtml(qsNews);
+    layout->addWidget(txt);
+    setLayout(layout);
+}
+
+	
+void NewsPreviewWindow::downloadFinished(QNetworkReply *reply)
+{
+	if (reply->error() != QNetworkReply::NoError) 
+	{
+		LogPrintf(" UNABLE TO DOWNLOAD IMAGE ");
+		return;
+	}
+
+	QUrl url = reply->url();
+	std::string sURL = url.toEncoded().constData();
+	std::string sName = NameFromURL(sURL);
+	QByteArray jpegData = reply->readAll();
+	QFile file(ToQstring(sName));
+	file.open(QIODevice::WriteOnly);
+	file.write(jpegData);
+	file.close();
+}
+
+	
+bool NewsPreviewWindow::DownloadImage(std::string sURL)
+{
+	std::string sPath = NameFromURL(sURL);
+	LogPrintf(" IMG NAME %s FROM URL %s ",sPath.c_str(),sURL.c_str());
+	bool fExists = FileExists(sPath);
+	if (fExists) return true;
+	QNetworkAccessManager *manager = new QNetworkAccessManager(this);
+	connect(manager, SIGNAL(finished(QNetworkReply*)), this, SLOT(downloadFinished(QNetworkReply*)));
+	manager->get(QNetworkRequest(QUrl(ToQstring(sURL))));
+	return true;
+}
+
+
+
+QString NewsPreviewWindow::ReplaceImageTags(QString qsp)
+{
+	std::string sHTML = FromQStringW(qsp);
+	std::vector<std::string> vHTML = Split(sHTML.c_str(),"<img");
+	std::string sOut = "";
+	if (vHTML.size() > 0)
+	{
+		for (int i = 0; i < (int)vHTML.size(); i++)
+		{
+			std::string sImg = "<img" + vHTML[i];
+			std::string sEle = ExtractXML(sImg,"<img",">");
+			std::string sOldImg = "<img " + sEle + ">";
+			sOldImg = strReplace(sOldImg,"  "," ");
+			sOldImg = strReplace(sOldImg,"src='src='","src='");
+			sOldImg = strReplace(sOldImg,"''","'");
+			LogPrintf(" Original OldImg %s ",sOldImg.c_str());
+			std::string sSrc = ExtractXML(sEle,"src='","'");
+			sSrc = strReplace(sSrc,"'","");
+			if (!sEle.empty() && !sSrc.empty())
+			{
+				LogPrintf(" downloading %s ",sSrc.c_str());
+				// Download image into cache
+				DownloadImage(sSrc);
+				std::string sName = NameFromURL(sSrc);
+				std::string sNew = "src='" + sName + "'";
+				std::string sNewEle = "<img " + strReplace(sEle,sSrc,sNew) + ">";
+				sNewEle=strReplace(sNewEle,"  "," ");
+				sNewEle=strReplace(sNewEle,"src='src='","src='");
+				sNewEle = strReplace(sNewEle,"''","'");
+				LogPrintf(" Img src %s, old %s, sNew %s ",sSrc.c_str(),sOldImg.c_str(),sNew.c_str());
+				sHTML = strReplace(sHTML,sOldImg,sNewEle);
+			}
+		}
+	}
+	return ToQstring(sHTML);
+}
+
+
+
+void NewsPreviewWindow::showNewsWindow(QWidget *myparent, std::string sTxID)
+{
+	if (!myparent) return;
+	if (newsPreviewWindow != NULL) newsPreviewWindow->close();
+    
+	std::string sHeadline="";
+	uint256 uTXID = uint256S("0x" + sTxID);
+	std::string sNews = GetTxNews(uTXID, sHeadline);
+	sHeadline += " - PREVIEW";
+	WriteCache("preview-news","preview",sNews,GetAdjustedTime());
+	WriteCache("preview-news","headline",sHeadline,GetAdjustedTime());
+	newsPreviewWindow = new NewsPreviewWindow();
+	newsPreviewWindow->setAttribute(Qt::WA_DeleteOnClose);
+    newsPreviewWindow->setWindowTitle(ToQstring(sHeadline));
+    // Position window to the left of the Writing window
+    newsPreviewWindow->move(50, 50);
+	newsPreviewWindow->setGeometry(20,20,770,770);
+    newsPreviewWindow->show();
+}
+
+void NewsPreviewWindow::showNewsPreviewWindow(QWidget *myparent)
+{
+    if (!myparent) return;
+    // Allow the user to preview the HTML they are creating in the Create News 
+	if (newsPreviewWindow != NULL) newsPreviewWindow->close();
+    std::string sHeadline = ReadCache("preview-news","headline");
+    // Position window to the left of the Writing window
+	newsPreviewWindow = new NewsPreviewWindow();
+    newsPreviewWindow->setAttribute(Qt::WA_DeleteOnClose);
+	newsPreviewWindow->setWindowTitle(ToQstring(sHeadline));
+    newsPreviewWindow->move(50, 50);
+	newsPreviewWindow->setGeometry(20,20,770,770);
+    newsPreviewWindow->show();
+}
+
+void NewsPreviewWindow::closeEvent(QCloseEvent *event)
+{
+   newsPreviewWindow = NULL;
+}
+
+
+

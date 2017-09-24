@@ -111,6 +111,7 @@ private:
 	QAction *ReadBibleAction;
 	QAction *CreateNewsAction;
 	QAction *ReadNewsAction;
+	QAction *OneClickMiningAction;
 	QAction *TheTenCommandmentsAction;
 	QAction *JesusConciseCommandmentsAction;
 	QAction *TheLordsPrayerAction;
@@ -243,6 +244,7 @@ private Q_SLOTS:
 	void ReadBibleClicked();
 	void CreateNewsClicked();
 	void ReadNewsClicked();
+	void OneClickMiningClicked();
 	void TheTenCommandmentsClicked();
 	void JesusConciseCommandmentsClicked();
 

@@ -623,7 +623,7 @@ void OverviewPage::privateSendReset(){
 }
 
 void OverviewPage::privateSendInfo(){
-    HelpMessageDialog dlg(this, HelpMessageDialog::pshelp, 0, uint256S("0x0"));
+    HelpMessageDialog dlg(this, HelpMessageDialog::pshelp, 0, uint256S("0x0"), "");
     dlg.exec();
 }
 
