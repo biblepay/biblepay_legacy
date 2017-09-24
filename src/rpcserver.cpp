@@ -353,7 +353,7 @@ static const CRPCCommand vRPCCommands[] =
     { "biblepay",               "mnsync",                 &mnsync,                 true  },
     { "biblepay",               "spork",                  &spork,                  true  },
     { "biblepay",               "getpoolinfo",            &getpoolinfo,            true  },
-	{ "biblepay",               "run",                    &run,                    true  },
+	{ "biblepay",               "exec",                   &exec,                   true  },
 	{ "biblepay",               "showblock",              &showblock,              true  },
 #ifdef ENABLE_WALLET
     { "biblepay",               "privatesend",            &privatesend,            false },

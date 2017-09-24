@@ -621,24 +621,32 @@ void BitcoinGUI::createMenuBar()
         tools->addAction(openConfEditorAction);
         tools->addAction(openMNConfEditorAction);
         tools->addAction(showBackupsAction);
+		tools->addAction(OneClickMiningAction);
     }
+	
+	// BiblePay - Prayers, Jesus' Commandments, and Reading the Bible
+	QMenu *menuBible = appMenuBar->addMenu(tr("&Bible"));
+	menuBible->addAction(sinnerAction);
+	menuBible->addAction(TheLordsPrayerAction);
+	menuBible->addAction(TheApostlesCreedAction);
+	menuBible->addAction(TheNiceneCreedAction);
+	menuBible->addAction(TheTenCommandmentsAction);
+	menuBible->addAction(JesusConciseCommandmentsAction);
+	menuBible->addAction(ReadBibleAction);
 
-    QMenu *help = appMenuBar->addMenu(tr("&Help"));
+	// BiblePay News
+	QMenu *menuNews = appMenuBar->addMenu(tr("&News"));
+	menuNews->addAction(CreateNewsAction);
+	menuNews->addAction(ReadNewsAction);
+
+	QMenu *help = appMenuBar->addMenu(tr("&Help"));
     help->addAction(showHelpMessageAction);
     help->addAction(showPrivateSendHelpAction);
     help->addSeparator();
     help->addAction(aboutAction);
     help->addAction(aboutQtAction);
-	help->addAction(sinnerAction);
-	help->addAction(TheLordsPrayerAction);
-	help->addAction(TheApostlesCreedAction);
-	help->addAction(TheNiceneCreedAction);
-	help->addAction(TheTenCommandmentsAction);
-	help->addAction(JesusConciseCommandmentsAction);
-	help->addAction(ReadBibleAction);
-	help->addAction(CreateNewsAction);
-	help->addAction(ReadNewsAction);
-	help->addAction(OneClickMiningAction);
+
+
 }
 
 void BitcoinGUI::createToolBars()
@@ -1365,13 +1373,17 @@ void BitcoinGUI::showEvent(QShowEvent *event)
 	TheLordsPrayerAction->setEnabled(true);
 	TheApostlesCreedAction->setEnabled(true);
 	TheNiceneCreedAction->setEnabled(true);
-	ReadBibleAction->setEnabled(true);
-	CreateNewsAction->setEnabled(true);
-	ReadNewsAction->setEnabled(true);
-	OneClickMiningAction->setEnabled(true);
 	TheTenCommandmentsAction->setEnabled(true);
 	JesusConciseCommandmentsAction->setEnabled(true);
+	ReadBibleAction->setEnabled(true);
 
+	if (!fProd)
+	{
+		CreateNewsAction->setEnabled(true);
+		ReadNewsAction->setEnabled(true);
+		OneClickMiningAction->setEnabled(true);
+	}
+	
 }
 
 #ifdef ENABLE_WALLET

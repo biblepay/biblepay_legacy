@@ -1125,11 +1125,11 @@ UniValue GetVersionReport()
 }
 
 
-UniValue run(const UniValue& params, bool fHelp)
+UniValue exec(const UniValue& params, bool fHelp)
 {
     if (fHelp || (params.size() != 1 && params.size() != 2  && params.size() != 3 && params.size() != 4 && params.size() != 5 && params.size() != 6 && params.size() != 7))
         throw runtime_error(
-		"run <string::itemname> <string::parameter> \r\n"
+		"exec <string::itemname> <string::parameter> \r\n"
         "Executes an RPC command by name.");
 
     std::string sItem = params[0].get_str();
