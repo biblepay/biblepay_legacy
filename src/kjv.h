@@ -6,6 +6,7 @@
 #define BITCOIN_KJV_H
 
 extern void initkjv();
+extern void initkjv2();
 extern double iVerseFactor;
 extern std::string sChainedVerses;
 

@@ -50,6 +50,7 @@ using namespace std;
 uint64_t nLastBlockTx = 0;
 uint64_t nLastBlockSize = 0;
 uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight, const CBlockIndex* pindexLast, bool bRequireTxIndex);
+uint256 BibleHash2(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight);
 std::string ExtractXML(std::string XMLdata, std::string key, std::string key_end);
 void WriteCache(std::string section, std::string key, std::string value, int64_t locktime);
 std::string ReadCache(std::string section, std::string key);
@@ -906,11 +907,9 @@ recover:
 }
 
 
-void static BibleMiner(const CChainParams& chainparams, int iThreadID)
+void static BibleMiner(const CChainParams& chainparams, int iThreadID, int iFeatureSet)
 {
 	// September 17, 2017 - Robert Andrew (BiblePay)
-	// Forking the old (Pre-F7000) version of BibleMiner so we can focus on improving hashing speed in the F7000 world on Windows
-	// Right now, Windows is 70% slower than Linux
 
 	LogPrintf("BibleMiner -- started thread %f \n",(double)iThreadID);
     unsigned int iBibleMinerCount = 0;
@@ -1020,7 +1019,16 @@ recover:
 					// the BibleHash of the blockhash must be less than the target.
 					// The BibleHash is generated from chained bible verses, a historical tx lookup, one AES encryption operation, and MD5 hash
 					uint256 x11_hash = pblock->GetHash();
-					uint256 hash = BibleHash(x11_hash, pblock->GetBlockTime(), pindexPrev->nTime, true, pindexPrev->nHeight, NULL, false);
+					uint256 hash;
+					if (iFeatureSet == 0)
+					{
+						hash = BibleHash(x11_hash, pblock->GetBlockTime(), pindexPrev->nTime, true, pindexPrev->nHeight, NULL, false);
+					}
+					else if (iFeatureSet == 1)
+					{
+						hash = BibleHash2(x11_hash, pblock->GetBlockTime(), pindexPrev->nTime, true, pindexPrev->nHeight);
+					}
+
 					nBibleHashesDone += 1;
 					nHashesDone += 1;
 					nThreadWork += 1;
@@ -1164,7 +1172,15 @@ recover:
 void GenerateBiblecoins(bool fGenerate, int nThreads, const CChainParams& chainparams)
 {
     static boost::thread_group* minerThreads = NULL;
-	 
+	bool bUseDualKJVBibles = true;
+
+	if (bUseDualKJVBibles)
+	{
+		LogPrintf("Initializing second KJV bible...");
+		initkjv2();
+		LogPrintf("Initialized second KJV bible.");
+	}
+
     if (nThreads < 0)
         nThreads = GetNumCores();
 
@@ -1180,12 +1196,15 @@ void GenerateBiblecoins(bool fGenerate, int nThreads, const CChainParams& chainp
 
     minerThreads = new boost::thread_group();
 	ClearCache("poolcache");
-				
+	int iBibleNumber = 0;			
     for (int i = 0; i < nThreads; i++)
 	{
 		ClearCache("poolthread" + RoundToString(i,0));
-	    minerThreads->create_thread(boost::bind(&BibleMiner, boost::cref(chainparams), boost::cref(i)));
+	    minerThreads->create_thread(boost::bind(&BibleMiner, boost::cref(chainparams), boost::cref(i), boost::cref(iBibleNumber)));
+		LogPrintf(" Starting Thread #%f with Bible #%f      ",(double)i,(double)iBibleNumber);
 	    MilliSleep(100); // Avoid races
+		iBibleNumber++;
+		if (iBibleNumber==2 || !bUseDualKJVBibles) iBibleNumber=0;
 	}
 	iMinerThreadCount = nThreads;
 
