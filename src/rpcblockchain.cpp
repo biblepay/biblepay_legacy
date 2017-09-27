@@ -36,6 +36,7 @@ std::string BiblepayHttpPost(int iThreadID, std::string sActionName, std::string
 void ScriptPubKeyToJSON(const CScript& scriptPubKey, UniValue& out, bool fIncludeHex);
 std::string PubKeyToAddress(const CScript& scriptPubKey);
 std::string GetTxNews(uint256 hash, std::string& sHeadline);
+uint256 BibleHash2(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight);
 
 UniValue ContributionReport();
 std::string RoundToString(double d, int place);
@@ -1233,6 +1234,9 @@ UniValue exec(const UniValue& params, bool fHelp)
 		uint256 blockHash = uint256S("0x" + sBlockHash);
 		uint256 hash = BibleHash(blockHash,(int64_t)cdbl(sBlockTime,0),(int64_t)cdbl(sPrevBlockTime,0),true,nHeight,NULL,false);
 		results.push_back(Pair("BibleHash",hash.GetHex()));
+		uint256 hash2 = BibleHash2(blockHash,(int64_t)cdbl(sBlockTime,0),(int64_t)cdbl(sPrevBlockTime,0),true,nHeight);
+		results.push_back(Pair("BibleHash2",hash2.GetHex()));
+
 		if (nHeight > 0 && nHeight <= chainActive.Tip()->nHeight)
 		{
 			CBlockIndex* pindexLast = FindBlockByHeight(nHeight);

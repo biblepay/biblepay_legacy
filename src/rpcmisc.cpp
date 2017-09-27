@@ -160,6 +160,7 @@ UniValue mnsync(const UniValue& params, bool fHelp)
         objStatus.push_back(Pair("IsWinnersListSynced", masternodeSync.IsWinnersListSynced()));
         objStatus.push_back(Pair("IsSynced", masternodeSync.IsSynced()));
         objStatus.push_back(Pair("IsFailed", masternodeSync.IsFailed()));
+		objStatus.push_back(Pair("MasternodesEnabled", fMasternodesEnabled));
         return objStatus;
     }
 
