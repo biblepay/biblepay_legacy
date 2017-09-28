@@ -268,6 +268,7 @@ void CMasternode::Check(bool fForce)
         }
     }
 
+	// Rob Andrew - BBP: This is a pretty strict check
     if(lastPing.sigTime - sigTime < MASTERNODE_MIN_MNP_SECONDS) {
         nActiveState = MASTERNODE_PRE_ENABLED;
         if(nActiveStatePrev != nActiveState) {

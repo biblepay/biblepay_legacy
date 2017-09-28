@@ -4633,6 +4633,12 @@ bool static LoadBlockIndexDB()
         return true;
     chainActive.SetTip(it->second);
 
+	// If tip is synced set masternode sync as initially synced so users can restart masternodes after a cold boot
+	if (GetAdjustedTime() - chainActive.Tip()->GetBlockTime() <= (60*15))
+	{
+		masternodeSync.IsBlockchainSynced(true);
+	}
+
     PruneBlockIndexCandidates();
 
     LogPrintf("%s: hashBestChain=%s height=%d date=%s progress=%f\n", __func__,
