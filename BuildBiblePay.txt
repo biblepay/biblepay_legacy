@@ -35,3 +35,11 @@ cd db-4.8.30.NC/build_unix
 make install
 
 
+How to install Watchman on the Wall:
+sudo apt update
+sudo apt install git python-virtualenv virtualenv
+cd ~/.biblepaycore
+git clone https://github.com/biblepay/watchman.git
+cd watchman
+virtualenv venv
+
