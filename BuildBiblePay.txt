@@ -34,6 +34,13 @@ cd db-4.8.30.NC/build_unix
 ../dist/configure --enable-cxx --disable-shared --with-pic --prefix=$BDB_PREFIX
 make install
 
+How to upgrade BiblePay:
+cd /biblepay/biblepay/src/..
+git pull origin master
+cd src
+make
+
+
 
 How to install Watchman on the Wall:
 sudo apt update
@@ -42,4 +49,7 @@ cd ~/.biblepaycore
 git clone https://github.com/biblepay/watchman.git
 cd watchman
 virtualenv venv
+venv/bin/pip install -r requirements.txt
+nano watchman.conf
+venv/bin/python bin/watchman.py
 
