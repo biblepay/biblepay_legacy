@@ -148,13 +148,13 @@ public:
         strNetworkID = "test";
 		// TestNet - fSantuary feature must disable tithe block Before nMasternodePaymentsStartBlock
         consensus.nSubsidyHalvingInterval = 365 * BLOCKS_PER_DAY;
-        consensus.nMasternodePaymentsStartBlock = 1171; // not true, but it's ok as long as it's less then nMasternodePaymentsIncreaseBlock
-        consensus.nMasternodePaymentsIncreaseBlock = 101;
-        consensus.nMasternodePaymentsIncreasePeriod = 101;
+        consensus.nMasternodePaymentsStartBlock = 1201; // not true, but it's ok as long as it's less then nMasternodePaymentsIncreaseBlock
+        consensus.nMasternodePaymentsIncreaseBlock = 1201;
+        consensus.nMasternodePaymentsIncreasePeriod = BLOCKS_PER_DAY*30;
         consensus.nInstantSendKeepLock = 6;
         consensus.nBudgetPaymentsStartBlock = 1201;
 		consensus.nRuleChangeActivationThreshold = 1201; // 75% for testchains
-        consensus.nSuperblockStartBlock = 1202; // NOTE: Should satisfy nSuperblockStartBlock > nBudgetPeymentsStartBlock
+        consensus.nSuperblockStartBlock = 1201; // NOTE: Should satisfy nSuperblockStartBlock > nBudgetPaymentsStartBlock
         consensus.nBudgetPaymentsCycleBlocks = 50;
         consensus.nBudgetPaymentsWindowBlocks = 10;
         consensus.nBudgetProposalEstablishingTime = 60*20;
