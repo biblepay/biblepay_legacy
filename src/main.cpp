@@ -3028,25 +3028,26 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     }
 
 	
-	if ((pindex->nHeight % TITHE_MODULUS)==0)
+	bool fTitheBlocksActive = (pindex->nHeight < Params().GetConsensus().nMasternodePaymentsStartBlock);
+	if (fTitheBlocksActive)
 	{
-		 std::string sRecipient = PubKeyToAddress(block.vtx[0].vout[0].scriptPubKey);
-	     if (sRecipient != chainparams.GetConsensus().FoundationAddress)
-		 {
- 				 LogPrintf("not destined to foundation %s (block) %s foundation \r\n",sRecipient.c_str(),chainparams.GetConsensus().FoundationAddress.c_str());
-		 		 return state.DoS(50,error("ConnectBlock(Biblepay): ScriptPubKey on Tithe Block  not destined to foundation "), REJECT_INVALID, "bad-destination");
-		 }
-		 CAmount MasterNodeReward = GetBlockSubsidy(pindex->pprev, pindex->pprev->nBits, pindex->pprev->nHeight, chainparams.GetConsensus(), true);
-		 CAmount TithePart = blockReward - MasterNodeReward;
-     	 if (TithePart != block.vtx[0].vout[0].nValue)
-		 {
-			     LogPrintf("Tithe \r\n", "    Block Reward %f, TithePart %f, nValue %f  ",(double)MasterNodeReward,(double)TithePart, double(block.vtx[0].vout[0].nValue));
-		  		 return state.DoS(10,error("ConnectBlock(Biblepay): Tithe does not match block reward."), REJECT_INVALID, "bad-tithe-amount");
-				
-		 }
-
+		if ((pindex->nHeight % TITHE_MODULUS)==0)
+		{
+			 std::string sRecipient = PubKeyToAddress(block.vtx[0].vout[0].scriptPubKey);
+			 if (sRecipient != chainparams.GetConsensus().FoundationAddress)
+			 {
+ 					 LogPrintf("not destined to foundation (block) foundation \r\n");
+		 			 return state.DoS(50,error("ConnectBlock(Biblepay): ScriptPubKey on Tithe Block  not destined to foundation "), REJECT_INVALID, "bad-destination");
+			 }
+			 CAmount MasterNodeReward = GetBlockSubsidy(pindex->pprev, pindex->pprev->nBits, pindex->pprev->nHeight, chainparams.GetConsensus(), true);
+			 CAmount TithePart = blockReward - MasterNodeReward;
+     		 if (TithePart != block.vtx[0].vout[0].nValue)
+			 {
+					 LogPrintf("Tithe \r\n", "    Block Reward %f, TithePart %f, nValue %f  ",(double)MasterNodeReward,(double)TithePart, double(block.vtx[0].vout[0].nValue));
+		  			 return state.DoS(10,error("ConnectBlock(Biblepay): Tithe does not match block reward."), REJECT_INVALID, "bad-tithe-amount");
+			 }
+		}
 	}
-    
 
     // END biblepay
 
