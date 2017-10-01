@@ -152,11 +152,11 @@ public:
         consensus.nMasternodePaymentsIncreaseBlock = 1201;
         consensus.nMasternodePaymentsIncreasePeriod = BLOCKS_PER_DAY*30;
         consensus.nInstantSendKeepLock = 6;
-        consensus.nBudgetPaymentsStartBlock = 1201;
-		consensus.nRuleChangeActivationThreshold = 1201; // 75% for testchains
-        consensus.nSuperblockStartBlock = 1201; // NOTE: Should satisfy nSuperblockStartBlock > nBudgetPaymentsStartBlock
-        consensus.nBudgetPaymentsCycleBlocks = 50;
+        consensus.nBudgetPaymentsStartBlock = 1199;
+		consensus.nBudgetPaymentsCycleBlocks = 50;
         consensus.nBudgetPaymentsWindowBlocks = 10;
+    	consensus.nRuleChangeActivationThreshold = 1201; // 75% for testchains
+	    consensus.nSuperblockStartBlock = 1201; // NOTE: Should satisfy nSuperblockStartBlock > nBudgetPaymentsStartBlock
         consensus.nBudgetProposalEstablishingTime = 60*20;
 		consensus.FoundationAddress = "yadZnJ3hD3FRC8CiLZEVNqejvQFgNtu5ci";
         consensus.nSuperblockCycle = 25; // Superblocks can be issued hourly on testnet

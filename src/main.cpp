@@ -2012,16 +2012,21 @@ CAmount GetBlockSubsidy(const CBlockIndex* pindexPrev, int nPrevBits, int nPrevH
 
     for (int i = consensusParams.nSubsidyHalvingInterval; i <= nPrevHeight; i += consensusParams.nSubsidyHalvingInterval) 
 	{
-        nSubsidy -= nSubsidy/10;
+        nSubsidy -= nSubsidy / 10;
     }
-    // When masternodes go live, reduce the block reward by 10 percent (allowing budget/superblocks).
-    CAmount nSuperblockPart = (nPrevHeight > consensusParams.nBudgetPaymentsStartBlock) ? nSubsidy/10 : 0;
+    // When sanctuaries go live: The Tithe block is disabled, budgeting/superblocks are enabled, and the budget contains a max of : 10% to Charity budget, and 5% for the IT budget.
+	bool fSuperblocksEnabled = (pindexPrev->nHeight >= consensusParams.nSuperblockStartBlock) && fMasternodesEnabled;
+	double dSuperblockMultiplier = fSuperblocksEnabled ? .15 : .10;
+    CAmount nSuperblockPart = (nPrevHeight > consensusParams.nBudgetPaymentsStartBlock) ? nSubsidy * dSuperblockMultiplier : 0;
     return fSuperblockPartOnly ? nSuperblockPart : nSubsidy - nSuperblockPart;
 }
 
 CAmount GetMasternodePayment(int nHeight, CAmount blockValue)
 {
-    CAmount ret = blockValue * .10; // start at 10%
+	// Give masternodes 50% of the block reward after Christmas 2017 (leaving 15% for budgets and 35% for the miner):
+	const Consensus::Params& consensusParams = Params().GetConsensus();
+    bool fSuperblocksEnabled = (nHeight >= consensusParams.nSuperblockStartBlock) && fMasternodesEnabled;
+    CAmount ret = fSuperblocksEnabled ? blockValue * .50 : blockValue * .10;
     return ret;
 }
 

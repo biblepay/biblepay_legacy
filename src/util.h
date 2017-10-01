@@ -112,7 +112,7 @@ int LogPrintStr(const std::string &str);
     static inline int LogPrint(const char* category, const char* format, TINYFORMAT_VARARGS(n))  \
     {                                                                         \
         if(!LogAcceptCategory(category)) return 0;                            \
-        return LogPrintStr(tfm::format(format, TINYFORMAT_PASSARGS(n))); \
+        return LogPrintStr(tfm::format(format, TINYFORMAT_PASSARGS(n)));      \
     }                                                                         \
     /**   Log error and return false */                                        \
     template<TINYFORMAT_ARGTYPES(n)>                                          \
@@ -131,7 +131,15 @@ TINYFORMAT_FOREACH_ARGNUM(MAKE_ERROR_AND_LOG_FUNC)
 static inline int LogPrint(const char* category, const char* format)
 {
     if(!LogAcceptCategory(category)) return 0;
-    return LogPrintStr(format);
+	try
+	{
+		return LogPrintStr(format);
+	}
+	catch(...)
+	{
+		LogPrintStr(std::string("ERROR : " ) + format + "\n");
+		return 0;
+	}
 }
 static inline bool error(const char* format)
 {

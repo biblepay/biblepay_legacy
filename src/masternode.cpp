@@ -384,7 +384,7 @@ void CMasternode::UpdateLastPaid(const CBlockIndex *pindex, int nMaxBlocksToScan
                 if(mnpayee == txout.scriptPubKey && nMasternodePayment == txout.nValue) {
                     nBlockLastPaid = BlockReading->nHeight;
                     nTimeLastPaid = BlockReading->nTime;
-                    LogPrint("masternode", "CMasternode::UpdateLastPaidBlock -- searching for block with payment to %s -- found new %d\n", vin.prevout.ToStringShort(), nBlockLastPaid);
+                    LogPrintf("CMasternode::UpdateLastPaidBlock -- searching for block with payment to %s -- found new %f\n", vin.prevout.ToStringShort().c_str(), (double)nBlockLastPaid);
                     return;
                 }
         }
