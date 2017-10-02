@@ -1177,7 +1177,7 @@ recover:
 void GenerateBiblecoins(bool fGenerate, int nThreads, const CChainParams& chainparams)
 {
     static boost::thread_group* minerThreads = NULL;
-	bool bUseDualKJVBibles = true;
+	bool bUseDualKJVBibles = false;
 
 	if (bUseDualKJVBibles)
 	{
@@ -1208,7 +1208,7 @@ void GenerateBiblecoins(bool fGenerate, int nThreads, const CChainParams& chainp
 	    minerThreads->create_thread(boost::bind(&BibleMiner, boost::cref(chainparams), boost::cref(i), boost::cref(iBibleNumber)));
 		LogPrintf(" Starting Thread #%f with Bible #%f      ",(double)i,(double)iBibleNumber);
 	    MilliSleep(100); // Avoid races
-		iBibleNumber++;
+		if (bUseDualKJVBibles) iBibleNumber++;
 		if (iBibleNumber==2 || !bUseDualKJVBibles) iBibleNumber=0;
 	}
 	iMinerThreadCount = nThreads;

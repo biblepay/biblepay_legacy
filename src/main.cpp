@@ -2009,13 +2009,20 @@ CAmount GetBlockSubsidy(const CBlockIndex* pindexPrev, int nPrevBits, int nPrevH
 	// Year:  2040, Subsidy: 1772,  Emission: 132633868,  Grand Total: 13 771 295 175
 	// Year:  2045, Subsidy: 1046,  Emission: 78318973,   Grand Total: 14 260 129 248
 	// Year:  2050, Subsidy: 618,   Emission: 46246570,   Grand Total: 14 548 780 867
-
-    for (int i = consensusParams.nSubsidyHalvingInterval; i <= nPrevHeight; i += consensusParams.nSubsidyHalvingInterval) 
+	
+	bool fSuperblocksEnabled = (pindexPrev->nHeight >= consensusParams.nSuperblockStartBlock) && fMasternodesEnabled;
+	int iSubsidyDecreaseInterval = BLOCKS_PER_DAY * 365; // Yearly Initially
+	double iDeflationRate = .10; // 10% per year initially
+	if (fSuperblocksEnabled)
 	{
-        nSubsidy -= nSubsidy / 10;
+		iSubsidyDecreaseInterval = BLOCKS_PER_DAY * 30; // After sanctuaries go live, Monthly
+		iDeflationRate = .015; // 1.5% per month, compounded monthly (19.5% per year with compounding)
+	}
+    for (int i = iSubsidyDecreaseInterval; i <= nPrevHeight; i += iSubsidyDecreaseInterval) 
+	{
+        nSubsidy -= (nSubsidy * iDeflationRate);
     }
     // When sanctuaries go live: The Tithe block is disabled, budgeting/superblocks are enabled, and the budget contains a max of : 10% to Charity budget, and 5% for the IT budget.
-	bool fSuperblocksEnabled = (pindexPrev->nHeight >= consensusParams.nSuperblockStartBlock) && fMasternodesEnabled;
 	double dSuperblockMultiplier = fSuperblocksEnabled ? .15 : .10;
     CAmount nSuperblockPart = (nPrevHeight > consensusParams.nBudgetPaymentsStartBlock) ? nSubsidy * dSuperblockMultiplier : 0;
     return fSuperblockPartOnly ? nSuperblockPart : nSubsidy - nSuperblockPart;
