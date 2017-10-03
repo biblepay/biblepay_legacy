@@ -16,6 +16,7 @@
 
 class CMasternodeSync;
 CMasternodeSync masternodeSync;
+bool LogLimiter(int iMax1000);
 
 bool CMasternodeSync::CheckNodeHeight(CNode* pnode, bool fDisconnectStuckNodes)
 {
@@ -83,7 +84,7 @@ bool CMasternodeSync::IsBlockchainSynced(bool fBlockAccepted)
         }
     }
 
-    if(fDebugMaster) LogPrintf("CMasternodeSync::IsBlockchainSynced -- state before check: %ssynced, skipped %d times\n", fBlockchainSynced ? "" : "not ", nSkipped);
+    if(fDebug10) LogPrintf("CMasternodeSync::IsBlockchainSynced -- state before check: %ssynced, skipped %d times\n", fBlockchainSynced ? "" : "not ", nSkipped);
 
     nTimeLastProcess = GetTime();
     nSkipped = 0;
@@ -107,7 +108,7 @@ bool CMasternodeSync::IsBlockchainSynced(bool fBlockAccepted)
             // if we have decent number of such peers, most likely we are synced now
             if(nNodesAtSameHeight >= MASTERNODE_SYNC_ENOUGH_PEERS) 
 			{
-                if (fDebugMaster) LogPrintf("CMasternodeSync::IsBlockchainSynced -- found enough peers on the same height as we are, done\n");
+                if (fDebug10) LogPrintf("CMasternodeSync::IsBlockchainSynced -- found enough peers on the same height as we are, done\n");
                 fBlockchainSynced = true;
                 ReleaseNodeVector(vNodesCopy);
                 return true;
@@ -261,7 +262,7 @@ void CMasternodeSync::ProcessTick()
     //the actual count of masternodes we have currently
     int nMnCount = mnodeman.CountMasternodes();
 
-    if(fDebugMaster) LogPrintf("CMasternodeSync::ProcessTick -- nTick %d nMnCount %d\n", nTick, nMnCount);
+    if(fDebugMaster && LogLimiter(10)) LogPrintf("CMasternodeSync::ProcessTick -- nTick %d nMnCount %d\n", nTick, nMnCount);
 
     // RESET SYNCING INCASE OF FAILURE
     {

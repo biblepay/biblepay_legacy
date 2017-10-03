@@ -1143,6 +1143,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
 
     fDebug = !mapMultiArgs["-debug"].empty();
 	fDebugMaster = !mapMultiArgs["-debugmaster"].empty();
+	fDebug10 = !mapMultiArgs["-debug10"].empty();
 	fMineSlow = !mapMultiArgs["-mineslow"].empty();
 	// Set flag for platform
 	sOS="LIN";

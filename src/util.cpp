@@ -123,6 +123,7 @@ map<string, string> mapArgs;
 map<string, vector<string> > mapMultiArgs;
 bool fDebug = false;
 bool fDebugMaster = false;
+bool fDebug10 = false;
 bool fReboot2 = false;
 bool fPrintToConsole = false;
 bool fPrintToDebugLog = true;

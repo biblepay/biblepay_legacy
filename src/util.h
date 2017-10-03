@@ -67,6 +67,7 @@ extern std::map<std::string, std::string> mapArgs;
 extern std::map<std::string, std::vector<std::string> > mapMultiArgs;
 extern bool fDebug;
 extern bool fDebugMaster;
+extern bool fDebug10;
 extern bool fReboot2;
 extern bool fPrintToConsole;
 extern bool fPrintToDebugLog;
