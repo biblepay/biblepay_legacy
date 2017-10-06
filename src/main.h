@@ -175,6 +175,7 @@ extern bool fTxIndex;
 extern bool fIsBareMultisigStd;
 extern bool fRequireStandard;
 extern bool fMasternodesEnabled;
+extern bool fTradingEnabled;
 
 extern unsigned int nBytesPerSigOp;
 extern bool fCheckBlockIndex;
@@ -191,6 +192,7 @@ extern int64_t nHPSTimerStart;
 extern int64_t nHashCounter;
 extern int64_t nBibleHashCounter;
 extern int64_t nBibleMinerPulse;
+extern int64_t SANCTUARY_COLLATERAL;
 extern bool fProd;
 extern bool fMineSlow;
 

@@ -67,6 +67,21 @@ UniValue ping(const UniValue& params, bool fHelp)
     return NullUniValue;
 }
 
+
+bool TradingRequest(std::string command_name, std::string reqid)
+{
+    LOCK2(cs_main, cs_vNodes);
+    int iContactCount = 0;
+    BOOST_FOREACH(CNode* pNode, vNodes) 
+    {
+		// if pNode->SupportsTrading
+        pNode->PushMessage("trading", command_name, reqid);
+        iContactCount++;
+    }
+    if (iContactCount==0) return false;
+    return true;
+}
+
 static void CopyNodeStats(std::vector<CNodeStats>& vstats)
 {
     vstats.clear();

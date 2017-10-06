@@ -76,6 +76,8 @@ int64_t nHPSTimerStart = 0;
 int64_t nHashCounter = 0;
 int64_t nBibleHashCounter = 0;
 int64_t nBibleMinerPulse;
+int64_t SANCTUARY_COLLATERAL = 500000;
+
 bool fProd = false;
 bool fMineSlow = false;
 
@@ -90,6 +92,7 @@ CConditionVariable cvBlockChange;
 int nScriptCheckThreads = 0;
 bool fLoadingIndex = false;
 bool fMasternodesEnabled = false;
+bool fTradingEnabled = false;
 
 int iPrayerIndex = 0;
 std::string sOS = "";

@@ -53,3 +53,7 @@ venv/bin/pip install -r requirements.txt
 nano watchman.conf
 venv/bin/python bin/watchman.py
 
+Install Watchman in cron:
+crontab -e
+Add this line:
+* * * * * cd /home/YOURUSERNAME/watchman && ./venv/bin/python bin/watchman.py >/dev/null 2>&1

@@ -567,10 +567,14 @@ bool CMasternodeBroadcast::Update(CMasternode* pmn, int& nDos)
         return false;
     }
 
-    // IsVnAssociatedWithPubkey is validated once in CheckOutpoint, after that they just need to match
-    if(pmn->pubKeyCollateralAddress != pubKeyCollateralAddress) {
-        LogPrintf("CMasternodeBroadcast::Update -- Got mismatched pubKeyCollateralAddress and vin\n");
-        nDos = 33;
+    // IsVinAssociatedWithPubkey is validated once in CheckOutpoint, after that they just need to match
+    if(pmn->pubKeyCollateralAddress != pubKeyCollateralAddress) 
+	{
+		// strMessage = addr.ToString(false) + boost::lexical_cast<std::string>(sigTime) + pubKeyCollateralAddress.GetID().ToString() + pubKeyMasternode.GetID().ToString() +  boost::lexical_cast<std::string>(nProtocolVersion);
+
+        LogPrintf("CMasternodeBroadcast::Update -- Got mismatched pubKeyCollateralAddress and vin\nReceived %s, Expected pubKey Collateral Address %s\r\n",pmn->pubKeyCollateralAddress.GetID().ToString().c_str(),
+			pubKeyCollateralAddress.GetID().ToString().c_str());
+        nDos = 11;
         return false;
     }
 
@@ -622,8 +626,8 @@ bool CMasternodeBroadcast::CheckOutpoint(int& nDos)
             LogPrint("masternode", "CMasternodeBroadcast::CheckOutpoint -- Failed to find Masternode UTXO, masternode=%s\n", vin.prevout.ToStringShort());
             return false;
         }
-        if(coins.vout[vin.prevout.n].nValue != 500000 * COIN) {
-            LogPrint("masternode", "CMasternodeBroadcast::CheckOutpoint -- Masternode UTXO should have 500000 biblepay, masternode=%s\n", vin.prevout.ToStringShort());
+        if(coins.vout[vin.prevout.n].nValue != SANCTUARY_COLLATERAL * COIN) {
+            LogPrint("masternode", "CMasternodeBroadcast::CheckOutpoint -- Masternode UTXO should have SANCTUARY_COLLATERAL biblepay, masternode=%s\n", vin.prevout.ToStringShort());
             return false;
         }
         if(chainActive.Height() - coins.nHeight + 1 < Params().GetConsensus().nMasternodeMinimumConfirmations) {
@@ -639,9 +643,11 @@ bool CMasternodeBroadcast::CheckOutpoint(int& nDos)
 
     // make sure the vout that was signed is related to the transaction that spawned the Masternode
     //  - this is expensive, so it's only done once per Masternode
-    if(!darkSendSigner.IsVinAssociatedWithPubkey(vin, pubKeyCollateralAddress)) {
-        LogPrintf("CMasternodeMan::CheckOutpoint -- Got mismatched pubKeyCollateralAddress and vin\n");
-        nDos = 33;
+    if(!darkSendSigner.IsVinAssociatedWithPubkey(vin, pubKeyCollateralAddress)) 
+	{
+		//LogPrintf("Got mismatched pubKeyCollateralAddress and vin\nReceived %s, Expected pubKey Collateral Address %s\r\n",pmn->pubKeyCollateralAddress.GetID().ToString().c_str(),
+        LogPrintf("CMasternodeMan::CheckOutpoint(2) -- Got mismatched pubKeyCollateralAddress %s and vin\n", pubKeyCollateralAddress.GetID().ToString().c_str());
+        nDos = 11;
         return false;
     }
 
@@ -663,7 +669,7 @@ bool CMasternodeBroadcast::CheckOutpoint(int& nDos)
             }
         }
     }
-
+	if (fDebugMaster) LogPrintf(".+.");
     return true;
 }
 

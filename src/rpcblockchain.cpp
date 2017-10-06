@@ -20,6 +20,7 @@
 #include "util.h"
 #include "utilstrencodings.h"
 #include "base58.h"
+#include "darksend.h"
 #include "wallet/wallet.h"
 #include "wallet/rpcwallet.cpp"
 #include <boost/lexical_cast.hpp>
@@ -27,6 +28,7 @@
 #include <boost/algorithm/string.hpp> // for trim()
 #include <stdint.h>
 #include <univalue.h>
+
 using namespace std;
 
 extern void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry);
@@ -1274,6 +1276,27 @@ UniValue exec(const UniValue& params, bool fHelp)
 		{
 			results.push_back(Pair("error","block not found"));
 		}
+	}
+	else if (sItem == "testtrade")
+	{
+		//extern std::map<uint256, CTradeTx> mapTradeTxes;
+		uint256 uTradeHash = uint256S("0x1234");
+		int iTradeCount = mapTradeTxes.count(uTradeHash);
+		// Insert
+	    //CTradeTx(int64_t tradeTime, std::string tradeAction, std::string symbol, int64_t quantity, int64_t price) :
+		std::string sIP = "127.0.0.1";
+		CTradeTx ttx(0,"BUY","BBP",10,1000,sIP);
+        if (iTradeCount==0) mapTradeTxes.insert(std::make_pair(uTradeHash, ttx));
+		// Report on this trade
+		results.push_back(Pair("Quantity",ttx.iQuantity));
+		results.push_back(Pair("Symbol",ttx.sSymbol));
+		results.push_back(Pair("Action",ttx.sTradeAction));
+		results.push_back(Pair("Map Length",iTradeCount));
+		uint256 h = ttx.GetHash();
+		results.push_back(Pair("Hash",h.GetHex()));
+
+
+
 	}
 	else if (sItem == "datalist")
 	{

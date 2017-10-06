@@ -11,6 +11,7 @@
 class CDarksendPool;
 class CDarkSendSigner;
 class CDarksendBroadcastTx;
+class CTradeTx;
 
 // timeouts
 static const int PRIVATESEND_AUTO_TIMEOUT_MIN       = 5;
@@ -22,11 +23,11 @@ static const int PRIVATESEND_SIGNING_TIMEOUT        = 15;
 static const int MIN_PRIVATESEND_PEER_PROTO_VERSION = 70206;
 
 static const CAmount PRIVATESEND_COLLATERAL         = 0.001 * COIN;
-static const CAmount PRIVATESEND_POOL_MAX           = 999.999 * COIN;
+static const CAmount PRIVATESEND_POOL_MAX           = 1000009 * COIN;
 static const int DENOMS_COUNT_MAX                   = 100;
 
 static const int DEFAULT_PRIVATESEND_ROUNDS         = 2;
-static const int DEFAULT_PRIVATESEND_AMOUNT         = 1000;
+static const int DEFAULT_PRIVATESEND_AMOUNT         = 25000;
 static const int DEFAULT_PRIVATESEND_LIQUIDITY      = 0;
 static const bool DEFAULT_PRIVATESEND_MULTISESSION  = false;
 
@@ -49,6 +50,10 @@ extern CDarkSendSigner darkSendSigner;
 
 extern std::map<uint256, CDarksendBroadcastTx> mapDarksendBroadcastTxes;
 extern std::vector<CAmount> vecPrivateSendDenominations;
+extern std::map<uint256, CTradeTx> mapTradeTxes;
+std::string RetrieveMd5(std::string s1);
+std::string RoundToString(double d, int place);
+
 
 /** Holds an mixing input
  */
@@ -194,6 +199,38 @@ public:
     {
         return a.nDenom == b.nDenom && a.vin.prevout == b.vin.prevout && a.nTime == b.nTime && a.fReady == b.fReady;
     }
+};
+
+/** Class to facilitate BiblePay Trading Objects **/
+class CTradeTx
+{
+public:
+	int64_t iTradeTime;
+	std::string sTradeAction;
+	std::string sSymbol;
+	int64_t iQuantity;
+	int64_t iPrice;
+	std::string sIP;
+
+	CTradeTx(int64_t tradeTime, std::string tradeAction, std::string symbol, int64_t quantity, int64_t price, std::string IP) :
+		iTradeTime(tradeTime),
+		sTradeAction(tradeAction),
+        sSymbol(symbol),
+        iQuantity(quantity),
+		iPrice(price),
+		sIP(IP)
+        {}
+
+	uint256 GetHash()
+	{
+		std::string sKey = sIP + sSymbol + sTradeAction + RoundToString(iQuantity,0) + RoundToString(iPrice, 0);
+		std::string sHash = RetrieveMd5(sKey);  // Use MD5 for the trading hash, so that we can make a custom constraint (Action,Symbol,Qty,IP)
+		uint256 hash = uint256S("0x" + sHash);
+		return hash;
+	
+	}
+	
+	
 };
 
 /** Helper class to store mixing transaction (tx) information.
