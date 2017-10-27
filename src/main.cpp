@@ -74,10 +74,12 @@ int SIN_MODULUS = 0;
 int PRAYER_MODULUS = 0;
 int64_t nHPSTimerStart = 0;
 int64_t nHashCounter = 0;
+int64_t nLastTradingActivity = 0;
 int64_t nBibleHashCounter = 0;
 int64_t nBibleMinerPulse;
 int64_t SANCTUARY_COLLATERAL = 500000;
-
+int64_t TEMPLE_COLLATERAL = 15000000;
+int64_t MAX_BLOCK_SUBSIDY = 20000;
 bool fProd = false;
 bool fMineSlow = false;
 
@@ -86,6 +88,14 @@ std::map<std::string, double> mvBlockVersion;
 
 extern bool WriteKey(std::string sKey, std::string sValue);
 extern bool InstantiateOneClickMiningEntries();
+extern std::string DefaultRecAddress(std::string sType);
+extern CAmount GetRetirementAccountContributionAmount(int nPrevHeight);
+extern std::string AmountToString(const CAmount& amount);
+extern CAmount StringToAmount(std::string sValue);
+
+
+
+
 
 CWaitableCriticalSection csBestBlock;
 CConditionVariable cvBlockChange;
@@ -93,6 +103,7 @@ int nScriptCheckThreads = 0;
 bool fLoadingIndex = false;
 bool fMasternodesEnabled = false;
 bool fTradingEnabled = false;
+bool fRetirementAccountsEnabled = false;
 
 int iPrayerIndex = 0;
 std::string sOS = "";
@@ -164,6 +175,7 @@ map<uint256, COrphanTx> mapOrphanTransactions GUARDED_BY(cs_main);;
 map<uint256, set<uint256> > mapOrphanTransactionsByPrev GUARDED_BY(cs_main);;
 map<uint256, int64_t> mapRejectedBlocks GUARDED_BY(cs_main);
 map<std::string, int> mvTimers; // Contains event timers that reset after max ms duration iterator is exceeded
+map<uint256, CTransaction> mapComplexTransactions GUARDED_BY(cs_main);;
 
 void EraseOrphansFor(NodeId peer) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
 
@@ -952,7 +964,7 @@ bool WriteKey(std::string sKey, std::string sValue)
 		FILE *outFileNew = fopen(pathConfigFile.string().c_str(),"w");
 		fputs("", outFileNew);
 		fclose(outFileNew);
-		LogPrintf("** Created brand new biblepay.conf file **");
+		LogPrintf("** Created brand new biblepay.conf file **\n");
 	}
     boost::to_lower(sKey);
     std::string sLine = "";
@@ -1626,6 +1638,29 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState &state, const C
             }
         }
 
+		// BiblePay - If this is a colored coin transaction, coins must be sent from coins of same color
+		if (fRetirementAccountsEnabled)
+		{
+    		BOOST_FOREACH(const CTxOut txout, tx.vout) 
+			{
+				CComplexTransaction cct(tx);
+				if (cct.Color=="401")
+				{
+					BOOST_FOREACH(const CTxIn &txin, tx.vin)
+					{
+						const CTxOut &prevout = view.GetOutputFor(txin);
+                 		uint256 uPriorHash = txin.prevout.hash;
+						CAmount nPriorValue = prevout.nValue;
+						CComplexTransaction ccHistory(prevout);
+						bool bOK = (ccHistory.Color == cct.Color);
+						LogPrintf(" ** Accept To Memory Pool: PriorHash %s, Prior Value %f, OutColor %s, Prior InColor %s ",
+							uPriorHash.GetHex().c_str(),(double)nPriorValue,ccHistory.Color.c_str(), cct.Color.c_str());
+						// ToDo: Reject tx in memory pool if not colored to colored
+					}
+				}
+			}
+		}
+
         // If we aren't going to actually accept it but just were verifying it, we are fine already
         if(fDryRun) return true;
 
@@ -1686,12 +1721,124 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState &state, const C
     return true;
 }
 
+
+bool ProcessComplexTransaction(CTxMemPool& pool, CValidationState &state, const CTransaction &tx, bool fLimitFree,
+                        bool* pfMissingInputs, bool fOverrideMempoolLimit, bool fRejectAbsurdFee, bool fDryRun, std::vector<uint256>& vHashTxToUncache)
+
+{
+	CComplexTransaction cct(tx);
+	
+	//LogPrintf(" iscomplex %f %s",(double)cct.IsComplex,cct.Color.c_str());
+	if (cct.IsComplex)
+	{
+		// OCO requires an atomic lock- we store the tx in the ComplexOrderType (COT) Memory Pool until it is paired; once paired we move it to the memory pool; however we
+		// must return true so that functions like AddToWallet succeed, so we push it back into COT, then check to see if a COT has been Paired here, if so, we pull it out of COT
+		// and push it into the memory pool:
+		// When an unpaired COT exists, it is not mined by a miner.  When a Paired COT exists, the dual transaction is moved to the memory pool and mined by a miner.
+		// 10-19-2017
+
+		if (cct.TransactionType=="OCO")
+		{
+			// One cancels Other rule
+			// Cache this and wait for the corresponding agreement
+			// If its already in
+			//LogPrintf("82\n");
+			if (mapComplexTransactions.count(tx.GetHash()) == 0)
+			{
+				mapComplexTransactions.insert(make_pair(tx.GetHash(), tx));
+				LogPrintf(" 801 - Size of mapcomplexTransactions %f \n",mapComplexTransactions.size());
+			}
+			// Scan complex order pool for matching complex transaction
+			//			map<uint256, COrphanTx> mapOrphanTransactions GUARDED_BY(cs_main);;
+			//	    std::map<uint256, CTransaction>::iterator it = mapComplexTransactions.begin();
+			BOOST_FOREACH(PAIRTYPE(const uint256, CTransaction)& item, mapComplexTransactions)
+			{
+				LogPrintf("74\n");
+				const CTransaction ctx = item.second;
+				CComplexTransaction hist_complex_tx(ctx);
+				LogPrintf("\r\nComplexTransaction hash %s, ctxHash %s, type %s, ExpectedAmount %f, Amount %f, hExpAmount %f, hAmount %f, expectedRecipient %s, Recipient %s, ExpectedColor %s, Color %s, HistComplTxRecAddr %s ",
+					  tx.GetHash().GetHex().c_str(), ctx.GetHash().GetHex().c_str(),
+					  cct.TransactionType, cct.ExpectedAmount,   cct.Amount, 
+					  hist_complex_tx.ExpectedAmount, hist_complex_tx.Amount,
+					  cct.RecipientAddress.c_str(), 
+					  cct.ExpectedRecipient.c_str(), cct.ExpectedColor.c_str(), cct.Color.c_str(),hist_complex_tx.RecipientAddress.c_str());
+
+				if (tx.GetHash() != ctx.GetHash()) // Dont look at self
+				{
+					LogPrintf(" 107\n");
+
+					if (hist_complex_tx.TransactionType==cct.TransactionType) // If Complex transaction type matches another nodes transaction type
+					{
+						LogPrintf(" 108\n");
+
+						if (cct.Amount == hist_complex_tx.ExpectedAmount && cct.ExpectedAmount == hist_complex_tx.Amount) // And they send the amount we expected and we sent the amount they expected
+						{
+     						LogPrintf(" 109.5 \n");
+
+							if (cct.RecipientAddress == hist_complex_tx.ExpectedRecipient && cct.ExpectedRecipient == hist_complex_tx.RecipientAddress) // And their public key matches expected public key 
+							{
+							    LogPrintf(" 118 \n");
+
+								LogPrintf(" recip addr %s Exp Recip %s , cctexprec %s color %s exp color %s",
+									cct.RecipientAddress.c_str(), hist_complex_tx.ExpectedRecipient.c_str(),
+									hist_complex_tx.RecipientAddress.c_str(), cct.Color.c_str(), hist_complex_tx.ExpectedColor.c_str());
+											    LogPrintf(" 1199 \n");
+
+   				
+								if (cct.Color == hist_complex_tx.ExpectedColor && cct.ExpectedColor == hist_complex_tx.Color) // and they sent the color we expected
+								{
+									LogPrintf("10 Paired! \n");
+									std::vector<uint256> vHashTxToUncache1;
+
+									// Remove the paired transaction and place in the memory pool
+									bool res1 = AcceptToMemoryPoolWorker(pool, state, tx, fLimitFree, pfMissingInputs, fOverrideMempoolLimit, fRejectAbsurdFee, vHashTxToUncache1, fDryRun);
+									mapComplexTransactions.erase(tx.GetHash());
+									LogPrintf("11 \n ");
+									std::vector<uint256> vHashTxToUncache2;
+
+									bool res2 = AcceptToMemoryPoolWorker(pool, state, ctx, fLimitFree, pfMissingInputs, fOverrideMempoolLimit, fRejectAbsurdFee, vHashTxToUncache2, fDryRun);
+									mapComplexTransactions.erase(ctx.GetHash());
+									//LogPrintf(" paired %f, %f \n",()res1,(double)res2);
+									return res1 && res2;
+								}
+							}
+						}
+					}
+				}
+    
+			}
+   
+			// If this is a cancelled order, remove from COT pool
+			return true;
+		}
+		else if (cct.TransactionType=="CAN")
+		{
+			mapComplexTransactions.erase(tx.GetHash());
+			return true;
+		}
+		else
+		{
+			return false;
+		}
+	}
+	else
+	{
+		return false;
+	}
+
+}
+
 bool AcceptToMemoryPool(CTxMemPool& pool, CValidationState &state, const CTransaction &tx, bool fLimitFree,
                         bool* pfMissingInputs, bool fOverrideMempoolLimit, bool fRejectAbsurdFee, bool fDryRun)
 {
     std::vector<uint256> vHashTxToUncache;
+
+	//	bool IsComplexTransactionPreProcessed = ProcessComplexTransaction(pool, state, tx, fLimitFree, pfMissingInputs, fOverrideMempoolLimit, fRejectAbsurdFee, fDryRun, vHashTxToUncache);
+	//	if (IsComplexTransactionPreProcessed) return IsComplexTransactionPreProcessed;
+
     bool res = AcceptToMemoryPoolWorker(pool, state, tx, fLimitFree, pfMissingInputs, fOverrideMempoolLimit, fRejectAbsurdFee, vHashTxToUncache, fDryRun);
-    if (!res || fDryRun) {
+    if (!res || fDryRun) 
+	{
         if(!res) LogPrint("mempool", "%s: %s %s\n", __func__, tx.GetHash().ToString(), state.GetRejectReason());
         BOOST_FOREACH(const uint256& hashTx, vHashTxToUncache)
             pcoinsTip->Uncache(hashTx);
@@ -2031,12 +2178,17 @@ CAmount GetBlockSubsidy(const CBlockIndex* pindexPrev, int nPrevBits, int nPrevH
     return fSuperblockPartOnly ? nSuperblockPart : nSubsidy - nSuperblockPart;
 }
 
-CAmount GetMasternodePayment(int nHeight, CAmount blockValue)
+CAmount GetMasternodePayment(int nHeight, CAmount blockValue, CAmount nSanctuaryCollateral)
 {
 	// Give masternodes 50% of the block reward after Christmas 2017 (leaving 15% for budgets and 35% for the miner):
 	const Consensus::Params& consensusParams = Params().GetConsensus();
     bool fSuperblocksEnabled = (nHeight >= consensusParams.nSuperblockStartBlock) && fMasternodesEnabled;
     CAmount ret = fSuperblocksEnabled ? blockValue * .50 : blockValue * .10;
+	if (fSuperblocksEnabled && (nSanctuaryCollateral == (TEMPLE_COLLATERAL * COIN)))
+	{
+		// For the Master Sanctuary, who invested 10* the collateral, reward them with 10* the reward:
+		ret = (blockValue * .50) * 10;
+	}
     return ret;
 }
 
@@ -3030,10 +3182,11 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     // to recognize that block is actually invalid.
     CAmount blockReward = nFees + GetBlockSubsidy(pindex->pprev, pindex->pprev->nBits, pindex->pprev->nHeight, chainparams.GetConsensus());
     std::string strError = "";
-    if (!IsBlockValueValid(block, pindex->nHeight, blockReward, strError)) {
+    if (!IsBlockValueValid(block, pindex->nHeight, blockReward, strError)) 
+	{
+		LogPrintf("Height %f, Amount %f",(double)pindex->nHeight,(double)block.vtx[0].GetValueOut()/COIN);
         return state.DoS(0, error("ConnectBlock(biblepay): %s", strError), REJECT_INVALID, "bad-cb-amount");
     }
-
 	
     if (!IsBlockPayeeValid(block.vtx[0], pindex->nHeight, blockReward)) 
 	{
@@ -3464,7 +3617,7 @@ void ReprocessBlocks(int nBlocks)
             if (mi != mapBlockIndex.end() && (*mi).second) {
 
                 CBlockIndex* pindex = (*mi).second;
-                LogPrintf("ReprocessBlocks -- %s\n", (*it).first.ToString());
+                if (fDebugMaster) LogPrintf("ReprocessBlocks -- %s\n", (*it).first.ToString());
 
                 CValidationState state;
                 ReconsiderBlock(state, pindex);
@@ -5756,6 +5909,14 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
         if (fLogIPs)
             remoteAddr = ", peeraddr=" + pfrom->addr.ToString();
 
+		std::string sBanned = GetArg("-banip", "");
+   
+		if (pfrom->addr.ToString() == sBanned && !sBanned.empty())
+		{
+	         pfrom->fDisconnect = true;
+			 pfrom->fSuccessfullyConnected=false;
+		}
+	
         if (fDebugMaster) LogPrintf("receive version message: %s: version %d, blocks=%d, us=%s, peer=%d%s\n",
                   pfrom->cleanSubVer, pfrom->nVersion,
                   pfrom->nStartingHeight, addrMe.ToString(), pfrom->id,
@@ -6823,6 +6984,25 @@ bool Contains(std::string data, std::string instring)
 }
 
 
+CAmount StringToAmount(std::string sValue)
+{
+	if (sValue.empty()) return 0;
+    CAmount amount;
+    if (!ParseFixedPoint(sValue, 8, &amount)) return 0;
+    if (!MoneyRange(amount)) throw runtime_error("AMOUNT OUT OF MONEY RANGE");
+    return amount;
+}
+
+std::string AmountToString(const CAmount& amount)
+{
+    bool sign = amount < 0;
+    int64_t n_abs = (sign ? -amount : amount);
+    int64_t quotient = n_abs / COIN;
+    int64_t remainder = n_abs % COIN;
+	std::string sAmount = strprintf("%s%d.%08d", sign ? "-" : "", quotient, remainder);
+	return sAmount;
+}
+
 
 
 std::string RoundToString(double d, int place)
@@ -7541,6 +7721,50 @@ ThresholdState VersionBitsTipState(const Consensus::Params& params, Consensus::D
     LOCK(cs_main);
     return VersionBitsState(chainActive.Tip(), params, pos, versionbitscache);
 }
+
+
+
+std::string DefaultRecAddress(std::string sType)
+{
+	std::string sDefaultRecAddress = "";
+	BOOST_FOREACH(const PAIRTYPE(CBitcoinAddress, CAddressBookData)& item, pwalletMain->mapAddressBook)
+    {
+        const CBitcoinAddress& address = item.first;
+        std::string strName = item.second.name;
+        bool fMine = IsMine(*pwalletMain, address.Get());
+        if (fMine)
+		{
+		    sDefaultRecAddress=CBitcoinAddress(address).ToString();
+			boost::to_upper(strName);
+			boost::to_upper(sType);
+			if (strName == sType) 
+			{
+				sDefaultRecAddress=CBitcoinAddress(address).ToString();
+				return sDefaultRecAddress;
+			}
+		}
+    }
+	return sDefaultRecAddress;
+}
+
+
+
+CAmount GetRetirementAccountContributionAmount(int nPrevHeight)
+{
+	// Retirement coins are awarded to the miner who found the block as a colored coin in the coinbase in Transaction #1, vout Position #2.
+	// The emission rate starts at 9900 colored coins per block and decreases by 1% per day
+	if (!fRetirementAccountsEnabled) return 0;
+	int iRetirementDecreaseInterval = BLOCKS_PER_DAY * 1; // Daily
+	double iDeflationRate = .01; // 1% per Day
+	CAmount nRetirementContributionAmount = 20000000 / BLOCKS_PER_DAY; // Colored Satoshi divided by blocks per day, decreasing by 1% per day
+    for (int i = iRetirementDecreaseInterval; i <= nPrevHeight; i += iRetirementDecreaseInterval) 
+	{
+        nRetirementContributionAmount -= (nRetirementContributionAmount * iDeflationRate);
+		if (nRetirementContributionAmount < 1) nRetirementContributionAmount = 1;
+    }
+	return nRetirementContributionAmount * RETIREMENT_COIN;
+}
+
 
 class CMainCleanup
 {

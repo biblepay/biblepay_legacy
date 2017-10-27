@@ -16,6 +16,7 @@
 #include <boost/lexical_cast.hpp>
 
 
+
 CMasternode::CMasternode() :
     vin(),
     addr(),
@@ -362,31 +363,33 @@ int CMasternode::GetCollateralAge()
 void CMasternode::UpdateLastPaid(const CBlockIndex *pindex, int nMaxBlocksToScanBack)
 {
     if(!pindex) return;
-
     const CBlockIndex *BlockReading = pindex;
-
     CScript mnpayee = GetScriptForDestination(pubKeyCollateralAddress.GetID());
-    // LogPrint("masternode", "CMasternode::UpdateLastPaidBlock -- searching for block with payment to %s\n", vin.prevout.ToStringShort());
+    if (fDebugMaster) LogPrint("masternode", "CMasternode::UpdateLastPaidBlock -- searching for block with payment to %s\n", vin.prevout.ToStringShort());
 
     LOCK(cs_mapMasternodeBlocks);
 
-    for (int i = 0; BlockReading && BlockReading->nHeight > nBlockLastPaid && i < nMaxBlocksToScanBack; i++) {
+    for (int i = 0; BlockReading && BlockReading->nHeight > nBlockLastPaid && i < nMaxBlocksToScanBack; i++) 
+	{
         if(mnpayments.mapMasternodeBlocks.count(BlockReading->nHeight) &&
             mnpayments.mapMasternodeBlocks[BlockReading->nHeight].HasPayeeWithVotes(mnpayee, 2))
         {
             CBlock block;
             if(!ReadBlockFromDisk(block, BlockReading, Params().GetConsensus(), "UPDATELASTPAID")) // shouldn't really happen
                 continue;
+			CAmount nCollateral = mnpayments.mapMasternodeBlocks[BlockReading->nHeight].GetTxSanctuaryCollateral(block.vtx[0]);
+	        CAmount nMasternodePayment = GetMasternodePayment(BlockReading->nHeight, block.vtx[0].GetValueOut(), nCollateral);
 
-            CAmount nMasternodePayment = GetMasternodePayment(BlockReading->nHeight, block.vtx[0].GetValueOut());
-
-            BOOST_FOREACH(CTxOut txout, block.vtx[0].vout)
-                if(mnpayee == txout.scriptPubKey && nMasternodePayment == txout.nValue) {
+            BOOST_REVERSE_FOREACH(CTxOut txout, block.vtx[0].vout)
+			{
+                if( (mnpayee == txout.scriptPubKey && nMasternodePayment == txout.nValue) || (mnpayee == txout.scriptPubKey && txout.nValue > (MAX_BLOCK_SUBSIDY * COIN)))
+				{
                     nBlockLastPaid = BlockReading->nHeight;
                     nTimeLastPaid = BlockReading->nTime;
                     LogPrintf("CMasternode::UpdateLastPaidBlock -- searching for block with payment to %s -- found new %f\n", vin.prevout.ToStringShort().c_str(), (double)nBlockLastPaid);
                     return;
                 }
+			}
         }
 
         if (BlockReading->pprev == NULL) { assert(BlockReading); break; }
@@ -626,8 +629,10 @@ bool CMasternodeBroadcast::CheckOutpoint(int& nDos)
             LogPrint("masternode", "CMasternodeBroadcast::CheckOutpoint -- Failed to find Masternode UTXO, masternode=%s\n", vin.prevout.ToStringShort());
             return false;
         }
-        if(coins.vout[vin.prevout.n].nValue != SANCTUARY_COLLATERAL * COIN) {
-            LogPrint("masternode", "CMasternodeBroadcast::CheckOutpoint -- Masternode UTXO should have SANCTUARY_COLLATERAL biblepay, masternode=%s\n", vin.prevout.ToStringShort());
+        if  ((coins.vout[vin.prevout.n].nValue != SANCTUARY_COLLATERAL * COIN) 
+		  && (coins.vout[vin.prevout.n].nValue != TEMPLE_COLLATERAL * COIN))
+		{
+            LogPrint("masternode", "CMasternodeBroadcast::CheckOutpoint -- Sanctuary/Temple UTXO should have SANCTUARY_COLLATERAL biblepay, masternode=%s\n", vin.prevout.ToStringShort());
             return false;
         }
         if(chainActive.Height() - coins.nHeight + 1 < Params().GetConsensus().nMasternodeMinimumConfirmations) {

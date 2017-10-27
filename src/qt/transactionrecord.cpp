@@ -45,7 +45,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
     CAmount nNet = nCredit - nDebit;
     uint256 hash = wtx.GetHash();
     std::map<std::string, std::string> mapValue = wtx.mapValue;
-
+	
     if (nNet > 0 || wtx.IsCoinBase())
     {
         //
@@ -54,7 +54,11 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
         BOOST_FOREACH(const CTxOut& txout, wtx.vout)
         {
             isminetype mine = wallet->IsMine(txout);
-            if(mine)
+			CAmount n401kAmount = txout.nValue;
+			std::string sMsg = txout.sTxOutMessage;
+			bool b401k = (n401kAmount==125000 || sMsg == "[401]");
+
+            if(mine && !b401k)
             {
                 TransactionRecord sub(hash, nTime);
                 CTxDestination address;

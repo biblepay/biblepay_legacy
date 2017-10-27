@@ -750,8 +750,7 @@ void CGovernanceManager::Sync(CNode* pfrom, const uint256& nProp, const CBloomFi
 
     // SYNC GOVERNANCE OBJECTS WITH OTHER CLIENT
 
-    LogPrint("gobject", "CGovernanceManager::Sync -- syncing to peer=%d, nProp = %s\n", pfrom->id, nProp.ToString());
-
+	if (fDebugMaster) LogPrint("gobject", "CGovernanceManager::Sync -- syncing to peer=%d, nProp = %s\n", pfrom->id, nProp.ToString());
     {
         LOCK2(cs_main, cs);
 
@@ -761,39 +760,40 @@ void CGovernanceManager::Sync(CNode* pfrom, const uint256& nProp, const CBloomFi
                 CGovernanceObject& govobj = it->second;
                 std::string strHash = it->first.ToString();
 
-                LogPrint("gobject", "CGovernanceManager::Sync -- attempting to sync govobj: %s, peer=%d\n", strHash, pfrom->id);
+                if (fDebugMaster) LogPrint("gobject", "CGovernanceManager::Sync -- attempting to sync govobj: %s, peer=%d\n", strHash, pfrom->id);
 
                 if(govobj.IsSetCachedDelete() || govobj.IsSetExpired()) {
-                    LogPrintf("CGovernanceManager::Sync -- not syncing deleted/expired govobj: %s, peer=%d\n",
+                    if (fDebugMaster) LogPrintf("CGovernanceManager::Sync -- not syncing deleted/expired govobj: %s, peer=%d\n",
                               strHash, pfrom->id);
                     continue;
                 }
 
                 // Push the inventory budget proposal message over to the other client
-                LogPrint("gobject", "CGovernanceManager::Sync -- syncing govobj: %s, peer=%d\n", strHash, pfrom->id);
+                if (fDebugMaster) LogPrint("gobject", "CGovernanceManager::Sync -- syncing govobj: %s, peer=%d\n", strHash, pfrom->id);
                 pfrom->PushInventory(CInv(MSG_GOVERNANCE_OBJECT, it->first));
                 ++nObjCount;
             }
         } else {
             // single valid object and its valid votes
             object_m_it it = mapObjects.find(nProp);
-            if(it == mapObjects.end()) {
-                LogPrint("gobject", "CGovernanceManager::Sync -- no matching object for hash %s, peer=%d\n", nProp.ToString(), pfrom->id);
+            if(it == mapObjects.end()) 
+			{
+                if (fDebugMaster) LogPrint("gobject", "CGovernanceManager::Sync -- no matching object for hash %s, peer=%d\n", nProp.ToString(), pfrom->id);
                 return;
             }
             CGovernanceObject& govobj = it->second;
             std::string strHash = it->first.ToString();
 
-            LogPrint("gobject", "CGovernanceManager::Sync -- attempting to sync govobj: %s, peer=%d\n", strHash, pfrom->id);
+            if (fDebugMaster) LogPrint("gobject", "CGovernanceManager::Sync -- attempting to sync govobj: %s, peer=%d\n", strHash, pfrom->id);
 
             if(govobj.IsSetCachedDelete() || govobj.IsSetExpired()) {
-                LogPrintf("CGovernanceManager::Sync -- not syncing deleted/expired govobj: %s, peer=%d\n",
+                if (fDebugMaster) LogPrintf("CGovernanceManager::Sync -- not syncing deleted/expired govobj: %s, peer=%d\n",
                           strHash, pfrom->id);
                 return;
             }
 
             // Push the inventory budget proposal message over to the other client
-            LogPrint("gobject", "CGovernanceManager::Sync -- syncing govobj: %s, peer=%d\n", strHash, pfrom->id);
+            if (fDebugMaster) LogPrint("gobject", "CGovernanceManager::Sync -- syncing govobj: %s, peer=%d\n", strHash, pfrom->id);
             pfrom->PushInventory(CInv(MSG_GOVERNANCE_OBJECT, it->first));
             ++nObjCount;
 
@@ -813,7 +813,7 @@ void CGovernanceManager::Sync(CNode* pfrom, const uint256& nProp, const CBloomFi
 
     pfrom->PushMessage(NetMsgType::SYNCSTATUSCOUNT, MASTERNODE_SYNC_GOVOBJ, nObjCount);
     pfrom->PushMessage(NetMsgType::SYNCSTATUSCOUNT, MASTERNODE_SYNC_GOVOBJ_VOTE, nVoteCount);
-    LogPrintf("CGovernanceManager::Sync -- sent %d objects and %d votes to peer=%d\n", nObjCount, nVoteCount, pfrom->id);
+    if (fDebugMaster) LogPrintf("CGovernanceManager::Sync -- sent %d objects and %d votes to peer=%d\n", nObjCount, nVoteCount, pfrom->id);
 }
 
 bool CGovernanceManager::MasternodeRateCheck(const CGovernanceObject& govobj, update_mode_enum_t eUpdateLast)
@@ -893,7 +893,7 @@ bool CGovernanceManager::MasternodeRateCheck(const CGovernanceObject& govobj, up
     case GOVERNANCE_OBJECT_TRIGGER:
         // Allow 1 trigger per mn per cycle, with a small fudge factor
         pBuffer = &it->second.triggerBuffer;
-        dMaxRate = 2 * 1.1 / double(nSuperblockCycleSeconds);
+        dMaxRate = 4 * 1.1 / double(nSuperblockCycleSeconds);
         break;
     case GOVERNANCE_OBJECT_WATCHDOG:
         pBuffer = &it->second.watchdogBuffer;

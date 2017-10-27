@@ -50,7 +50,6 @@ using namespace std;
 uint64_t nLastBlockTx = 0;
 uint64_t nLastBlockSize = 0;
 uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight, const CBlockIndex* pindexLast, bool bRequireTxIndex);
-uint256 BibleHash2(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight);
 std::string ExtractXML(std::string XMLdata, std::string key, std::string key_end);
 void WriteCache(std::string section, std::string key, std::string value, int64_t locktime);
 std::string ReadCache(std::string section, std::string key);
@@ -739,15 +738,8 @@ recover:
 					// The BibleHash is generated from chained bible verses, a historical tx lookup, one AES encryption operation, and MD5 hash
 					uint256 x11_hash = pblock->GetHash();
 					uint256 hash;
-					if (iFeatureSet == 0)
-					{
-						hash = BibleHash(x11_hash, pblock->GetBlockTime(), pindexPrev->nTime, true, pindexPrev->nHeight, NULL, false);
-					}
-					else if (iFeatureSet == 1)
-					{
-						hash = BibleHash2(x11_hash, pblock->GetBlockTime(), pindexPrev->nTime, true, pindexPrev->nHeight);
-					}
-
+					hash = BibleHash(x11_hash, pblock->GetBlockTime(), pindexPrev->nTime, true, pindexPrev->nHeight, NULL, false);
+			
 					nBibleHashesDone += 1;
 					nHashesDone += 1;
 					nThreadWork += 1;
@@ -797,7 +789,7 @@ recover:
 					pblock->nNonce += 1;
 			
 					// 0x4FFF is approximately 20 seconds, then we update hashmeter
-					if ((pblock->nNonce & 0x7FFF) == 0)
+					if ((pblock->nNonce & 0x4FFF) == 0)
 						break;
 					
                 }
@@ -816,7 +808,7 @@ recover:
                 
 				if (fPoolMiningMode && (!sPoolMiningAddress.empty()) && ((GetAdjustedTime() - nLastReadyToMine) > 7*60))
 				{
-					if (fDebugMaster) LogPrintf(" Pool mining hard block; checking for new work;  ");
+					if (fDebugMaster) LogPrintf(" Pool mining hard block; checking for new work; \n");
 					hashTargetPool = UintToArith256(uint256S("0x0"));
 					WriteCache("poolthread"+RoundToString(iThreadID,0),"poolinfo3","CFW " + TimestampToHRDate(GetAdjustedTime()),GetAdjustedTime());
 					break;
@@ -846,11 +838,13 @@ recover:
 				if (vNodes.empty() && chainparams.MiningRequiresPeers())
                     break;
 
-                if (pblock->nNonce >= 0xFF)
-                    break;
                 if (mempool.GetTransactionsUpdated() != nTransactionsUpdatedLast && GetTime() - nStart > 60)
                     break;
+
                 if (pindexPrev != chainActive.Tip() || pindexPrev==NULL || chainActive.Tip()==NULL)
+					break;
+
+				if (pblock->nNonce >= 0x9FFF)
                     break;
 	                        
                 // Update nTime every few seconds
@@ -865,6 +859,7 @@ recover:
 					// Changing pblock->nTime can change work required on testnet:
 					hashTarget.SetCompact(pblock->nBits);
 				}
+
 				
             }
         }

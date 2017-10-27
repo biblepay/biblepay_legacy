@@ -649,7 +649,7 @@ bool CWallet::EncryptWallet(const SecureString& strWalletPassphrase)
 
         // Update KeePass if necessary
         if(GetBoolArg("-keepass", false)) {
-            LogPrintf("CWallet::EncryptWallet -- Updating KeePass with new passphrase");
+            LogPrintf("CWallet::EncryptWallet -- Updating KeePass with new passphrase\n");
             try {
                 keePassInt.updatePassphrase(strWalletPassphrase);
             } catch (std::exception& e) {
@@ -1468,11 +1468,11 @@ bool CWalletTx::RelayWalletTransaction(std::string strCommand)
     assert(pwallet->GetBroadcastTransactions());
     if (!IsCoinBase())
     {
-        if (GetDepthInMainChain() == 0 && !isAbandoned() && InMempool()) {
-            uint256 hash = GetHash();
-            LogPrintf("Relaying wtx %s\n", hash.ToString());
-
-            if(strCommand == NetMsgType::TXLOCKREQUEST) {
+        if (GetDepthInMainChain() == 0 && !isAbandoned() && InMempool()) 
+		{
+            /* uint256 hash = GetHash(); */
+            if(strCommand == NetMsgType::TXLOCKREQUEST) 
+			{
                 instantsend.ProcessTxLockRequest(((CTxLockRequest)*this));
             }
             RelayTransaction((CTransaction)*this);
@@ -1895,6 +1895,30 @@ CAmount CWallet::GetAnonymizedBalance() const
     return nTotal;
 }
 
+
+CAmount CWallet::GetRetirementBalance() const
+{
+    CAmount nTotal = 0;
+
+    {
+        LOCK2(cs_main, cs_wallet);
+        for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it)
+        {
+            const CWalletTx* pcoin = &(*it).second;
+            uint256 hash = (*it).first;
+            for (unsigned int i = 0; i < pcoin->vout.size(); i++) 
+			{
+                CTxIn vin = CTxIn(hash, i);
+                if(IsSpent(hash, i) || IsMine(pcoin->vout[i]) != ISMINE_SPENDABLE) continue;
+				
+				CComplexTransaction cct(pcoin->vout[i]);
+				if (cct.Color=="401") nTotal += pcoin->vout[i].nValue;
+            }
+        }
+    }
+    return nTotal;
+}
+
 // Note: calculated including unconfirmed,
 // that's ok as long as we use it for informational purposes only
 double CWallet::GetAverageAnonymizedRounds() const
@@ -2107,22 +2131,50 @@ void CWallet::AvailableCoins(vector<COutput>& vCoins, bool fOnlyConfirmed, const
             // It's possible for these to be conflicted via ancestors which we may never be able to detect
             if (nDepth == 0 && !pcoin->InMempool())
                 continue;
-
-            for (unsigned int i = 0; i < pcoin->vout.size(); i++) {
+			
+            for (unsigned int i = 0; i < pcoin->vout.size(); i++) 
+			{
                 bool found = false;
-                if(nCoinType == ONLY_DENOMINATED) {
+				CComplexTransaction cct(pcoin->vout[i]);
+				if (cct.Color=="401" && nCoinType != ONLY_RETIREMENT_COINS) continue;
+
+				if (nCoinType == ONLY_RETIREMENT_COINS && cct.Color=="401")
+				{
+					found = true;
+				}
+				else if(nCoinType == ONLY_DENOMINATED) 
+				{
                     found = IsDenominatedAmount(pcoin->vout[i].nValue);
-                } else if(nCoinType == ONLY_NOT1000IFMN) {
-                    found = !(fMasterNode && pcoin->vout[i].nValue == SANCTUARY_COLLATERAL * COIN);
-                } else if(nCoinType == ONLY_NONDENOMINATED_NOT1000IFMN) {
+                }
+				else if(nCoinType == ONLY_NOT1000IFMN) 
+				{
+                    found = (
+						    !(fMasterNode && pcoin->vout[i].nValue == SANCTUARY_COLLATERAL * COIN)
+						&&  !(fMasterNode && pcoin->vout[i].nValue == TEMPLE_COLLATERAL * COIN));
+                }
+				else if(nCoinType == ONLY_NONDENOMINATED_NOT1000IFMN) 
+				{
                     if (IsCollateralAmount(pcoin->vout[i].nValue)) continue; // do not use collateral amounts
                     found = !IsDenominatedAmount(pcoin->vout[i].nValue);
-                    if(found && fMasterNode) found = pcoin->vout[i].nValue != SANCTUARY_COLLATERAL * COIN; // do not use Hot MN funds
-                } else if(nCoinType == ONLY_1000) {
-                    found = pcoin->vout[i].nValue == SANCTUARY_COLLATERAL * COIN;
-                } else if(nCoinType == ONLY_PRIVATESEND_COLLATERAL) {
+                    if(found && fMasterNode) 
+					{
+						found = ((pcoin->vout[i].nValue != SANCTUARY_COLLATERAL * COIN)
+							&&  (pcoin->vout[i].nValue != TEMPLE_COLLATERAL * COIN));
+					}
+					
+					// do not use Hot MN funds
+                }
+				else if(nCoinType == ONLY_1000) 
+				{
+                    found = ((pcoin->vout[i].nValue == SANCTUARY_COLLATERAL * COIN)
+						||   (pcoin->vout[i].nValue == TEMPLE_COLLATERAL * COIN));
+                }
+				else if(nCoinType == ONLY_PRIVATESEND_COLLATERAL) 
+				{
                     found = IsCollateralAmount(pcoin->vout[i].nValue);
-                } else {
+                }
+				else 
+				{
                     found = true;
                 }
                 if(!found) continue;
@@ -2364,7 +2416,8 @@ bool CWallet::SelectCoins(const CAmount& nTargetValue, set<pair<const CWalletTx*
     }
 
     //if we're doing only denominated, we need to round up to the nearest smallest denomination
-    if(nCoinType == ONLY_DENOMINATED) {
+    if(nCoinType == ONLY_DENOMINATED) 
+	{
         CAmount nSmallestDenom = vecPrivateSendDenominations.back();
         // Make outputs by looping through denominations, from large to small
         BOOST_FOREACH(CAmount nDenom, vecPrivateSendDenominations)
@@ -2596,6 +2649,7 @@ bool CWallet::SelectCoinsGrouppedByAddresses(std::vector<CompactTallyItem>& vecT
                 // ignore collaterals
                 if(IsCollateralAmount(wtx.vout[i].nValue)) continue;
                 if(fMasterNode && wtx.vout[i].nValue == SANCTUARY_COLLATERAL * COIN) continue;
+				if(fMasterNode && wtx.vout[i].nValue == TEMPLE_COLLATERAL * COIN) continue;
                 // ignore outputs that are 10 times smaller then the smallest denomination
                 // otherwise they will just lead to higher fee / lower priority
                 if(wtx.vout[i].nValue <= vecPrivateSendDenominations.back()/10) continue;
@@ -2659,8 +2713,8 @@ bool CWallet::SelectCoinsDark(CAmount nValueMin, CAmount nValueMax, std::vector<
         if(out.tx->vout[out.i].nValue < nValueMin/10) continue;
         //do not allow collaterals to be selected
         if(IsCollateralAmount(out.tx->vout[out.i].nValue)) continue;
-        if(fMasterNode && out.tx->vout[out.i].nValue == SANCTUARY_COLLATERAL * COIN) continue; //masternode input
-
+        if(fMasterNode && out.tx->vout[out.i].nValue == SANCTUARY_COLLATERAL * COIN) continue; // Sanctuary input
+		if(fMasterNode && out.tx->vout[out.i].nValue == TEMPLE_COLLATERAL * COIN) continue; // Temple input
         if(nValueRet + out.tx->vout[out.i].nValue <= nValueMax){
             CTxIn txin = CTxIn(out.tx->GetHash(),out.i);
 
@@ -2889,7 +2943,7 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
 								const CCoinControl* coinControl, bool sign, AvailableCoinsType nCoinType, bool fUseInstantSend)
 {
     CAmount nFeePay = fUseInstantSend ? CTxLockRequest().GetMinFee() : 0;
-
+				
     CAmount nValue = 0;
     unsigned int nSubtractFeeFromAmount = 0;
     BOOST_FOREACH (const CRecipient& recipient, vecSend)
@@ -3000,6 +3054,12 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
 					{
 						txout.sTxOutMessage = recipient.Message;
 					}
+					/*
+					if (nCoinType==ONLY_RETIREMENT_COINS) 
+					{
+						txout.sTxOutMessage = "[401]";
+					}
+					*/
 			        txNew.vout.push_back(txout);
                 }
 
@@ -3292,13 +3352,16 @@ bool CWallet::CommitTransaction(CWalletTx& wtxNew, CReserveKey& reservekey, std:
         if (fBroadcastTransactions)
         {
             // Broadcast
-            if (!wtxNew.AcceptToMemoryPool(false))
+			//LogPrintf("\nAcceptToMemPool %s",wtxNew.GetHash().GetHex().c_str());
+		    if (!wtxNew.AcceptToMemoryPool(false))
             {
                 // This must not fail. The transaction has already been signed and recorded.
                 LogPrintf("CommitTransaction(): Error: Transaction not valid\n");
                 return false;
             }
             wtxNew.RelayWalletTransaction(strCommand);
+			//LogPrintf("\nRelay Wallet Tx %s",wtxNew.GetHash().GetHex().c_str());
+		    
         }
     }
     return true;

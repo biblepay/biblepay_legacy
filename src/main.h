@@ -176,6 +176,7 @@ extern bool fIsBareMultisigStd;
 extern bool fRequireStandard;
 extern bool fMasternodesEnabled;
 extern bool fTradingEnabled;
+extern bool fRetirementAccountsEnabled;
 
 extern unsigned int nBytesPerSigOp;
 extern bool fCheckBlockIndex;
@@ -190,9 +191,12 @@ extern std::string msGlobalStatus3;
 extern int PRAYER_MODULUS;
 extern int64_t nHPSTimerStart;
 extern int64_t nHashCounter;
+extern int64_t nLastTradingActivity;
 extern int64_t nBibleHashCounter;
 extern int64_t nBibleMinerPulse;
 extern int64_t SANCTUARY_COLLATERAL;
+extern int64_t TEMPLE_COLLATERAL;
+extern int64_t MAX_BLOCK_SUBSIDY;
 extern bool fProd;
 extern bool fMineSlow;
 
@@ -301,7 +305,7 @@ bool ActivateBestChain(CValidationState& state, const CChainParams& chainparams,
 
 double ConvertBitsToDouble(unsigned int nBits);
 CAmount GetBlockSubsidy(const CBlockIndex* pindexPrev, int nBits, int nHeight, const Consensus::Params& consensusParams, bool fSuperblockPartOnly = false);
-CAmount GetMasternodePayment(int nHeight, CAmount blockValue);
+CAmount GetMasternodePayment(int nHeight, CAmount blockValue, CAmount nSanctuaryCollateral);
 
 /**
  * Prune block and undo files (blk???.dat and undo???.dat) so that the disk space used is less than a user-defined target.

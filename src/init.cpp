@@ -1094,6 +1094,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
 		targetGenesisHash = hashGenesisBlockTestNet;
 		fProd = false;
 		fMasternodesEnabled = true;
+		fRetirementAccountsEnabled = true;
 	}
 	else if (chainparams.NetworkIDString()=="regtest")
 	{
@@ -1102,7 +1103,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
 	}
 	else
 	{
-		LogPrintf(" \r\n Invalid Network Chain Parameter \r\n");
+		LogPrintf(" \n Invalid Network Chain Parameter \n");
         throw runtime_error("Invalid Network Chain Parameter");
   	}
 
@@ -1582,7 +1583,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
 	uiInterface.InitMessage(_("Loading KJV Bible..."));
 
 	
-	 std::string s1 = RetrieveMd5("byte1");
+	std::string s1 = RetrieveMd5("byte1");
 	std::string 	s2 = RetrieveMd5("BYTE");
 	LogPrintf("s1 %s, s2 %s\r\n", s1.c_str(),	s2.c_str());
 

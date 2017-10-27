@@ -7,11 +7,13 @@
 
 #include "masternode.h"
 #include "wallet/wallet.h"
+#include <boost/algorithm/string/case_conv.hpp> // for to_lower()
 
 class CDarksendPool;
 class CDarkSendSigner;
 class CDarksendBroadcastTx;
 class CTradeTx;
+class CComplexTransaction;
 
 // timeouts
 static const int PRIVATESEND_AUTO_TIMEOUT_MIN       = 5;
@@ -53,6 +55,11 @@ extern std::vector<CAmount> vecPrivateSendDenominations;
 extern std::map<uint256, CTradeTx> mapTradeTxes;
 std::string RetrieveMd5(std::string s1);
 std::string RoundToString(double d, int place);
+std::string PubKeyToAddress(const CScript& scriptPubKey);
+std::string ExtractXML(std::string XMLdata, std::string key, std::string key_end);
+double cdbl(std::string s, int place);
+std::string AmountToString(const CAmount& amount);
+CAmount StringToAmount(std::string sValue);
 
 
 /** Holds an mixing input
@@ -205,33 +212,157 @@ public:
 class CTradeTx
 {
 public:
-	int64_t iTradeTime;
-	std::string sTradeAction;
-	std::string sSymbol;
-	int64_t iQuantity;
-	int64_t iPrice;
-	std::string sIP;
+	int64_t TradeTime;
+	std::string Action;
+	std::string Symbol;
+	int64_t Quantity;
+	double Price;
+	std::string Address;
+	std::string Error;
+	double Total;
+	std::string EscrowTXID;
+	int VOUT;
 
-	CTradeTx(int64_t tradeTime, std::string tradeAction, std::string symbol, int64_t quantity, int64_t price, std::string IP) :
-		iTradeTime(tradeTime),
-		sTradeAction(tradeAction),
-        sSymbol(symbol),
-        iQuantity(quantity),
-		iPrice(price),
-		sIP(IP)
-        {}
+	CTradeTx(int64_t tradeTime, std::string tradeAction, std::string symbol, int64_t quantity, double price, std::string sAddress) :
+		TradeTime(tradeTime),
+		Action(tradeAction),
+        Symbol(symbol),
+        Quantity(quantity),
+		Price(price),
+		Address(sAddress),
+		Error(""),
+		VOUT(0)
+    {
+			Error="";
+			boost::to_upper(Symbol);
+			if (Symbol != "BBP" && Symbol != "RBBP")
+			{
+				Action = "ERROR";
+				Error = "Invalid Symbol";
+				Quantity = 0;
+			}
+			boost::to_upper(Action);
+			if (Action != "BUY" && Action != "SELL" && Action != "CANCEL")
+			{
+				Action = "ERROR";
+				Error = "Invalid Action (Must be BUY, SELL, CANCEL).";
+				Quantity = 0;
+			}
+
+			Total = Quantity * Price;
+	}
+
+	CTradeTx() : TradeTime(0), Action(""), Symbol(""), Quantity(0), Price(0), Address(""), Error(""), VOUT(0)
+	{}
 
 	uint256 GetHash()
 	{
-		std::string sKey = sIP + sSymbol + sTradeAction + RoundToString(iQuantity,0) + RoundToString(iPrice, 0);
+		std::string sKey = Address + Symbol + Action + RoundToString(Quantity,0) + RoundToString(Price, 2);
 		std::string sHash = RetrieveMd5(sKey);  // Use MD5 for the trading hash, so that we can make a custom constraint (Action,Symbol,Qty,IP)
 		uint256 hash = uint256S("0x" + sHash);
 		return hash;
+	}
+};
+
+/** Class to facilitate Complex Transaction Types and Colored Assets **/
+class CComplexTransaction
+{
+
+private:
 	
+public:
+	std::string Color;
+	std::string XML;
+	std::string RecipientAddress;
+	std::string Rules;
+	std::string TransactionType;
+	std::string ExpectedColor;
+	std::string ExpectedRecipient;
+	std::string scriptComplexTx;
+	CAmount Amount;
+	CAmount ExpectedAmount;
+	bool IsComplex;
+	std::string sourceHash;
+	CTransaction complexTransaction;
+	CTxOut complexOutput;
+	
+	void Initialize()
+	{
+		Color = ExtractXML(XML,"<color>","</color>");
+		Rules = ExtractXML(XML,"<rules>","</rules>");
+		ExpectedRecipient = ExtractXML(Rules,"<expectedrecipient>","</expectedrecipient>");
+		ExpectedColor = ExtractXML(Rules,"<expectedcolor>","</expectedcolor>");
+		TransactionType = ExtractXML(XML,"<transactiontype>","</transactiontype>");
+		ExpectedAmount = StringToAmount(ExtractXML(Rules,"<expectedamount>","</expectedamount>")) / COIN;
+		IsComplex = (TransactionType=="OCO" || TransactionType=="CAN") ? true : false;
+	}
+
+	CComplexTransaction(CTransaction c) : complexTransaction(c)
+	{
+		// We support ORO (One Requires Other), and CAN (Cancel Tx).  More coming soon.
+		// Inside the rules, we have a complicated set of contingencies
+		// For ORO: Require a specific Address Keypair, matching amount, matching color
+		// Break the rules into sub-contingencies: ExpectedAmount, ExpectedColor, ExpectedRecipient
+		if (c.vout.size() > 0)
+		{
+			XML = c.vout[0].sTxOutMessage;
+			RecipientAddress = PubKeyToAddress(c.vout[0].scriptPubKey);
+			Amount = c.vout[0].nValue;
+		}
+		//complexOutput = ctx.vout[0];
+		Initialize();
+	}
+
+
+	CComplexTransaction(CTxOut co) : complexOutput(co)
+	{
+		XML="";
+		if (!co.sTxOutMessage.empty())
+		{
+			XML = co.sTxOutMessage;
+			Amount = co.nValue;
+		}
+		Initialize();	
+	}
+
+
+
+	CComplexTransaction(std::string sScriptForComplexTransaction) : scriptComplexTx(sScriptForComplexTransaction)
+	{
+	}
+
+	std::string GetScriptForComplexOrder(std::string TransactionType, std::string Color, CAmount ExpectedAmount, std::string ExpectedRecipient, std::string ExpectedColor)
+	{
+	
+		std::string sColor = CreateXMLNode("color",Color);
+		std::string sTT = CreateXMLNode("transactiontype",TransactionType);
+		std::string sEA = CreateXMLNode("expectedamount", RoundToString((double)ExpectedAmount,4));
+		std::string sER = CreateXMLNode("expectedrecipient",ExpectedRecipient);
+		std::string sEC = CreateXMLNode("expectedcolor",ExpectedColor);
+		std::string sRules = "<rules>" + sEA + sER + sEC + "</rules>";
+		std::string sXMLScript = sColor + sTT + sRules;
+		return sXMLScript;
+	}
+
+
+	std::string CreateXMLNode(std::string sNode, std::string sData)
+	{
+		std::string sXML = "<" + sNode + ">";
+		if (sData.empty()) sData="";
+		sXML += sData;
+		sXML += "</" + sNode + ">";
+		return sXML;
+	}
+
+	std::string GetScriptForAssetColor(std::string sColor)
+	{
+		std::string sXMLScript = CreateXMLNode("color",sColor);
+		return sXMLScript;
 	}
 	
-	
+		
 };
+
 
 /** Helper class to store mixing transaction (tx) information.
  */

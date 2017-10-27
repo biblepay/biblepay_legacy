@@ -99,7 +99,8 @@ enum AvailableCoinsType
     ONLY_NOT1000IFMN = 3,
     ONLY_NONDENOMINATED_NOT1000IFMN = 4,
     ONLY_1000 = 5, // find masternode outputs including locked ones (use with caution)
-    ONLY_PRIVATESEND_COLLATERAL = 6
+    ONLY_PRIVATESEND_COLLATERAL = 6,
+	ONLY_RETIREMENT_COINS = 7
 };
 
 struct CompactTallyItem
@@ -529,7 +530,8 @@ private:
      * all coins from coinControl are selected; Never select unconfirmed coins
      * if they are not ours
      */
-    bool SelectCoins(const CAmount& nTargetValue, std::set<std::pair<const CWalletTx*,unsigned int> >& setCoinsRet, CAmount& nValueRet, const CCoinControl *coinControl = NULL, AvailableCoinsType nCoinType=ALL_COINS, bool fUseInstantSend = true) const;
+    bool SelectCoins(const CAmount& nTargetValue, std::set<std::pair<const CWalletTx*,unsigned int> >& setCoinsRet, CAmount& nValueRet, const CCoinControl *coinControl = NULL, 
+		AvailableCoinsType nCoinType=ALL_COINS, bool fUseInstantSend = true) const;
 
     CWalletDB *pwalletdbEncryption;
 
@@ -747,6 +749,7 @@ public:
     CAmount GetUnconfirmedBalance() const;
     CAmount GetImmatureBalance() const;
     CAmount GetWatchOnlyBalance() const;
+	CAmount GetRetirementBalance() const;
     CAmount GetUnconfirmedWatchOnlyBalance() const;
     CAmount GetImmatureWatchOnlyBalance() const;
 

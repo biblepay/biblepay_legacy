@@ -107,10 +107,10 @@ bool CGovernanceObject::ProcessVote(CNode* pfrom,
             if(pfrom) {
                 mnodeman.AskForMN(pfrom, vote.GetVinMasternode());
             }
-            LogPrintf(ostr.str().c_str());
+            if (fDebugMaster) LogPrintf(ostr.str().c_str());
         }
         else {
-            LogPrint("gobject", ostr.str().c_str());
+            if (fDebugMaster) LogPrint("gobject", ostr.str().c_str());
         }
         return false;
     }

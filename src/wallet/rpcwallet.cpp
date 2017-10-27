@@ -20,7 +20,7 @@
 #include "wallet.h"
 #include "walletdb.h"
 #include "keepass.h"
-
+#include "darksend.h"
 #include <stdint.h>
 
 #include <boost/assign/list_of.hpp>
@@ -409,6 +409,43 @@ static void SendMoney(const CTxDestination &address, CAmount nValue, bool fSubtr
         throw JSONRPCError(RPC_WALLET_ERROR, "Error: The transaction was rejected! This might happen if some of the coins in your wallet were already spent, such as if you used a copy of wallet.dat and coins were spent in the copy but not marked as spent here.");
 }
 
+
+
+static void SendRetirementCoins(const CTxDestination &address, CAmount nValue, bool fSubtractFeeFromAmount, CWalletTx& wtxNew, std::string sScriptComplexOrder)
+{
+	CComplexTransaction cct1(sScriptComplexOrder);
+	AvailableCoinsType ACT_TYPE = (cct1.Color=="401") ? ONLY_RETIREMENT_COINS : ALL_COINS;
+	
+	CAmount curBalance = 0;
+	curBalance = (ACT_TYPE==ONLY_RETIREMENT_COINS) ? pwalletMain->GetRetirementBalance() : pwalletMain->GetBalance();
+    // Check amount
+    if (nValue <= 0)
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid amount");
+    if (nValue > curBalance)
+        throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "Insufficient funds");
+
+    // Parse Biblepay address
+    CScript scriptPubKey = GetScriptForDestination(address);
+    // Create and send the transaction
+    CReserveKey reservekey(pwalletMain);
+    CAmount nFeeRequired;
+    std::string strError;
+    vector<CRecipient> vecSend;
+    int nChangePosRet = -1;
+    CRecipient recipient = {scriptPubKey, nValue, fSubtractFeeFromAmount, false, false, false, "", "", ""};
+	recipient.Message = sScriptComplexOrder;
+    vecSend.push_back(recipient);
+	LogPrintf(" SENDING COINS OF COLOR %s with Script %s ",cct1.Color.c_str(), sScriptComplexOrder.c_str());
+    if (!pwalletMain->CreateTransaction(vecSend, wtxNew, reservekey, nFeeRequired, nChangePosRet,
+                                         strError, NULL, true, ACT_TYPE, false)) 
+	{
+        if (!fSubtractFeeFromAmount && nValue + nFeeRequired > pwalletMain->GetBalance())
+            strError = strprintf("Error: This transaction requires a transaction fee of at least %s because of its amount, complexity, or use of recently received funds!", FormatMoney(nFeeRequired));
+        throw JSONRPCError(RPC_WALLET_ERROR, strError);
+    }
+    if (!pwalletMain->CommitTransaction(wtxNew, reservekey, NetMsgType::TX))
+        throw JSONRPCError(RPC_WALLET_ERROR, "Error: The transaction was rejected! This might happen if some of the coins in your wallet were already spent, such as if you used a copy of wallet.dat and coins were spent in the copy but not marked as spent here.");
+}
 
 
 static void SendMoneyToDestinationWithMinimumBalance(const CTxDestination& address, CAmount nValue, CAmount nMinimumBalanceRequired, CWalletTx& wtxNew)
@@ -2405,6 +2442,7 @@ UniValue getwalletinfo(const UniValue& params, bool fHelp)
     UniValue obj(UniValue::VOBJ);
     obj.push_back(Pair("walletversion", pwalletMain->GetVersion()));
     obj.push_back(Pair("balance",       ValueFromAmount(pwalletMain->GetBalance())));
+	obj.push_back(Pair("retirement_account_balance", ValueFromAmount(pwalletMain->GetRetirementBalance())));
     obj.push_back(Pair("unconfirmed_balance", ValueFromAmount(pwalletMain->GetUnconfirmedBalance())));
     obj.push_back(Pair("immature_balance",    ValueFromAmount(pwalletMain->GetImmatureBalance())));
     obj.push_back(Pair("txcount",       (int)pwalletMain->mapWallet.size()));

@@ -46,7 +46,7 @@ UniValue gobject(const UniValue& params, bool fHelp)
         strCommand = params[0].get_str();
 
     if (fHelp  ||
-        (strCommand != "vote-many" && strCommand != "vote-conf" && strCommand != "serialize" && strCommand != "vote-alias" && strCommand != "prepare" && strCommand != "submit" && strCommand != "count" &&
+        (strCommand != "vote-many" && strCommand != "serialize-trigger" && strCommand != "vote-conf" && strCommand != "serialize" && strCommand != "vote-alias" && strCommand != "prepare" && strCommand != "submit" && strCommand != "count" &&
          strCommand != "deserialize" && strCommand != "get" && strCommand != "getvotes" && strCommand != "getcurrentvotes" && strCommand != "list" && strCommand != "diff"))
         throw std::runtime_error(
                 "gobject \"command\"...\n"
@@ -93,14 +93,43 @@ UniValue gobject(const UniValue& params, bool fHelp)
         return u.write().c_str();
     }
 
+	if (strCommand == "serialize-trigger")
+	{
+		
+		/* [["trigger",{"event_block_height":5520,"payment_addresses":"
+		    yaddress1|yaddr2","payment_amounts":"2.00000000|2.00000000",
+			"proposal_hashes":"pph","type":2}]]
+		*/
+		std::string sEventBlockHeight = params[1].get_str();
+		std::string sPaymentAddresses = params[2].get_str();
+		std::string sPaymentAmounts = params[3].get_str();
+		std::string sProposalHashes = params[4].get_str();
+		std::string sType = params[5].get_str();
+		std::string sQ = "\"";
+		std::string sJson = "[[" + sQ + "trigger" + sQ + ",{";
+		sJson += GJE("event_block_height",sEventBlockHeight,true,false); // Must be an int
+		sJson += GJE("payment_addresses",sPaymentAddresses,true,true);
+		sJson += GJE("payment_amounts",sPaymentAmounts,true,true);
+		sJson += GJE("proposal_hashes",sProposalHashes,true,true);
+		sJson += GJE("type",sType,true,false); // Must be an Int
+		sJson += "}]]";
+		UniValue u(UniValue::VOBJ);
+		// make into hex
+	    std::vector<unsigned char> vchJson = vector<unsigned char>(sJson.begin(), sJson.end());
+		std::string sHex = HexStr(vchJson.begin(), vchJson.end());
+	    u.push_back(Pair("Hex", sHex));
+        return u;
+
+	}
+
 	if (strCommand == "serialize")
 	{
 		/* [["proposal",{
-		"end_epoch":"1508331462",
+		"end_epoch":"1507777400",
 		"name":"TEST",
 		"payment_address":"bqd2cL18KD1v8bYJDFERM2LyvE7R6wZ8Rs",
 		"payment_amount":"5",
-		"start_epoch":"1505755982",
+		"start_epoch":"1507731300",
 		"type":1,
 		"url":"https://myproposal.biblepay.org"
 		}]]

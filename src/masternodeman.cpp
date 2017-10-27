@@ -150,14 +150,14 @@ void CMasternodeMan::AskForMN(CNode* pnode, const CTxIn &vin)
                 return;
             }
             // we asked this node for this outpoint but it's ok to ask again already
-            LogPrintf("CMasternodeMan::AskForMN -- Asking same peer %s for missing masternode entry again: %s\n", pnode->addr.ToString(), vin.prevout.ToStringShort());
+            if (fDebugMaster) LogPrintf("CMasternodeMan::AskForMN -- Asking same peer %s for missing masternode entry again: %s\n", pnode->addr.ToString(), vin.prevout.ToStringShort());
         } else {
             // we already asked for this outpoint but not this node
-            LogPrintf("CMasternodeMan::AskForMN -- Asking new peer %s for missing masternode entry: %s\n", pnode->addr.ToString(), vin.prevout.ToStringShort());
+            if (fDebugMaster) LogPrintf("CMasternodeMan::AskForMN -- Asking new peer %s for missing masternode entry: %s\n", pnode->addr.ToString(), vin.prevout.ToStringShort());
         }
     } else {
         // we never asked any node for this outpoint
-        LogPrintf("CMasternodeMan::AskForMN -- Asking peer %s for missing masternode entry for the first time: %s\n", pnode->addr.ToString(), vin.prevout.ToStringShort());
+        if (fDebugMaster) LogPrintf("CMasternodeMan::AskForMN -- Asking peer %s for missing masternode entry for the first time: %s\n", pnode->addr.ToString(), vin.prevout.ToStringShort());
     }
     mWeAskedForMasternodeListEntry[vin.prevout][pnode->addr] = GetTime() + DSEG_UPDATE_SECONDS;
 
@@ -924,7 +924,8 @@ void CMasternodeMan::ProcessMessage(CNode* pfrom, std::string& strCommand, CData
             }
         }
 
-        if(vin == CTxIn()) {
+        if(vin == CTxIn()) 
+		{
             pfrom->PushMessage(NetMsgType::SYNCSTATUSCOUNT, MASTERNODE_SYNC_LIST, nInvCount);
             LogPrintf("DSEG -- Sent %d Masternode invs to peer %d\n", nInvCount, pfrom->id);
             return;
@@ -1158,14 +1159,14 @@ void CMasternodeMan::ProcessVerifyReply(CNode* pnode, CMasternodeVerification& m
 
     // did we even ask for it? if that's the case we should have matching fulfilled request
     if(!netfulfilledman.HasFulfilledRequest(pnode->addr, strprintf("%s", NetMsgType::MNVERIFY)+"-request")) {
-        LogPrintf("CMasternodeMan::ProcessVerifyReply -- ERROR: we didn't ask for verification of %s, peer=%d\n", pnode->addr.ToString(), pnode->id);
+        if (fDebugMaster) LogPrintf("CMasternodeMan::ProcessVerifyReply -- ERROR: we didn't ask for verification of %s, peer=%d\n", pnode->addr.ToString(), pnode->id);
         Misbehaving(pnode->id, 27);
         return;
     }
 
     // Received nonce for a known address must match the one we sent
     if(mWeAskedForVerification[pnode->addr].nonce != mnv.nonce) {
-        LogPrintf("CMasternodeMan::ProcessVerifyReply -- ERROR: wrong nounce: requested=%d, received=%d, peer=%d\n",
+        if (fDebugMaster) LogPrintf("CMasternodeMan::ProcessVerifyReply -- ERROR: wrong nounce: requested=%d, received=%d, peer=%d\n",
                     mWeAskedForVerification[pnode->addr].nonce, mnv.nonce, pnode->id);
         Misbehaving(pnode->id, 28);
         return;
@@ -1173,7 +1174,7 @@ void CMasternodeMan::ProcessVerifyReply(CNode* pnode, CMasternodeVerification& m
 
     // Received nBlockHeight for a known address must match the one we sent
     if(mWeAskedForVerification[pnode->addr].nBlockHeight != mnv.nBlockHeight) {
-        LogPrintf("CMasternodeMan::ProcessVerifyReply -- ERROR: wrong nBlockHeight: requested=%d, received=%d, peer=%d\n",
+        if (fDebugMaster) LogPrintf("CMasternodeMan::ProcessVerifyReply -- ERROR: wrong nBlockHeight: requested=%d, received=%d, peer=%d\n",
                     mWeAskedForVerification[pnode->addr].nBlockHeight, mnv.nBlockHeight, pnode->id);
         Misbehaving(pnode->id, 29);
         return;
@@ -1182,13 +1183,13 @@ void CMasternodeMan::ProcessVerifyReply(CNode* pnode, CMasternodeVerification& m
     uint256 blockHash;
     if(!GetBlockHash(blockHash, mnv.nBlockHeight)) {
         // this shouldn't happen...
-        LogPrintf("MasternodeMan::ProcessVerifyReply -- can't get block hash for unknown block height %d, peer=%d\n", mnv.nBlockHeight, pnode->id);
+        if (fDebugMaster) LogPrintf("MasternodeMan::ProcessVerifyReply -- can't get block hash for unknown block height %d, peer=%d\n", mnv.nBlockHeight, pnode->id);
         return;
     }
 
     // we already verified this address, why node is spamming?
     if(netfulfilledman.HasFulfilledRequest(pnode->addr, strprintf("%s", NetMsgType::MNVERIFY)+"-done")) {
-        LogPrintf("CMasternodeMan::ProcessVerifyReply -- ERROR: already verified %s recently\n", pnode->addr.ToString());
+        if (fDebugMaster) LogPrintf("CMasternodeMan::ProcessVerifyReply -- ERROR: already verified %s recently\n", pnode->addr.ToString());
         Misbehaving(pnode->id, 30);
         return;
     }
@@ -1363,6 +1364,21 @@ void CMasternodeMan::ProcessVerifyBroadcast(CNode* pnode, const CMasternodeVerif
                     nCount, pnode->addr.ToString());
     }
 }
+
+
+/*
+void ChooseTradingMasternode()
+{
+	     std::vector<std::pair<int, CMasternode> > vecMasternodeRanks;
+         int nHeight = pCurrentBlockIndex->nHeight-1;
+		 vecMasternodeRanks = GetMasternodeRanks(nHeight);
+         for(int i = 0; i < (int)vecMasternodeRanks.size(); i++) 
+		 {
+                 CService addr = vecMasternodeRanks[i].second.addr;
+         }
+}
+*/
+
 
 std::string CMasternodeMan::ToString() const
 {

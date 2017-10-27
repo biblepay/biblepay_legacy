@@ -69,6 +69,8 @@ bool AddSeedNode(std::string sNode);
 extern std::string BiblepayHttpPost(int iThreadID, std::string sActionName, std::string sDistinctUser, std::string sPayload, std::string sBaseURL, 
 	std::string sPage, int iPort, std::string sSolution);
 std::string RoundToString(double d, int place);
+extern std::string SQL(std::string sCommand, std::string sAddress, std::string sArguments, std::string& sError);
+
 
 
 using namespace std;
@@ -1004,7 +1006,7 @@ static void AcceptConnection(const ListenSocket& hListenSocket) {
     // don't accept incoming connections until fully synced
     if(fMasterNode && !masternodeSync.IsSynced() && !whitelisted) 
 	{
-        LogPrintf("AcceptConnection -- masternode is not synced yet, skipping inbound connection attempt\n");
+        if (fDebugMaster) LogPrintf("AcceptConnection -- masternode is not synced yet, skipping inbound connection attempt\n");
         CloseSocket(hSocket);
         return;
     }
@@ -1013,7 +1015,6 @@ static void AcceptConnection(const ListenSocket& hListenSocket) {
     pnode->fWhitelisted = whitelisted;
 
     LogPrint("net", "connection from %s accepted\n", addr.ToString());
-
     {
         LOCK(cs_vNodes);
         vNodes.push_back(pnode);
@@ -2487,7 +2488,7 @@ void CNode::AskFor(const CInv& inv)
     if (mapAskFor.size() > MAPASKFOR_MAX_SZ || setAskFor.size() > SETASKFOR_MAX_SZ) {
         int64_t nNow = GetTime();
         if(nNow - nLastWarningTime > WARNING_INTERVAL) {
-            LogPrintf("CNode::AskFor -- WARNING: inventory message dropped: mapAskFor.size = %d, setAskFor.size = %d, MAPASKFOR_MAX_SZ = %d, SETASKFOR_MAX_SZ = %d, nSkipped = %d, peer=%d\n",
+            if (fDebugMaster) LogPrintf("CNode::AskFor -- WARNING: inventory message dropped: mapAskFor.size = %d, setAskFor.size = %d, MAPASKFOR_MAX_SZ = %d, SETASKFOR_MAX_SZ = %d, nSkipped = %d, peer=%d\n",
                       mapAskFor.size(), setAskFor.size(), MAPASKFOR_MAX_SZ, SETASKFOR_MAX_SZ, nNumWarningsSkipped, id);
             nLastWarningTime = nNow;
             nNumWarningsSkipped = 0;
@@ -2906,6 +2907,22 @@ std::string PrepareHTTPPost(std::string sPage, std::string sHostHeader, const st
         s << item.first << ": " << item.second << "\r\n";
         s << "\r\n" << sMsg;
     return s.str();
+}
+
+std::string SQL(std::string sCommand, std::string sAddress, std::string sArguments, std::string& sError)
+{
+	// After Christmas 2017, the chosen Sanctuary runs the SQL Service (this is used for Private node-node communication and market making)
+	std::string sSQLURL = GetArg("-sqlnode", "http://pool.biblepay.org");
+	int iPort = (int)cdbl(GetArg("-sqlport", "80"),0);
+	std::string sSqlPage = "Action.aspx";
+	std::string sMultiResponse = BiblepayHttpPost(0,"POST",sAddress,sCommand,sSQLURL,sSqlPage,iPort,sArguments);
+	sError = ExtractXML(sMultiResponse,"<ERROR>","</ERROR>");
+	std::string sResponse = ExtractXML(sMultiResponse,"<RESPONSE>","</RESPONSE>");
+	if (!sError.empty())
+	{
+		return "";
+	}
+	return sResponse;
 }
 
 

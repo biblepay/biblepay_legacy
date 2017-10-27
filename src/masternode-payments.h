@@ -43,30 +43,36 @@ class CMasternodePayee
 private:
     CScript scriptPubKey;
     std::vector<uint256> vecVoteHashes;
+    CTxIn vinMasternode;
 
 public:
     CMasternodePayee() :
         scriptPubKey(),
-        vecVoteHashes()
+        vecVoteHashes(),
+	    vinMasternode()
         {}
 
-    CMasternodePayee(CScript payee, uint256 hashIn) :
+    CMasternodePayee(CScript payee, uint256 hashIn, CTxIn vinMN) :
         scriptPubKey(payee),
-        vecVoteHashes()
-    {
-        vecVoteHashes.push_back(hashIn);
-    }
+		vecVoteHashes(),
+		vinMasternode(vinMN)
+		{
+			vecVoteHashes.push_back(hashIn);
+		}
+        
 
     ADD_SERIALIZE_METHODS;
 
     template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
+    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) 
+	{
         READWRITE(*(CScriptBase*)(&scriptPubKey));
         READWRITE(vecVoteHashes);
+		READWRITE(vinMasternode);
     }
 
     CScript GetPayee() { return scriptPubKey; }
-
+	CTxIn   GetVin()   { return vinMasternode;}
     void AddVoteHash(uint256 hashIn) { vecVoteHashes.push_back(hashIn); }
     std::vector<uint256> GetVoteHashes() { return vecVoteHashes; }
     int GetVoteCount() { return vecVoteHashes.size(); }
@@ -97,8 +103,10 @@ public:
     }
 
     void AddPayee(const CMasternodePaymentVote& vote);
-    bool GetBestPayee(CScript& payeeRet);
+   bool GetBestPayee(CScript& payeeRet, CAmount& nCollateral, std::string& sScript);
+
     bool HasPayeeWithVotes(CScript payeeIn, int nVotesReq);
+	CAmount GetTxSanctuaryCollateral(const CTransaction& txNew);
 
     bool IsTransactionValid(const CTransaction& txNew);
 
@@ -200,13 +208,18 @@ public:
     void RequestLowDataPaymentBlocks(CNode* pnode);
     void CheckAndRemove();
 
-    bool GetBlockPayee(int nBlockHeight, CScript& payee);
+    
+	bool GetBlockPayeeAndCollateral(int nBlockHeight, CScript& payee, CAmount& nCollateral, std::string& sCollateralScript);
+
+
     bool IsTransactionValid(const CTransaction& txNew, int nBlockHeight);
     bool IsScheduled(CMasternode& mn, int nNotBlockHeight);
 
     bool CanVote(COutPoint outMasternode, int nBlockHeight);
 
     int GetMinMasternodePaymentsProto();
+	
+	
     void ProcessMessage(CNode* pfrom, std::string& strCommand, CDataStream& vRecv);
     std::string GetRequiredPaymentsString(int nBlockHeight);
     void FillBlockPayee(CMutableTransaction& txNew, int nBlockHeight, CAmount blockReward, CTxOut& txoutMasternodeRet);

@@ -212,6 +212,7 @@ static boost::once_flag debugPrintInitFlag = BOOST_ONCE_INIT;
  * tested, explicit destruction of these objects can be implemented.
  */
 static FILE* fileout = NULL;
+static FILE* fileTrading = NULL;
 static boost::mutex* mutexDebugLog = NULL;
 static list<string> *vMsgsBeforeOpenLog;
 
@@ -389,6 +390,30 @@ int LogPrintStr(const std::string &str)
     }
     return ret;
 }
+
+
+
+
+int LogPrintTrading(const std::string &str)
+{
+    int ret = 0; // Returns total number of characters written
+    static bool fStartedNewLine = true;
+    std::string strThreadLogged = LogThreadNameStr(str, &fStartedNewLine);
+    std::string strTimestamped = LogTimestampStr(strThreadLogged, &fStartedNewLine);
+    if (!str.empty() && str[str.size()-1] == '\n')
+        fStartedNewLine = true;
+    else
+       fStartedNewLine = false;
+       // boost::call_once(&DebugPrintInit, debugPrintInitFlag);
+       // boost::mutex::scoped_lock scoped_lock(*mutexDebugLog);
+    boost::filesystem::path pathDebug = GetDataDir() / "trading.log";
+    if (freopen(pathDebug.string().c_str(),"a",fileout) != NULL)
+                  setbuf(fileTrading, NULL); // unbuffered
+    FileWriteStr(strTimestamped, fileTrading);
+    return ret;
+}
+
+
 
 /** Interpret string as boolean, for argument parsing */
 static bool InterpretBool(const std::string& strValue)

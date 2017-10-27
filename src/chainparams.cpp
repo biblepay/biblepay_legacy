@@ -157,7 +157,7 @@ public:
         consensus.nBudgetPaymentsWindowBlocks = 10;
     	consensus.nRuleChangeActivationThreshold = 1201; // 75% for testchains
 	    consensus.nSuperblockStartBlock = 1201; // NOTE: Should satisfy nSuperblockStartBlock > nBudgetPaymentsStartBlock
-        consensus.nBudgetProposalEstablishingTime = 60*20;
+        consensus.nBudgetProposalEstablishingTime = 60*20; //Possibly 8 in the future
 		consensus.FoundationAddress = "yadZnJ3hD3FRC8CiLZEVNqejvQFgNtu5ci";
         consensus.nSuperblockCycle = 25; // Superblocks can be issued hourly on testnet
         consensus.nGovernanceMinQuorum = 1;

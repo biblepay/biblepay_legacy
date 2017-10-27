@@ -25,6 +25,8 @@
 #include "uint256.h"
 #include "utilstrencodings.h"
 #include "instantx.h"
+#include "timedata.h"
+
 #ifdef ENABLE_WALLET
 #include "wallet/wallet.h"
 #endif
@@ -40,6 +42,8 @@ using namespace std;
 extern std::string GetTxNews(uint256 hash, std::string& sHeadline);
 std::string ExtractXML(std::string XMLdata, std::string key, std::string key_end);
 
+
+extern UniValue createrawtransaction(const UniValue& params, bool fHelp);
 
 
 void ScriptPubKeyToJSON(const CScript& scriptPubKey, UniValue& out, bool fIncludeHex)
@@ -136,7 +140,7 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
         UniValue o(UniValue::VOBJ);
         ScriptPubKeyToJSON(txout.scriptPubKey, o, true);
         out.push_back(Pair("scriptPubKey", o));
-		out.push_back(Pair("message", tx.vout[i].sTxOutMessage));
+		//out.push_back(Pair("xmessage", tx.vout[i].sTxOutMessage));
 
         // Add spent information if spentindex is enabled
         CSpentIndexValue spentInfo;
@@ -374,6 +378,7 @@ UniValue verifytxoutproof(const UniValue& params, bool fHelp)
     return res;
 }
 
+
 UniValue createrawtransaction(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() < 2 || params.size() > 3)
@@ -418,20 +423,21 @@ UniValue createrawtransaction(const UniValue& params, bool fHelp)
 
     UniValue inputs = params[0].get_array();
     UniValue sendTo = params[1].get_obj();
-
     CMutableTransaction rawTx;
 
-    if (params.size() > 2 && !params[2].isNull()) {
+    if (params.size() > 2 && !params[2].isNull()) 
+	{
         int64_t nLockTime = params[2].get_int64();
+		if (nLockTime==0) nLockTime=GetAdjustedTime();
         if (nLockTime < 0 || nLockTime > std::numeric_limits<uint32_t>::max())
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, locktime out of range");
         rawTx.nLockTime = nLockTime;
     }
 
-    for (unsigned int idx = 0; idx < inputs.size(); idx++) {
+    for (unsigned int idx = 0; idx < inputs.size(); idx++) 
+	{
         const UniValue& input = inputs[idx];
         const UniValue& o = input.get_obj();
-
         uint256 txid = ParseHashO(o, "txid");
 
         const UniValue& vout_v = find_value(o, "vout");
@@ -473,7 +479,8 @@ UniValue createrawtransaction(const UniValue& params, bool fHelp)
         }
     }
 
-    return EncodeHexTx(rawTx);
+	return EncodeHexTx(rawTx);
+
 }
 
 UniValue decoderawtransaction(const UniValue& params, bool fHelp)
@@ -665,16 +672,32 @@ UniValue signrawtransaction(const UniValue& params, bool fHelp)
     vector<unsigned char> txData(ParseHexV(params[0], "argument 1"));
     CDataStream ssData(txData, SER_NETWORK, PROTOCOL_VERSION);
     vector<CMutableTransaction> txVariants;
-    while (!ssData.empty()) {
+
+
+	// R Andrew: For some strange reason Biblepay cant convert the encoded Tx to a Mutable - Workaround here
+	/*
+    while (!ssData.empty()) 
+	{
         try {
             CMutableTransaction tx;
             ssData >> tx;
             txVariants.push_back(tx);
         }
-        catch (const std::exception&) {
+        catch (const std::exception&) 
+		{
             throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "TX decode failed");
         }
     }
+	*/
+
+    CTransaction txInbound1;
+
+    if (!DecodeHexTx(txInbound1, params[0].get_str()))
+        throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "TX decode failed");
+
+	CMutableTransaction txMutable1(txInbound1);
+	txVariants.push_back(txMutable1);
+	// End of Workaround - 10-20-2017
 
     if (txVariants.empty())
         throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "Missing transaction");
