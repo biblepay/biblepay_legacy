@@ -44,6 +44,10 @@ std::string DefaultRecAddress(std::string sType);
 std::string PubKeyToAddress(const CScript& scriptPubKey);
 std::string GetTxNews(uint256 hash, std::string& sHeadline);
 std::vector<std::string> Split(std::string s, std::string delim);
+bool CheckMessageSignature(std::string sMsg, std::string sSig);
+std::string GetTemplePrivKey();
+std::string SignMessage(std::string sMsg, std::string sPrivateKey);
+
 
 UniValue ContributionReport();
 std::string RoundToString(double d, int place);
@@ -1751,6 +1755,29 @@ UniValue exec(const UniValue& params, bool fHelp)
 	{
 		results.push_back(Pair("balance",ValueFromAmount(pwalletMain->GetRetirementBalance())));
 	}
+	else if (sItem == "generatetemplekey")
+	{
+	    // Generate the Temple Keypair
+	    CKey key;
+		key.MakeNewKey(false);
+		CPrivKey vchPrivKey = key.GetPrivKey();
+		std::string sOutPrivKey = HexStr<CPrivKey::iterator>(vchPrivKey.begin(), vchPrivKey.end());
+		std::string sOutPubKey = HexStr(key.GetPubKey());
+		results.push_back(Pair("Private", sOutPrivKey));
+		results.push_back(Pair("Public", sOutPubKey));
+	}
+	else if (sItem == "testsign")
+	{
+		std::string sPrivKey = GetTemplePrivKey();
+		std::string sSig = SignMessage("1", sPrivKey);
+		std::string sBadSig = SignMessage("1", "000");
+		results.push_back(Pair("GoodSig", sSig));
+		results.push_back(Pair("BadSig", sBadSig));
+		bool bSig1 = CheckMessageSignature("1", sSig);
+		bool bSig2 = CheckMessageSignature("1", sBadSig);
+		results.push_back(Pair("1_RESULT", bSig1));
+		results.push_back(Pair("1_BAD_RESULT", bSig2));
+	}
 	else if (sItem == "datalist")
 	{
 		if (params.size() != 2 && params.size() != 3)
@@ -1958,10 +1985,20 @@ std::string SendBlockchainMessage(std::string sType, std::string sPrimaryKey, st
     CAmount nAmount = AmountFromValue(dStorageFee);
 	CAmount nMinimumBalance = AmountFromValue(dStorageFee);
     CWalletTx wtx;
+	uint256 hashNonce = GetRandHash();
+	// Verify these messages are immune to replay attacks (Add message nonce)
  	std::string sMessageType      = "<MT>" + sType  + "</MT>";  
     std::string sMessageKey       = "<MK>" + sPrimaryKey   + "</MK>";
-	std::string sMessageValue     = "<MV>" + sValue + "</MV>";
-	std::string s1 = sMessageType + sMessageKey + sMessageValue;
+	std::string sMessageValue     = "<MV>" + sValue + "</MV><NONCE>" + hashNonce.GetHex().substr(0,8) + "</NONCE>";
+	std::string sMessageSig       = "";
+	if (sMessageType=="TEMPLE_COMM")
+	{
+		std::string sPrivKey = GetTemplePrivKey();
+		std::string sSig = SignMessage(sMessageValue, sPrivKey);
+		sMessageSig = "<MS>" + sSig + "</MS>";
+	}
+
+	std::string s1 = sMessageType + sMessageKey + sMessageValue + sMessageSig;
 	wtx.sTxMessageConveyed = s1;
     SendMoneyToDestinationWithMinimumBalance(address.Get(), nAmount, nMinimumBalance, wtx);
     return wtx.GetHash().GetHex().c_str();

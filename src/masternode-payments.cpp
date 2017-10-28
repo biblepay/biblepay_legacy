@@ -44,7 +44,6 @@ extern CAmount GetSanctuaryCollateral(CTxIn vin);
 
 CAmount GetScriptSanctuaryCollateral(const CTransaction& txCollateral)
 {
-
 		std::string sXML = "";
 		BOOST_REVERSE_FOREACH(CTxOut txout, txCollateral.vout) 
 		{
@@ -57,34 +56,14 @@ CAmount GetScriptSanctuaryCollateral(const CTransaction& txCollateral)
           
 		if(!pcoinsTip->GetCoins(hash, coins) || (unsigned int)N >= coins.vout.size() || coins.vout[N].IsNull()) 
 		{
-			if (fDebugMaster && false) LogPrintf("GetScriptSanctuaryCollateral::Unable to retrieve Masternode UTXO, hash=%s %s\n", 
-				hash.GetHex().c_str(), templeOutpoint.ToStringShort().c_str());
+			if (fDebugMaster) LogPrintf("GetScriptSanctuaryCollateral::Unable to retrieve Masternode UTXO, XML %s, hash=%s %s\n", 
+				sXML.c_str(), hash.GetHex().c_str(), templeOutpoint.ToStringShort().c_str());
 			return false;
 		}
 
 		CAmount Collateral = coins.vout[N].nValue;
-		// Ensure the address matches also
-		BOOST_REVERSE_FOREACH(CTxOut txout, txCollateral.vout) 
-		{
-			if (txout.nValue == (TEMPLE_COLLATERAL * COIN))
-			{
-				// Ensure payee scriptSig matches collateral scriptSig
-				bool bScriptedAddress = (coins.vout[N].scriptPubKey == txout.scriptPubKey);
-				if (bScriptedAddress && (Collateral == TEMPLE_COLLATERAL * COIN))
-				{
-					return Collateral;
-				}
-				else
-				{
-					CTxDestination address1;
-				    ExtractDestination(txout.scriptPubKey, address1);
-		            CBitcoinAddress cbAddress1(address1);
-					LogPrintf("Unable to find sanctuary address %s ",cbAddress1.ToString().c_str());
-					return 0;
-				}
-			}
-		}
-		return 0;		
+		// Masternode Recipient is checked in IsTransactionValid
+		return Collateral;
 }
 
 bool IsBlockValueValid(const CBlock& block, int nBlockHeight, CAmount blockReward, std::string &strErrorRet)
@@ -164,13 +143,13 @@ bool IsBlockValueValid(const CBlock& block, int nBlockHeight, CAmount blockRewar
 		if (nCollateral == (TEMPLE_COLLATERAL * COIN))
 		{
 			isBlockRewardValueMet = (nTotalSubsidy <= (blockReward + nSanctuaryPayment));
-			LogPrintf(" Temple Collateral Found %f,  But block pays too much (TotalSubsidy > blockReward+nSanctuaryPayment) %f", (double)nCollateral, 
+			if (!isBlockRewardValueMet) LogPrintf(" Temple Collateral Found %f,  But block pays too much (TotalSubsidy > blockReward+nSanctuaryPayment) %f", (double)nCollateral, 
 				(double)block.vtx[0].GetValueOut());
 		}
 		if (nTotalSubsidy > (MAX_BLOCK_SUBSIDY * COIN) && (nCollateral < (TEMPLE_COLLATERAL * COIN)))
 		{
-			// Should never happen.  This means block pays > Block Max and no template collateral was found
-			LogPrintf(" Template collateral not found, and block pays %f while block only pays %f",(double)nTotalSubsidy/COIN, (double)blockReward/COIN);
+			// Should never happen.  This means block pays > Block Max and no temple collateral was found
+			LogPrintf(" Temple collateral not found, and block pays %f while block only pays %f",(double)nTotalSubsidy/COIN, (double)blockReward/COIN);
 			return false;
 		}
 		if (nTotalSubsidy > (MAX_BLOCK_SUBSIDY * COIN) && (nCollateral == (TEMPLE_COLLATERAL * COIN)))
@@ -234,26 +213,28 @@ bool IsBlockValueValid(const CBlock& block, int nBlockHeight, CAmount blockRewar
 		if (nCollateral == (TEMPLE_COLLATERAL * COIN))
 		{
 			isBlockRewardValueMet = (nTotalSubsidy <= (blockReward + nSanctuaryPayment));
-			if (!isBlockRewardValueMet) LogPrintf(" Temple reward %f pays more than 10* Block reward %f ", (double)TempleReward/COIN, (double)blockReward/COIN);
-			return false;
+			if (!isBlockRewardValueMet)
+			{
+				LogPrintf(" Temple reward %f pays more than 10* Block reward %f ", (double)TempleReward/COIN, (double)blockReward/COIN);
+			}
 		
 			if (TempleReward > ( ((blockReward + nMaxFees) * 10) ))
 			{
 				LogPrintf(" Temple reward %f pays more than 10* Block reward %f ", (double)TempleReward/COIN, (double)blockReward/COIN);
-				return false;
+				isBlockRewardValueMet = false;
 			}
 		}
 		
 		if (MinerReward > ( ((blockReward + nMaxFees))))
 		{
 			LogPrintf(" Miner reward portion of Temple distribution schedule pays more than actual block %f ", (double)MinerReward/COIN);
-			return false;
+			isBlockRewardValueMet = false;
 		}
 
         if(!isBlockRewardValueMet) 
 		{
-            strErrorRet = strprintf("coinbase pays too much at height %d (actual=%d vs limit=%d), exceeded block reward, no triggered superblock detected",
-                                    nBlockHeight, blockReward + nSanctuaryPayment, nTotalSubsidy);
+            strErrorRet = strprintf("coinbase pays too much at height %d (actual=%d vs limit=%d), exceeded block reward, no triggered superblock detected, collateral %f",
+                                    nBlockHeight, blockReward + nSanctuaryPayment, nTotalSubsidy, (double)nCollateral/COIN);
 			return false;
         }
     } 
@@ -293,7 +274,8 @@ bool IsBlockPayeeValid(const CTransaction& txNew, int nBlockHeight, CAmount bloc
     
     if(nBlockHeight < consensusParams.nSuperblockStartBlock) 
 	{
-        if(mnpayments.IsTransactionValid(txNew, nBlockHeight)) {
+        if(mnpayments.IsTransactionValid(txNew, nBlockHeight)) 
+		{
             if (fDebugMaster) LogPrint("mnpayments", "IsBlockPayeeValid -- Valid masternode payment at height %d: %s", nBlockHeight, txNew.ToString());
             return true;
         }
@@ -440,7 +422,7 @@ void CMasternodePayments::FillBlockPayee(CMutableTransaction& txNew, int nBlockH
 		txNew.vout[txNew.vout.size()-1].nValue = retirementAmount;
 		CComplexTransaction cct(txNew);
 		std::string sAssetColorScript = cct.GetScriptForAssetColor("401"); // Get the script for 401k coins
-		txNew.vout[txNew.vout.size()-1].sTxOutMessage = sAssetColorScript;
+		txNew.vout[txNew.vout.size()-1].sTxOutMessage += sAssetColorScript;
 	}
 
     txoutMasternodeRet = CTxOut();
@@ -460,6 +442,8 @@ void CMasternodePayments::FillBlockPayee(CMutableTransaction& txNew, int nBlockH
         // fill payee with locally calculated winner and hope for the best
         payee = GetScriptForDestination(winningNode->pubKeyCollateralAddress.GetID());
     }
+	if (fDebugMaster) LogPrintf(" Collateral amount %f, Coll Script %s ",(double)nCollateral/COIN,sCollateralScript.c_str());
+
 
     // GET MASTERNODE PAYMENT VARIABLES SETUP
     CAmount masternodePayment = GetMasternodePayment(nBlockHeight, blockReward, nCollateral);
@@ -468,7 +452,8 @@ void CMasternodePayments::FillBlockPayee(CMutableTransaction& txNew, int nBlockH
 	{
 		// For Temples, we must first increase the block subsidy, then remove it, to satisfy all security conditions in ConnectBlock
 		txNew.vout[0].nValue += masternodePayment;
-	
+		// For Temples, add the Collateral Script
+		txNew.vout[0].sTxOutMessage += sCollateralScript;
 	}
     txNew.vout[0].nValue -= masternodePayment;
     // ... and masternode
@@ -477,8 +462,7 @@ void CMasternodePayments::FillBlockPayee(CMutableTransaction& txNew, int nBlockH
     txNew.vout.push_back(txoutMasternodeRet);
 	if (nCollateral == (TEMPLE_COLLATERAL * COIN))
 	{
-		// For Temples, add the Collateral Script
-		txoutMasternodeRet.sTxOutMessage += sCollateralScript;
+		LogPrintf(" TEMPLE_C \n");
 	}
 
     CTxDestination address1;
@@ -749,12 +733,12 @@ std::string GetTempleCollateralScript(CMasternodePayee& payee)
 	CAmount caCollateral = GetSanctuaryCollateral(payee.GetVin());
 	if (caCollateral == (TEMPLE_COLLATERAL * COIN))
 	{
-				std::string sCollateral = "<COLLATERAL><HASH>" + payee.GetVin().prevout.hash.GetHex() + "</HASH><N>" 
+			std::string sCollateral = "<COLLATERAL><HASH>" + payee.GetVin().prevout.hash.GetHex() + "</HASH><N>" 
 						+ RoundToString((int)payee.GetVin().prevout.n,0) + "</N><AMOUNT>" 
 						+ RoundToString(caCollateral/COIN,4) + "</AMOUNT></COLLATERAL>";
 					return sCollateral;
 	}
-    return "";
+    return "<COLLATERAL></COLLATERAL>";
 
 }
 

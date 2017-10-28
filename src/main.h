@@ -136,7 +136,6 @@ static const int BLOCKS_PER_DAY = 205;
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // MainNet - Production Genesis
 static const uint256 hashGenesisBlock(uint256S("0x3b4431310395638c0ed65b40ede4b110d8da70fcc0c2ed4a729fb8e4d78b4452"));
-
 // TestNet
 static const uint256 hashGenesisBlockTestNet(uint256S("0x122f423f0912850a871c58f1533dd80be62154bb0c56dfb8cb9ae2b957d1ac10"));
 
@@ -189,6 +188,8 @@ extern std::string msGlobalStatus;
 extern std::string msGlobalStatus2;
 extern std::string msGlobalStatus3;
 extern int PRAYER_MODULUS;
+extern std::string strTemplePubKey;
+
 extern int64_t nHPSTimerStart;
 extern int64_t nHashCounter;
 extern int64_t nLastTradingActivity;

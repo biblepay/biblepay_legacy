@@ -318,7 +318,7 @@ CBlockTemplate* CreateNewBlock(const CChainParams& chainparams, const CScript& s
 		
 		// Add BiblePay version to the subsidy tx message
 		std::string sVersion = FormatFullVersion();
-		txNew.vout[0].sTxOutMessage = "<VER>" + sVersion + "</VER>";
+		txNew.vout[0].sTxOutMessage += "<VER>" + sVersion + "</VER>";
 		
         // Update coinbase transaction with additional info about masternode and governance payments,
         // get some info back to pass to getblocktemplate

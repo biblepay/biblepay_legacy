@@ -80,6 +80,8 @@ int64_t nBibleMinerPulse;
 int64_t SANCTUARY_COLLATERAL = 500000;
 int64_t TEMPLE_COLLATERAL = 15000000;
 int64_t MAX_BLOCK_SUBSIDY = 20000;
+std::string strTemplePubKey = "";
+
 bool fProd = false;
 bool fMineSlow = false;
 
@@ -92,9 +94,9 @@ extern std::string DefaultRecAddress(std::string sType);
 extern CAmount GetRetirementAccountContributionAmount(int nPrevHeight);
 extern std::string AmountToString(const CAmount& amount);
 extern CAmount StringToAmount(std::string sValue);
-
-
-
+extern bool CheckMessageSignature(std::string sMsg, std::string sSig);
+extern std::string GetTemplePrivKey();
+extern std::string SignMessage(std::string sMsg, std::string sPrivateKey);
 
 
 CWaitableCriticalSection csBestBlock;
@@ -7308,6 +7310,39 @@ std::string RetrieveTxOutInfo(const CBlockIndex* pindexLast, int iLookback, int 
 }
 
 
+std::string SignMessage(std::string sMsg, std::string sPrivateKey)
+{
+     CKey key;
+     std::vector<unsigned char> vchMsg = vector<unsigned char>(sMsg.begin(), sMsg.end());
+     std::vector<unsigned char> vchPrivKey = ParseHex(sPrivateKey);
+     std::vector<unsigned char> vchSig;
+     key.SetPrivKey(CPrivKey(vchPrivKey.begin(), vchPrivKey.end()), false); // if key is not correct openssl may crash, test this
+     if (!key.Sign(Hash(vchMsg.begin(), vchMsg.end()), vchSig))  
+     {
+          return "Unable to sign message, check private key.";
+     }
+     const std::string sig(vchSig.begin(), vchSig.end());     
+     std::string SignedMessage = EncodeBase64(sig);
+     return SignedMessage;
+}
+
+std::string GetTemplePrivKey()
+{
+	std::string sSuffix = fProd ? "main" : "test";
+	std::string sPRIVK = GetArg("-templeprivkey" + sSuffix, "");
+	return sPRIVK;
+}
+
+bool CheckMessageSignature(std::string sMsg, std::string sSig)
+{
+     std::string db64 = DecodeBase64(sSig);
+     CPubKey key(ParseHex(strTemplePubKey));
+	 //     if (!key.SetPubKey(ParseHex( strTemplePubKey))) return false;
+     std::vector<unsigned char> vchMsg = vector<unsigned char>(sMsg.begin(), sMsg.end());
+     std::vector<unsigned char> vchSig = vector<unsigned char>(db64.begin(), db64.end());
+	 return (!key.Verify(Hash(vchMsg.begin(), vchMsg.end()), vchSig)) ? false : true;
+
+}
 
 
 
@@ -7319,8 +7354,11 @@ void MemorizePrayer(std::string sMessage, int64_t nTime, double dAmount, int iPo
 		  std::string sMessageType      = ExtractXML(sMessage,"<MT>","</MT>");
   		  std::string sMessageKey       = ExtractXML(sMessage,"<MK>","</MK>");
 		  std::string sMessageValue     = ExtractXML(sMessage,"<MV>","</MV>");
+		  std::string sSig              = ExtractXML(sMessage,"<MS>","</MS>");
 		  if (sMessageType=="NEWS") sMessageValue = sTxID;
-		      
+		  bool bSigned = false;
+		  if (!sSig.empty()) bSigned = CheckMessageSignature(sMessageValue, sSig);
+    
   		  if (!sMessageType.empty() && !sMessageKey.empty() && !sMessageValue.empty())
 		  {
 			  boost::to_upper(sMessageType);
@@ -7332,7 +7370,9 @@ void MemorizePrayer(std::string sMessage, int64_t nTime, double dAmount, int iPo
 			  {
 			       sAdjMessageKey = sMessageKey + " (" + sTimestamp + ")";
 			  }
-			  WriteCache(sMessageType, sAdjMessageKey, sMessageValue, nTime);
+			  bool bRequiresSignature = (sMessageType == "TEMPLE_COMM") ? true : false;
+			  bool bCheckpoint = ((bRequiresSignature && bSigned) || !bRequiresSignature) ? true : false;
+			  if (bCheckpoint) WriteCache(sMessageType, sAdjMessageKey, sMessageValue, nTime);
 		  }
 	  }
 }

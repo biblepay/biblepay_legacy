@@ -1087,6 +1087,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
 		cblockGenesis = CreateGenesisBlock(1496347844, 12, 0x207fffff, 1, 50 * COIN);
 		targetGenesisHash = hashGenesisBlock;
 		fProd = true;
+		strTemplePubKey = "0";
 	}
 	else if (chainparams.NetworkIDString()=="test")
 	{
@@ -1095,6 +1096,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
 		fProd = false;
 		fMasternodesEnabled = true;
 		fRetirementAccountsEnabled = true;
+		strTemplePubKey = "04240caae65370e2ec32eaec8f27bce34e6ada9601b6a805c10b3e839e100ce3f369fdfbc1bb906d3dd442bd145e51d23a4eda247608b5dc33afc1fbf87c270f47";
 	}
 	else if (chainparams.NetworkIDString()=="regtest")
 	{
