@@ -472,7 +472,9 @@ void CMasternodePayments::FillBlockPayee(CMutableTransaction& txNew, int nBlockH
         payee = GetScriptForDestination(winningNode->pubKeyCollateralAddress.GetID());
     }
 	if (fDebugMaster) LogPrintf(" Collateral amount %f, Coll Script %s ",(double)nCollateral/COIN,sCollateralScript.c_str());
-
+	const Consensus::Params& consensusParams = Params().GetConsensus();
+	bool fSuperblocksEnabled = (nBlockHeight >= consensusParams.nSuperblockStartBlock) && fMasternodesEnabled;
+	if (fSuperblocksEnabled && CSuperblockManager::IsSuperblockTriggered(nBlockHeight)) nCollateral = 0; // Collateral is not allowed on superblocks
 
     // GET MASTERNODE PAYMENT VARIABLES SETUP
     CAmount masternodePayment = GetMasternodePayment(nBlockHeight, blockReward, nCollateral);
