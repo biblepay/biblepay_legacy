@@ -34,7 +34,6 @@
 
 using namespace std;
 
-CAmount GetScriptSanctuaryCollateral(const CTransaction& txNew);
 extern void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry);
 int32_t ComputeBlockVersion(const CBlockIndex* pindexPrev, const Consensus::Params& params);
 std::string ExtractXML(std::string XMLdata, std::string key, std::string key_end);
@@ -214,11 +213,6 @@ UniValue blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool tx
 		result.push_back(Pair("satisfiesbiblehash_tx", bSatisfiesBibleHashTx ? "true" : "false"));
 		result.push_back(Pair("biblehash", bibleHash.GetHex()));
 		result.push_back(Pair("biblehash_tx", bibleHashTx.GetHex()));
-		if (!fProd)
-		{
-			CAmount nCollateral = GetScriptSanctuaryCollateral(block.vtx[0]);
-			result.push_back(Pair("temple_collateral",nCollateral/COIN));
-		}
 	}
 	else
 	{

@@ -2715,7 +2715,8 @@ bool CWallet::SelectCoinsDark(CAmount nValueMin, CAmount nValueMax, std::vector<
         if(IsCollateralAmount(out.tx->vout[out.i].nValue)) continue;
         if(fMasterNode && out.tx->vout[out.i].nValue == SANCTUARY_COLLATERAL * COIN) continue; // Sanctuary input
 		if(fMasterNode && out.tx->vout[out.i].nValue == TEMPLE_COLLATERAL * COIN) continue; // Temple input
-        if(nValueRet + out.tx->vout[out.i].nValue <= nValueMax){
+        if(nValueRet + out.tx->vout[out.i].nValue <= nValueMax)
+		{
             CTxIn txin = CTxIn(out.tx->GetHash(),out.i);
 
             int nRounds = GetInputPrivateSendRounds(txin);

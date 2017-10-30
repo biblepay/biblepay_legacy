@@ -36,37 +36,8 @@ std::string RoundToString(double d, int place);
 
 CAmount GetRetirementAccountContributionAmount(int nPrevHeight);
 extern CAmount GetTxSanctuaryCollateral(const CTransaction& txNew);
-
-extern CAmount GetScriptSanctuaryCollateral(const CTransaction& txNew);
 extern CAmount GetSanctuaryCollateral(CTxIn vin);
 
-
-
-CAmount GetScriptSanctuaryCollateral(const CTransaction& txCollateral)
-{
-		std::string sXML = "";
-		BOOST_REVERSE_FOREACH(CTxOut txout, txCollateral.vout) 
-		{
-			sXML += txout.sTxOutMessage;
-		}
-		std::string sHash = ExtractXML(sXML,"<HASH>","</HASH>");
-		if (sHash.empty()) return 1;
-		uint256 hash = uint256S("0x" + sHash);
-		int N = cdbl(ExtractXML(sXML,"<N>","</N>"),0);
-		CCoins coins;
-		COutPoint templeOutpoint = COutPoint(hash, N);
-          
-		if(!pcoinsTip->GetCoins(hash, coins) || (unsigned int)N >= coins.vout.size() || coins.vout[N].IsNull()) 
-		{
-			if (fDebugMaster) LogPrintf("GetScriptSanctuaryCollateral::Unable to retrieve Masternode UTXO, XML %s, hash=%s %s\n", 
-				sXML.c_str(), hash.GetHex().c_str(), templeOutpoint.ToStringShort().c_str());
-			return false;
-		}
-
-		CAmount Collateral = coins.vout[N].nValue;
-		// Masternode Recipient is checked in IsTransactionValid
-		return Collateral;
-}
 
 std::string GetTxOutScript(const CTransaction& tx1)
 {
@@ -82,8 +53,6 @@ std::string GetTxOutScript(const CTransaction& tx1)
 bool IsBlockValueValid(const CBlock& block, int nBlockHeight, CAmount blockReward, std::string &strErrorRet)
 {
     strErrorRet = "";
-	CAmount nMaxFees = 100 * COIN;
-
     bool isBlockRewardValueMet = (block.vtx[0].GetValueOut() <= blockReward);
     if(!isBlockRewardValueMet && fDebugMaster) LogPrintf("block.vtx[0].GetValueOut() %lld <= blockReward %lld\n", block.vtx[0].GetValueOut(), blockReward);
 
@@ -148,61 +117,11 @@ bool IsBlockValueValid(const CBlock& block, int nBlockHeight, CAmount blockRewar
             }
             return isSuperblockMaxValueMet;
         }
-		// This is Not a superblock: If we are Not synced, and this is a temple payment, f8ind the temples large sum of collateral and verify the payment amount
 
-		CAmount nTotalSubsidy = block.vtx[0].GetValueOut();
-		CAmount nCollateral = GetScriptSanctuaryCollateral(block.vtx[0]);
-		CAmount nSanctuaryPayment = GetMasternodePayment(nBlockHeight, block.vtx[0].GetValueOut(), nCollateral);
-		CAmount MinerReward = block.vtx[0].vout[0].nValue;
-		std::string sScript = GetTxOutScript(block.vtx[0]);
-
-		if (block.vtx[0].vout.size() > 2) MinerReward += block.vtx[0].vout[1].nValue;
-		CAmount TempleReward = block.vtx[0].GetValueOut() - MinerReward;
-	
-		if (nCollateral == (TEMPLE_COLLATERAL * COIN))
-		{
-			isBlockRewardValueMet = (nTotalSubsidy <= (blockReward + nSanctuaryPayment));
-			if (!isBlockRewardValueMet) LogPrintf(" Temple Collateral Found %f,  But block pays too much (TotalSubsidy > blockReward+nSanctuaryPayment) %f, %s", 
-				(double)nCollateral, (double)block.vtx[0].GetValueOut(), sScript.c_str());
-		}
-		if (!fLoadingIndex)
-		{
-			if (nTotalSubsidy > (MAX_BLOCK_SUBSIDY * COIN) && (nCollateral < (TEMPLE_COLLATERAL * COIN)))
-			{
-				// Should never happen.  This means block pays > Block Max and no temple collateral was found
-				LogPrintf(" Temple collateral not found, and block pays %f while block only pays %f, %s",(double)nTotalSubsidy/COIN, (double)blockReward/COIN, sScript.c_str());
-			}
-		}
-		if (nTotalSubsidy > (MAX_BLOCK_SUBSIDY * COIN) && (nCollateral == (TEMPLE_COLLATERAL * COIN)))
-		{
-			// In this case, the temple collateral was found, ensure the appropriate distribution percentages are met
-			if (TempleReward > ( ((blockReward + nMaxFees) * 10) ))
-			{
-				LogPrintf(" Temple reward %f pays more than 10* Block reward %f, %s ", (double)TempleReward/COIN, (double)blockReward/COIN, sScript.c_str());
-				return false;
-			}
-			if (MinerReward > ( ((blockReward + nMaxFees))))
-			{
-				LogPrintf(" Miner reward portion of Temple distribution schedule pays more than actual block %f, %s ", (double)MinerReward/COIN, sScript.c_str());
-				return false;
-			}
-		}
-
-		// End of Temple Subsidy handling
         if(!isBlockRewardValueMet) 
 		{
-            strErrorRet = strprintf("coinbase pays too much at height %d (actual=%d vs limit=%d), exceeded block reward, only regular blocks are allowed at this height, %s",
-                                    nBlockHeight, block.vtx[0].GetValueOut(), blockReward, sScript.c_str());
-
-			nSanctuaryPayment = GetMasternodePayment(nBlockHeight, block.vtx[0].GetValueOut(), TEMPLE_COLLATERAL);
-			isBlockRewardValueMet = (nTotalSubsidy <= (blockReward + nSanctuaryPayment));
-			if (!isBlockRewardValueMet)
-			{
-				LogPrintf(" Temple payment Coinbase pays too much at height %d (actual=%d vs limit=%d), TotalSubsidy %d exceeded block reward, only regular blocks are allowed at this height, Sanctuary Payment %d, Script %s ",
-                                    nBlockHeight, block.vtx[0].GetValueOut()/COIN, blockReward/COIN, 
-									nTotalSubsidy/COIN, nSanctuaryPayment/COIN, sScript.c_str());
-				// TODO Before Christmas 2017: Sync temple collateral script in headers - and verify it prints here
-			}
+            strErrorRet = strprintf("coinbase pays too much at height %d (actual=%d vs limit=%d), exceeded block reward, only regular blocks are allowed at this height",
+                                    nBlockHeight, block.vtx[0].GetValueOut()/COIN, blockReward/COIN);
 
         }
         // it MUST be a regular block otherwise
@@ -231,39 +150,11 @@ bool IsBlockValueValid(const CBlock& block, int nBlockHeight, CAmount blockRewar
         }
 		// Superblocks are enabled, this is not a superblock
         LogPrint("gobject", "IsBlockValueValid -- No triggered superblock detected at height %d\n", nBlockHeight);
-		// If this is a Temple, verify the reward
-		CAmount nTotalSubsidy = block.vtx[0].GetValueOut();
-		CAmount nCollateral = GetScriptSanctuaryCollateral(block.vtx[0]);
-		CAmount nSanctuaryPayment = GetMasternodePayment(nBlockHeight, block.vtx[0].GetValueOut(), nCollateral);
-		CAmount MinerReward = block.vtx[0].vout[0].nValue;
-		if (block.vtx[0].vout.size() > 2) MinerReward += block.vtx[0].vout[1].nValue;
-		CAmount TempleReward = block.vtx[0].GetValueOut() - MinerReward;
 		
-		if (nCollateral == (TEMPLE_COLLATERAL * COIN))
-		{
-			isBlockRewardValueMet = (nTotalSubsidy <= (blockReward + nSanctuaryPayment));
-			if (!isBlockRewardValueMet)
-			{
-				LogPrintf(" Temple reward %f pays more than 10* Block reward %f ", (double)TempleReward/COIN, (double)blockReward/COIN);
-			}
-		
-			if (TempleReward > ( ((blockReward + nMaxFees) * 10) ))
-			{
-				LogPrintf(" Temple reward %f pays more than 10* Block reward %f ", (double)TempleReward/COIN, (double)blockReward/COIN);
-				isBlockRewardValueMet = false;
-			}
-		}
-		
-		if (MinerReward > ( ((blockReward + nMaxFees))))
-		{
-			LogPrintf(" Miner reward portion of Temple distribution schedule pays more than actual block %f ", (double)MinerReward/COIN);
-			isBlockRewardValueMet = false;
-		}
-
         if(!isBlockRewardValueMet) 
 		{
-            strErrorRet = strprintf("coinbase pays too much at height %d (actual=%d vs limit=%d), exceeded block reward, no triggered superblock detected, collateral %f",
-                                    nBlockHeight, blockReward + nSanctuaryPayment, nTotalSubsidy, (double)nCollateral/COIN);
+            strErrorRet = strprintf("coinbase pays too much at height %d (actual=%d vs limit=%d), exceeded block reward, no triggered superblock detected",
+                                    nBlockHeight, block.vtx[0].GetValueOut()/COIN, blockReward/COIN);
 			return false;
         }
     } 
@@ -274,7 +165,7 @@ bool IsBlockValueValid(const CBlock& block, int nBlockHeight, CAmount blockRewar
         if(!isBlockRewardValueMet) 
 		{
             strErrorRet = strprintf("coinbase pays too much at height %d (actual=%d vs limit=%d), exceeded block reward, superblocks are disabled",
-                                    nBlockHeight, block.vtx[0].GetValueOut(), blockReward);
+                                    nBlockHeight, block.vtx[0].GetValueOut()/COIN, blockReward/COIN);
         }
     }
 
@@ -472,29 +363,15 @@ void CMasternodePayments::FillBlockPayee(CMutableTransaction& txNew, int nBlockH
         payee = GetScriptForDestination(winningNode->pubKeyCollateralAddress.GetID());
     }
 	if (fDebugMaster) LogPrintf(" Collateral amount %f, Coll Script %s ",(double)nCollateral/COIN,sCollateralScript.c_str());
-	const Consensus::Params& consensusParams = Params().GetConsensus();
-	bool fSuperblocksEnabled = (nBlockHeight >= consensusParams.nSuperblockStartBlock) && fMasternodesEnabled;
-	if (fSuperblocksEnabled && CSuperblockManager::IsSuperblockTriggered(nBlockHeight)) nCollateral = 0; // Collateral is not allowed on superblocks
 
     // GET MASTERNODE PAYMENT VARIABLES SETUP
     CAmount masternodePayment = GetMasternodePayment(nBlockHeight, blockReward, nCollateral);
     // split reward between miner ...
-	if (masternodePayment > txNew.vout[0].nValue)
-	{
-		// For Temples, we must first increase the block subsidy, then remove it, to satisfy all security conditions in ConnectBlock
-		txNew.vout[0].nValue += masternodePayment;
-		// For Temples, add the Collateral Script
-		txNew.vout[0].sTxOutMessage += sCollateralScript;
-	}
     txNew.vout[0].nValue -= masternodePayment;
     // ... and masternode
     txoutMasternodeRet = CTxOut(masternodePayment, payee);
 	
     txNew.vout.push_back(txoutMasternodeRet);
-	if (nCollateral == (TEMPLE_COLLATERAL * COIN))
-	{
-		LogPrintf(" TEMPLE_C \n");
-	}
 
     CTxDestination address1;
     ExtractDestination(payee, address1);
@@ -758,6 +635,7 @@ void CMasternodeBlockPayees::AddPayee(const CMasternodePaymentVote& vote)
 
 
 
+/*
 std::string GetTempleCollateralScript(CMasternodePayee& payee)
 {
 
@@ -772,6 +650,8 @@ std::string GetTempleCollateralScript(CMasternodePayee& payee)
     return "<COLLATERAL></COLLATERAL>";
 
 }
+*/
+
 
 
 
@@ -793,7 +673,7 @@ bool CMasternodeBlockPayees::GetBestPayee(CScript& payeeRet, CAmount& nCollatera
             payeeRet = payee.GetPayee();
             nVotes = payee.GetVoteCount();
 			nCollateral = GetSanctuaryCollateral(payee.GetVin());
-			sScript = GetTempleCollateralScript(payee);
+			sScript = "";
         }
     }
 

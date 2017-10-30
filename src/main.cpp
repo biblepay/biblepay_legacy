@@ -78,7 +78,7 @@ int64_t nLastTradingActivity = 0;
 int64_t nBibleHashCounter = 0;
 int64_t nBibleMinerPulse;
 int64_t SANCTUARY_COLLATERAL = 500000;
-int64_t TEMPLE_COLLATERAL = 15000000;
+int64_t TEMPLE_COLLATERAL = 10000000;
 int64_t MAX_BLOCK_SUBSIDY = 20000;
 std::string strTemplePubKey = "";
 
@@ -2186,11 +2186,6 @@ CAmount GetMasternodePayment(int nHeight, CAmount blockValue, CAmount nSanctuary
 	const Consensus::Params& consensusParams = Params().GetConsensus();
     bool fSuperblocksEnabled = (nHeight >= consensusParams.nSuperblockStartBlock) && fMasternodesEnabled;
     CAmount ret = fSuperblocksEnabled ? blockValue * .50 : blockValue * .10;
-	if (fSuperblocksEnabled && (nSanctuaryCollateral == (TEMPLE_COLLATERAL * COIN)))
-	{
-		// For the Master Sanctuary, who invested 10* the collateral, reward them with 10* the reward:
-		ret = (blockValue * .50) * 10;
-	}
     return ret;
 }
 
@@ -7337,11 +7332,9 @@ bool CheckMessageSignature(std::string sMsg, std::string sSig)
 {
      std::string db64 = DecodeBase64(sSig);
      CPubKey key(ParseHex(strTemplePubKey));
-	 //     if (!key.SetPubKey(ParseHex( strTemplePubKey))) return false;
-     std::vector<unsigned char> vchMsg = vector<unsigned char>(sMsg.begin(), sMsg.end());
+	 std::vector<unsigned char> vchMsg = vector<unsigned char>(sMsg.begin(), sMsg.end());
      std::vector<unsigned char> vchSig = vector<unsigned char>(db64.begin(), db64.end());
 	 return (!key.Verify(Hash(vchMsg.begin(), vchMsg.end()), vchSig)) ? false : true;
-
 }
 
 
