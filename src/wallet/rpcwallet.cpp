@@ -32,6 +32,7 @@ using namespace std;
 int64_t nWalletUnlockTime;
 
 static CCriticalSection cs_nWalletUnlockTime;
+double CAmountToRetirementDouble(CAmount Amount);
 
 
 std::string HelpRequiringPassphrase()
@@ -410,14 +411,14 @@ static void SendMoney(const CTxDestination &address, CAmount nValue, bool fSubtr
 }
 
 
-
 static void SendRetirementCoins(const CTxDestination &address, CAmount nValue, bool fSubtractFeeFromAmount, CWalletTx& wtxNew, std::string sScriptComplexOrder)
 {
 	CComplexTransaction cct1(sScriptComplexOrder);
-	AvailableCoinsType ACT_TYPE = (cct1.Color=="401") ? ONLY_RETIREMENT_COINS : ALL_COINS;
-	
+	//AvailableCoinsType nACT_TYPE = (cct1.Color=="401") ? ONLY_RETIREMENT_COINS : ALL_COINS;
+	//LogPrintf(" SENDRETIREMENT color %s  COIN TYPE %f  only_retirement %f ", cct1.Color.c_str(), (double)nACT_TYPE,(double)ONLY_RETIREMENT_COINS);
+
 	CAmount curBalance = 0;
-	curBalance = (ACT_TYPE==ONLY_RETIREMENT_COINS) ? pwalletMain->GetRetirementBalance() : pwalletMain->GetBalance();
+	curBalance = (cct1.Color=="401") ? pwalletMain->GetRetirementBalance() : pwalletMain->GetBalance();
     // Check amount
     if (nValue <= 0)
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid amount");
@@ -435,9 +436,9 @@ static void SendRetirementCoins(const CTxDestination &address, CAmount nValue, b
     CRecipient recipient = {scriptPubKey, nValue, fSubtractFeeFromAmount, false, false, false, "", "", ""};
 	recipient.Message = sScriptComplexOrder;
     vecSend.push_back(recipient);
-	LogPrintf(" SENDING COINS OF COLOR %s with Script %s ",cct1.Color.c_str(), sScriptComplexOrder.c_str());
+	if (fDebugMaster) LogPrintf(" SENDING COINS OF COLOR %s with Script %s ",cct1.Color.c_str(), sScriptComplexOrder.c_str());
     if (!pwalletMain->CreateTransaction(vecSend, wtxNew, reservekey, nFeeRequired, nChangePosRet,
-                                         strError, NULL, true, ACT_TYPE, false)) 
+                                         strError, NULL, true, (cct1.Color=="401") ? ONLY_RETIREMENT_COINS : ALL_COINS, false)) 
 	{
         if (!fSubtractFeeFromAmount && nValue + nFeeRequired > pwalletMain->GetBalance())
             strError = strprintf("Error: This transaction requires a transaction fee of at least %s because of its amount, complexity, or use of recently received funds!", FormatMoney(nFeeRequired));
@@ -2442,7 +2443,7 @@ UniValue getwalletinfo(const UniValue& params, bool fHelp)
     UniValue obj(UniValue::VOBJ);
     obj.push_back(Pair("walletversion", pwalletMain->GetVersion()));
     obj.push_back(Pair("balance",       ValueFromAmount(pwalletMain->GetBalance())));
-	obj.push_back(Pair("retirement_account_balance", ValueFromAmount(pwalletMain->GetRetirementBalance())));
+	obj.push_back(Pair("retirement_account_balance", CAmountToRetirementDouble(pwalletMain->GetRetirementBalance())));
     obj.push_back(Pair("unconfirmed_balance", ValueFromAmount(pwalletMain->GetUnconfirmedBalance())));
     obj.push_back(Pair("immature_balance",    ValueFromAmount(pwalletMain->GetImmatureBalance())));
     obj.push_back(Pair("txcount",       (int)pwalletMain->mapWallet.size()));

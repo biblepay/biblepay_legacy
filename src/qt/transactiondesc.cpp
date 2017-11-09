@@ -18,7 +18,7 @@
 #include "util.h"
 #include "wallet/db.h"
 #include "wallet/wallet.h"
-
+#include "darksend.h"
 #include "instantx.h"
 
 #include <stdint.h>
@@ -295,9 +295,12 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionReco
 	CTransaction tx;
     uint256 hashBlock;
 	std::string sNetworkMessage = "";
+	std::string sColor = "";
 	if (GetTransaction(wtx.GetHash(), tx, Params().GetConsensus(), hashBlock, false))
 	{
 		sNetworkMessage = "TX: " + tx.vout[0].sTxOutMessage;
+		CComplexTransaction cct(tx);
+		sColor = cct.Color;
 	}
 	else
 	{
@@ -312,10 +315,14 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionReco
 	{
 		if (ReadBlockFromDisk(blockTxList, pindexTxList, consensusParams, "TRANSCTIONDESC")) 
 		{
-			strHTML += "<br><font color=pink><span>Height: " + QString::fromStdString(RoundToString((double)pindexTxList->nHeight,0)) + "</span></font></b>";
-			strHTML += "<br><font color=pink><span>Difficulty: " + QString::fromStdString(RoundToString(GetDifficultyN(pindexTxList,10),6)) + "</span></font></b>";
-			strHTML += "<br><font color=pink><span>Time: " + QString::fromStdString(TimestampToHRDate(blockTxList.GetBlockTime())) + "</span></font></b>";
-			strHTML += "<br><font color=pink><span>Subsidy: " + QString::fromStdString(RoundToString((double)blockTxList.vtx[0].vout[0].nValue/COIN,4)) + "</span></font></b>";
+			strHTML += "<br><font color=red><span>Height: " + QString::fromStdString(RoundToString((double)pindexTxList->nHeight,0)) + "</span></font></b>";
+			strHTML += "<br><font color=red><span>Difficulty: " + QString::fromStdString(RoundToString(GetDifficultyN(pindexTxList,10),6)) + "</span></font></b>";
+			strHTML += "<br><font color=red><span>Time: " + QString::fromStdString(TimestampToHRDate(blockTxList.GetBlockTime())) + "</span></font></b>";
+			strHTML += "<br><font color=red><span>Subsidy: " + QString::fromStdString(RoundToString((double)blockTxList.vtx[0].vout[0].nValue/COIN,4)) + "</span></font></b>";
+			if (!sColor.empty())
+			{
+					strHTML += "<br><font color=red><span>Color: " + QString::fromStdString(sColor) + "</span></font></b>";
+			}
 		}
 	}
 
@@ -334,7 +341,7 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionReco
         if (r.first == "Message")
             strHTML += "<br><b>" + tr("Message") + ":</b><br>" + GUIUtil::HtmlEscape(r.second, true) + "<br>";
 
-    //
+    
     // PaymentRequest info:
     //
     Q_FOREACH (const PAIRTYPE(std::string, std::string)& r, wtx.vOrderForm)
@@ -358,7 +365,7 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionReco
     //
     // Debug view
     //
-    if (fDebug)
+    if (fDebug || true)
     {
         strHTML += "<hr><br>" + tr("Debug information") + "<br><br>";
         BOOST_FOREACH(const CTxIn& txin, wtx.vin)
@@ -402,7 +409,10 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionReco
         strHTML += "</ul>";
     }
 
-	strHTML += "<br><b><p><font color=blue>XML: <pre>" + QString::fromStdString(sDebug) + "</pre></font></b><p>";
+	if (sDebug.empty())
+	{
+		strHTML += "<br><b><p><font color=blue>XML: <pre>" + QString::fromStdString(sDebug) + "</pre></font></b><p>";
+	}
 
     strHTML += "</font></html>";
     return strHTML;

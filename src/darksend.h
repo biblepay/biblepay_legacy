@@ -309,7 +309,6 @@ public:
 			RecipientAddress = PubKeyToAddress(c.vout[0].scriptPubKey);
 			Amount = c.vout[0].nValue;
 		}
-		//complexOutput = ctx.vout[0];
 		Initialize();
 	}
 
@@ -329,6 +328,8 @@ public:
 
 	CComplexTransaction(std::string sScriptForComplexTransaction) : scriptComplexTx(sScriptForComplexTransaction)
 	{
+		XML = sScriptForComplexTransaction;
+		Initialize();
 	}
 
 	std::string GetScriptForComplexOrder(std::string TransactionType, std::string Color, CAmount ExpectedAmount, std::string ExpectedRecipient, std::string ExpectedColor)

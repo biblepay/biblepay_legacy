@@ -281,7 +281,7 @@ min-height:25px;
 font-weight:bold;
 font-size:11px;
 outline:0;
-border:0px solid black;
+border:0px solid blue;
 border-right:1px solid black;
 padding-left:5px;
 padding-right:5px;
@@ -319,14 +319,14 @@ QScrollBar { /* Scroll Bar */
 
 QScrollBar:vertical { /* Vertical Scroll Bar Attributes */
 border:0;
-background:black;
+background:transparent;
 width:18px;
 margin: 18px 0px 18px 0px;
 }
 
 QScrollBar:horizontal { /* Horizontal Scroll Bar Attributes */
 border:0;
-background:black;
+background:transparent;
 height:18px;
 margin: 0px 18px 0px 18px;
 }
@@ -430,12 +430,12 @@ border-right: 1px solid #d7d7d7;
 }
 
 QDialog .QTabWidget QTabBar::tab:selected, QDialog .QTabWidget QTabBar::tab:hover {
-background-color:black;
+background-color:transparent;
 color:blue;
 }
 
 QDialog .QTabWidget .QWidget {
-background-color:black;
+background-color:transparent;
 color:blue;
 }
 
@@ -734,7 +734,7 @@ background-color:#grey;
 
 QDialog#HelpMessageDialog QScrollArea * 
 {
-background-color:#black;
+background-color:#yellow;
 color:green;
 }
 
@@ -744,8 +744,8 @@ border:0;
 
 /* About biblepay Dialog */
 QDialog#AboutDialog {
-background-color:#black;
-color:green;
+background-color:#grey;
+color:white;
 }
 
 QDialog#AboutDialog QLabel#label, QDialog#AboutDialog QLabel#copyrightLabel, QDialog#AboutDialog QLabel#label_2 { /* About biblepay Contents */
@@ -758,7 +758,7 @@ margin-right:10px;
 
 /* Edit Address Dialog */
 QDialog#EditAddressDialog {
-background-color:#black;
+background-color:transparent;
 }
 
 QDialog#EditAddressDialog QLabel {
@@ -1464,7 +1464,7 @@ QDialog#CoinControlDialog .CoinControlTreeWidget#treeWidget::indicator { /* Coin
 /* RECEIVE COINS */
 
 QWidget#ReceiveCoinsDialog .QFrame#frame2 .QLabel#label_2 { /* Label Label */
-background-color:black;
+background-color:transparent;
 min-width:102px;
 color:blue;
 font-weight:bold;
@@ -1473,7 +1473,7 @@ padding-right:5px;
 }
 
 QWidget#ReceiveCoinsDialog .QFrame#frame2 .QLabel#label { /* Amount Label */
-background-color:black;
+background-color:transparent;
 min-width:102px;
 color:blue;
 font-weight:bold;
@@ -1597,7 +1597,7 @@ color:blue;
 /* TRANSACTION DETAIL DIALOG */
 
 QDialog#TransactionDescDialog {
-background-color:black;
+background-color:transparent;
 }
 
 QDialog#TransactionDescDialog QTextEdit { /* Contents of Receive Coin Dialog */

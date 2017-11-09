@@ -1572,7 +1572,7 @@ CAmount CWalletTx::GetImmatureCredit(bool fUseCache) const
     return 0;
 }
 
-CAmount CWalletTx::GetAvailableCredit(bool fUseCache) const
+CAmount CWalletTx::GetAvailableCredit(bool fUseCache, std::string sColor) const
 {
     if (pwallet == 0)
         return 0;
@@ -1591,7 +1591,15 @@ CAmount CWalletTx::GetAvailableCredit(bool fUseCache) const
         if (!pwallet->IsSpent(hashTx, i))
         {
             const CTxOut &txout = vout[i];
-            nCredit += pwallet->GetCredit(txout, ISMINE_SPENDABLE);
+			CComplexTransaction cct(txout);
+			if (!sColor.empty())
+			{
+				if (cct.Color==sColor) nCredit += pwallet->GetCredit(txout, ISMINE_SPENDABLE);
+			}
+			else
+			{
+				nCredit += pwallet->GetCredit(txout, ISMINE_SPENDABLE);
+			}
             if (!MoneyRange(nCredit))
                 throw std::runtime_error("CWalletTx::GetAvailableCredit() : value out of range");
         }
@@ -1833,7 +1841,6 @@ void CWallet::ResendWalletTransactions(int64_t nBestBlockTime)
 
 
 
-
 /** @defgroup Actions
  *
  * @{
@@ -1849,7 +1856,7 @@ CAmount CWallet::GetBalance() const
         {
             const CWalletTx* pcoin = &(*it).second;
             if (pcoin->IsTrusted())
-                nTotal += pcoin->GetAvailableCredit();
+                nTotal += pcoin->GetAvailableCredit(true,"");
         }
     }
 
@@ -1895,27 +1902,82 @@ CAmount CWallet::GetAnonymizedBalance() const
     return nTotal;
 }
 
+		
+
+CAmount CWallet::Get401Debit(const CTxIn &txin, const isminefilter& filter) const
+{
+    {
+        LOCK(cs_wallet);
+        map<uint256, CWalletTx>::const_iterator mi = mapWallet.find(txin.prevout.hash);
+        if (mi != mapWallet.end())
+        {
+            const CWalletTx& prev = (*mi).second;
+            if (txin.prevout.n < prev.vout.size())
+                if (IsMine(prev.vout[txin.prevout.n]) & filter)
+				{
+					CComplexTransaction cct(prev.vout[txin.prevout.n]);
+					bool b401k = (cct.Color=="401");
+					if (b401k) return prev.vout[txin.prevout.n].nValue;
+				}
+        }
+    }
+    return 0;
+}
+
+std::string GetCoinColor(CTransaction c)
+{
+	for (unsigned int i = 0; i < c.vout.size(); i++) 
+	{
+			const CTxOut& txout = c.vout[i];
+			CComplexTransaction cct(txout);
+			if (!cct.Color.empty()) return cct.Color;
+	}
+	return "";
+}
+
+
 
 CAmount CWallet::GetRetirementBalance() const
 {
+	isminefilter filter = ISMINE_SPENDABLE;
+	CAmount nTotalDebit = 0;
+	CAmount nTotalCredit = 0;
     CAmount nTotal = 0;
-
     {
         LOCK2(cs_main, cs_wallet);
         for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it)
         {
             const CWalletTx* pcoin = &(*it).second;
             uint256 hash = (*it).first;
-            for (unsigned int i = 0; i < pcoin->vout.size(); i++) 
+			bool bCoinbase = (pcoin->IsCoinBase());
+           
+			CAmount nDebit = 0;
+
+			for (unsigned int i = 0; i < pcoin->vin.size(); i++) 
 			{
-                CTxIn vin = CTxIn(hash, i);
-                if(IsSpent(hash, i) || IsMine(pcoin->vout[i]) != ISMINE_SPENDABLE) continue;
-				
-				CComplexTransaction cct(pcoin->vout[i]);
-				if (cct.Color=="401") nTotal += pcoin->vout[i].nValue;
-            }
-        }
-    }
+				const CTxIn& txin = pcoin->vin[i];
+				nDebit += Get401Debit(txin,filter);
+			}
+        
+			CAmount nCredit2 = 0;
+			for (unsigned int i = 0; i < pcoin->vout.size(); i++) 
+			{
+				const CTxOut& txout = pcoin->vout[i];
+				bool isMine = IsMine(txout);
+				CComplexTransaction cct(txout);
+				bool b401k = (cct.Color=="401");
+				if (pcoin->IsTrusted() && isMine && b401k)
+				{
+					nCredit2 += txout.nValue;
+				}
+			}
+		    if (pcoin->IsTrusted())
+                nTotal += pcoin->GetAvailableCredit(false,"401");
+			nTotalDebit += nDebit;
+			nTotalCredit += nCredit2;
+		}
+	}
+ 	LogPrintf(" Total Debit %f, Total Credit %f, Total %f  ",(double)nTotalDebit/COIN, (double)nTotalCredit/COIN, (double)nTotal/COIN);
     return nTotal;
 }
 
@@ -2037,7 +2099,7 @@ CAmount CWallet::GetUnconfirmedBalance() const
         {
             const CWalletTx* pcoin = &(*it).second;
             if (!pcoin->IsTrusted() && pcoin->GetDepthInMainChain() == 0 && pcoin->InMempool())
-                nTotal += pcoin->GetAvailableCredit();
+                nTotal += pcoin->GetAvailableCredit(false,"");
         }
     }
     return nTotal;
@@ -2105,6 +2167,7 @@ CAmount CWallet::GetImmatureWatchOnlyBalance() const
 void CWallet::AvailableCoins(vector<COutput>& vCoins, bool fOnlyConfirmed, const CCoinControl *coinControl, bool fIncludeZeroValue, AvailableCoinsType nCoinType, bool fUseInstantSend) const
 {
     vCoins.clear();
+	LogPrintf(" AVAILABLE COINS RETIREMENT COIN TYPE %f ",(double)nCoinType);
 
     {
         LOCK2(cs_main, cs_wallet);
@@ -2131,7 +2194,7 @@ void CWallet::AvailableCoins(vector<COutput>& vCoins, bool fOnlyConfirmed, const
             // It's possible for these to be conflicted via ancestors which we may never be able to detect
             if (nDepth == 0 && !pcoin->InMempool())
                 continue;
-			
+		
             for (unsigned int i = 0; i < pcoin->vout.size(); i++) 
 			{
                 bool found = false;
@@ -2944,7 +3007,8 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
 								const CCoinControl* coinControl, bool sign, AvailableCoinsType nCoinType, bool fUseInstantSend)
 {
     CAmount nFeePay = fUseInstantSend ? CTxLockRequest().GetMinFee() : 0;
-				
+	LogPrintf(" CREATETRANSACTION RETIREMENT TYPE %f ",(double)nCoinType);
+
     CAmount nValue = 0;
     unsigned int nSubtractFeeFromAmount = 0;
     BOOST_FOREACH (const CRecipient& recipient, vecSend)
@@ -3068,6 +3132,9 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
                 set<pair<const CWalletTx*,unsigned int> > setCoins;
                 CAmount nValueIn = 0;
 
+
+				if (nCoinType==ONLY_RETIREMENT_COINS) LogPrintf(" RETIREMENT SELECTCOINS COLOR 401 cointype %f \n",(double)nCoinType);
+
                 if (!SelectCoins(nValueToSelect, setCoins, nValueIn, coinControl, nCoinType, fUseInstantSend))
                 {
                     if (nCoinType == ONLY_NOT1000IFMN) {
@@ -3183,9 +3250,13 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
                         else
                         {
                             // Insert change txn at random position:
+							std::string sAssetColor = txNew.vout[0].sTxOutMessage;
                             nChangePosRet = GetRandInt(txNew.vout.size()+1);
                             vector<CTxOut>::iterator position = txNew.vout.begin()+nChangePosRet;
                             txNew.vout.insert(position, newTxOut);
+							// BiblePay - Rob A. - Colored change
+							txNew.vout[nChangePosRet].sTxOutMessage = sAssetColor;
+							if (fDebugMaster) LogPrintf(" AssetPos %f , AssetColor %s ",(double)nChangePosRet,txNew.vout[nChangePosRet].sTxOutMessage.c_str());
                         }
                     }
                 }

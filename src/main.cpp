@@ -2148,20 +2148,10 @@ CAmount GetBlockSubsidy(const CBlockIndex* pindexPrev, int nPrevBits, int nPrevH
 
     // LogPrintf("height %u diff %4.2f reward %d\n", nPrevHeight, dDiff, nSubsidyBase);
     CAmount nSubsidy = nSubsidyBase * COIN;
-    // Yearly decline of production by ~10% per year, projected ~14.54 Billion coins max by year 2050+.
+    // Yearly decline of production by ~19.5% per year, projected ~5.2 Billion coins max by year 2050+.
 
-	// Year:  2017, Subsidy: 20000, Emission: 1496500000, Grand Total: 1 496 500 000
-	// Year:  2018, Subsidy: 18000, Emission: 1346850000, Grand Total: 2 843 350 000
-	// Year:  2019, Subsidy: 16200, Emission: 1212165000, Grand Total: 4 055 515 000
-	// Year:  2020, Subsidy: 14580, Emission: 1090948500, Grand Total: 5 146 463 500
-	// Year:  2021, Subsidy: 13122, Emission: 981853650,  Grand Total: 6 128 317 150
-	// Year:  2025, Subsidy: 8609,  Emission: 644194179,  Grand Total: 9 167 252 382
-	// Year:  2030, Subsidy: 5083,  Emission: 380390221,  Grand Total: 11 541 488 001
-	// Year:  2035, Subsidy: 3001,  Emission: 224616621,  Grand Total: 12 943 450 406
-	// Year:  2040, Subsidy: 1772,  Emission: 132633868,  Grand Total: 13 771 295 175
-	// Year:  2045, Subsidy: 1046,  Emission: 78318973,   Grand Total: 14 260 129 248
-	// Year:  2050, Subsidy: 618,   Emission: 46246570,   Grand Total: 14 548 780 867
-	
+	// http://wiki.biblepay.org/Emission_Schedule
+
 	bool fSuperblocksEnabled = (pindexPrev->nHeight >= consensusParams.nSuperblockStartBlock) && fMasternodesEnabled;
 	int iSubsidyDecreaseInterval = BLOCKS_PER_DAY * 365; // Yearly Initially
 	double iDeflationRate = .10; // 10% per year initially
@@ -2174,7 +2164,8 @@ CAmount GetBlockSubsidy(const CBlockIndex* pindexPrev, int nPrevBits, int nPrevH
 	{
         nSubsidy -= (nSubsidy * iDeflationRate);
     }
-    // When sanctuaries go live: The Tithe block is disabled, budgeting/superblocks are enabled, and the budget contains a max of : 10% to Charity budget, and 5% for the IT budget.
+    // When sanctuaries go live: The Tithe block is disabled, budgeting/superblocks are enabled, and the budget contains a max of : 
+	// 10% to Charity budget, and 5% for the IT budget.  The 85% remaining is split between the miner and the sanctuary.
 	double dSuperblockMultiplier = fSuperblocksEnabled ? .15 : .10;
     CAmount nSuperblockPart = (nPrevHeight > consensusParams.nBudgetPaymentsStartBlock) ? nSubsidy * dSuperblockMultiplier : 0;
     return fSuperblockPartOnly ? nSuperblockPart : nSubsidy - nSuperblockPart;

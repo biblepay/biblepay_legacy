@@ -46,7 +46,7 @@ std::vector<std::string> Split(std::string s, std::string delim);
 bool CheckMessageSignature(std::string sMsg, std::string sSig);
 std::string GetTemplePrivKey();
 std::string SignMessage(std::string sMsg, std::string sPrivateKey);
-
+extern double CAmountToRetirementDouble(CAmount Amount);
 
 UniValue ContributionReport();
 std::string RoundToString(double d, int place);
@@ -60,9 +60,10 @@ UniValue GetDataList(std::string sType, int iMaxAgeInDays, int& iSpecificEntry, 
 uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight, const CBlockIndex* pindexLast, bool bRequireTxIndex);
 void MemorizeBlockChainPrayers(bool fDuringConnectBlock);
 std::string GetVerse(std::string sBook, int iChapter, int iVerse, int iStart, int iEnd);
-
 std::string GetBookByName(std::string sName);
 std::string GetBook(int iBookNumber);
+extern std::string rPad(std::string data, int minWidth);
+
 
 std::string GetMessagesFromBlock(const CBlock& block, std::string sMessages);
 std::string GetBibleHashVerses(uint256 hash, uint64_t nBlockTime, uint64_t nPrevBlockTime, int nPrevHeight, CBlockIndex* pindexprev);
@@ -78,8 +79,6 @@ void SendMoneyToDestinationWithMinimumBalance(const CTxDestination& address, CAm
 std::string SQL(std::string sCommand, std::string sAddress, std::string sArguments, std::string& sError);
 extern void StartTradingThread();
 extern CTradeTx GetOrderByHash(uint256 uHash);
-
-
 
 extern std::string RelayTrade(CTradeTx& t, std::string Type);
 extern std::string GetTrades();
@@ -1113,16 +1112,20 @@ void ScanBlockChainVersion(int nLookback)
     }
 }
 
-void CancelOrders(CTradeTx& t)
+void CancelOrders()
 {
-	if (t.Action=="CANCEL")
-	{
 		map<uint256, CTradeTx> uDelete;
 		BOOST_FOREACH(PAIRTYPE(const uint256, CTradeTx)& item, mapTradeTxes)
 		{
 			CTradeTx ttx = item.second;
 			uint256 hash = ttx.GetHash();
-			if (t.Symbol==ttx.Symbol && t.Address == ttx.Address && t.Action == ttx.Action && t.Quantity == ttx.Quantity && ttx.EscrowTXID.empty())
+			if (ttx.Action=="CANCEL" && ttx.EscrowTXID.empty())
+			{
+				uDelete.insert(std::make_pair(hash, ttx));
+				RelayTrade(ttx, "cancel"); // Cancel order on the network
+			}
+			int64_t tradeAge = GetAdjustedTime() - ttx.TradeTime;
+			if (tradeAge > (60*60*12) && ttx.EscrowTXID.empty())
 			{
 				uDelete.insert(std::make_pair(hash, ttx));
 			}
@@ -1132,10 +1135,6 @@ void CancelOrders(CTradeTx& t)
 			uint256 h = item.first;
 			mapTradeTxes.erase(h);
 		}
-		RelayTrade(t, "cancel"); // Cancel order on the network
-		GetTrades();
-	}
-
 }
 
 
@@ -1154,12 +1153,11 @@ std::string RelayTrade(CTradeTx& t, std::string Type)
 std::string ProcessEscrow()
 {
 	std::string out_Error = "";
-	std::string sAddress=DefaultRecAddress("Trading");
+	std::string sAddress = DefaultRecAddress("Trading");
 	std::string sRes = SQL("process_escrow", sAddress, "txid=", out_Error);
 	std::string sEsc = ExtractXML(sRes,"<ESCROWS>","</ESCROWS>");
 	std::vector<std::string> vEscrow = Split(sEsc.c_str(),"<ROW>");
 	LogPrintf("  PROCESS ESCROW  %s  \n",sEsc.c_str());
-
 	for (int i = 0; i < (int)vEscrow.size(); i++)
 	{
 		std::string sE = vEscrow[i];
@@ -1171,23 +1169,25 @@ std::string ProcessEscrow()
 			std::string sHash = ExtractXML(sE,"<HASH>","</HASH>");
 			uint256 hash = uint256S("0x" + sHash);
 		    CTradeTx trade = GetOrderByHash(hash);
-	
 			// Ensure this matches our Trading Tx before sending escrow, and Escrow has not already been staked
 			LogPrintf(" Orig trade address %s  Orig Trade Amount %f  esc amt %f  ",trade.Address.c_str(),trade.Total, Amount);
-
 			if (trade.Address==sAddress && trade.Total == Amount && trade.EscrowTXID.empty())
 			{
 				if (!Symbol.empty() && !EscrowAddress.empty() && Amount > 0)
 				{
-					// Send Escrow in, and remember txid.  GodNode will send us our escrow back using this as a 'dependent' TXID if the trade is not executed by piggybacking the escrow refund on the back of the escrow transmission.
+					// Send Escrow in, and remember txid.  Sanctuary will send us our escrow back using this as a 'dependent' TXID if the trade is not executed by piggybacking the escrow refund on the back of the escrow transmission.
 					// If the trade is executed, the trade will be processed using a depends-on identifier so the collateral is not lost, by spending its output to the other trader after receiving the recipients escrow.  The recipients collateral will be sent to us by piggybacking the collateral on the back of the same txid the GodNode received.
 					CComplexTransaction cct("");
-					std::string sScript = cct.GetScriptForAssetColor("");
+					std::string sColor = (trade.Action == "BUY") ? "" : "401";
+					std::string sScript = cct.GetScriptForAssetColor(sColor);
 					CBitcoinAddress address(EscrowAddress);
 					if (address.IsValid())	
 					{
-						CAmount nAmount = Amount * COIN;
+						CAmount nAmount = 0;
+						nAmount = (sColor=="401") ? Amount * (RETIREMENT_COIN) * 100 : Amount * COIN;
 						CWalletTx wtx;
+						// Ensure the Escrow held by market maker holds correct color for each respective leg
+
 						SendRetirementCoins(address.Get(), nAmount, false, wtx, sScript);
 						std::string TXID = wtx.GetHash().GetHex();
 						LogPrintf("\n Sent %f RetirementCoins for Escrow %s \n", (double)Amount,TXID.c_str());
@@ -1196,31 +1196,21 @@ std::string ProcessEscrow()
 						uint256 hashBlock;
 						if (GetTransaction(wtx.GetHash(), tx, Params().GetConsensus(), hashBlock, true))
 						{
-							
-							// 10-24-2017
 							 for (int i=0; i < (int)tx.vout.size(); i++)
 							 {
 				 				if (tx.vout[i].nValue == nAmount)
 								{
 									trade.VOUT = i;
-									// tell market maker to look for the escrow - he will piggyback the next step on the back of the escrow tx
 									std::string sErr = RelayTrade(trade, "escrow");
 								}
 							 }
 						}
-						
-
 					}
 				}
 			}
 		}
 	}
 	return out_Error;
-
-
-	// string sRow = "<ESCROW><ESCROW_ADDRESS>" + sPoolRecvAddress + "</ESCROW_ADDRESS><ESCROWID>" + id + "</ESCROWID><AMOUNT>" 
-      //                          + total.ToString() + "</AMOUNT><SYMBOL>" + dt.Rows[i]["symbol"].ToString() + "</SYMBOL></ESCROW>";
-        //                    sTrades += sRow;
 }
 
 std::string GetTrades()
@@ -1248,7 +1238,8 @@ std::string GetTrades()
 				ttx.EscrowTXID = escrow_txid;
 				uint256 uHash = ttx.GetHash();
 				int iTradeCount = mapTradeTxes.count(uHash);
-				if (iTradeCount==0) mapTradeTxes.insert(std::make_pair(uHash, ttx));
+				if (iTradeCount > 0) mapTradeTxes.erase(uHash);
+				mapTradeTxes.insert(std::make_pair(uHash, ttx));
 			}
 		}
 	}
@@ -1261,8 +1252,10 @@ std::string GetOrderText(CTradeTx& trade, double runningTotal)
 	// This is the order book format 
 	// Sell Side: PricePerBBP, Quantity, BBPAmount, BBPTotal ........ SYMBOL (RBBP) ............... Buy Side: PricePerBBP, Quantity, BBPAmount, BBPTotal
 	//            1.251        1000      1251.00      1251.00                                                  .25          1000      250.00      250.00
-	std::string sOB = RoundToString(trade.Price,4) + "  " + RoundToString(trade.Quantity,0) 
-		+ "  " + RoundToString(trade.Quantity*trade.Price,2) + "  " + RoundToString(runningTotal,2);
+	std::string sOB = rPad(RoundToString(trade.Price,4),6)
+		+ "  " + rPad(RoundToString(trade.Quantity,0),8)
+		+ "  " + rPad(RoundToString(trade.Quantity*trade.Price,2),8)
+		+ "  " + rPad(RoundToString(runningTotal,2),12);
 	return sOB;
 }
 
@@ -1275,19 +1268,23 @@ CTradeTx GetOrderByHash(uint256 uHash)
 	return trade;
 }
 
+std::string rPad(std::string data, int minWidth)
+{
+	if ((int)data.length() >= minWidth) return data;
+	int iPadding = minWidth - data.length();
+	std::string sPadding = std::string(iPadding,' ');
+	std::string sOut = data + sPadding;
+	return sOut;
+}
 
 UniValue GetOrderBook(std::string sSymbol)
 {
-
 	StartTradingThread();
-		
 	// Generate the Order Book by sorting two maps: one for the sell side, one for the buy side:
-	
 	vector<pair<int64_t, uint256> > vSellSide;
 	vSellSide.reserve(mapTradeTxes.size());
 	vector<pair<int64_t, uint256> > vBuySide;
 	vBuySide.reserve(mapTradeTxes.size());
-
    
     BOOST_FOREACH(const PAIRTYPE(uint256, CTradeTx)& item, mapTradeTxes)
     {
@@ -1339,15 +1336,14 @@ UniValue GetOrderBook(std::string sSymbol)
     }
 
     UniValue ret(UniValue::VOBJ);
- 
 	iTotalRows = (iSellRows >= iBuyRows) ? iSellRows : iBuyRows;
-	std::string sHeader = "[S]Price  Quantity  Amount  Total (" + sSymbol + ") Price  Quantity  Amount  Total[B]";
+	std::string sHeader = "[S]Price Quantity  Amount   Total       (" + sSymbol + ")  Price  Quantity Amount     Total   [B]";
 	ret.push_back(Pair("0",sHeader));
 
 	for (int i = 0; i <= iTotalRows; i++)
 	{
-		if (Sell[i].empty()) Sell[i]="                                               ";
-		if (Buy[i].empty())  Buy[i] ="                                               ";
+		if (Sell[i].empty()) Sell[i]= rPad(" ", 40);
+		if (Buy[i].empty())  Buy[i] = rPad(" ", 40);
 		std::string sConsolidatedRow = Sell[i] + " |" + sSymbol + "| " + Buy[i];
 		ret.push_back(Pair(RoundToString(i,0), sConsolidatedRow));
 	}
@@ -1388,6 +1384,12 @@ UniValue GetVersionReport()
       return ret;
 }
 
+
+double CAmountToRetirementDouble(CAmount Amount)
+{
+	double d = Amount / RETIREMENT_COIN / 100;
+	return d;
+}
 
 UniValue exec(const UniValue& params, bool fHelp)
 {
@@ -1504,7 +1506,6 @@ UniValue exec(const UniValue& params, bool fHelp)
 			if (pindexLast)
 			{
 				uint256 hashTx = BibleHash(blockHash,(int64_t)cdbl(sBlockTime,0),pindexLast->nTime,true,pindexLast->nHeight,pindexLast,true);
-				//hashSolution = BibleHash(pblock->GetHash(),pblock->GetBlockTime(),pindexPrev->nTime,true,pindexPrev->nHeight,pindexPrev,false);
 				results.push_back(Pair("BibleHashTx",hashTx.GetHex()));
 			}
 		}
@@ -1539,17 +1540,29 @@ UniValue exec(const UniValue& params, bool fHelp)
 	else if (sItem == "order" && !fProd)
 	{
 		// Buy/Sell Qty Symbol [PriceInQtyOfBBP]
+		// Rob A - BiblePay - Ensure Trading System honors NetworkID
 		std::string sAddress=DefaultRecAddress("Trading");
 		if (params.size() != 5) 
 			throw runtime_error("You must specify Buy/Sell/Cancel Qty Symbol [Price].  Example: exec buy 1000 RBBP 1.25 (Meaning: I offer to buy Qty 1000 RBBP (Retirement BiblePay Coins) for 1.25 BBP EACH (TOTALING=1.25*1000 BBP).");
 		std::string sAction = params[1].get_str();
 		boost::to_upper(sAction);
-		
 		double dQty = cdbl(params[2].get_str(),0);
 		std::string sSymbol = params[3].get_str();
 		boost::to_upper(sSymbol);
+		if (sSymbol != "RBBP")
+		{
+			throw runtime_error("Sorry, Only symbol RBBP is currently supported.");
+		}	
 
 		double dPrice = cdbl(params[4].get_str(),4);
+		if (dPrice < .01 || dPrice > 9999)
+		{
+			throw runtime_error("Sorry, price is out of range.");
+		}
+		if (dQty < 1 || dQty > 9999999)
+		{
+			throw runtime_error("Sorry, quantity is out of range.");
+		}
 		CTradeTx ttx(GetAdjustedTime(),sAction,sSymbol,dQty,dPrice,sAddress);
 		results.push_back(Pair("Action",sAction));
 		results.push_back(Pair("Symbol",sSymbol));
@@ -1563,9 +1576,8 @@ UniValue exec(const UniValue& params, bool fHelp)
 		if (sAction=="CANCEL") 
 		{
 			// Cancel all trades for Address + Symbol + Action
-			CancelOrders(ttx);
+			CancelOrders();
 			results.push_back(Pair("Canceling Order",uHash.GetHex()));
-
 		}
 		else if (sAction == "BUY" || sAction == "SELL")
 		{
@@ -1576,12 +1588,12 @@ UniValue exec(const UniValue& params, bool fHelp)
 		{
 			results.push_back(Pair("Unknown Action",sAction));
 		}
-		if (!ttx.Error.empty()) 		results.push_back(Pair("Error",ttx.Error));
+		if (!ttx.Error.empty()) results.push_back(Pair("Error",ttx.Error));
 		// Relay changes to network - and relay once every 5 mins in case a new node comes online.
 		if (!fProd)
 		{
 			std::string sErr = RelayTrade(ttx, "order");
-			results.push_back(Pair("Relayed",sErr));
+			if (!sErr.empty()) results.push_back(Pair("Relayed",sErr));
 		}
 	}
 	else if (sItem == "orderbook" && !fProd)
@@ -1596,11 +1608,11 @@ UniValue exec(const UniValue& params, bool fHelp)
 	}
 	else if (sItem == "listorders" && !fProd)
 	{
-		
+		CancelOrders();
+
 		std::string sError = GetTrades();
 		results.push_back(Pair("#",0));
 		if (!sError.empty()) results.push_back(Pair("Error",sError));
-		
 		int i = 0;
 		BOOST_FOREACH(PAIRTYPE(const uint256, CTradeTx)& item, mapTradeTxes)
 		{
@@ -1626,7 +1638,6 @@ UniValue exec(const UniValue& params, bool fHelp)
 		uint256 uTradeHash = uint256S("0x1234");
 		int iTradeCount = mapTradeTxes.count(uTradeHash);
 		// Insert
-	    //CTradeTx(int64_t tradeTime, std::string tradeAction, std::string symbol, int64_t quantity, int64_t price) :
 		std::string sIP = "127.0.0.1";
 		CTradeTx ttx(0,"BUY","BBP",10,1000,sIP);
         if (iTradeCount==0) mapTradeTxes.insert(std::make_pair(uTradeHash, ttx));
@@ -1642,6 +1653,30 @@ UniValue exec(const UniValue& params, bool fHelp)
 	else if (sItem == "testmultisig")
 	{
 		// 
+	}
+	else if (sItem == "sendto402k")
+	{
+	    LOCK2(cs_main, pwalletMain->cs_wallet);
+		CAmount nAmount = AmountFromValue(params[1].get_str());
+	    CBitcoinAddress address(params[2].get_str());
+		if (!address.IsValid())	
+		{
+			results.push_back(Pair("InvalidAddress",1));
+		}
+		else
+		{
+			results.push_back(Pair("Destination Address",address.ToString()));
+			bool fSubtractFeeFromAmount = false;
+			EnsureWalletIsUnlocked();
+			std::string sAddress=DefaultRecAddress("Trading");
+			results.push_back(Pair("DefRecAddr",sAddress));
+			CWalletTx wtx;
+			std::string sOutboundColor="";
+			CComplexTransaction cct("");
+			std::string sScript = cct.GetScriptForAssetColor("401");
+			SendRetirementCoins(address.Get(), nAmount, fSubtractFeeFromAmount, wtx, sScript);
+			results.push_back(Pair("txid",wtx.GetHash().GetHex()));
+		}
 	}
 	else if (sItem == "sendto401k")
 	{
@@ -1661,10 +1696,7 @@ UniValue exec(const UniValue& params, bool fHelp)
 			std::string sAddress=DefaultRecAddress("Trading");
 			results.push_back(Pair("DefRecAddr",sAddress));
 			// Complex order type
-			LogPrintf(" a\n");
 			CWalletTx wtx;
-			LogPrintf(" b\n");
-
 			std::string sExpectedRecipient = sAddress;
 			std::string sExpectedColor = "";
 			CAmount nExpectedAmount = nAmount;
@@ -1672,23 +1704,15 @@ UniValue exec(const UniValue& params, bool fHelp)
 			results.push_back(Pair("OutboundColor",sOutboundColor));
 			CComplexTransaction cct("");
 			std::string sScriptComplexOrder = cct.GetScriptForComplexOrder("OCO", sOutboundColor, nExpectedAmount, sExpectedRecipient, sExpectedColor);
-	
 			results.push_back(Pair("XML",sScriptComplexOrder));
 			LogPrintf("\nScript for comp order %s ",sScriptComplexOrder.c_str());
-			LogPrintf(" e\n");
-
 			SendRetirementCoins(address.Get(), nAmount, fSubtractFeeFromAmount, wtx, sScriptComplexOrder);
-			LogPrintf(" f\n");
-
 			LogPrintf("\nScript for comp order %s ",sScriptComplexOrder.c_str());
-	
 			results.push_back(Pair("txid",wtx.GetHash().GetHex()));
 		}
 	}
 	else if (sItem == "createescrowtransaction")
 	{
-	            	//"createescrowtransaction",
-
 		    LOCK(cs_main);
 			std::string sXML = params[1].get_str();
 			CMutableTransaction rawTx;
@@ -1718,36 +1742,35 @@ UniValue exec(const UniValue& params, bool fHelp)
 			std::string sRecip = vRecips[i];
 			if (!sRecip.empty())
 			{
-					std::string sRecipient = ExtractXML(sRecip, "<RECIPIENT>","</RECIPIENT>");
-
-					double dAmount = cdbl(ExtractXML(sRecip,"<AMOUNT>","</AMOUNT>"),4);
-					std::string sData = ExtractXML(sRecip,"<DATA>","</DATA>");
-					if (!sData.empty())
-					{
-					     std::vector<unsigned char> data = ParseHexV(sData,"Data");
-						 CTxOut out(0, CScript() << OP_RETURN << data);
-						 rawTx.vout.push_back(out);
-					}
-					else if (!sRecipient.empty())
-					{
-	 					  CBitcoinAddress address(sRecipient);
-						  //						    setAddress.insert(address);
-						  CScript scriptPubKey = GetScriptForDestination(address.Get());
-						  CAmount nAmount = AmountFromValue(dAmount);
-				          CTxOut out(nAmount, scriptPubKey);
-						  rawTx.vout.push_back(out);
-						  LogPrintf("ADDING Recip %s amount %f  ", sRecipient.c_str(),(double)nAmount);
-
-					}
+				std::string sRecipient = ExtractXML(sRecip, "<RECIPIENT>","</RECIPIENT>");
+				double dAmount = cdbl(ExtractXML(sRecip,"<AMOUNT>","</AMOUNT>"),4);
+				std::string sData = ExtractXML(sRecip,"<DATA>","</DATA>");
+				std::string sColor = ExtractXML(sRecip,"<COLOR>","</COLOR>");
+				if (!sData.empty())
+				{
+				     std::vector<unsigned char> data = ParseHexV(sData,"Data");
+					 CTxOut out(0, CScript() << OP_RETURN << data);
+					 rawTx.vout.push_back(out);
+				}
+				else if (!sRecipient.empty())
+				{
+ 					  CBitcoinAddress address(sRecipient);
+					  CScript scriptPubKey = GetScriptForDestination(address.Get());
+					  CAmount nAmount = sColor=="401" ? dAmount * RETIREMENT_COIN * 100: dAmount * COIN; 
+			          CTxOut out(nAmount, scriptPubKey);
+					  rawTx.vout.push_back(out);
+	    			  CComplexTransaction cct("");
+					  std::string sAssetColorScript = cct.GetScriptForAssetColor(sColor); 
+					  rawTx.vout[rawTx.vout.size()-1].sTxOutMessage = sAssetColorScript;
+					  LogPrintf("CreateEscrowTx::Adding Recip %s, amount %f, color %s, dAmount %f ", sRecipient.c_str(),(double)nAmount,sAssetColorScript.c_str(), (double)dAmount);
+				}
 			}
 		}
-		//set<CBitcoinAddress> setAddress;
-		//vector<string> addrList = sendTo.getKeys();
 		return EncodeHexTx(rawTx);
     }
 	else if (sItem == "getretirementbalance")
 	{
-		results.push_back(Pair("balance",ValueFromAmount(pwalletMain->GetRetirementBalance())));
+		results.push_back(Pair("balance",CAmountToRetirementDouble(pwalletMain->GetRetirementBalance())));
 	}
 	else if (sItem == "generatetemplekey")
 	{
@@ -1809,13 +1832,11 @@ UniValue exec(const UniValue& params, bool fHelp)
 	{
 		std::string sEntry = "";
 		int iSpecificEntry = 0;
-
 		UniValue aDataList = GetDataList("SIN", 7, iSpecificEntry, sEntry);
 		return aDataList;
 	}
 	else if (sItem == "memorizeprayers")
 	{
-		
 		MemorizeBlockChainPrayers(false);
 		results.push_back(Pair("Memorized",1));
 	}
@@ -1830,7 +1851,6 @@ UniValue exec(const UniValue& params, bool fHelp)
 		results.push_back(Pair("Book",sBook));
 		results.push_back(Pair("Chapter",iChapter));
 		if (iVerse > 0) results.push_back(Pair("Verse",iVerse));
-		
 		int iStart=0;
 		int iEnd=0;
 		GetBookStartEnd(sBook,iStart,iEnd);
@@ -1869,9 +1889,7 @@ UniValue exec(const UniValue& params, bool fHelp)
 	{
 		results.push_back(Pair("Error","Unknown command: " + sItem));
 	}
-	
 	return results;
-
 }
 
 
@@ -2186,16 +2204,16 @@ void static TradingThread(int iThreadID)
 		{
 			// Thread dies off after 5 minutes of inactivity
 			if ((GetAdjustedTime() - nLastTradingActivity) > (5*60)) break;
-			
 			MilliSleep(1000);
 			iCall++;
 			if (iCall > 30)
-		
 			{
 				iCall=0;
 				std::string sError = ProcessEscrow();
-					LogPrintf(" \n Process Escrow %s \n",sError.c_str());
-		
+				if (!sError.empty()) LogPrintf("TradingThread::Process Escrow %s \n",sError.c_str());
+			    CancelOrders();
+				sError = GetTrades();
+				if (!sError.empty()) LogPrintf("TradingThread::GetTrades %s \n",sError.c_str());
 			}
 
 		}
@@ -2219,7 +2237,6 @@ void static TradingThread(int iThreadID)
 static boost::thread_group* tradingThreads = NULL;
 void StartTradingThread()
 {
-
 	if (bEngineActive) return;
 	
 	nLastTradingActivity = GetAdjustedTime();
@@ -2234,9 +2251,6 @@ void StartTradingThread()
     tradingThreads = new boost::thread_group();
 	tradingThreads->create_thread(boost::bind(&TradingThread, boost::cref(0)));
 	LogPrintf(" Starting Trading Thread \n" );
-
 }
-
-
 
 

@@ -54,10 +54,8 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
         BOOST_FOREACH(const CTxOut& txout, wtx.vout)
         {
             isminetype mine = wallet->IsMine(txout);
-			CAmount n401kAmount = txout.nValue;
-			std::string sMsg = txout.sTxOutMessage;
-			bool b401k = (n401kAmount==125000 || sMsg == "[401]");
-
+			CComplexTransaction cct(txout);
+			bool b401k = (cct.Color=="401");
             if(mine && !b401k)
             {
                 TransactionRecord sub(hash, nTime);
@@ -174,9 +172,13 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
             //
             CAmount nTxFee = nDebit - wtx.GetValueOut();
 
+
             for (unsigned int nOut = 0; nOut < wtx.vout.size(); nOut++)
             {
                 const CTxOut& txout = wtx.vout[nOut];
+				CComplexTransaction cct(txout);
+				bool b401k = (cct.Color=="401");
+
                 TransactionRecord sub(hash, nTime);
                 sub.idx = parts.size();
                 sub.involvesWatchAddress = involvesWatchAddress;
@@ -187,6 +189,8 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                     // from a transaction sent back to our own address.
                     continue;
                 }
+
+				if (b401k) continue;
 
                 CTxDestination address;
                 if (ExtractDestination(txout.scriptPubKey, address))

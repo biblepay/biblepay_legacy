@@ -1004,7 +1004,7 @@ static void AcceptConnection(const ListenSocket& hListenSocket) {
     }
 
     // don't accept incoming connections until fully synced
-    if(fMasterNode && !masternodeSync.IsSynced() && !whitelisted) 
+    if(fMasterNode && !masternodeSync.IsSynced() && !whitelisted && fProd) 
 	{
         if (fDebugMaster) LogPrintf("AcceptConnection -- masternode is not synced yet, skipping inbound connection attempt\n");
         CloseSocket(hSocket);
@@ -2955,7 +2955,7 @@ std::string BiblepayHttpPost(int iThreadID, std::string sActionName, std::string
 			}
 			std::string sPost = PrepareHTTPPost(sPage, sDomain, sPayload, mapRequestHeaders);
 			std::string sResponse = GetHTTPContent(addrConnect, sPost, 15);
-			if (fDebugMaster) LogPrintf("\r\n  HTTP_RESPONSE:    %s    \r\n",sResponse.c_str());
+			if (fDebug10) LogPrintf("\r\n  HTTP_RESPONSE:    %s    \r\n",sResponse.c_str());
 			return sResponse;
 	}
     catch (std::exception &e)
