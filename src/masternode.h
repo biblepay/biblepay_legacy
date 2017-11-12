@@ -15,11 +15,11 @@ class CMasternode;
 class CMasternodeBroadcast;
 class CMasternodePing;
 
-static const int MASTERNODE_CHECK_SECONDS               = 4 * 5;
-static const int MASTERNODE_MIN_MNB_SECONDS             = 4 * 5 * 60;
-static const int MASTERNODE_MIN_MNP_SECONDS             = 4 * 10 * 60;
-static const int MASTERNODE_EXPIRATION_SECONDS          = 4 * 65 * 60;
-static const int MASTERNODE_WATCHDOG_MAX_SECONDS        = 4 * 120 * 60;
+static const int MASTERNODE_CHECK_SECONDS               = 8 * 5;
+static const int MASTERNODE_MIN_MNB_SECONDS             = 8 * 5 * 60;
+static const int MASTERNODE_MIN_MNP_SECONDS             = 8 * 10 * 60;
+static const int MASTERNODE_EXPIRATION_SECONDS          = 8 * 65 * 60;
+static const int MASTERNODE_WATCHDOG_MAX_SECONDS        = 8 * 120 * 60;
 static const int MASTERNODE_NEW_START_REQUIRED_SECONDS  = 8 * 180 * 60;
 
 static const int MASTERNODE_POSE_BAN_MAX_SCORE          = 5;

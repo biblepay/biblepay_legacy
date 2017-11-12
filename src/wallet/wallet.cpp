@@ -1936,7 +1936,6 @@ std::string GetCoinColor(CTransaction c)
 }
 
 
-
 CAmount CWallet::GetRetirementBalance() const
 {
 	isminefilter filter = ISMINE_SPENDABLE;

@@ -750,12 +750,7 @@ public:
     CAmount GetImmatureBalance() const;
     CAmount GetWatchOnlyBalance() const;
 	CAmount GetRetirementBalance() const;
-	
-	
 	CAmount Get401Debit(const CTxIn &txin, const isminefilter& filter) const;
-
-
-
     CAmount GetUnconfirmedWatchOnlyBalance() const;
     CAmount GetImmatureWatchOnlyBalance() const;
 
