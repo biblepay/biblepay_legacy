@@ -299,6 +299,8 @@ RPCConsole::RPCConsole(const PlatformStyle *platformStyle, QWidget *parent) :
     // Register RPC timer interface
     rpcTimerInterface = new QtRPCTimerInterface();
     RPCRegisterTimerInterface(rpcTimerInterface);
+	// set OpenSSL version label
+    ui->openSSLVersion->setText(SSLeay_version(SSLEAY_VERSION));
 
     startExecutor();
     setTrafficGraphRange(INITIAL_TRAFFIC_GRAPH_MINS);

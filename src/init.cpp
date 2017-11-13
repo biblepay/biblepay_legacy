@@ -1109,10 +1109,12 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
         throw runtime_error("Invalid Network Chain Parameter");
   	}
 
+	
+	LogPrintf("***************************************** BIBLEPAY  *************************************************** \n");
+
 	LogPrintf("ProdMode: Prod %f",(double)fProd);
 
     CheckGenesisBlock(cblockGenesis,targetGenesisHash,hashWalletMerkleRoot);
-
 
     // also see: InitParameterInteraction()
 
@@ -1367,6 +1369,13 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
 #ifdef ENABLE_WALLET
     LogPrintf("Using BerkeleyDB version %s\n", DbEnv::version(0, 0, 0));
 #endif
+
+
+
+	LogPrintf("BiblePayVersion %s (%s)\n", FormatFullVersion().c_str(), CLIENT_DATE.c_str());
+    LogPrintf("Using OpenSSL version %s\n", SSLeay_version(SSLEAY_VERSION));
+   
+
     if (!fLogTimestamps)
         LogPrintf("Startup time: %s\n", DateTimeStrFormat("%Y-%m-%d %H:%M:%S", GetTime()));
     LogPrintf("Default data directory %s\n", GetDefaultDataDir().string());

@@ -28,7 +28,7 @@
 #include <boost/algorithm/string.hpp> // for trim()
 #include <boost/asio.hpp>
 #include <boost/thread.hpp>
-
+#include <openssl/crypto.h>
 #include <stdint.h>
 #include <univalue.h>
 
@@ -1485,6 +1485,7 @@ UniValue exec(const UniValue& params, bool fHelp)
 		{
 			results.push_back(Pair("walletversion", pwalletMain->GetVersion()));
 			results.push_back(Pair("wallet_fullversion", FormatFullVersion()));
+			results.push_back(Pair("SSL Version", SSLeay_version(SSLEAY_VERSION)));
 		}
     
 	}

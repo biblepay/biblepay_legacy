@@ -2332,10 +2332,14 @@ void static InvalidBlockFound(CBlockIndex *pindex, const CValidationState &state
                 Misbehaving(it->second, nDoS);
         }
     }
-    if (!state.CorruptionPossible()) {
-        pindex->nStatus |= BLOCK_FAILED_VALID;
-        setDirtyBlockIndex.insert(pindex);
-        setBlockIndexCandidates.erase(pindex);
+    if (!state.CorruptionPossible()) 
+	{
+		if (true)
+		{
+			pindex->nStatus |= BLOCK_FAILED_VALID;
+			setDirtyBlockIndex.insert(pindex);
+			setBlockIndexCandidates.erase(pindex);
+		}
         InvalidChainFound(pindex);
     }
 }
@@ -3854,10 +3858,13 @@ bool InvalidateBlock(CValidationState& state, const Consensus::Params& consensus
     AssertLockHeld(cs_main);
 
     // Mark the block itself as invalid.
-    pindex->nStatus |= BLOCK_FAILED_VALID;
-    setDirtyBlockIndex.insert(pindex);
-    setBlockIndexCandidates.erase(pindex);
-
+	if (true)
+	{
+		pindex->nStatus |= BLOCK_FAILED_VALID;
+		setDirtyBlockIndex.insert(pindex);
+		setBlockIndexCandidates.erase(pindex);
+	}
+	
     while (chainActive.Contains(pindex)) {
         CBlockIndex *pindexWalk = chainActive.Tip();
         pindexWalk->nStatus |= BLOCK_FAILED_CHILD;
@@ -4108,10 +4115,10 @@ bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, bool f
 {
 	
     // Check proof of work matches claimed amount
-		// PhaseShiftUK reports that pool server occasionally returns a high-hash, yet we dont want to ban the pool server, Temporary solution: Change DoS level to prevent pool from being banned
+	// PhaseShiftUK reports that pool server occasionally returns a high-hash, yet we dont want to ban the pool server, Temporary solution: Change DoS level to prevent pool from being banned
 
 	if (fCheckPOW && !CheckProofOfWork(block.GetHash(), block.nBits, Params().GetConsensus(), nBlockTime, nPrevBlockTime, nPrevHeight, pindexPrev, false))
-        return state.DoS(1, error("CheckBlockHeader(): proof of work failed"),
+        return state.DoS(30, error("CheckBlockHeader(): proof of work failed"),
 		REJECT_INVALID, "high-hash");
 
     // BiblePay - Check timestamp (reject if > 15 minutes in future).  This is is important since we lower the difficulty after all online nodes cannot solve block in one hour!  
@@ -4133,6 +4140,14 @@ bool CheckBlock(const CBlock& block, CValidationState& state, bool fCheckPOW, bo
     // redundant with the call in AcceptBlockHeader.
     if (!CheckBlockHeader(block, state, fCheckPOW, nBlockTime, nPrevBlockTime, nPrevHeight, pindexPrev))
         return false;
+	
+	/* (Checked above)
+	if (!CheckProofOfWork(block.GetHash(), block.nBits, Params().GetConsensus(), nBlockTime, nPrevBlockTime, nPrevHeight, pindexPrev, false))
+	{
+		LogPrintf("CheckBlock::CheckProofOfWork failed PrevHeight %f, pindexPrev %s ",(double)nPrevHeight,pindexPrev->GetBlockHash()->GetHex().c_str());
+		return false;
+	}
+	*/
 
     // Check the merkle root.
     if (fCheckMerkleRoot) {
@@ -4387,9 +4402,13 @@ static bool AcceptBlock(const CBlock& block, CValidationState& state, const CCha
 
     if ((!CheckBlock(block, state, true, true, block.GetBlockTime(), pindex->pprev ? pindex->pprev->nTime : 0, pindex->pprev ? pindex->pprev->nHeight : 0, pindex->pprev)) || !ContextualCheckBlock(block, state, pindex->pprev)) 
 	{
-        if (state.IsInvalid() && !state.CorruptionPossible()) {
-            pindex->nStatus |= BLOCK_FAILED_VALID;
-            setDirtyBlockIndex.insert(pindex);
+        if (state.IsInvalid() && !state.CorruptionPossible()) 
+		{
+			if (true)
+			{
+				pindex->nStatus |= BLOCK_FAILED_VALID;
+				setDirtyBlockIndex.insert(pindex);
+			}
         }
         return false;
     }
