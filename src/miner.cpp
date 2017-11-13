@@ -769,7 +769,12 @@ recover:
 					{
 						x11_hash = pblock->GetHash();
 						hash = BibleHash(x11_hash, pblock->GetBlockTime(), pindexPrev->nTime, true, pindexPrev->nHeight, NULL, false);
-						if (UintToArith256(hash) <= hashTarget)
+		 	 	 	    CValidationState state;
+	   					if (!CheckBlock(*pblock, state, true, true, pblock->GetBlockTime(), pindexPrev->nTime, pindexPrev->nHeight, pindexPrev))
+						{
+							LogPrintf(" BiblePay Miner: CheckBlock Failed \n");
+						}
+						else if (UintToArith256(hash) <= hashTarget)
 						{
 							// Found a solution
 							nHashCounter += nHashesDone;
