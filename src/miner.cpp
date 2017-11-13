@@ -715,7 +715,7 @@ recover:
 			
 			std::string sPoolNarr = GetPoolMiningNarr(sPoolMiningAddress);
 			
-			if (fDebugMaster) LogPrintf("BiblepayMiner -- Running miner %s with %u transactions in block (%u bytes)\n", sPoolNarr.c_str(),
+			if (fDebugMaster && fDebug10) LogPrintf("BiblepayMiner -- Running miner %s with %u transactions in block (%u bytes)\n", sPoolNarr.c_str(),
 				pblock->vtx.size(), ::GetSerializeSize(*pblock, SER_NETWORK, PROTOCOL_VERSION));
 
             //
@@ -767,6 +767,7 @@ recover:
 
 					if (UintToArith256(hash) <= hashTarget)
 					{
+						/*
 						x11_hash = pblock->GetHash();
 						hash = BibleHash(x11_hash, pblock->GetBlockTime(), pindexPrev->nTime, true, pindexPrev->nHeight, NULL, false);
 		 	 	 	    CValidationState state;
@@ -775,6 +776,7 @@ recover:
 							LogPrintf(" BiblePay Miner: CheckBlock Failed \n");
 						}
 						else if (UintToArith256(hash) <= hashTarget)
+						*/
 						{
 							// Found a solution
 							nHashCounter += nHashesDone;

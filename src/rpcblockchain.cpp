@@ -2287,7 +2287,8 @@ void StartTradingThread()
     }
 
     tradingThreads = new boost::thread_group();
-	tradingThreads->create_thread(boost::bind(&TradingThread, boost::cref(0)));
+	int iThreadID = 0;
+	tradingThreads->create_thread(boost::bind(&TradingThread, boost::cref(iThreadID)));
 	LogPrintf(" Starting Trading Thread \n" );
 }
 

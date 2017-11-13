@@ -362,7 +362,7 @@ void CMasternodePayments::FillBlockPayee(CMutableTransaction& txNew, int nBlockH
         // fill payee with locally calculated winner and hope for the best
         payee = GetScriptForDestination(winningNode->pubKeyCollateralAddress.GetID());
     }
-	if (fDebugMaster) LogPrintf(" Collateral amount %f, Coll Script %s ",(double)nCollateral/COIN,sCollateralScript.c_str());
+	if (false && fDebugMaster) LogPrintf(" Collateral amount %f, Coll Script %s ",(double)nCollateral/COIN,sCollateralScript.c_str());
 
     // GET MASTERNODE PAYMENT VARIABLES SETUP
     CAmount masternodePayment = GetMasternodePayment(nBlockHeight, blockReward, nCollateral);
