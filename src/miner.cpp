@@ -341,8 +341,7 @@ CBlockTemplate* CreateNewBlock(const CChainParams& chainparams, const CScript& s
         pblocktemplate->vTxSigOps[0] = GetLegacySigOpCount(pblock->vtx[0]);
 
         CValidationState state;
-
-        if (!TestBlockValidity(state, chainparams, *pblock, pindexPrev, false, false)) 
+	    if (!TestBlockValidity(state, chainparams, *pblock, pindexPrev, false, false)) 
 		{
 	        //throw std::runtime_error(strprintf("%s: TestBlockValidity failed: %s", __func__, FormatStateMessage(state)));
 			LogPrintf("TestBlockValidity failed while creating new block\r\n");
@@ -768,6 +767,7 @@ recover:
 
 					if (UintToArith256(hash) <= hashTarget)
 					{
+						x11_hash = pblock->GetHash();
 						hash = BibleHash(x11_hash, pblock->GetBlockTime(), pindexPrev->nTime, true, pindexPrev->nHeight, NULL, false);
 						if (UintToArith256(hash) <= hashTarget)
 						{

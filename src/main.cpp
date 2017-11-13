@@ -4492,7 +4492,7 @@ bool TestBlockValidity(CValidationState& state, const CChainParams& chainparams,
     indexDummy.pprev = pindexPrev;
     indexDummy.nHeight = pindexPrev->nHeight + 1;
 
-    // NOTE: CheckBlockHeader is called by CheckBlock
+    // NOTE: CheckBlockHeader is called by CheckBlock 11-12-2017
     if (!ContextualCheckBlockHeader(block, state, pindexPrev))
         return false;
     if (!CheckBlock(block, state, fCheckPOW, fCheckMerkleRoot, block.GetBlockTime(), pindexPrev ? pindexPrev->nTime : 0, pindexPrev ? pindexPrev->nHeight : 0, pindexPrev))
