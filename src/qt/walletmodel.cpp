@@ -296,7 +296,8 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
             ++nAddresses;
 
             CScript scriptPubKey = GetScriptForDestination(CBitcoinAddress(rcp.address.toStdString()).Get());
-            CRecipient recipient = {scriptPubKey, rcp.amount, rcp.fSubtractFeeFromAmount, rcp.fTithe, rcp.fPrayer, rcp.fRepent, FromQStringW(rcp.txtMessage), FromQStringW(rcp.txtRepent), FromQStringW("") };
+            CRecipient recipient = {scriptPubKey, rcp.amount, rcp.fSubtractFeeFromAmount, rcp.fTithe, rcp.fPrayer, rcp.fRepent, 
+				FromQStringW(rcp.txtMessage), FromQStringW(rcp.txtRepent), FromQStringW("") };
 			//If TITHE is Checked, add a recipient here
 
 			std::string sAddress = PubKeyToAddress(scriptPubKey);
@@ -310,7 +311,8 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
 					CAmount aTitheAmount = rcp.amount*.10;
 					const Consensus::Params& consensusParams = Params().GetConsensus();
 					CScript spkFoundation = GetScriptForDestination(CBitcoinAddress(consensusParams.FoundationAddress).Get());
-		            CRecipient recFoundation = {spkFoundation, aTitheAmount, false, true, rcp.fPrayer, rcp.fRepent, FromQStringW(rcp.txtMessage), FromQStringW(rcp.txtRepent) };
+		            CRecipient recFoundation = {spkFoundation, aTitheAmount, false, true, rcp.fPrayer, rcp.fRepent, FromQStringW(rcp.txtMessage), 
+						FromQStringW(rcp.txtRepent), FromQStringW("") };
 					std::string sAddrF = PubKeyToAddress(spkFoundation);
 					setAddress.insert(ToQstring(sAddrF));
             		++nAddresses;

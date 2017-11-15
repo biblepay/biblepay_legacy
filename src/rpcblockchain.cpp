@@ -235,14 +235,12 @@ UniValue blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool tx
 }
 
 
-
 UniValue showblock(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 1)
         throw runtime_error(
             "showblock <index>\n"
             "Returns information about the block at <height>.");
-	//    int nHeight = params[0].get_int();
 	std::string sBlock = params[0].get_str();
 	int nHeight = (int)cdbl(sBlock,0);
     if (nHeight < 0 || nHeight > chainActive.Tip()->nHeight)
@@ -1170,7 +1168,7 @@ UniValue GetTradeHistory()
 			std::string sHash = ExtractXML(sE,"<HASH>","</HASH>");
 			double Total = cdbl(ExtractXML(sE,"<TOTAL>","</TOTAL>"),4);
 			std::string sExecuted=ExtractXML(sE,"<EXECUTED>","</EXECUTED>");
-			uint256 hash = uint256S("0x" + sHash);
+			//uint256 hash = uint256S("0x" + sHash);
 		  	if (!Symbol.empty() && Amount > 0)
 			{
 				std::string sActNarr = (Action == "BUY") ? "BOT" : "SOLD";
@@ -1181,6 +1179,109 @@ UniValue GetTradeHistory()
 		}
 	}
 	return ret;
+}
+
+std::string ExtXML(std::string sXML, std::string sField)
+{
+	std::string sValue = ExtractXML(sXML,"<" + sField + ">","</" + sField + ">");
+	return sValue;
+}
+
+CCommerceObject XMLToObj(std::string XML)
+{
+	CCommerceObject cco("");
+	cco.LockTime = cdbl(ExtXML(XML,"TIME"),0);
+	cco.ID = ExtXML(XML,"ID");
+	cco.URL = ExtXML(XML,"URL");
+	cco.Amount = cdbl(ExtXML(XML,"Amount"),4)/COIN;
+	cco.Details = ExtXML(XML,"DETAILS");
+	cco.Title = ExtXML(XML,"TITLE");
+	cco.Error = ExtXML(XML,"ERROR");
+	return cco;		
+}
+
+std::map<std::string, CCommerceObject> GetProducts()
+{
+	std::map<std::string, CCommerceObject> mapCommerceObjects;
+	std::string out_Error = "";
+	std::string sAddress = DefaultRecAddress("Trading");
+	std::string sRes = SQL("get_products", sAddress, "txid=", out_Error);
+	LogPrintf(" PROD LIST %s",sRes.c_str());
+	std::string sEsc = ExtractXML(sRes,"<PRODUCTS>","</PRODUCTS>");
+	std::vector<std::string> vEscrow = Split(sEsc.c_str(),"<PRODUCT>");
+	for (int i = 0; i < (int)vEscrow.size(); i++)
+	{
+		std::string sE = vEscrow[i];
+		if (!sE.empty())
+		{
+			CCommerceObject ccom = XMLToObj(sE);
+			if (!ccom.ID.empty())
+			{
+				mapCommerceObjects.insert(std::make_pair(ccom.ID, ccom));
+			}
+		}
+	}
+	return mapCommerceObjects;
+}
+
+
+
+
+
+std::string BuyProduct(std::string ProductID, CAmount nAmount)
+{
+	std::string out_Error = "";
+	std::string sAddress = DefaultRecAddress("Trading");
+	std::string sEE = SQL("get_product_escrow_address", sAddress, "address", out_Error);
+	std::string sProductEscrowAddress = ExtractXML(sEE,"<PRODUCT_ESCROW_ADDRESS>","</PRODUCT_ESCROW_ADDRESS>");
+	std::string sDeliveryName = GetArg("-delivery_name", "");
+	std::string sDeliveryAddress = GetArg("-delivery_address", "");
+	std::string sDeliveryAddress2 = GetArg("-delivery_address2", "");
+	std::string sDeliveryCity = GetArg("-delivery_city", "");
+	std::string sDeliveryState = GetArg("-delivery_state", "");
+	std::string sDeliveryZip = GetArg("-delivery_zip", "");
+	std::string sDeliveryPhone = GetArg("-delivery_phone", "");
+	if (sDeliveryName.empty() || sDeliveryAddress.empty() || sDeliveryCity.empty() || sDeliveryState.empty() || sDeliveryZip.empty() || sDeliveryPhone.empty())
+	{
+		 throw runtime_error("Delivery name, address, city, state, zip, and phone must be populated.  Please modify your biblepay.conf file to have delivery_name, delivery_address, delivery_address2, delivery_city, delivery_state, delivery_zip, and delivery_phone populated.");
+	}
+	if (sProductEscrowAddress.empty())
+	{
+		 throw runtime_error("Product Escrow Address was not able to be retrieved from a Sanctuary, please try again later.");
+	}
+
+	// Send Escrow
+	CBitcoinAddress cbAddress(sEE);
+	CWalletTx wtx;
+	std::string sScript="";
+	SendRetirementCoins(cbAddress.Get(), nAmount, false, wtx, sScript);
+	std::string sTXID = wtx.GetHash().GetHex();
+	LogPrintf("\n Sent %f for Escrow %s \n", (double)nAmount,sTXID.c_str());
+    CTransaction tx;
+	uint256 hashBlock;
+	int VOUT = 0;
+	if (GetTransaction(wtx.GetHash(), tx, Params().GetConsensus(), hashBlock, true))
+	{
+		 for (int i=0; i < (int)tx.vout.size(); i++)
+		 {
+ 			 if (tx.vout[i].nValue == nAmount) VOUT = i;
+		 }
+	}
+
+	//
+	std::string sDelComplete = "<NAME>" + sDeliveryName + "</NAME><ADDRESS1>" + sDeliveryAddress + "</ADDRESS1><ADDRESS2>" + sDeliveryAddress2 + "</ADDRESS2><CITY>" 
+		+ sDeliveryCity + "</CITY><STATE>" + sDeliveryState + "</STATE><ZIP>" + sDeliveryZip + "</ZIP><PHONE>" + sDeliveryPhone + "</PHONE>";
+	std::string sProduct = "<PRODUCTID>" + ProductID + "</PRODUCTID><AMOUNT>" + RoundToString(nAmount/COIN,4) + "</AMOUNT><TXID>" + sTXID + "</TXID><VOUT>" 
+		+ RoundToString(VOUT,0) + "</VOUT>";
+	std::string sXML = sDelComplete + sProduct;
+	std::string sRes = SQL("buy_product", sAddress, sXML, out_Error);
+	return sRes;
+}
+
+
+void AddDebugMessage(std::string sMessage)
+{
+	mapDebug.insert(std::make_pair(GetAdjustedTime(), sMessage));
 }
 
 std::string ProcessEscrow()
@@ -1203,6 +1304,7 @@ std::string ProcessEscrow()
 		    CTradeTx trade = GetOrderByHash(hash);
 			// Ensure this matches our Trading Tx before sending escrow, and Escrow has not already been staked
 			LogPrintf(" Orig trade address %s  Orig Trade Amount %f  esc amt %f  ",trade.Address.c_str(),trade.Total, Amount);
+			AddDebugMessage("PREPARING ESCROW FOR " + RoundToString(Amount,2) + " " + Symbol + " FOR SANCTUARY " + EscrowAddress + " OLD ESCTXID " + trade.EscrowTXID);
 			if (trade.Address==sAddress && trade.Total == Amount && trade.EscrowTXID.empty())
 			{
 				if (!Symbol.empty() && !EscrowAddress.empty() && Amount > 0)
@@ -1221,6 +1323,8 @@ std::string ProcessEscrow()
 						// Ensure the Escrow held by market maker holds correct color for each respective leg
 						SendRetirementCoins(address.Get(), nAmount, false, wtx, sScript);
 						std::string TXID = wtx.GetHash().GetHex();
+						std::string sMsg = "Sent " + RoundToString(Amount/COIN,2) + " for escrow on txid " + TXID;
+						AddDebugMessage(sMsg);
 						LogPrintf("\n Sent %f RetirementCoins for Escrow %s \n", (double)Amount,TXID.c_str());
 						trade.EscrowTXID = TXID;
 					    CTransaction tx;
@@ -1833,6 +1937,33 @@ UniValue exec(const UniValue& params, bool fHelp)
 		bool bSig2 = CheckMessageSignature("1", sBadSig);
 		results.push_back(Pair("1_RESULT", bSig1));
 		results.push_back(Pair("1_BAD_RESULT", bSig2));
+	}
+	else if (sItem == "listdebug")
+	{
+		BOOST_FOREACH(const PAIRTYPE(int64_t, std::string)& item, mapDebug)
+	    {
+			std::string sMsg = item.second;
+			int64_t nTime = item.first;
+			results.push_back(Pair(RoundToString(nTime,0), sMsg));
+		}
+
+	}
+	else if (sItem == "listproducts")
+	{
+
+		std::map<std::string, CCommerceObject> mapProducts = GetProducts();
+		BOOST_FOREACH(const PAIRTYPE(std::string, CCommerceObject)& item, mapProducts)
+	    {
+			CCommerceObject oProduct = item.second;
+			UniValue p(UniValue::VOBJ);
+			p.push_back(Pair("Product ID",oProduct.ID));
+			p.push_back(Pair("URL",oProduct.URL));
+			p.push_back(Pair("Price",oProduct.Amount/COIN));
+			p.push_back(Pair("Title",oProduct.Title));
+			p.push_back(Pair("Details",oProduct.Details));
+			results.push_back(Pair(oProduct.ID,p));
+		}
+
 	}
 	else if (sItem == "datalist")
 	{

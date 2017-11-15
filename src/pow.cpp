@@ -13,9 +13,11 @@
 #include "util.h"
 #include "kjv.h"
 #include <math.h>
+#include <openssl/crypto.h>
 
 extern bool LogLimiter(int iMax1000);
 uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight, const CBlockIndex* pindexLast, bool bRequireTxIndex);
+std::string RoundToString(double d, int place);
 
 
 unsigned int static KimotoGravityWell(const CBlockIndex* pindexLast, const Consensus::Params& params) {
@@ -158,16 +160,9 @@ unsigned int static DarkGravityWave(const CBlockIndex* pindexLast, const Consens
     if (nActualTimespan > _nTargetTimespan*2)
         nActualTimespan = _nTargetTimespan*2;
 
-	arith_uint256 bnOld = bnNew;
-   
-
     // Retarget
     bnNew *= nActualTimespan;
     bnNew /= _nTargetTimespan;
-
-	//runtime error - not enough conversion specifiers
-	//if (LogLimiter(1) && false) LogPrintf("DGW: Height %f, NewDiff %08x     nActualTimespan %f    nTargetTimespan %f   Before %s, After %s \r\n",				(double)pindexLast->nHeight, bnNew.GetCompact(),	(double)nActualTimespan,(double)_nTargetTimespan, bnOld.ToString(), bnNew.ToString());
-
 
     if (bnNew > UintToArith256(params.powLimit))
 	{
@@ -297,7 +292,18 @@ bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params&
 	{
 		if (UintToArith256(BibleHash(hash,nBlockTime,nPrevBlockTime,true,nPrevHeight,NULL,false)) > bnTarget)
 		{
+			uint256 uBibleHash = BibleHash(hash,nBlockTime,nPrevBlockTime,true,nPrevHeight,NULL,false);
+			uint256 uTarget = ArithToUint256(bnTarget);
+			// Biblehash forensic RPC command requires : blockhash, blocktime, prevblocktime and prevheight, IE: ëxec biblehash blockhash 12345 12234 100.
+			std::string sForensic = "exec biblehash " + hash.GetHex() + " " + RoundToString(nBlockTime,0) + " " + RoundToString(nPrevBlockTime,0) 
+				+ " " + RoundToString(nPrevHeight,0);
+			//11-14-2017 Add Forensics: Alex873434
 			uint256 h1 = (pindexPrev != NULL) ? pindexPrev->GetBlockHash() : uint256S("0x0");
+			std::string sProd = fProdChain ? "TRUE" : "FALSE";
+			std::string sSSL(SSLeay_version(SSLEAY_VERSION));
+			LogPrintf("CheckProofOfWork(1.0): BlockHash %s, ProdChain %s, SSLVersion %s, BlockTime %f, PrevBlockTime %f, BibleHash %s, TargetHash %s, Forensics %s \n",
+				hash.GetHex().c_str(), sProd.c_str(), sSSL.c_str(),  
+				(double)nBlockTime,(double)nPrevBlockTime, uBibleHash.GetHex().c_str(), uTarget.GetHex().c_str(), sForensic.c_str());
 			return error("CheckProofOfWork(1): BibleHash does not meet POW level, prevheight %f pindexPrev %s ",(double)nPrevHeight,h1.GetHex().c_str());
 		}
 	}

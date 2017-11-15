@@ -14,6 +14,7 @@ class CDarkSendSigner;
 class CDarksendBroadcastTx;
 class CTradeTx;
 class CComplexTransaction;
+class CCommerceObject;
 
 // timeouts
 static const int PRIVATESEND_AUTO_TIMEOUT_MIN       = 5;
@@ -207,6 +208,52 @@ public:
         return a.nDenom == b.nDenom && a.vin.prevout == b.vin.prevout && a.nTime == b.nTime && a.fReady == b.fReady;
     }
 };
+
+
+/** Class to facilitate a Generic BiblePay E-Commerce Object **/
+class CCommerceObject
+{
+public:
+	int64_t LockTime;
+	std::string ID;
+	std::string URL;
+	CAmount Amount;
+	std::string Details;
+	std::string Title;
+	std::string Error;
+
+	CCommerceObject(int64_t xTime, std::string xID, std::string xURL, CAmount xAmount, std::string xDetails, std::string xTitle) :
+		LockTime(xTime),
+		ID(xID),
+        URL(xURL),
+        Amount(xAmount),
+		Details(xDetails),
+		Title(xTitle),
+		Error("")
+    {
+			Error="";
+			boost::to_upper(ID);
+	}
+	CCommerceObject() : LockTime(0), ID(""), URL(""), Amount(0), Details(""), Title(""), Error("")
+	{}
+
+	CCommerceObject(std::string t) : LockTime(0), ID(""), URL(""), Amount(0), Details(""), Title(""), Error("")
+	{
+		Title = t;
+	}
+
+
+	uint256 GetHash()
+	{
+		std::string sKey = ID + Title;
+		std::string sHash = RetrieveMd5(sKey);
+		uint256 hash = uint256S("0x" + sHash);
+		return hash;
+	}
+};
+
+
+
 
 /** Class to facilitate BiblePay Trading Objects **/
 class CTradeTx

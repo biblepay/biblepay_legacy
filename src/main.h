@@ -161,6 +161,8 @@ extern CBlock cblockGenesis;
 extern std::map<std::string, std::string> mvApplicationCache;
 extern std::map<std::string, int64_t> mvApplicationCacheTimestamp;
 
+extern std::map<int64_t, std::string> mapDebug;
+
 extern BlockMap mapBlockIndex;
 extern uint64_t nLastBlockTx;
 extern uint64_t nLastBlockSize;

@@ -1605,9 +1605,12 @@ CAmount CWalletTx::GetAvailableCredit(bool fUseCache, std::string sColor) const
         }
     }
 
-    nAvailableCreditCached = nCredit;
-    fAvailableCreditCached = true;
-    return nCredit;
+	if (fUseCache && sColor.empty())
+	{
+		nAvailableCreditCached = nCredit;
+		fAvailableCreditCached = true;
+	}
+	return nCredit;
 }
 
 CAmount CWalletTx::GetImmatureWatchOnlyCredit(const bool& fUseCache) const

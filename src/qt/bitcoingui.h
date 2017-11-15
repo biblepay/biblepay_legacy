@@ -107,6 +107,9 @@ private:
     QAction *verifyMessageAction;
     QAction *aboutAction;
 	QAction *sinnerAction;
+	QAction *TheLordsPrayerAction;
+	QAction *TheApostlesCreedAction;
+
 	QAction *TheNiceneCreedAction;
 	QAction *ReadBibleAction;
 	QAction *CreateNewsAction;
@@ -114,8 +117,6 @@ private:
 	QAction *OneClickMiningAction;
 	QAction *TheTenCommandmentsAction;
 	QAction *JesusConciseCommandmentsAction;
-	QAction *TheLordsPrayerAction;
-	QAction *TheApostlesCreedAction;
 
     QAction *receiveCoinsAction;
     QAction *receiveCoinsMenuAction;

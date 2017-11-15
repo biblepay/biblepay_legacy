@@ -112,6 +112,8 @@ std::string sOS = "";
 
 std::map<std::string, std::string> mvApplicationCache;
 std::map<std::string, int64_t> mvApplicationCacheTimestamp;
+std::map<int64_t, std::string> mapDebug;
+
 bool fPoolMiningMode = false;
 bool fCommunicatingWithPool = false;
 int iMinerThreadCount = 0;
@@ -4118,7 +4120,7 @@ bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, bool f
 	// PhaseShiftUK reports that pool server occasionally returns a high-hash, yet we dont want to ban the pool server, Temporary solution: Change DoS level to prevent pool from being banned
 
 	if (fCheckPOW && !CheckProofOfWork(block.GetHash(), block.nBits, Params().GetConsensus(), nBlockTime, nPrevBlockTime, nPrevHeight, pindexPrev, false))
-        return state.DoS(30, error("CheckBlockHeader(): proof of work failed"),
+        return state.DoS(5, error("CheckBlockHeader(): proof of work failed"),
 		REJECT_INVALID, "high-hash");
 
     // BiblePay - Check timestamp (reject if > 15 minutes in future).  This is is important since we lower the difficulty after all online nodes cannot solve block in one hour!  
@@ -4129,7 +4131,8 @@ bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, bool f
     return true;
 }
 
-bool CheckBlock(const CBlock& block, CValidationState& state, bool fCheckPOW, bool fCheckMerkleRoot, int64_t nBlockTime, int64_t nPrevBlockTime, int nPrevHeight, CBlockIndex* pindexPrev)
+bool CheckBlock(const CBlock& block, CValidationState& state, bool fCheckPOW, bool fCheckMerkleRoot, int64_t nBlockTime, int64_t nPrevBlockTime,
+	int nPrevHeight, CBlockIndex* pindexPrev)
 {
     // These are checks that are independent of context.
 
@@ -4346,11 +4349,12 @@ static bool AcceptBlockHeader(const CBlockHeader& block, CValidationState& state
         BlockMap::iterator mi = mapBlockIndex.find(block.hashPrevBlock);
         if (mi != mapBlockIndex.end()) pindexAncestor = (*mi).second;
 	    
-        if (!CheckBlockHeader(block, state, true, block.GetBlockTime(), pindexAncestor ? pindexAncestor->nTime : 0, pindexAncestor ? pindexAncestor->nHeight : 0, pindexAncestor))
-            return false;
-
         if (mi == mapBlockIndex.end())
             return state.DoS(10, error("%s: prev block not found", __func__), 0, "bad-prevblk");
+		// Alex873434:Valgrind (Starting without testnet3 folder causes SIG11 process termination because the following line has no mapBlockIndex iterator)- fixing by reordering the call
+		if (!CheckBlockHeader(block, state, true, block.GetBlockTime(), pindexAncestor ? pindexAncestor->nTime : 0, pindexAncestor ? pindexAncestor->nHeight : 0, pindexAncestor))
+            return false;
+
         if (pindexAncestor->nStatus & BLOCK_FAILED_MASK)
             return state.DoS(100, error("%s: prev block invalid", __func__), REJECT_INVALID, "bad-prevblk");
 
