@@ -1843,11 +1843,12 @@ UniValue exec(const UniValue& params, bool fHelp)
 			std::string sExpectedRecipient = sAddress;
 			std::string sExpectedColor = "";
 			CAmount nExpectedAmount = nAmount;
-			std::string sOutboundColor="";
+			std::string sOutboundColor="401";
 			results.push_back(Pair("OutboundColor",sOutboundColor));
 			CComplexTransaction cct("");
 			std::string sScriptComplexOrder = cct.GetScriptForComplexOrder("OCO", sOutboundColor, nExpectedAmount, sExpectedRecipient, sExpectedColor);
 			results.push_back(Pair("XML",sScriptComplexOrder));
+			cct.Color = sOutboundColor;
 			LogPrintf("\nScript for comp order %s ",sScriptComplexOrder.c_str());
 			SendRetirementCoins(address.Get(), nAmount, fSubtractFeeFromAmount, wtx, sScriptComplexOrder);
 			LogPrintf("\nScript for comp order %s ",sScriptComplexOrder.c_str());
