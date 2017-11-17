@@ -16,8 +16,9 @@
 #include <openssl/crypto.h>
 
 extern bool LogLimiter(int iMax1000);
-uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight, const CBlockIndex* pindexLast, bool bRequireTxIndex);
+uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight, const CBlockIndex* pindexLast, bool bRequireTxIndex, bool f7000, bool f8000, bool fTitheBlocksActive);
 std::string RoundToString(double d, int place);
+void GetMiningParams(int nPrevHeight, bool& f7000, bool& f8000, bool& fTitheBlocksActive);
 
 
 unsigned int static KimotoGravityWell(const CBlockIndex* pindexLast, const Consensus::Params& params) {
@@ -278,6 +279,13 @@ bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params&
 	
 	// Check proof of work matches claimed amount
 	bool f7000 = ((!fProdChain && nPrevHeight >= 1) || (fProdChain && nPrevHeight >= 7000)) ? true : false;
+
+	bool f_7000;
+	bool f_8000;
+	bool fTitheBlocksActive;
+	GetMiningParams(nPrevHeight, f_7000, f_8000, fTitheBlocksActive);
+
+
     if (!f7000)
 	{
 		bool bSecurityPass = ((bLoadingBlockIndex && nPrevHeight==0) || nPrevHeight == 0) ? true : false;
@@ -290,10 +298,10 @@ bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params&
 
 	if (f7000)
 	{
-		uint256 uBibleHash = BibleHash(hash, nBlockTime, nPrevBlockTime, true, nPrevHeight, NULL, false);
+		uint256 uBibleHash = BibleHash(hash, nBlockTime, nPrevBlockTime, true, nPrevHeight, NULL, false, f_7000, f_8000, fTitheBlocksActive);
 		if (UintToArith256(uBibleHash) > bnTarget)
 		{
-			uint256 uBibleHash2 = BibleHash(hash, nBlockTime, nPrevBlockTime, true, nPrevHeight, NULL, false);
+			uint256 uBibleHash2 = BibleHash(hash, nBlockTime, nPrevBlockTime, true, nPrevHeight, NULL, false, f_7000, f_8000, fTitheBlocksActive);
 			if (UintToArith256(uBibleHash2) > bnTarget)
 			{
 				uint256 uTarget = ArithToUint256(bnTarget);
@@ -315,7 +323,7 @@ bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params&
 
 	if (f7000 && !bLoadingBlockIndex && bRequireTxIndexLookup)
 	{
-		if	(UintToArith256(BibleHash(hash,nBlockTime,nPrevBlockTime,true,nPrevHeight,pindexPrev,true)) > bnTarget)
+		if	(UintToArith256(BibleHash(hash, nBlockTime, nPrevBlockTime, true, nPrevHeight, pindexPrev, true, f_7000, f_8000, fTitheBlocksActive)) > bnTarget)
 		{
 			uint256 h2 = (pindexPrev != NULL) ? pindexPrev->GetBlockHash() : uint256S("0x0");
 			return error("CheckProofOfWork(2): BibleHash does not meet POW level with TxIndex Lookup, prevheight %f pindexPrev %s ",(double)nPrevHeight,h2.GetHex().c_str());

@@ -47,6 +47,7 @@ bool CheckMessageSignature(std::string sMsg, std::string sSig);
 std::string GetTemplePrivKey();
 std::string SignMessage(std::string sMsg, std::string sPrivateKey);
 extern double CAmountToRetirementDouble(CAmount Amount);
+void GetMiningParams(int nPrevHeight, bool& f7000, bool& f8000, bool& fTitheBlocksActive);
 
 UniValue ContributionReport();
 std::string RoundToString(double d, int place);
@@ -57,7 +58,7 @@ void WriteCache(std::string section, std::string key, std::string value, int64_t
 std::string AddNews(std::string sPrimaryKey, std::string sHTML, double dStorageFee);
 
 UniValue GetDataList(std::string sType, int iMaxAgeInDays, int& iSpecificEntry, std::string& outEntry);
-uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight, const CBlockIndex* pindexLast, bool bRequireTxIndex);
+uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight, const CBlockIndex* pindexLast, bool bRequireTxIndex, bool f7000, bool f8000, bool fTitheBlocksActive);
 void MemorizeBlockChainPrayers(bool fDuringConnectBlock);
 std::string GetVerse(std::string sBook, int iChapter, int iVerse, int iStart, int iEnd);
 std::string GetBookByName(std::string sName);
@@ -202,16 +203,17 @@ UniValue blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool tx
 		std::string sVerses = GetBibleHashVerses(block.GetHash(), block.GetBlockTime(), blockindex->pprev->nTime, blockindex->pprev->nHeight, blockindex->pprev);
 		result.push_back(Pair("verses", sVerses));
     	// Check work against BibleHash
+		bool f7000;
+		bool f8000;
+		bool fTitheBlocksActive;
+		GetMiningParams(blockindex->pprev->nHeight, f7000, f8000, fTitheBlocksActive);
+
 		arith_uint256 hashTarget = arith_uint256().SetCompact(blockindex->nBits);
 		uint256 hashWork = blockindex->GetBlockHash();
-		uint256 bibleHash = BibleHash(hashWork, block.GetBlockTime(), blockindex->pprev->nTime, false, blockindex->pprev->nHeight, blockindex->pprev, false);
-		uint256 bibleHashTx = BibleHash(hashWork, block.GetBlockTime(), blockindex->pprev->nTime, false, blockindex->pprev->nHeight, blockindex->pprev, true);
+		uint256 bibleHash = BibleHash(hashWork, block.GetBlockTime(), blockindex->pprev->nTime, false, blockindex->pprev->nHeight, blockindex->pprev, false, f7000, f8000, fTitheBlocksActive);
 		bool bSatisfiesBibleHash = (UintToArith256(bibleHash) <= hashTarget);
 		result.push_back(Pair("satisfiesbiblehash", bSatisfiesBibleHash ? "true" : "false"));
-		bool bSatisfiesBibleHashTx = (UintToArith256(bibleHashTx) <= hashTarget);
-		result.push_back(Pair("satisfiesbiblehash_tx", bSatisfiesBibleHashTx ? "true" : "false"));
 		result.push_back(Pair("biblehash", bibleHash.GetHex()));
-		result.push_back(Pair("biblehash_tx", bibleHashTx.GetHex()));
 	}
 	else
 	{
@@ -1638,33 +1640,14 @@ UniValue exec(const UniValue& params, bool fHelp)
 		int64_t nPrevBlockTime = (int64_t)cdbl(sPrevBlockTime,0);
 		if (!sBlockHash.empty() && nBlockTime > 0 && nPrevBlockTime > 0 && nHeight >= 0)
 		{
-			uint256 hash = BibleHash(blockHash,nBlockTime,nPrevBlockTime,true,nHeight,NULL,false);
+			bool f7000;
+			bool f8000;
+			bool fTitheBlocksActive;
+			GetMiningParams(nHeight, f7000, f8000, fTitheBlocksActive);
+
+			uint256 hash = BibleHash(blockHash,nBlockTime,nPrevBlockTime,true,nHeight,NULL,false,f7000,f8000,fTitheBlocksActive);
 			results.push_back(Pair("BibleHash",hash.GetHex()));
 		}
-	}
-	else if (sItem == "biblehashtx")
-	{
-		if (params.size() != 5)
-			throw runtime_error("You must specify blockhash, blocktime, prevblocktime and prevheight, IE: run biblehash blockhash 12345 12234 100.");
-		std::string sBlockHash = params[1].get_str();
-		std::string sBlockTime = params[2].get_str();
-		std::string sPrevBlockTime = params[3].get_str();
-		std::string sPrevHeight = params[4].get_str();
-		int64_t nHeight = cdbl(sPrevHeight,0);
-		uint256 blockHash = uint256S("0x" + sBlockHash);
-		uint256 hash = BibleHash(blockHash,(int64_t)cdbl(sBlockTime,0),(int64_t)cdbl(sPrevBlockTime,0),true,nHeight,NULL,false);
-		results.push_back(Pair("BibleHash",hash.GetHex()));
-		
-		if (nHeight > 0 && nHeight <= chainActive.Tip()->nHeight)
-		{
-			CBlockIndex* pindexLast = FindBlockByHeight(nHeight);
-			if (pindexLast)
-			{
-				uint256 hashTx = BibleHash(blockHash,(int64_t)cdbl(sBlockTime,0),pindexLast->nTime,true,pindexLast->nHeight,pindexLast,true);
-				results.push_back(Pair("BibleHashTx",hashTx.GetHex()));
-			}
-		}
-
 	}
 	else if (sItem == "subsidy")
 	{

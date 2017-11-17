@@ -219,7 +219,7 @@ std::string RetrieveMd5(std::string s1)
 
 bool BibleEncrypt(std::vector<unsigned char> vchPlaintext, std::vector<unsigned char> &vchCiphertext)
 {
-	LoadBibleKey("biblepay","eb5a781ea9da2ef36");
+	if (!fKeySetBiblePay) LoadBibleKey("biblepay","eb5a781ea9da2ef36");
     int nLen = vchPlaintext.size();
     int nCLen = nLen + AES_BLOCK_SIZE, nFLen = 0;
     vchCiphertext = std::vector<unsigned char> (nCLen);

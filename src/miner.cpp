@@ -49,7 +49,7 @@ using namespace std;
 
 uint64_t nLastBlockTx = 0;
 uint64_t nLastBlockSize = 0;
-uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight, const CBlockIndex* pindexLast, bool bRequireTxIndex);
+uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight, const CBlockIndex* pindexLast, bool bRequireTxIndex, bool f7000, bool f8000, bool fTitheBlocksActive);
 std::string ExtractXML(std::string XMLdata, std::string key, std::string key_end);
 void WriteCache(std::string section, std::string key, std::string value, int64_t locktime);
 std::string ReadCache(std::string section, std::string key);
@@ -59,6 +59,7 @@ std::string PoolRequest(int iThreadID, std::string sAction, std::string sPoolURL
 double cdbl(std::string s, int place);
 void ClearCache(std::string section);
 std::string TimestampToHRDate(double dtm);
+void GetMiningParams(int nPrevHeight, bool& f7000, bool& f8000, bool& fTitheBlocksActive);
 
 
 class ScoreCompare
@@ -413,8 +414,12 @@ void IncrementExtraNonce(CBlock* pblock, const CBlockIndex* pindexPrev, unsigned
 void UpdatePoolProgress(const CBlock* pblock, std::string sPoolAddress, arith_uint256 hashPoolTarget, CBlockIndex* pindexPrev, std::string sMinerGuid, std::string sWorkID, 
 	int iThreadID, unsigned int iThreadWork, int64_t nThreadStart)
 {
-	// (OLD) uint256 hashSolution = BibleHash(pblock->GetHash(),pblock->GetBlockTime(),pindexPrev->nTime,true,pindexPrev->nHeight,pindexPrev,false);
-	uint256 hashSolution = BibleHash(pblock->GetHash(),pblock->GetBlockTime(),pindexPrev->nTime,true,pindexPrev->nHeight,NULL,false);
+	bool f7000;
+	bool f8000;
+	bool fTitheBlocksActive;
+	GetMiningParams(pindexPrev->nHeight, f7000, f8000, fTitheBlocksActive);
+
+	uint256 hashSolution = BibleHash(pblock->GetHash(),pblock->GetBlockTime(),pindexPrev->nTime,true,pindexPrev->nHeight,NULL,false,f7000,f8000,fTitheBlocksActive);
 
 	if (!sPoolAddress.empty())
 	{
@@ -726,6 +731,11 @@ recover:
 			
 			unsigned int nHashesDone = 0;
 			unsigned int nBibleHashesDone = 0;
+			bool f7000;
+			bool f8000;
+			bool fTitheBlocksActive;
+			GetMiningParams(pindexPrev->nHeight, f7000, f8000, fTitheBlocksActive);
+
 			SetThreadPriority(THREAD_PRIORITY_ABOVE_NORMAL);
      		
 		    while (true)
@@ -737,8 +747,7 @@ recover:
 					// The BibleHash is generated from chained bible verses, a historical tx lookup, one AES encryption operation, and MD5 hash
 					uint256 x11_hash = pblock->GetHash();
 					uint256 hash;
-					hash = BibleHash(x11_hash, pblock->GetBlockTime(), pindexPrev->nTime, true, pindexPrev->nHeight, NULL, false);
-			
+					hash = BibleHash(x11_hash, pblock->GetBlockTime(), pindexPrev->nTime, true, pindexPrev->nHeight, NULL, false, f7000, f8000, fTitheBlocksActive);
 					nBibleHashesDone += 1;
 					nHashesDone += 1;
 					nThreadWork += 1;
@@ -747,7 +756,7 @@ recover:
 					{
 						if (UintToArith256(hash) <= hashTargetPool)
 						{
-							hash = BibleHash(x11_hash, pblock->GetBlockTime(), pindexPrev->nTime, true, pindexPrev->nHeight, NULL, false);
+							hash = BibleHash(x11_hash, pblock->GetBlockTime(), pindexPrev->nTime, true, pindexPrev->nHeight, NULL, false, f7000, f8000, fTitheBlocksActive);
 							if (UintToArith256(hash) <= hashTargetPool)
 							{
 								nHashCounter += nHashesDone;
@@ -767,16 +776,6 @@ recover:
 
 					if (UintToArith256(hash) <= hashTarget)
 					{
-						/*
-						x11_hash = pblock->GetHash();
-						hash = BibleHash(x11_hash, pblock->GetBlockTime(), pindexPrev->nTime, true, pindexPrev->nHeight, NULL, false);
-		 	 	 	    CValidationState state;
-	   					if (!CheckBlock(*pblock, state, true, true, pblock->GetBlockTime(), pindexPrev->nTime, pindexPrev->nHeight, pindexPrev))
-						{
-							LogPrintf(" BiblePay Miner: CheckBlock Failed \n");
-						}
-						else if (UintToArith256(hash) <= hashTarget)
-						*/
 						{
 							// Found a solution
 							nHashCounter += nHashesDone;
@@ -893,14 +892,6 @@ recover:
 void GenerateBiblecoins(bool fGenerate, int nThreads, const CChainParams& chainparams)
 {
     static boost::thread_group* minerThreads = NULL;
-	bool bUseDualKJVBibles = false;
-
-	if (bUseDualKJVBibles)
-	{
-		LogPrintf("Initializing second KJV bible...");
-		initkjv2();
-		LogPrintf("Initialized second KJV bible.");
-	}
 
     if (nThreads < 0)
         nThreads = GetNumCores();
@@ -924,8 +915,6 @@ void GenerateBiblecoins(bool fGenerate, int nThreads, const CChainParams& chainp
 	    minerThreads->create_thread(boost::bind(&BibleMiner, boost::cref(chainparams), boost::cref(i), boost::cref(iBibleNumber)));
 		LogPrintf(" Starting Thread #%f with Bible #%f      ",(double)i,(double)iBibleNumber);
 	    MilliSleep(100); // Avoid races
-		if (bUseDualKJVBibles) iBibleNumber++;
-		if (iBibleNumber==2 || !bUseDualKJVBibles) iBibleNumber=0;
 	}
 	iMinerThreadCount = nThreads;
 

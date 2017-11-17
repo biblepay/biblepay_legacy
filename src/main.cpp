@@ -97,6 +97,7 @@ extern CAmount StringToAmount(std::string sValue);
 extern bool CheckMessageSignature(std::string sMsg, std::string sSig);
 extern std::string GetTemplePrivKey();
 extern std::string SignMessage(std::string sMsg, std::string sPrivateKey);
+extern void GetMiningParams(int nPrevHeight, bool& f7000, bool& f8000, bool& fTitheBlocksActive);
 
 
 CWaitableCriticalSection csBestBlock;
@@ -136,7 +137,7 @@ std::string TimestampToHRDate(double dtm);
 extern std::string RoundToString(double d, int place);
 extern std::string GetArrayElement(std::string s, std::string delim, int iPos);
 double GetDifficultyN(const CBlockIndex* blockindex, double N);
-uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight, const CBlockIndex* pindexLast, bool bRequireTxIndex);
+uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight, const CBlockIndex* pindexLast, bool bRequireTxIndex, bool f7000, bool f8000, bool fTitheBlocksActive);
 
 
 bool fImporting = false;
@@ -1656,7 +1657,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState &state, const C
                  		uint256 uPriorHash = txin.prevout.hash;
 						CAmount nPriorValue = prevout.nValue;
 						CComplexTransaction ccHistory(prevout);
-						bool bOK = (ccHistory.Color == cct.Color);
+						// bool bOK = (ccHistory.Color == cct.Color);
 						LogPrintf(" ** Accept To Memory Pool: PriorHash %s, Prior Value %f, OutColor %s, Prior InColor %s ",
 							uPriorHash.GetHex().c_str(),(double)nPriorValue,ccHistory.Color.c_str(), cct.Color.c_str());
 						// ToDo: Reject tx in memory pool if not colored to colored
@@ -7794,6 +7795,13 @@ std::string DefaultRecAddress(std::string sType)
 	return sDefaultRecAddress;
 }
 
+
+void GetMiningParams(int nPrevHeight, bool& f7000, bool& f8000, bool& fTitheBlocksActive)
+{
+	f7000 = ((!fProd && nPrevHeight > 1) || (fProd && nPrevHeight > 7000)) ? true : false;
+    f8000 = ((fMasternodesEnabled) && ((!fProd && nPrevHeight >= 12200) || (fProd && nPrevHeight >= 27000)));
+    fTitheBlocksActive = ((nPrevHeight+1) < Params().GetConsensus().nMasternodePaymentsStartBlock);
+}
 
 
 CAmount GetRetirementAccountContributionAmount(int nPrevHeight)

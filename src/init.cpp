@@ -96,7 +96,7 @@ CWallet* pwalletMain = NULL;
 
 void initkjv();
 
-uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight, const CBlockIndex* pindexLast, bool bRequireTxIndex);
+uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight, const CBlockIndex* pindexLast, bool bRequireTxIndex, bool f7000, bool f8000, bool fTitheBlocksActive);
 
 std::string RetrieveMd5(std::string s1);
 void MemorizeBlockChainPrayers(bool fDuringConnectBlock);
@@ -422,7 +422,7 @@ void CheckGenesisBlock(CBlock bl1, uint256 targetBlockHash, uint256 targetMerkle
             uint256 thash;
             while (true)
             {
-            	thash = BibleHash(block.GetHash(),block.GetBlockTime(),block.GetBlockTime(),false,0,NULL,false);
+            	thash = BibleHash(block.GetHash(), block.GetBlockTime(), block.GetBlockTime(), false, 0, NULL, false, false, false, true);
 				if (UintToArith256(thash) <= hashTarget && UintToArith256(block.GetHash()) <= hashTarget)  break;
 
                 if ((block.nNonce & 0xFFF) == 0)
@@ -1595,7 +1595,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
 
 	
 	std::string s1 = RetrieveMd5("byte1");
-	std::string 	s2 = RetrieveMd5("BYTE");
+	std::string s2 = RetrieveMd5("BYTE");
 	LogPrintf("s1 %s, s2 %s\r\n", s1.c_str(),	s2.c_str());
 
 
