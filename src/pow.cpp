@@ -290,21 +290,26 @@ bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params&
 
 	if (f7000)
 	{
-		if (UintToArith256(BibleHash(hash,nBlockTime,nPrevBlockTime,true,nPrevHeight,NULL,false)) > bnTarget)
+		uint256 uBibleHash = BibleHash(hash, nBlockTime, nPrevBlockTime, true, nPrevHeight, NULL, false);
+		if (UintToArith256(uBibleHash) > bnTarget)
 		{
-			uint256 uBibleHash = BibleHash(hash,nBlockTime,nPrevBlockTime,true,nPrevHeight,NULL,false);
-			uint256 uTarget = ArithToUint256(bnTarget);
-			// Biblehash forensic RPC command requires : blockhash, blocktime, prevblocktime and prevheight, IE: ëxec biblehash blockhash 12345 12234 100.
-			std::string sForensic = "exec biblehash " + hash.GetHex() + " " + RoundToString(nBlockTime,0) + " " + RoundToString(nPrevBlockTime,0) 
-				+ " " + RoundToString(nPrevHeight,0);
-			//11-14-2017 Add Forensics: Alex873434
-			uint256 h1 = (pindexPrev != NULL) ? pindexPrev->GetBlockHash() : uint256S("0x0");
-			std::string sProd = fProdChain ? "TRUE" : "FALSE";
-			std::string sSSL(SSLeay_version(SSLEAY_VERSION));
-			LogPrintf("CheckProofOfWork(1.0): BlockHash %s, ProdChain %s, SSLVersion %s, BlockTime %f, PrevBlockTime %f, BibleHash %s, TargetHash %s, Forensics %s \n",
-				hash.GetHex().c_str(), sProd.c_str(), sSSL.c_str(),  
-				(double)nBlockTime,(double)nPrevBlockTime, uBibleHash.GetHex().c_str(), uTarget.GetHex().c_str(), sForensic.c_str());
-			return error("CheckProofOfWork(1): BibleHash does not meet POW level, prevheight %f pindexPrev %s ",(double)nPrevHeight,h1.GetHex().c_str());
+			uint256 uBibleHash2 = BibleHash(hash, nBlockTime, nPrevBlockTime, true, nPrevHeight, NULL, false);
+			if (UintToArith256(uBibleHash2) > bnTarget)
+			{
+				uint256 uTarget = ArithToUint256(bnTarget);
+				// Biblehash forensic RPC command requires : blockhash, blocktime, prevblocktime and prevheight, IE: ëxec biblehash blockhash 12345 12234 100.
+				std::string sForensic = "exec biblehash " + hash.GetHex() + " " + RoundToString(nBlockTime,0) + " " + RoundToString(nPrevBlockTime,0) 
+					+ " " + RoundToString(nPrevHeight,0);
+				//11-14-2017 Add Forensics: Alex873434
+				uint256 h1 = (pindexPrev != NULL) ? pindexPrev->GetBlockHash() : uint256S("0x0");
+				std::string sProd = fProdChain ? "TRUE" : "FALSE";
+				std::string sSSL(SSLeay_version(SSLEAY_VERSION));
+				LogPrintf("CheckProofOfWork(1.0): BlockHash %s, ProdChain %s, SSLVersion %s, BlockTime %f, PrevBlockTime %f, BibleHash1 %s, BibleHash2 %s, TargetHash %s, Forensics %s \n",
+					hash.GetHex().c_str(), sProd.c_str(), sSSL.c_str(),  
+					(double)nBlockTime,(double)nPrevBlockTime, uBibleHash.GetHex().c_str(), uBibleHash2.GetHex().c_str(), 
+					uTarget.GetHex().c_str(), sForensic.c_str());
+				return error("CheckProofOfWork(1): BibleHash does not meet POW level, prevheight %f pindexPrev %s ",(double)nPrevHeight,h1.GetHex().c_str());
+				}
 		}
 	}
 

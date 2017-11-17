@@ -1206,7 +1206,6 @@ std::map<std::string, CCommerceObject> GetProducts()
 	std::string out_Error = "";
 	std::string sAddress = DefaultRecAddress("Trading");
 	std::string sRes = SQL("get_products", sAddress, "txid=", out_Error);
-	LogPrintf(" PROD LIST %s",sRes.c_str());
 	std::string sEsc = ExtractXML(sRes,"<PRODUCTS>","</PRODUCTS>");
 	std::vector<std::string> vEscrow = Split(sEsc.c_str(),"<PRODUCT>");
 	for (int i = 0; i < (int)vEscrow.size(); i++)
@@ -1224,13 +1223,28 @@ std::map<std::string, CCommerceObject> GetProducts()
 	return mapCommerceObjects;
 }
 
+CAmount PriceLookupRequest(std::string sProductID)
+{
+	if (sProductID.empty()) return 0;
+	std::map<std::string, CCommerceObject> mapProducts = GetProducts();
+	BOOST_FOREACH(const PAIRTYPE(std::string, CCommerceObject)& item, mapProducts)
+    {
+			CCommerceObject oProduct = item.second;
+			if (oProduct.ID==sProductID) return oProduct.Amount;
+ 	}
+	return 0;
+}
 
 
 
-
-std::string BuyProduct(std::string ProductID, CAmount nAmount)
+std::string BuyProduct(std::string ProductID)
 {
 	std::string out_Error = "";
+	CAmount nAmount = PriceLookupRequest(ProductID);
+	if (nAmount==0)
+	{
+		 throw runtime_error("Sorry, unable to retrieve product price.  Please try again later.");
+	}
 	std::string sAddress = DefaultRecAddress("Trading");
 	std::string sEE = SQL("get_product_escrow_address", sAddress, "address", out_Error);
 	std::string sProductEscrowAddress = ExtractXML(sEE,"<PRODUCT_ESCROW_ADDRESS>","</PRODUCT_ESCROW_ADDRESS>");
@@ -1318,7 +1332,7 @@ std::string ProcessEscrow()
 					if (address.IsValid())	
 					{
 						CAmount nAmount = 0;
-						nAmount = (sColor=="401") ? Amount * (RETIREMENT_COIN) * 100 : Amount * COIN;
+						nAmount = (sColor=="401") ? Amount * (RETIREMENT_COIN) * 1000 : Amount * COIN;
 						CWalletTx wtx;
 						// Ensure the Escrow held by market maker holds correct color for each respective leg
 						SendRetirementCoins(address.Get(), nAmount, false, wtx, sScript);
@@ -1355,6 +1369,9 @@ std::string GetTrades()
 	std::string sRes = SQL("trades", sAddress, "txid=", out_Error);
 	std::string sTrades = ExtractXML(sRes,"<TRADES>","</TRADES>");
 	std::vector<std::string> vTrades = Split(sTrades.c_str(),"<ROW>");
+	LogPrintf("TradeList %s ",sTrades.c_str());
+	AddDebugMessage("Listing " + RoundToString(vTrades.size(),0) + " trades");
+
 	for (int i = 0; i < (int)vTrades.size(); i++)
 	{
 		std::string sTrade = vTrades[i];
@@ -1825,7 +1842,7 @@ UniValue exec(const UniValue& params, bool fHelp)
 	{
 		//sendto401k amount destination
 	    LOCK2(cs_main, pwalletMain->cs_wallet);
-		CAmount nAmount = AmountFromValue(params[1].get_str());
+		CAmount nAmount = AmountFromValue(params[1].get_str())/10;
 	    CBitcoinAddress address(params[2].get_str());
 		if (!address.IsValid())	
 		{
@@ -1966,10 +1983,26 @@ UniValue exec(const UniValue& params, bool fHelp)
 		}
 
 	}
+	else if (sItem == "buyproduct")
+	{
+		if (params.size() != 2)
+			throw runtime_error("You must specify type: IE 'exec buyproduct productid'.");
+		std::string sProductID = params[1].get_str();
+		std::string sResult = BuyProduct(sProductID);
+		std::string sTXID = ExtractXML(sResult,"<TXID>","</TXID>");
+		
+		results.push_back(Pair("TXID", sTXID));
+	}
+	else if (sItem == "orderstatus")
+	{
+		// This command shows the order status of product orders
+
+
+	}
 	else if (sItem == "datalist")
 	{
 		if (params.size() != 2 && params.size() != 3)
-			throw runtime_error("You must specify type: IE 'run datalist PRAYER'.  Optionally you may enter a lookback period in days: IE 'run datalist PRAYER 30'.");
+			throw runtime_error("You must specify type: IE 'exec datalist PRAYER'.  Optionally you may enter a lookback period in days: IE 'run datalist PRAYER 30'.");
 		std::string sType = params[1].get_str();
 		double dDays = 30;
 		if (params.size() == 3)
