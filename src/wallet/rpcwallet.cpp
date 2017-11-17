@@ -411,12 +411,9 @@ static void SendMoney(const CTxDestination &address, CAmount nValue, bool fSubtr
 }
 
 
-static void SendRetirementCoins(const CTxDestination &address, CAmount nValue, bool fSubtractFeeFromAmount, CWalletTx& wtxNew, std::string sScriptComplexOrder)
+static void SendColoredEscrow(const CTxDestination &address, CAmount nValue, bool fSubtractFeeFromAmount, CWalletTx& wtxNew, std::string sScriptComplexOrder)
 {
 	CComplexTransaction cct1(sScriptComplexOrder);
-	//AvailableCoinsType nACT_TYPE = (cct1.Color=="401") ? ONLY_RETIREMENT_COINS : ALL_COINS;
-	//LogPrintf(" SENDRETIREMENT color %s  COIN TYPE %f  only_retirement %f ", cct1.Color.c_str(), (double)nACT_TYPE,(double)ONLY_RETIREMENT_COINS);
-
 	CAmount curBalance = 0;
 	curBalance = (cct1.Color=="401") ? pwalletMain->GetRetirementBalance() : pwalletMain->GetBalance();
     // Check amount
@@ -424,7 +421,6 @@ static void SendRetirementCoins(const CTxDestination &address, CAmount nValue, b
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid amount");
     if (nValue > curBalance)
         throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "Insufficient funds");
-
     // Parse Biblepay address
     CScript scriptPubKey = GetScriptForDestination(address);
     // Create and send the transaction
