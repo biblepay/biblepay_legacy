@@ -221,6 +221,11 @@ public:
 	std::string Details;
 	std::string Title;
 	std::string Error;
+	std::string TXID;
+	std::string Status1;
+	std::string Status2;
+	std::string Status3;
+	std::string Added;
 
 	CCommerceObject(int64_t xTime, std::string xID, std::string xURL, CAmount xAmount, std::string xDetails, std::string xTitle) :
 		LockTime(xTime),

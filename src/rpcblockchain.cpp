@@ -1198,8 +1198,13 @@ CCommerceObject XMLToObj(std::string XML)
 	CCommerceObject cco("");
 	cco.LockTime = cdbl(ExtXML(XML,"TIME"),0);
 	cco.ID = ExtXML(XML,"ID");
+	cco.TXID = ExtXML(XML,"TXID");
+	cco.Status1 = ExtXML(XML,"STATUS1");
+	cco.Status2 = ExtXML(XML,"STATUS2");
+	cco.Status3 = ExtXML(XML,"STATUS3");
+	cco.Added = ExtXML(XML,"Added");
 	cco.URL = ExtXML(XML,"URL");
-	cco.Amount = cdbl(ExtXML(XML,"Amount"),4) * COIN;
+	cco.Amount = cdbl(ExtXML(XML,"AMOUNT"),4) * COIN;
 	cco.Details = ExtXML(XML,"DETAILS");
 	cco.Title = ExtXML(XML,"TITLE");
 	cco.Error = ExtXML(XML,"ERROR");
@@ -1214,6 +1219,30 @@ std::map<std::string, CCommerceObject> GetProducts()
 	std::string sRes = SQL("get_products", sAddress, "txid=", out_Error);
 	std::string sEsc = ExtractXML(sRes,"<PRODUCTS>","</PRODUCTS>");
 	std::vector<std::string> vEscrow = Split(sEsc.c_str(),"<PRODUCT>");
+	for (int i = 0; i < (int)vEscrow.size(); i++)
+	{
+		std::string sE = vEscrow[i];
+		if (!sE.empty())
+		{
+			CCommerceObject ccom = XMLToObj(sE);
+			if (!ccom.ID.empty())
+			{
+				mapCommerceObjects.insert(std::make_pair(ccom.ID, ccom));
+			}
+		}
+	}
+	return mapCommerceObjects;
+}
+
+
+std::map<std::string, CCommerceObject> GetOrderStatus()
+{
+	std::map<std::string, CCommerceObject> mapCommerceObjects;
+	std::string out_Error = "";
+	std::string sAddress = DefaultRecAddress("Trading");
+	std::string sRes = SQL("order_status", sAddress, "txid=", out_Error);
+	std::string sEsc = ExtractXML(sRes,"<ORDERSTATUS>","</ORDERSTATUS>");
+	std::vector<std::string> vEscrow = Split(sEsc.c_str(),"<STATUS>");
 	for (int i = 0; i < (int)vEscrow.size(); i++)
 	{
 		std::string sE = vEscrow[i];
@@ -1268,6 +1297,8 @@ std::string BuyProduct(std::string ProductID, bool bDryRun, CAmount nMaxPrice)
 	{
 		 throw runtime_error("Sorry, unable to retrieve product price.  Please try again later.");
 	}
+	ReadConfigFile(mapArgs, mapMultiArgs);
+  
 	std::string sAddress = DefaultRecAddress("Trading");
 	std::string sEE = SQL("get_product_escrow_address", sAddress, "address", out_Error);
 	std::string sProductEscrowAddress = ExtractXML(sEE,"<PRODUCT_ESCROW_ADDRESS>","</PRODUCT_ESCROW_ADDRESS>");
@@ -1305,18 +1336,24 @@ std::string BuyProduct(std::string ProductID, bool bDryRun, CAmount nMaxPrice)
 
 	//
 	std::string sDryRun = bDryRun ? "DRY" : "FALSE";
-	std::string sDelComplete = "<NAME>" + sDeliveryName + "</NAME><DRYRUN>" + sDryRun + "</DRYRUN><ADDRESS1>" + sDeliveryAddress + "</ADDRESS1><ADDRESS2>" + sDeliveryAddress2 + "</ADDRESS2><CITY>" 
-		+ sDeliveryCity + "</CITY><STATE>" + sDeliveryState + "</STATE><ZIP>" + sDeliveryZip + "</ZIP><PHONE>" + sDeliveryPhone + "</PHONE>";
+	std::string sDelComplete = "<NAME>" + sDeliveryName + "</NAME><DRYRUN>" 
+		+ sDryRun + "</DRYRUN><ADDRESS1>" + sDeliveryAddress + "</ADDRESS1><ADDRESS2>" 
+		+ sDeliveryAddress2 + "</ADDRESS2><CITY>" 
+		+ sDeliveryCity + "</CITY><STATE>" + sDeliveryState + "</STATE><ZIP>" 
+		+ sDeliveryZip + "</ZIP><PHONE>" + sDeliveryPhone + "</PHONE>";
 	std::string sProduct = "<PRODUCTID>" + ProductID + "</PRODUCTID><AMOUNT>" + RoundToString(nAmount/COIN,4) + "</AMOUNT><TXID>" + sTXID + "</TXID><VOUT>" 
 		+ RoundToString(VOUT,0) + "</VOUT>";
 	std::string sXML = sDelComplete + sProduct;
-	std::string sRes = SQL("buy_product", sAddress, sXML, out_Error);
-	std::string sError = ExtractXML(sRes,"<ERROR>","</ERROR>");
-	if (sError.empty())
+	std::string sReply = SQL("buy_product", sAddress, sXML, out_Error);
+	std::string sError = ExtractXML(sReply,"<ERR>","</ERR>");
+	
+	LogPrintf("  ERROR %s BUY PRODUCT %s \n",sError.c_str(),sReply.c_str());
+	
+	if (!sError.empty())
 	{
 		throw runtime_error(sError);
 	}
-	return sRes;
+	return sReply;
 }
 
 
@@ -2001,14 +2038,47 @@ UniValue exec(const UniValue& params, bool fHelp)
 		if (params.size() != 2)
 			throw runtime_error("You must specify type: IE 'exec buyproduct productid'.");
 		std::string sProductID = params[1].get_str();
+		// First, a dry run to ensure no errors exist, like Product does not exist, address validation failed, address incomplete in config file, wallet balance too low, etc.
 		std::string sResult = BuyProduct(sProductID, true, 1*COIN);
+		std::string sStatus = ExtractXML(sResult,"<STATUS>","</STATUS>");
+	
+		if (sStatus=="SUCCESS")
+		{
+			// Dry run succeeded.  Now buy the product for real:
+			sResult = BuyProduct(sProductID, false, 0);
+			sStatus = ExtractXML(sResult,"<STATUS>","</STATUS>");
+		}
+		else
+		{
+			results.push_back(Pair("Status", "Fail"));
+		}
 		std::string sTXID = ExtractXML(sResult,"<TXID>","</TXID>");
-		
+		if (sStatus=="SUCCESS")	results.push_back(Pair("OrderID", sTXID));
+	
+		std::string sOrderID = ExtractXML(sResult,"<ORDERID>","</ORDERID>");
 		results.push_back(Pair("TXID", sTXID));
+		results.push_back(Pair("Status",sStatus));
 	}
 	else if (sItem == "orderstatus")
 	{
 		// This command shows the order status of product orders
+		std::map<std::string, CCommerceObject> mapProducts = GetOrderStatus();
+		BOOST_FOREACH(const PAIRTYPE(std::string, CCommerceObject)& item, mapProducts)
+	    {
+			CCommerceObject oProduct = item.second;
+			UniValue p(UniValue::VOBJ);
+			p.push_back(Pair("Product ID",oProduct.ID));
+			p.push_back(Pair("Price",oProduct.Amount/COIN));
+			p.push_back(Pair("Added", oProduct.Added));
+
+			p.push_back(Pair("Title",oProduct.Title));
+			p.push_back(Pair("Status1",oProduct.Status1));
+			p.push_back(Pair("Status2",oProduct.Status2));
+			p.push_back(Pair("Status3",oProduct.Status3));
+			
+			p.push_back(Pair("Details",oProduct.Details));
+			results.push_back(Pair(oProduct.ID,p));
+		}
 
 
 	}

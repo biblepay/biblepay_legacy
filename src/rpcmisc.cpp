@@ -30,6 +30,7 @@
 #include <univalue.h>
 
 using namespace std;
+double CAmountToRetirementDouble(CAmount Amount);
 
 /**
  * @note Do not add or change anything in the information returned by this
@@ -88,13 +89,15 @@ UniValue getinfo(const UniValue& params, bool fHelp)
     obj.push_back(Pair("version", CLIENT_VERSION));
     obj.push_back(Pair("protocolversion", PROTOCOL_VERSION));
 #ifdef ENABLE_WALLET
-    if (pwalletMain) {
-        obj.push_back(Pair("walletversion", pwalletMain->GetVersion()));
+    if (pwalletMain) 
+	{
+		obj.push_back(Pair("walletversion", pwalletMain->GetVersion()));
 		obj.push_back(Pair("wallet_fullversion", FormatFullVersion()));
-        obj.push_back(Pair("balance",       ValueFromAmount(pwalletMain->GetBalance())));
+        obj.push_back(Pair("balance", ValueFromAmount(pwalletMain->GetBalance())));
         if(!fLiteMode)
-            obj.push_back(Pair("privatesend_balance",       ValueFromAmount(pwalletMain->GetAnonymizedBalance())));
-    }
+            obj.push_back(Pair("privatesend_balance", ValueFromAmount(pwalletMain->GetAnonymizedBalance())));
+		obj.push_back(Pair("retirement_balance", CAmountToRetirementDouble(pwalletMain->GetRetirementBalance())));
+	}
 #endif
     obj.push_back(Pair("blocks",        (int)chainActive.Height()));
     obj.push_back(Pair("timeoffset",    GetTimeOffset()));
