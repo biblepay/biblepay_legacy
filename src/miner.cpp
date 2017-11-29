@@ -88,7 +88,7 @@ int64_t UpdateTime(CBlockHeader* pblock, const Consensus::Params& consensusParam
     return nNewTime - nOldTime;
 }
 
-CBlockTemplate* CreateNewBlock(const CChainParams& chainparams, const CScript& scriptPubKeyIn, std::string sPoolMiningPublicKey)
+CBlockTemplate* CreateNewBlock(const CChainParams& chainparams, const CScript& scriptPubKeyIn, std::string sPoolMiningPublicKey, std::string sMinerGuid)
 {
     // Create new block
     auto_ptr<CBlockTemplate> pblocktemplate(new CBlockTemplate());
@@ -320,6 +320,10 @@ CBlockTemplate* CreateNewBlock(const CChainParams& chainparams, const CScript& s
 		// Add BiblePay version to the subsidy tx message
 		std::string sVersion = FormatFullVersion();
 		txNew.vout[0].sTxOutMessage += "<VER>" + sVersion + "</VER>";
+		if (!sMinerGuid.empty())
+		{
+			txNew.vout[0].sTxOutMessage += "<MINERGUID>" + sMinerGuid + "</MINERGUID>";
+		}
 		
         // Update coinbase transaction with additional info about masternode and governance payments,
         // get some info back to pass to getblocktemplate
@@ -708,7 +712,7 @@ recover:
             CBlockIndex* pindexPrev = chainActive.Tip();
             if(!pindexPrev) break;
 		
-		    auto_ptr<CBlockTemplate> pblocktemplate(CreateNewBlock(chainparams, coinbaseScript->reserveScript, sPoolMiningAddress));
+		    auto_ptr<CBlockTemplate> pblocktemplate(CreateNewBlock(chainparams, coinbaseScript->reserveScript, sPoolMiningAddress, sMinerGuid));
             if (!pblocktemplate.get())
             {
                 LogPrintf("BiblepayMiner -- Keypool ran out, please call keypoolrefill before restarting the mining thread\n");

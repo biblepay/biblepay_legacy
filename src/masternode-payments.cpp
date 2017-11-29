@@ -627,7 +627,7 @@ void CMasternodeBlockPayees::AddPayee(const CMasternodePaymentVote& vote)
 	// Verify collateral
 
 	CAmount nCollateral = GetSanctuaryCollateral(vote.vinMasternode);
-	LogPrintf(" Sanctuary AddPayee VIN %s collateral %f txid %s %f\n", vote.vinMasternode.prevout.ToStringShort(), 
+	if (fDebugMaster) LogPrintf(" Sanctuary AddPayee VIN %s collateral %f txid %s %f\n", vote.vinMasternode.prevout.ToStringShort(), 
 		nCollateral, vote.vinMasternode.prevout.hash.GetHex().c_str(), vote.vinMasternode.prevout.n);
       
     vecPayees.push_back(payeeNew);
@@ -780,7 +780,6 @@ CAmount CMasternodeBlockPayees::GetTxSanctuaryCollateral(const CTransaction& txN
 		    if (payee.GetPayee() == txout.scriptPubKey) 
 			{
 				CAmount caCollateral = GetSanctuaryCollateral(payee.GetVin());
-				LogPrintf(" collateral 10262017 %f ",caCollateral);
 				return caCollateral;
             }
         }

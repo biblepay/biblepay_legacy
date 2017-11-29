@@ -153,8 +153,9 @@ private:
 
         LogPrintf("Loaded info from %s  %dms\n", strFilename, GetTimeMillis() - nStart);
         LogPrintf("     %s\n", objToLoad.ToString());
-        if(!fDryRun) {
-            LogPrintf("%s: Cleaning....\n", __func__);
+        if(!fDryRun) 
+		{
+            if (fDebugMaster) LogPrintf("%s: Cleaning....\n", __func__);
             objToLoad.CheckAndRemove();
             LogPrintf("     %s\n", objToLoad.ToString());
         }

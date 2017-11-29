@@ -94,9 +94,7 @@ public:
 		      
 	    vSeeds.push_back(CDNSSeedData("biblepay.org", "dnsseed.biblepay.org"));
         vSeeds.push_back(CDNSSeedData("biblepay.org", "node.biblepay.org"));
-        vSeeds.push_back(CDNSSeedData("masternode.io", "dnsseed.masternode.io"));
-        vSeeds.push_back(CDNSSeedData("biblepaypay.io", "dnsseed.biblepaypay.io"));
-
+     
         // Biblepay addresses starts with 'B'
         base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,25);
         // Biblepay script addresses starts with '7'
@@ -128,10 +126,11 @@ public:
             boost::assign::map_list_of
             (   7, uint256S("0x00022b1be28b1deb9a51d4d69f3fa393f4ea36621039b6313a6c0796546621de"))
 			( 120, uint256S("0x00002fc6c9e4889a8d1a9bd5919a6bd4a4b09091e55049480509da14571e5653"))
-			(6999, uint256S("0x000000dfbcdec4e6b0ab899f04d7ce8e4d8bc8a725a47169b626acd207ccea8d")),
-            0, // * UNIX timestamp of last checkpoint block
-            1, // * total number of transactions between genesis and last checkpoint
-               //   (the tx=... number in the SetBestChain debug.log lines)
+			(6999, uint256S("0x000000dfbcdec4e6b0ab899f04d7ce8e4d8bc8a725a47169b626acd207ccea8d"))
+			(18900,uint256S("0x94a1ff5e84a31219d5472536215f5a77b00cfd61f3fb99d0e9d3ab392f2ed2a6")),
+            0,     // * UNIX timestamp of last checkpoint block
+            31226, // * total number of transactions between genesis and last checkpoint
+                   //   (the tx=... number in the SetBestChain debug.log lines)
             100        // * estimated number of transactions per day after checkpoint
         };
 		
@@ -226,11 +225,11 @@ public:
 
         checkpointData = (CCheckpointData) {
             boost::assign::map_list_of
-            (    0, uint256S("0x"))
-            ( -1, uint256S("0x")),
-
-            1483076495, // * UNIX timestamp of last checkpoint block
-            168590,     // * total number of transactions between genesis and last checkpoint
+            (    1, uint256S("0x18b37b60b422ea27d57ceea9dd794b5f74c561565ecc03e85a22ecdf74cbb33a"))
+            ( 25000, uint256S("0xa54146e7421afcea13626f59ceebe81aa8885edf25043fc642104333f18a7f50"))
+			( 54070, uint256S("0xc10e114f66c6ab29b0b6296e0c86dec482dfded0deb66ff678775fb99e68828e")),
+            1511964848, // * UNIX timestamp of last checkpoint block
+            54664,     // * total number of transactions between genesis and last checkpoint
                         //   (the tx=... number in the SetBestChain debug.log lines)
             500         // * estimated number of transactions per day after checkpoint
         };

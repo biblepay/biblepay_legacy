@@ -947,7 +947,8 @@ bool TestLockPointValidity(const LockPoints* lp)
 bool InstantiateOneClickMiningEntries()
 {
 	WriteKey("addnode","node.biblepay.org");
-	WriteKey("addnode","biblepay.inspect.network");
+	WriteKey("addnode","biblepay-explorer.org");
+	WriteKey("addnode","vultr4.biblepay.org");
 	int iCores = GetNumCores();
 	WriteKey("genproclimit", RoundToString(iCores * 1,0));
 	WriteKey("poolport","80");
@@ -5817,7 +5818,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
         CAddress addrFrom;
         uint64_t nNonce = 1;
         vRecv >> pfrom->nVersion >> pfrom->nServices >> nTime >> addrMe;
-        if (pfrom->nVersion < MIN_PEER_PROTO_VERSION)
+        if ((fProd && pfrom->nVersion < MIN_PEER_PROTO_VERSION) || (!fProd && pfrom->nVersion < MIN_PEER_TESTNET_PROTO_VERSION))
         {
             // disconnect from peers older than this proto version
             if (fDebugMaster) LogPrintf("peer=%d using obsolete version %i; disconnecting\n", pfrom->id, pfrom->nVersion);

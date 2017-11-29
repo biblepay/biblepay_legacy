@@ -48,6 +48,7 @@ std::string GetTemplePrivKey();
 std::string SignMessage(std::string sMsg, std::string sPrivateKey);
 extern double CAmountToRetirementDouble(CAmount Amount);
 void GetMiningParams(int nPrevHeight, bool& f7000, bool& f8000, bool& fTitheBlocksActive);
+std::string strReplace(std::string& str, const std::string& oldStr, const std::string& newStr);
 
 UniValue ContributionReport();
 std::string RoundToString(double d, int place);
@@ -1305,14 +1306,39 @@ std::string BuyProduct(std::string ProductID, bool bDryRun, CAmount nMaxPrice)
 	std::string sDeliveryName = GetArg("-delivery_name", "");
 	std::string sDeliveryAddress = GetArg("-delivery_address", "");
 	std::string sDeliveryAddress2 = GetArg("-delivery_address2", "");
+	sDeliveryAddress = strReplace(sDeliveryAddress,"#","");
+	sDeliveryAddress2 = strReplace(sDeliveryAddress,"#","");
+
+          
 	std::string sDeliveryCity = GetArg("-delivery_city", "");
 	std::string sDeliveryState = GetArg("-delivery_state", "");
 	std::string sDeliveryZip = GetArg("-delivery_zip", "");
 	std::string sDeliveryPhone = GetArg("-delivery_phone", "");
-	if (sDeliveryName.empty() || sDeliveryAddress.empty() || sDeliveryCity.empty() || sDeliveryState.empty() || sDeliveryZip.empty() || sDeliveryPhone.empty())
+	if (sDeliveryName.empty())
 	{
-		 throw runtime_error("Delivery name, address, city, state, zip, and phone must be populated.  Please modify your biblepay.conf file to have: delivery_name, delivery_address, delivery_address2 [OPTIONAL], delivery_city, delivery_state, delivery_zip, and delivery_phone populated.");
+		 throw runtime_error("Delivery Name Empty (Required by AWS): Delivery name, address, city, state, zip, and phone must be populated.  Please modify your biblepay.conf file to have: delivery_name, delivery_address, delivery_address2 [OPTIONAL], delivery_city, delivery_state, delivery_zip, and delivery_phone populated.");
 	}
+	else if (sDeliveryAddress.empty())
+	{
+		 throw runtime_error("Delivery Address Empty: Delivery name, address, city, state, zip, and phone must be populated.  Please modify your biblepay.conf file to have: delivery_name, delivery_address, delivery_address2 [OPTIONAL], delivery_city, delivery_state, delivery_zip, and delivery_phone populated.");
+	}
+	else if (sDeliveryCity.empty())
+	{
+		 throw runtime_error("Delivery City Empty: Delivery name, address, city, state, zip, and phone must be populated.  Please modify your biblepay.conf file to have: delivery_name, delivery_address, delivery_address2 [OPTIONAL], delivery_city, delivery_state, delivery_zip, and delivery_phone populated.");
+	}
+	else if (sDeliveryState.empty())
+	{
+		 throw runtime_error("Delivery State Empty: Delivery name, address, city, state, zip, and phone must be populated.  Please modify your biblepay.conf file to have: delivery_name, delivery_address, delivery_address2 [OPTIONAL], delivery_city, delivery_state, delivery_zip, and delivery_phone populated.");
+	}
+	else if (sDeliveryZip.empty())
+	{
+		 throw runtime_error("Delivery Zip Empty: Delivery name, address, city, state, zip, and phone must be populated.  Please modify your biblepay.conf file to have: delivery_name, delivery_address, delivery_address2 [OPTIONAL], delivery_city, delivery_state, delivery_zip, and delivery_phone populated.");
+	}
+	else if (sDeliveryPhone.empty())
+	{
+		 throw runtime_error("Delivery Phone Empty (Required by AWS): Delivery name, address, city, state, zip, and phone must be populated.  Please modify your biblepay.conf file to have: delivery_name, delivery_address, delivery_address2 [OPTIONAL], delivery_city, delivery_state, delivery_zip, and delivery_phone populated.");
+	}
+
 	if (sProductEscrowAddress.empty())
 	{
 		 throw runtime_error("Product Escrow Address was not able to be retrieved from a Sanctuary, please try again later.");
