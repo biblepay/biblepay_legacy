@@ -94,7 +94,8 @@ public:
 		      
 	    vSeeds.push_back(CDNSSeedData("biblepay.org", "dnsseed.biblepay.org"));
         vSeeds.push_back(CDNSSeedData("biblepay.org", "node.biblepay.org"));
-     
+		vSeeds.push_back(CDNSSeedData("biblepay.org", "dnsseed.biblepay-explorer.org"));
+
         // Biblepay addresses starts with 'B'
         base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,25);
         // Biblepay script addresses starts with '7'

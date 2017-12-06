@@ -604,7 +604,7 @@ static void TxInErrorToJSON(const CTxIn& txin, UniValue& vErrorsRet, const std::
 
 UniValue signrawtransaction(const UniValue& params, bool fHelp)
 {
-    if (fHelp || params.size() < 1 || params.size() > 4)
+    if (fHelp || params.size() < 1 || params.size() > 6)
         throw runtime_error(
             "signrawtransaction \"hexstring\" ( [{\"txid\":\"id\",\"vout\":n,\"scriptPubKey\":\"hex\",\"redeemScript\":\"hex\"},...] [\"privatekey1\",...] sighashtype )\n"
             "\nSign inputs for raw transaction (serialized, hex-encoded).\n"
@@ -668,6 +668,12 @@ UniValue signrawtransaction(const UniValue& params, bool fHelp)
     LOCK(cs_main);
 #endif
     RPCTypeCheck(params, boost::assign::list_of(UniValue::VSTR)(UniValue::VARR)(UniValue::VARR)(UniValue::VSTR), true);
+
+	// 12-6-2017: If Disabled due to security constraints, throw an error
+
+	std::string sSignDisabled = GetArg("-signrawtransaction_disabled", "");
+	if (sSignDisabled=="true") throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "Signing raw transaction disabled.");
+    
 
     vector<unsigned char> txData(ParseHexV(params[0], "argument 1"));
     CDataStream ssData(txData, SER_NETWORK, PROTOCOL_VERSION);
@@ -886,7 +892,9 @@ UniValue sendrawtransaction(const UniValue& params, bool fHelp)
 
     LOCK(cs_main);
     RPCTypeCheck(params, boost::assign::list_of(UniValue::VSTR)(UniValue::VBOOL)(UniValue::VBOOL));
-
+	std::string sSendDisabled = GetArg("-sendrawtransaction_disabled", "");
+	if (sSendDisabled=="true") throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "Sending raw transaction disabled.");
+    
     // parse hex string from parameter
     CTransaction tx;
     if (!DecodeHexTx(tx, params[0].get_str()))

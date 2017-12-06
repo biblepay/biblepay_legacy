@@ -1612,7 +1612,9 @@ void ThreadOpenAddedConnections()
         vAddedNodes = mapMultiArgs["-addnode"];
 		// dd Seed Nodes
 		AddSeedNode("node.biblepay.org"); // Volunteers welcome to run external nodes and we will add during future releases
-		AddSeedNode("99.198.174.212"); //PlainKoin
+		AddSeedNode("99.198.174.212");    //PlainKoin
+		AddSeedNode("dnsseed.biblepay-explorer.org");  // Alex
+		if (!fProd) AddSeedNode("test.dnsseed.biblepay-explorer.org"); // Alex (TESTNET)
     }
 
     if (HaveNameProxy()) {

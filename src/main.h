@@ -194,6 +194,7 @@ extern std::string strTemplePubKey;
 
 extern int64_t nHPSTimerStart;
 extern int64_t nHashCounter;
+
 extern int64_t nLastTradingActivity;
 extern int64_t nBibleHashCounter;
 extern int64_t nBibleMinerPulse;

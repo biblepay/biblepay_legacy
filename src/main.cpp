@@ -949,6 +949,7 @@ bool InstantiateOneClickMiningEntries()
 	WriteKey("addnode","node.biblepay.org");
 	WriteKey("addnode","biblepay-explorer.org");
 	WriteKey("addnode","vultr4.biblepay.org");
+	WriteKey("addnode","dnsseed.biblepay-explorer.org");
 	int iCores = GetNumCores();
 	WriteKey("genproclimit", RoundToString(iCores * 1,0));
 	WriteKey("poolport","80");

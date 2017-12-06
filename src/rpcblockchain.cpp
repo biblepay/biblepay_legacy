@@ -1948,8 +1948,12 @@ UniValue exec(const UniValue& params, bool fHelp)
 			results.push_back(Pair("txid",wtx.GetHash().GetHex()));
 		}
 	}
-	else if (sItem == "createescrowtransaction")
+	else if (sItem == "deprecated_createescrowtransaction")
 	{
+
+			results.push_back(Pair("deprecated","Please use createrawtransaction."));
+			/*
+	
 		    LOCK(cs_main);
 			std::string sXML = params[1].get_str();
 			CMutableTransaction rawTx;
@@ -2004,6 +2008,10 @@ UniValue exec(const UniValue& params, bool fHelp)
 			}
 		}
 		return EncodeHexTx(rawTx);
+		*/
+
+
+
     }
 	else if (sItem == "getretirementbalance" || sItem == "retirementbalance")
 	{
