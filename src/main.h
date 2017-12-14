@@ -58,6 +58,11 @@ static const bool DEFAULT_WHITELISTFORCERELAY = true;
  */
 static const unsigned int DEFAULT_MIN_RELAY_TX_FEE = 10000; // was 1000
 static const unsigned int TITHE_MODULUS = 10; // Number of blocks that pass between charitable tithe contributions
+static const int F8000_CUTOVER_HEIGHT = 21350;
+static const int F1000_END_HEIGHT_TESTNET = 1199;
+static const int F8000_CUTOVER_HEIGHT_TESTNET = 12200;
+static const int F7000_CUTOVER_HEIGHT = 7000;
+static const int F7000_CUTOVER_HEIGHT_DIFF_END = 7500;
 /** Default for -maxorphantx, maximum number of orphan transactions kept in memory */
 static const unsigned int DEFAULT_MAX_ORPHAN_TRANSACTIONS = 100;
 /** Default for -limitancestorcount, max number of in-mempool ancestors */

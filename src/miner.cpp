@@ -112,13 +112,12 @@ CBlockTemplate* CreateNewBlock(const CChainParams& chainparams, const CScript& s
     	txNew.vout[0].scriptPubKey = spkPoolScript;
 	}
 
-	bool fTitheBlocksActive = ((pindexPrev->nHeight+1) < Params().GetConsensus().nMasternodePaymentsStartBlock);
+	bool fTitheBlocksActive = ((pindexPrev->nHeight+1) < Params().GetConsensus().nSuperblockStartBlock);
 	
 	if (fTitheBlocksActive)
 	{
 		if (((pindexPrev->nHeight+1) % TITHE_MODULUS)==0)
 		{
-			//LogPrintf("\r\nTithe to Foundation being created_\r\n");
 			CBitcoinAddress cbaFoundationAddress(chainparams.GetConsensus().FoundationAddress);
 			CScript spkFoundationAddress = GetScriptForDestination(cbaFoundationAddress.Get());
     		txNew.vout[0].scriptPubKey = spkFoundationAddress;

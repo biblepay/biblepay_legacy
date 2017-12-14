@@ -526,7 +526,8 @@ CAmount CSuperblock::GetPaymentsLimit(int nBlockHeight)
 {
     const Consensus::Params& consensusParams = Params().GetConsensus();
 
-    if(!IsValidBlockHeight(nBlockHeight)) {
+    if(!IsValidBlockHeight(nBlockHeight)) 
+	{
         return 0;
     }
 
@@ -536,7 +537,7 @@ CAmount CSuperblock::GetPaymentsLimit(int nBlockHeight)
 	
     CAmount nSuperblockPartOfSubsidy = GetBlockSubsidy(pindexBestHeader->pprev, nBits, nBlockHeight, consensusParams, true);
     CAmount nPaymentsLimit = nSuperblockPartOfSubsidy * consensusParams.nSuperblockCycle;
-    LogPrint("gobject", "CSuperblock::GetPaymentsLimit -- Valid superblock height %d, payments max %lld\n", nBlockHeight, nPaymentsLimit);
+    LogPrint("gobject", "CSuperblock::GetPaymentsLimit -- Valid superblock height %f, payments max %f \n",(double)nBlockHeight, (double)nPaymentsLimit/COIN);
 
     return nPaymentsLimit;
 }

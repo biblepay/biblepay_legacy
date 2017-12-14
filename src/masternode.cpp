@@ -657,7 +657,7 @@ bool CMasternodeBroadcast::CheckOutpoint(int& nDos)
     }
 
     // verify that sig time is legit in past
-    // should be at least not earlier than block when 500,000 biblepay tx got nMasternodeMinimumConfirmations
+    // should be at least not earlier than block when 1,550,001 biblepay tx got nMasternodeMinimumConfirmations
     uint256 hashBlock = uint256();
     CTransaction tx2;
     GetTransaction(vin.prevout.hash, tx2, Params().GetConsensus(), hashBlock, true);

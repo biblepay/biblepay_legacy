@@ -1087,6 +1087,9 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
 		cblockGenesis = CreateGenesisBlock(1496347844, 12, 0x207fffff, 1, 50 * COIN);
 		targetGenesisHash = hashGenesisBlock;
 		fProd = true;
+		fMasternodesEnabled = true;
+		SANCTUARY_COLLATERAL = 1550001;
+		fRetirementAccountsEnabled = false;
 		strTemplePubKey = "0";
 	}
 	else if (chainparams.NetworkIDString()=="test")
@@ -1094,6 +1097,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
 		cblockGenesis = CreateGenesisBlock(1496347850, 15, 0x207fffff, 1, 50 * COIN);
 		targetGenesisHash = hashGenesisBlockTestNet;
 		fProd = false;
+		SANCTUARY_COLLATERAL = 500000;
 		fMasternodesEnabled = true;
 		fRetirementAccountsEnabled = true;
 		strTemplePubKey = "04240caae65370e2ec32eaec8f27bce34e6ada9601b6a805c10b3e839e100ce3f369fdfbc1bb906d3dd442bd145e51d23a4eda247608b5dc33afc1fbf87c270f47";
@@ -1101,6 +1105,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
 	else if (chainparams.NetworkIDString()=="regtest")
 	{
 		cblockGenesis = CreateGenesisBlock(1496347864, 18, 0x207fffff, 1, 50 * COIN);
+		SANCTUARY_COLLATERAL = 500000;
 		targetGenesisHash = hashGenesisRegressionNet;
 	}
 	else

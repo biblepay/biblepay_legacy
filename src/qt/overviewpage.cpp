@@ -168,7 +168,8 @@ OverviewPage::OverviewPage(const PlatformStyle *platformStyle, QWidget *parent) 
     if(fMasterNode || nWalletBackups <= 0 || !fMasternodesEnabled)
 	{
         DisablePrivateSendCompletely();
-        if (nWalletBackups <= 0) {
+        if (nWalletBackups <= 0) 
+		{
             ui->labelPrivateSendEnabled->setToolTip(tr("Automatic backups are disabled, no mixing available!"));
         }
     } 

@@ -286,7 +286,7 @@ bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params&
 	GetMiningParams(nPrevHeight, f_7000, f_8000, fTitheBlocksActive);
 
 
-    if (!f7000)
+    if (!f7000 && !f_8000)
 	{
 		bool bSecurityPass = ((bLoadingBlockIndex && nPrevHeight==0) || nPrevHeight == 0) ? true : false;
 		if (UintToArith256(hash) > bnTarget && !bSecurityPass) 
@@ -295,8 +295,8 @@ bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params&
 				(double)fProdChain, Params().NetworkIDString().c_str(), nPrevHeight);
 		}
 	}
-
-	if (f7000)
+	
+	if (f7000 || f_8000)
 	{
 		uint256 uBibleHash = BibleHash(hash, nBlockTime, nPrevBlockTime, true, nPrevHeight, NULL, false, f_7000, f_8000, fTitheBlocksActive);
 		if (UintToArith256(uBibleHash) > bnTarget)
@@ -320,7 +320,7 @@ bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params&
 				}
 		}
 	}
-
+	
 	if (f7000 && !bLoadingBlockIndex && bRequireTxIndexLookup)
 	{
 		if	(UintToArith256(BibleHash(hash, nBlockTime, nPrevBlockTime, true, nPrevHeight, pindexPrev, true, f_7000, f_8000, fTitheBlocksActive)) > bnTarget)

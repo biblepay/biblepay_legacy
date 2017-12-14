@@ -1299,8 +1299,7 @@ std::string BuyProduct(std::string ProductID, bool bDryRun, CAmount nMaxPrice)
 		 throw runtime_error("Sorry, unable to retrieve product price.  Please try again later.");
 	}
 	ReadConfigFile(mapArgs, mapMultiArgs);
-  
-	std::string sAddress = DefaultRecAddress("Trading");
+ 	std::string sAddress = DefaultRecAddress("Trading");
 	std::string sEE = SQL("get_product_escrow_address", sAddress, "address", out_Error);
 	std::string sProductEscrowAddress = ExtractXML(sEE,"<PRODUCT_ESCROW_ADDRESS>","</PRODUCT_ESCROW_ADDRESS>");
 	std::string sDeliveryName = GetArg("-delivery_name", "");
@@ -1308,8 +1307,6 @@ std::string BuyProduct(std::string ProductID, bool bDryRun, CAmount nMaxPrice)
 	std::string sDeliveryAddress2 = GetArg("-delivery_address2", "");
 	sDeliveryAddress = strReplace(sDeliveryAddress,"#","");
 	sDeliveryAddress2 = strReplace(sDeliveryAddress,"#","");
-
-          
 	std::string sDeliveryCity = GetArg("-delivery_city", "");
 	std::string sDeliveryState = GetArg("-delivery_state", "");
 	std::string sDeliveryZip = GetArg("-delivery_zip", "");
@@ -1360,7 +1357,6 @@ std::string BuyProduct(std::string ProductID, bool bDryRun, CAmount nMaxPrice)
 		LogPrintf("\n PAID %f for Product %s in TXID %s-VOUT %f  \n", (double)nAmount/COIN, ProductID.c_str(), sTXID.c_str(), (double)VOUT);
 	}
 
-	//
 	std::string sDryRun = bDryRun ? "DRY" : "FALSE";
 	std::string sDelComplete = "<NAME>" + sDeliveryName + "</NAME><DRYRUN>" 
 		+ sDryRun + "</DRYRUN><ADDRESS1>" + sDeliveryAddress + "</ADDRESS1><ADDRESS2>" 
@@ -1372,7 +1368,6 @@ std::string BuyProduct(std::string ProductID, bool bDryRun, CAmount nMaxPrice)
 	std::string sXML = sDelComplete + sProduct;
 	std::string sReply = SQL("buy_product", sAddress, sXML, out_Error);
 	std::string sError = ExtractXML(sReply,"<ERR>","</ERR>");
-	
 	LogPrintf("  ERROR %s BUY PRODUCT %s \n",sError.c_str(),sReply.c_str());
 	
 	if (!sError.empty())
@@ -1737,7 +1732,7 @@ UniValue exec(const UniValue& params, bool fHelp)
 			bool fTitheBlocksActive;
 			GetMiningParams(nHeight, f7000, f8000, fTitheBlocksActive);
 
-			uint256 hash = BibleHash(blockHash,nBlockTime,nPrevBlockTime,true,nHeight,NULL,false,f7000,f8000,fTitheBlocksActive);
+			uint256 hash = BibleHash(blockHash, nBlockTime, nPrevBlockTime, true, nHeight, NULL, false, f7000, f8000, fTitheBlocksActive);
 			results.push_back(Pair("BibleHash",hash.GetHex()));
 		}
 	}
@@ -2010,8 +2005,6 @@ UniValue exec(const UniValue& params, bool fHelp)
 		return EncodeHexTx(rawTx);
 		*/
 
-
-
     }
 	else if (sItem == "getretirementbalance" || sItem == "retirementbalance")
 	{
@@ -2052,7 +2045,6 @@ UniValue exec(const UniValue& params, bool fHelp)
 	}
 	else if (sItem == "listproducts")
 	{
-
 		std::map<std::string, CCommerceObject> mapProducts = GetProducts();
 		BOOST_FOREACH(const PAIRTYPE(std::string, CCommerceObject)& item, mapProducts)
 	    {
@@ -2065,7 +2057,6 @@ UniValue exec(const UniValue& params, bool fHelp)
 			p.push_back(Pair("Details",oProduct.Details));
 			results.push_back(Pair(oProduct.ID,p));
 		}
-
 	}
 	else if (sItem == "buyproduct")
 	{
@@ -2088,7 +2079,6 @@ UniValue exec(const UniValue& params, bool fHelp)
 		}
 		std::string sTXID = ExtractXML(sResult,"<TXID>","</TXID>");
 		if (sStatus=="SUCCESS")	results.push_back(Pair("OrderID", sTXID));
-	
 		std::string sOrderID = ExtractXML(sResult,"<ORDERID>","</ORDERID>");
 		results.push_back(Pair("TXID", sTXID));
 		results.push_back(Pair("Status",sStatus));
@@ -2104,17 +2094,13 @@ UniValue exec(const UniValue& params, bool fHelp)
 			p.push_back(Pair("Product ID",oProduct.ID));
 			p.push_back(Pair("Price",oProduct.Amount/COIN));
 			p.push_back(Pair("Added", oProduct.Added));
-
 			p.push_back(Pair("Title",oProduct.Title));
 			p.push_back(Pair("Status1",oProduct.Status1));
 			p.push_back(Pair("Status2",oProduct.Status2));
 			p.push_back(Pair("Status3",oProduct.Status3));
-			
 			p.push_back(Pair("Details",oProduct.Details));
 			results.push_back(Pair(oProduct.ID,p));
 		}
-
-
 	}
 	else if (sItem == "datalist")
 	{

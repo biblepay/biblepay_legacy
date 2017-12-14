@@ -77,7 +77,7 @@ int64_t nHashCounter = 0;
 int64_t nLastTradingActivity = 0;
 int64_t nBibleHashCounter = 0;
 int64_t nBibleMinerPulse;
-int64_t SANCTUARY_COLLATERAL = 500000;
+int64_t SANCTUARY_COLLATERAL = 1550001;
 int64_t TEMPLE_COLLATERAL = 10000000;
 int64_t MAX_BLOCK_SUBSIDY = 20000;
 std::string strTemplePubKey = "";
@@ -2125,7 +2125,7 @@ CAmount GetBlockSubsidy(const CBlockIndex* pindexPrev, int nPrevBits, int nPrevH
 	double dDiff;
     CAmount nSubsidyBase;
     dDiff = ConvertBitsToDouble(nPrevBits);
-	if ((pindexPrev && !fProd && pindexPrev->nHeight >= 1) || (fProd && pindexPrev && pindexPrev->nHeight >= 7000 && pindexPrev->nHeight < 7500))
+	if ((pindexPrev && !fProd && pindexPrev->nHeight >= 1) || (fProd && pindexPrev && pindexPrev->nHeight >= F7000_CUTOVER_HEIGHT && pindexPrev->nHeight < F7000_CUTOVER_HEIGHT_DIFF_END))
 	{
 		// This setting included in f7000 regulates the extent in which the block subsidy is lowered by increasing diff; once we remove the x11 component from the biblehash, it was necessary to recalculate the reduction to match the prior regulation level.
 		dDiff = dDiff / 700;
@@ -2142,7 +2142,7 @@ CAmount GetBlockSubsidy(const CBlockIndex* pindexPrev, int nPrevBits, int nPrevH
 		451           18833.8828994796 
 		*/
 	}
-	else if (fProd && pindexPrev && pindexPrev->nHeight >= 7500)
+	else if (fProd && pindexPrev && pindexPrev->nHeight >= F7000_CUTOVER_HEIGHT_DIFF_END)
 	{
 		dDiff = dDiff / 14000;
 	}
@@ -2169,19 +2169,24 @@ CAmount GetBlockSubsidy(const CBlockIndex* pindexPrev, int nPrevBits, int nPrevH
 	{
         nSubsidy -= (nSubsidy * iDeflationRate);
     }
+		
     // When sanctuaries go live: The Tithe block is disabled, budgeting/superblocks are enabled, and the budget contains a max of : 
-	// 10% to Charity budget, and 5% for the IT budget.  The 85% remaining is split between the miner and the sanctuary.
-	double dSuperblockMultiplier = fSuperblocksEnabled ? .15 : .10;
+	// 10% to Charity budget, 5% for the IT budget, 2.5% PR, 2.5% P2P.  The 80% remaining is split between the miner and the sanctuary.
+	double dSuperblockMultiplier = fSuperblocksEnabled ? (!fProd ? .15 : .20) : .10;
     CAmount nSuperblockPart = (nPrevHeight > consensusParams.nBudgetPaymentsStartBlock) ? nSubsidy * dSuperblockMultiplier : 0;
     return fSuperblockPartOnly ? nSuperblockPart : nSubsidy - nSuperblockPart;
 }
 
 CAmount GetMasternodePayment(int nHeight, CAmount blockValue, CAmount nSanctuaryCollateral)
 {
-	// Give masternodes 50% of the block reward after Christmas 2017 (leaving 15% for budgets and 35% for the miner):
+	// Give Sanctuaries 40% of the block reward after Christmas 2017 (leaving 20% for budgets (see budget breakdown below), 40% for the miner):
 	const Consensus::Params& consensusParams = Params().GetConsensus();
     bool fSuperblocksEnabled = (nHeight >= consensusParams.nSuperblockStartBlock) && fMasternodesEnabled;
-    CAmount ret = fSuperblocksEnabled ? blockValue * .50 : blockValue * .10;
+	// http://forum.biblepay.org/index.php?topic=33.0
+	// Should we carve out additional 1-10% from superblocks for PR and/or P2P Rewards?
+	// Poll ended 12-4-2017: Yes, carve an addl 2.5% for PR and 2.5% for P2P rewards (5% more) leaving 80% for miner/sanctuaries.
+	// Final Distribution: 10% Charity, 2.5% PR, 2.5% P2P, 5% for IT, 40% for miner, 40% for sanctuary
+    CAmount ret = fSuperblocksEnabled ? blockValue * (!fProd ? .50 : .40) : blockValue * .10;
     return ret;
 }
 
@@ -3193,7 +3198,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     }
 
 	
-	bool fTitheBlocksActive = (pindex->nHeight < Params().GetConsensus().nMasternodePaymentsStartBlock);
+	bool fTitheBlocksActive = (pindex->nHeight < Params().GetConsensus().nSuperblockStartBlock);
 	if (fTitheBlocksActive)
 	{
 		if ((pindex->nHeight % TITHE_MODULUS)==0)
@@ -3208,7 +3213,8 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
 			 CAmount TithePart = blockReward - MasterNodeReward;
      		 if (TithePart != block.vtx[0].vout[0].nValue)
 			 {
-					 LogPrintf("Tithe \r\n", "    Block Reward %f, TithePart %f, nValue %f  ",(double)MasterNodeReward,(double)TithePart, double(block.vtx[0].vout[0].nValue));
+					 LogPrintf("Tithe Block Reward %f, TithePart %f, nValue %f  ",(double)MasterNodeReward/COIN,(double)TithePart/COIN, 
+						 (double)block.vtx[0].vout[0].nValue/COIN);
 		  			 return state.DoS(10,error("ConnectBlock(Biblepay): Tithe does not match block reward."), REJECT_INVALID, "bad-tithe-amount");
 			 }
 		}
@@ -7800,9 +7806,9 @@ std::string DefaultRecAddress(std::string sType)
 
 void GetMiningParams(int nPrevHeight, bool& f7000, bool& f8000, bool& fTitheBlocksActive)
 {
-	f7000 = ((!fProd && nPrevHeight > 1) || (fProd && nPrevHeight > 7000)) ? true : false;
-    f8000 = ((fMasternodesEnabled) && ((!fProd && nPrevHeight >= 12200) || (fProd && nPrevHeight >= 27000)));
-    fTitheBlocksActive = ((nPrevHeight+1) < Params().GetConsensus().nMasternodePaymentsStartBlock);
+	f7000 = ((!fProd && nPrevHeight > 1) || (fProd && nPrevHeight > F7000_CUTOVER_HEIGHT)) ? true : false;
+    f8000 = ((fMasternodesEnabled) && ((!fProd && nPrevHeight >= F8000_CUTOVER_HEIGHT_TESTNET) || (fProd && nPrevHeight >= F8000_CUTOVER_HEIGHT)));
+    fTitheBlocksActive = ((nPrevHeight+1) < Params().GetConsensus().nSuperblockStartBlock);
 }
 
 

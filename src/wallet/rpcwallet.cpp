@@ -375,7 +375,6 @@ UniValue getaddressesbyaccount(const UniValue& params, bool fHelp)
 }
 
 
-
 static void SendMoney(const CTxDestination &address, CAmount nValue, bool fSubtractFeeFromAmount, CWalletTx& wtxNew, 
 	bool fUseInstantSend=false, bool fUsePrivateSend=false)
 {

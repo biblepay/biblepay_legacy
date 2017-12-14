@@ -1381,8 +1381,9 @@ void BitcoinGUI::showEvent(QShowEvent *event)
 	{
 		CreateNewsAction->setEnabled(true);
 		ReadNewsAction->setEnabled(true);
-		OneClickMiningAction->setEnabled(true);
 	}
+
+	OneClickMiningAction->setEnabled(true);
 	
 }
 

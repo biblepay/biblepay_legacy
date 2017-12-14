@@ -39,19 +39,25 @@ public:
     CMainParams() {
         strNetworkID = "main";
         consensus.nSubsidyHalvingInterval = BLOCKS_PER_DAY * 365; // We produce approx 74,825 blocks per year (205 per day)
-        consensus.nMasternodePaymentsStartBlock = 400000; // Must be less then nMasternodePaymentsIncreaseBlock
-        consensus.nMasternodePaymentsIncreaseBlock = 400001; 
+		consensus.nInstantSendKeepLock = 24;
         consensus.nMasternodePaymentsIncreasePeriod = BLOCKS_PER_DAY * 30; // One month
-        consensus.nInstantSendKeepLock = 24;
-        consensus.nBudgetPaymentsStartBlock = 410000; 
-        consensus.nBudgetPaymentsCycleBlocks = BLOCKS_PER_DAY * 30; //One month of blocks
+        
+        consensus.nMasternodePaymentsStartBlock = 21549; // Must be less then nMasternodePaymentsIncreaseBlock
+        consensus.nMasternodePaymentsIncreaseBlock = 21551; 
+        
+		consensus.nBudgetPaymentsStartBlock = 21551; // This is when we change our block distribution to include PR, P2P, IT expenses
+		consensus.nRuleChangeActivationThreshold = 21551; // Same as Masternode Payments Start block
+      
+        consensus.nBudgetPaymentsCycleBlocks = BLOCKS_PER_DAY * 30; // Monthly
         consensus.nBudgetPaymentsWindowBlocks = 100;
-        consensus.nBudgetProposalEstablishingTime = 60*60*24;
-        consensus.nSuperblockStartBlock = 400001; // The block at which 12.1 goes live
-        consensus.nSuperblockCycle = BLOCKS_PER_DAY * 30; // Once per month
+        consensus.nBudgetProposalEstablishingTime = 60*60*24;  // One Day
+
+        consensus.nSuperblockStartBlock = 30001; // The first superblock
+        consensus.nSuperblockCycle = BLOCKS_PER_DAY * 30; // Monthly
         consensus.nGovernanceMinQuorum = 10;
-        consensus.nGovernanceFilterElements = 20000;
-        consensus.nMasternodeMinimumConfirmations = 15;
+        
+		consensus.nGovernanceFilterElements = 20000;
+        consensus.nMasternodeMinimumConfirmations = 7;
         consensus.nMajorityEnforceBlockUpgrade = 750;
         consensus.nMajorityRejectBlockOutdated = 950;
         consensus.nMajorityWindow = 1000;
@@ -64,7 +70,6 @@ public:
 		
         consensus.fPowAllowMinDifficultyBlocks = false;
         consensus.fPowNoRetargeting = false;
-        consensus.nRuleChangeActivationThreshold = 1916; // 95% of 2016
         consensus.nMinerConfirmationWindow = 205; // nPowTargetTimespan / nPowTargetSpacing
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].bit = 28;
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nStartTime = 1199145601; // January 1, 2008
@@ -128,11 +133,12 @@ public:
             (   7, uint256S("0x00022b1be28b1deb9a51d4d69f3fa393f4ea36621039b6313a6c0796546621de"))
 			( 120, uint256S("0x00002fc6c9e4889a8d1a9bd5919a6bd4a4b09091e55049480509da14571e5653"))
 			(6999, uint256S("0x000000dfbcdec4e6b0ab899f04d7ce8e4d8bc8a725a47169b626acd207ccea8d"))
-			(18900,uint256S("0x94a1ff5e84a31219d5472536215f5a77b00cfd61f3fb99d0e9d3ab392f2ed2a6")),
-            0,     // * UNIX timestamp of last checkpoint block
-            31226, // * total number of transactions between genesis and last checkpoint
-                   //   (the tx=... number in the SetBestChain debug.log lines)
-            100        // * estimated number of transactions per day after checkpoint
+			(18900,uint256S("0x94a1ff5e84a31219d5472536215f5a77b00cfd61f3fb99d0e9d3ab392f2ed2a6"))
+			(20900,uint256S("0x23d0b5887ca89fc2dddb2f34810675cb1826371172a91b1211be4677fd260490")),
+            1513114026,     // * UNIX timestamp of last checkpoint block
+            35308,          // * total number of transactions between genesis and last checkpoint
+                            //   (the tx=... number in the SetBestChain debug.log lines)
+            100             // * estimated number of transactions per day after checkpoint
         };
 		
     }
@@ -234,6 +240,20 @@ public:
                         //   (the tx=... number in the SetBestChain debug.log lines)
             500         // * estimated number of transactions per day after checkpoint
         };
+		
+		
+		/*
+		checkpointData = (CCheckpointData) {
+            boost::assign::map_list_of
+            (    1, uint256S("0x18b37b60b422ea27d57ceea9dd794b5f74c561565ecc03e85a22ecdf74cbb33a"))
+       		,
+            1511964848, // * UNIX timestamp of last checkpoint block
+            54664,     // * total number of transactions between genesis and last checkpoint
+                        //   (the tx=... number in the SetBestChain debug.log lines)
+            500         // * estimated number of transactions per day after checkpoint
+        };
+		*/
+
 
     }
 };
