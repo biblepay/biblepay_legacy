@@ -33,7 +33,7 @@
 
 using namespace std;
 
-uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight, const CBlockIndex* pindexLast, bool bRequireTxIndex, bool f7000, bool f8000, bool fTitheBlocksActive);
+uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight, const CBlockIndex* pindexLast, bool bRequireTxIndex, bool f7000, bool f8000, bool f9000, bool fTitheBlocksActive);
 
 
 std::string TimestampToHRDate(double dtm);
@@ -194,7 +194,7 @@ UniValue generate(const UniValue& params, bool fHelp)
             IncrementExtraNonce(pblock, chainActive.Tip(), nExtraNonce);
         }
 	
-        while (!CheckProofOfWork(pblock->GetHash(), pblock->nBits, Params().GetConsensus(), pblock->GetBlockTime(), chainActive.Tip()->nTime, chainActive.Tip()->nHeight, chainActive.Tip(), false)) 
+        while (!CheckProofOfWork(pblock->GetHash(), pblock->nBits, Params().GetConsensus(), pblock->GetBlockTime(), chainActive.Tip()->nTime, chainActive.Tip()->nHeight, pblock->nNonce, chainActive.Tip(), false)) 
 		{
             // Yes, there is a chance every nonce could fail to satisfy the -regtest
             // target -- 1 in 2^(2^32). That ain't gonna happen.

@@ -97,7 +97,7 @@ extern CAmount StringToAmount(std::string sValue);
 extern bool CheckMessageSignature(std::string sMsg, std::string sSig);
 extern std::string GetTemplePrivKey();
 extern std::string SignMessage(std::string sMsg, std::string sPrivateKey);
-extern void GetMiningParams(int nPrevHeight, bool& f7000, bool& f8000, bool& fTitheBlocksActive);
+extern void GetMiningParams(int nPrevHeight, bool& f7000, bool& f8000, bool& f9000, bool& fTitheBlocksActive);
 
 
 CWaitableCriticalSection csBestBlock;
@@ -137,7 +137,7 @@ std::string TimestampToHRDate(double dtm);
 extern std::string RoundToString(double d, int place);
 extern std::string GetArrayElement(std::string s, std::string delim, int iPos);
 double GetDifficultyN(const CBlockIndex* blockindex, double N);
-uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight, const CBlockIndex* pindexLast, bool bRequireTxIndex, bool f7000, bool f8000, bool fTitheBlocksActive);
+uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight, const CBlockIndex* pindexLast, bool bRequireTxIndex, bool f7000, bool f8000, bool f9000, bool fTitheBlocksActive);
 
 
 bool fImporting = false;
@@ -2057,7 +2057,7 @@ bool ReadBlockFromDisk(CBlock& block, const CDiskBlockPos& pos, const Consensus:
 	int nPrevHeight = (pindexAncestor==NULL) ? 0 : pindexAncestor->nHeight;
 	if (bCheckPOW)
 	{
-		if (!CheckProofOfWork(block.GetHash(), block.nBits, consensusParams, block.GetBlockTime(), nAncestorTime, nPrevHeight, pindexAncestor, true))
+		if (!CheckProofOfWork(block.GetHash(), block.nBits, consensusParams, block.GetBlockTime(), nAncestorTime, nPrevHeight, block.nNonce, pindexAncestor, true))
 		{
 			LogPrintf("ReadBlockFromDisk (Context %s): Errors in block header at %s", Context.c_str(), pos.ToString());
 			return false;
@@ -2870,7 +2870,8 @@ int32_t ComputeBlockVersion(const CBlockIndex* pindexPrev, const Consensus::Para
     LOCK(cs_main);
     int32_t nVersion = VERSIONBITS_TOP_BITS;
 
-    for (int i = 0; i < (int)Consensus::MAX_VERSION_BITS_DEPLOYMENTS; i++) {
+    for (int i = 0; i < (int)Consensus::MAX_VERSION_BITS_DEPLOYMENTS; i++) 
+	{
         ThresholdState state = VersionBitsState(pindexPrev, params, (Consensus::DeploymentPos)i, versionbitscache);
         if (state == THRESHOLD_LOCKED_IN || state == THRESHOLD_STARTED) {
             nVersion |= VersionBitsMask(params, (Consensus::DeploymentPos)i);
@@ -4128,7 +4129,7 @@ bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, bool f
     // Check proof of work matches claimed amount
 	// PhaseShiftUK reports that pool server occasionally returns a high-hash, yet we dont want to ban the pool server, Temporary solution: Change DoS level to prevent pool from being banned
 
-	if (fCheckPOW && !CheckProofOfWork(block.GetHash(), block.nBits, Params().GetConsensus(), nBlockTime, nPrevBlockTime, nPrevHeight, pindexPrev, false))
+	if (fCheckPOW && !CheckProofOfWork(block.GetHash(), block.nBits, Params().GetConsensus(), nBlockTime, nPrevBlockTime, nPrevHeight, block.nNonce, pindexPrev, false))
         return state.DoS(5, error("CheckBlockHeader(): proof of work failed"),
 		REJECT_INVALID, "high-hash");
 
@@ -5835,6 +5836,22 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
             return false;
         }
 
+		if (pfrom->nVersion < 70710 && GetAdjustedTime() > 1513497815)
+		{
+			// After 12-17-2017 @ 06:00:00 AM, hang up on old peers
+            pfrom->PushMessage(NetMsgType::REJECT, strCommand, REJECT_OBSOLETE,
+                               strprintf("Version must be %d or greater", MIN_PEER_PROTO_VERSION));
+            pfrom->fDisconnect = true;
+            return false;
+		}
+
+        int64_t nTimeDrift = std::abs(GetAdjustedTime() - nTime);
+        if (nTimeDrift > (5 * 60))
+        {
+            LogPrintf("Disconnecting unauthorized peer with Network Time off by %f seconds!\r\n",(double)nTimeDrift);
+			pfrom->fDisconnect = true;
+        }
+      
         if (pfrom->nVersion == 10300)
             pfrom->nVersion = 300;
         if (!vRecv.empty())
@@ -7804,10 +7821,11 @@ std::string DefaultRecAddress(std::string sType)
 }
 
 
-void GetMiningParams(int nPrevHeight, bool& f7000, bool& f8000, bool& fTitheBlocksActive)
+void GetMiningParams(int nPrevHeight, bool& f7000, bool& f8000, bool& f9000, bool& fTitheBlocksActive)
 {
 	f7000 = ((!fProd && nPrevHeight > 1) || (fProd && nPrevHeight > F7000_CUTOVER_HEIGHT)) ? true : false;
     f8000 = ((fMasternodesEnabled) && ((!fProd && nPrevHeight >= F8000_CUTOVER_HEIGHT_TESTNET) || (fProd && nPrevHeight >= F8000_CUTOVER_HEIGHT)));
+	f9000 = ((!fProd && nPrevHeight >= F9000_CUTOVER_HEIGHT_TESTNET) || (fProd && nPrevHeight >= F9000_CUTOVER_HEIGHT));
     fTitheBlocksActive = ((nPrevHeight+1) < Params().GetConsensus().nSuperblockStartBlock);
 }
 

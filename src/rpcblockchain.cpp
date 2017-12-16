@@ -47,7 +47,7 @@ bool CheckMessageSignature(std::string sMsg, std::string sSig);
 std::string GetTemplePrivKey();
 std::string SignMessage(std::string sMsg, std::string sPrivateKey);
 extern double CAmountToRetirementDouble(CAmount Amount);
-void GetMiningParams(int nPrevHeight, bool& f7000, bool& f8000, bool& fTitheBlocksActive);
+void GetMiningParams(int nPrevHeight, bool& f7000, bool& f8000, bool& f9000, bool& fTitheBlocksActive);
 std::string strReplace(std::string& str, const std::string& oldStr, const std::string& newStr);
 
 UniValue ContributionReport();
@@ -59,12 +59,13 @@ void WriteCache(std::string section, std::string key, std::string value, int64_t
 std::string AddNews(std::string sPrimaryKey, std::string sHTML, double dStorageFee);
 
 UniValue GetDataList(std::string sType, int iMaxAgeInDays, int& iSpecificEntry, std::string& outEntry);
-uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight, const CBlockIndex* pindexLast, bool bRequireTxIndex, bool f7000, bool f8000, bool fTitheBlocksActive);
+uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight, const CBlockIndex* pindexLast, bool bRequireTxIndex, bool f7000, bool f8000, bool f9000, bool fTitheBlocksActive);
 void MemorizeBlockChainPrayers(bool fDuringConnectBlock);
 std::string GetVerse(std::string sBook, int iChapter, int iVerse, int iStart, int iEnd);
 std::string GetBookByName(std::string sName);
 std::string GetBook(int iBookNumber);
 extern std::string rPad(std::string data, int minWidth);
+bool CheckNonce(bool f9000, unsigned int nNonce, int nPrevHeight, int64_t nPrevBlockTime, int64_t nBlockTime);
 
 
 std::string GetMessagesFromBlock(const CBlock& block, std::string sMessages);
@@ -162,6 +163,8 @@ UniValue blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool tx
 {
     UniValue result(UniValue::VOBJ);
     result.push_back(Pair("hash", block.GetHash().GetHex()));
+	result.push_back(Pair("hash2", block.GetHashBible().GetHex()));
+
     int confirmations = -1;
     // Only report confirmations if the block is on the main chain
     if (chainActive.Contains(blockindex))
@@ -206,12 +209,13 @@ UniValue blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool tx
     	// Check work against BibleHash
 		bool f7000;
 		bool f8000;
+		bool f9000;
 		bool fTitheBlocksActive;
-		GetMiningParams(blockindex->pprev->nHeight, f7000, f8000, fTitheBlocksActive);
+		GetMiningParams(blockindex->pprev->nHeight, f7000, f8000, f9000, fTitheBlocksActive);
 
 		arith_uint256 hashTarget = arith_uint256().SetCompact(blockindex->nBits);
 		uint256 hashWork = blockindex->GetBlockHash();
-		uint256 bibleHash = BibleHash(hashWork, block.GetBlockTime(), blockindex->pprev->nTime, false, blockindex->pprev->nHeight, blockindex->pprev, false, f7000, f8000, fTitheBlocksActive);
+		uint256 bibleHash = BibleHash(hashWork, block.GetBlockTime(), blockindex->pprev->nTime, false, blockindex->pprev->nHeight, blockindex->pprev, false, f7000, f8000, f9000, fTitheBlocksActive);
 		bool bSatisfiesBibleHash = (UintToArith256(bibleHash) <= hashTarget);
 		result.push_back(Pair("satisfiesbiblehash", bSatisfiesBibleHash ? "true" : "false"));
 		result.push_back(Pair("biblehash", bibleHash.GetHex()));
@@ -1729,10 +1733,11 @@ UniValue exec(const UniValue& params, bool fHelp)
 		{
 			bool f7000;
 			bool f8000;
+			bool f9000;
 			bool fTitheBlocksActive;
-			GetMiningParams(nHeight, f7000, f8000, fTitheBlocksActive);
+			GetMiningParams(nHeight, f7000, f8000, f9000, fTitheBlocksActive);
 
-			uint256 hash = BibleHash(blockHash, nBlockTime, nPrevBlockTime, true, nHeight, NULL, false, f7000, f8000, fTitheBlocksActive);
+			uint256 hash = BibleHash(blockHash, nBlockTime, nPrevBlockTime, true, nHeight, NULL, false, f7000, f8000, f9000, fTitheBlocksActive);
 			results.push_back(Pair("BibleHash",hash.GetHex()));
 		}
 	}
@@ -2101,6 +2106,39 @@ UniValue exec(const UniValue& params, bool fHelp)
 			p.push_back(Pair("Details",oProduct.Details));
 			results.push_back(Pair(oProduct.ID,p));
 		}
+	}
+	else if (sItem == "XBBP")
+	{
+		std::string smd1="BiblePay";
+		std::vector<unsigned char> vch1 = vector<unsigned char>(smd1.begin(), smd1.end());
+		//std::vector<unsigned char> vchPlaintext = vector<unsigned char>(hash.begin(), hash.end());
+	 
+	    uint256 h1 = SerializeHash(vch1); 
+		uint256 h2 = HashBiblePay(vch1.begin(),vch1.end());
+		uint256 h3 = HashBiblePay(h2.begin(),h2.end());
+		uint256 h4 = HashBiblePay(h3.begin(),h3.end());
+		uint256 h5 = HashBiblePay(h4.begin(),h4.end());
+		results.push_back(Pair("h1",h1.GetHex()));
+		results.push_back(Pair("h2",h2.GetHex()));
+		results.push_back(Pair("h3",h3.GetHex()));
+		results.push_back(Pair("h4",h4.GetHex()));
+		results.push_back(Pair("h5",h5.GetHex()));
+		bool f1 = CheckNonce(true, 1, 9000, 10000, 10060);
+		results.push_back(Pair("f1",f1));
+
+		bool f2 = CheckNonce(true, 256000, 9000, 10000, 10060);
+		results.push_back(Pair("f2",f2));
+
+		bool f3 = CheckNonce(true, 256000, 9000, 10000, 10000+1900);
+		results.push_back(Pair("f3",f3));
+
+		bool f4 = CheckNonce(true, 1256000, 9000, 10000, 10000+180);
+		results.push_back(Pair("f4",f4));
+				
+		bool f5 = CheckNonce(true, 1256000, 9000, 10000, 10000+18000);
+		results.push_back(Pair("f5",f5));
+
+		
 	}
 	else if (sItem == "datalist")
 	{

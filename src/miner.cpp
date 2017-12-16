@@ -49,7 +49,7 @@ using namespace std;
 
 uint64_t nLastBlockTx = 0;
 uint64_t nLastBlockSize = 0;
-uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight, const CBlockIndex* pindexLast, bool bRequireTxIndex, bool f7000, bool f8000, bool fTitheBlocksActive);
+uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight, const CBlockIndex* pindexLast, bool bRequireTxIndex, bool f7000, bool f8000, bool f9000, bool fTitheBlocksActive);
 std::string ExtractXML(std::string XMLdata, std::string key, std::string key_end);
 void WriteCache(std::string section, std::string key, std::string value, int64_t locktime);
 std::string ReadCache(std::string section, std::string key);
@@ -59,7 +59,9 @@ std::string PoolRequest(int iThreadID, std::string sAction, std::string sPoolURL
 double cdbl(std::string s, int place);
 void ClearCache(std::string section);
 std::string TimestampToHRDate(double dtm);
-void GetMiningParams(int nPrevHeight, bool& f7000, bool& f8000, bool& fTitheBlocksActive);
+void GetMiningParams(int nPrevHeight, bool& f7000, bool& f8000, bool& f9000, bool& fTitheBlocksActive);
+bool CheckNonce(bool f9000, unsigned int nNonce, int nPrevHeight, int64_t nPrevBlockTime, int64_t nBlockTime);
+
 
 
 class ScoreCompare
@@ -419,10 +421,11 @@ void UpdatePoolProgress(const CBlock* pblock, std::string sPoolAddress, arith_ui
 {
 	bool f7000;
 	bool f8000;
+	bool f9000;
 	bool fTitheBlocksActive;
-	GetMiningParams(pindexPrev->nHeight, f7000, f8000, fTitheBlocksActive);
+	GetMiningParams(pindexPrev->nHeight, f7000, f8000, f9000, fTitheBlocksActive);
 
-	uint256 hashSolution = BibleHash(pblock->GetHash(),pblock->GetBlockTime(),pindexPrev->nTime,true,pindexPrev->nHeight,NULL,false,f7000,f8000,fTitheBlocksActive);
+	uint256 hashSolution = BibleHash(pblock->GetHash(),pblock->GetBlockTime(),pindexPrev->nTime,true,pindexPrev->nHeight,NULL,false,f7000,f8000,f9000,fTitheBlocksActive);
 
 	if (!sPoolAddress.empty())
 	{
@@ -736,8 +739,9 @@ recover:
 			unsigned int nBibleHashesDone = 0;
 			bool f7000;
 			bool f8000;
+			bool f9000;
 			bool fTitheBlocksActive;
-			GetMiningParams(pindexPrev->nHeight, f7000, f8000, fTitheBlocksActive);
+			GetMiningParams(pindexPrev->nHeight, f7000, f8000, f9000, fTitheBlocksActive);
 
 			SetThreadPriority(THREAD_PRIORITY_ABOVE_NORMAL);
      		
@@ -750,7 +754,7 @@ recover:
 					// The BibleHash is generated from chained bible verses, a historical tx lookup, one AES encryption operation, and MD5 hash
 					uint256 x11_hash = pblock->GetHash();
 					uint256 hash;
-					hash = BibleHash(x11_hash, pblock->GetBlockTime(), pindexPrev->nTime, true, pindexPrev->nHeight, NULL, false, f7000, f8000, fTitheBlocksActive);
+					hash = BibleHash(x11_hash, pblock->GetBlockTime(), pindexPrev->nTime, true, pindexPrev->nHeight, NULL, false, f7000, f8000, f9000, fTitheBlocksActive);
 					nBibleHashesDone += 1;
 					nHashesDone += 1;
 					nThreadWork += 1;
@@ -759,8 +763,10 @@ recover:
 					{
 						if (UintToArith256(hash) <= hashTargetPool)
 						{
-							hash = BibleHash(x11_hash, pblock->GetBlockTime(), pindexPrev->nTime, true, pindexPrev->nHeight, NULL, false, f7000, f8000, fTitheBlocksActive);
-							if (UintToArith256(hash) <= hashTargetPool)
+							hash = BibleHash(x11_hash, pblock->GetBlockTime(), pindexPrev->nTime, true, pindexPrev->nHeight, NULL, false, f7000, f8000, f9000, fTitheBlocksActive);
+							bool fNonce = CheckNonce(f9000, pblock->nNonce, pindexPrev->nHeight, pindexPrev->nTime, pblock->GetBlockTime());
+
+							if (UintToArith256(hash) <= hashTargetPool && fNonce)
 							{
 								nHashCounter += nHashesDone;
 								nHashesDone = 0;
@@ -779,6 +785,8 @@ recover:
 
 					if (UintToArith256(hash) <= hashTarget)
 					{
+						bool fNonce = CheckNonce(f9000, pblock->nNonce, pindexPrev->nHeight, pindexPrev->nTime, pblock->GetBlockTime());
+						if (fNonce)
 						{
 							// Found a solution
 							nHashCounter += nHashesDone;

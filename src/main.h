@@ -63,6 +63,9 @@ static const int F1000_END_HEIGHT_TESTNET = 1199;
 static const int F8000_CUTOVER_HEIGHT_TESTNET = 12200;
 static const int F7000_CUTOVER_HEIGHT = 7000;
 static const int F7000_CUTOVER_HEIGHT_DIFF_END = 7500;
+static const int F9000_CUTOVER_HEIGHT = 21550;
+static const int F9000_CUTOVER_HEIGHT_TESTNET = 100;
+
 /** Default for -maxorphantx, maximum number of orphan transactions kept in memory */
 static const unsigned int DEFAULT_MAX_ORPHAN_TRANSACTIONS = 100;
 /** Default for -limitancestorcount, max number of in-mempool ancestors */

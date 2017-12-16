@@ -16,9 +16,11 @@
 #include <openssl/crypto.h>
 
 extern bool LogLimiter(int iMax1000);
-uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight, const CBlockIndex* pindexLast, bool bRequireTxIndex, bool f7000, bool f8000, bool fTitheBlocksActive);
+uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight, const CBlockIndex* pindexLast, bool bRequireTxIndex, bool f7000, bool f8000, bool f9000, bool fTitheBlocksActive);
 std::string RoundToString(double d, int place);
-void GetMiningParams(int nPrevHeight, bool& f7000, bool& f8000, bool& fTitheBlocksActive);
+void GetMiningParams(int nPrevHeight, bool& f7000, bool& f8000, bool& f9000, bool& fTitheBlocksActive);
+extern bool CheckNonce(bool f9000, unsigned int nNonce, int nPrevHeight, int64_t nPrevBlockTime, int64_t nBlockTime);
+
 
 
 unsigned int static KimotoGravityWell(const CBlockIndex* pindexLast, const Consensus::Params& params) {
@@ -262,8 +264,24 @@ unsigned int CalculateNextWorkRequired(const CBlockIndex* pindexLast, int64_t nF
     return bnNew.GetCompact();
 }
 
+bool CheckNonce(bool f9000, unsigned int nNonce, int nPrevHeight, int64_t nPrevBlockTime, int64_t nBlockTime)
+{
+	if (f9000)
+	{
+		int64_t nElapsed = nBlockTime - nPrevBlockTime;
+		if (nElapsed > (30 * 60)) return true;
+		int64_t nMaxNonce = nElapsed * 256;
+		if (nMaxNonce < 512) nMaxNonce = 512;
+		return (nNonce > nMaxNonce) ? false : true;
+	}
+	else
+	{
+		return true;
+	}
+}
+
 bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params& params, 
-	int64_t nBlockTime, int64_t nPrevBlockTime, int nPrevHeight, const CBlockIndex* pindexPrev, bool bLoadingBlockIndex)
+	int64_t nBlockTime, int64_t nPrevBlockTime, int nPrevHeight, unsigned int nNonce, const CBlockIndex* pindexPrev, bool bLoadingBlockIndex)
 {
     bool fNegative;
     bool fOverflow;
@@ -282,8 +300,9 @@ bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params&
 
 	bool f_7000;
 	bool f_8000;
+	bool f_9000; 
 	bool fTitheBlocksActive;
-	GetMiningParams(nPrevHeight, f_7000, f_8000, fTitheBlocksActive);
+	GetMiningParams(nPrevHeight, f_7000, f_8000, f_9000, fTitheBlocksActive);
 
 
     if (!f7000 && !f_8000)
@@ -298,10 +317,10 @@ bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params&
 	
 	if (f7000 || f_8000)
 	{
-		uint256 uBibleHash = BibleHash(hash, nBlockTime, nPrevBlockTime, true, nPrevHeight, NULL, false, f_7000, f_8000, fTitheBlocksActive);
+		uint256 uBibleHash = BibleHash(hash, nBlockTime, nPrevBlockTime, true, nPrevHeight, NULL, false, f_7000, f_8000, f_9000, fTitheBlocksActive);
 		if (UintToArith256(uBibleHash) > bnTarget)
 		{
-			uint256 uBibleHash2 = BibleHash(hash, nBlockTime, nPrevBlockTime, true, nPrevHeight, NULL, false, f_7000, f_8000, fTitheBlocksActive);
+			uint256 uBibleHash2 = BibleHash(hash, nBlockTime, nPrevBlockTime, true, nPrevHeight, NULL, false, f_7000, f_8000, f_9000, fTitheBlocksActive);
 			if (UintToArith256(uBibleHash2) > bnTarget)
 			{
 				uint256 uTarget = ArithToUint256(bnTarget);
@@ -317,13 +336,22 @@ bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params&
 					(double)nBlockTime,(double)nPrevBlockTime, uBibleHash.GetHex().c_str(), uBibleHash2.GetHex().c_str(), 
 					uTarget.GetHex().c_str(), sForensic.c_str());
 				return error("CheckProofOfWork(1): BibleHash does not meet POW level, prevheight %f pindexPrev %s ",(double)nPrevHeight,h1.GetHex().c_str());
-				}
+			}
 		}
 	}
 	
+	if (f_9000)
+	{
+		bool fNonce = CheckNonce(f_9000, nNonce, nPrevHeight, nPrevBlockTime, nBlockTime);
+		if (!fNonce)
+		{
+			return error("CheckProofOfWork: ERROR: High Nonce, PrevTime %f, Time %f, Nonce %f ",(double)nPrevBlockTime, (double)nBlockTime, (double)nNonce);
+		}
+	}
+
 	if (f7000 && !bLoadingBlockIndex && bRequireTxIndexLookup)
 	{
-		if	(UintToArith256(BibleHash(hash, nBlockTime, nPrevBlockTime, true, nPrevHeight, pindexPrev, true, f_7000, f_8000, fTitheBlocksActive)) > bnTarget)
+		if	(UintToArith256(BibleHash(hash, nBlockTime, nPrevBlockTime, true, nPrevHeight, pindexPrev, true, f_7000, f_8000, f_9000, fTitheBlocksActive)) > bnTarget)
 		{
 			uint256 h2 = (pindexPrev != NULL) ? pindexPrev->GetBlockHash() : uint256S("0x0");
 			return error("CheckProofOfWork(2): BibleHash does not meet POW level with TxIndex Lookup, prevheight %f pindexPrev %s ",(double)nPrevHeight,h2.GetHex().c_str());

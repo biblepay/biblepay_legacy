@@ -293,6 +293,7 @@ crypto_libbitcoin_crypto_a_SOURCES = \
   crypto/cubehash.c \
   crypto/echo.c \
   crypto/groestl.c \
+  crypto/biblepay.c \
   crypto/jh.c \
   crypto/keccak.c \
   crypto/luffa.c \
@@ -310,6 +311,7 @@ crypto_libbitcoin_crypto_a_SOURCES = \
   crypto/sph_cubehash.h \
   crypto/sph_echo.h \
   crypto/sph_groestl.h \
+  crypto/sph_biblepay.h \
   crypto/sph_jh.h \
   crypto/sph_keccak.h \
   crypto/sph_luffa.h \
