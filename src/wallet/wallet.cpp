@@ -1979,7 +1979,7 @@ CAmount CWallet::GetRetirementBalance() const
 			nTotalCredit += nCredit2;
 		}
 	}
- 	LogPrintf(" Total Debit %f, Total Credit %f, Total %f  ",(double)nTotalDebit/COIN, (double)nTotalCredit/COIN, (double)nTotal/COIN);
+ 	// LogPrintf(" Total Debit %f, Total Credit %f, Total %f  ",(double)nTotalDebit/COIN, (double)nTotalCredit/COIN, (double)nTotal/COIN);
     return nTotal;
 }
 

@@ -230,6 +230,7 @@ public:
         strSporkPubKey = "0";
         strMasternodePaymentsPubKey = "0";
 
+		/*
         checkpointData = (CCheckpointData) {
             boost::assign::map_list_of
             (    1, uint256S("0x18b37b60b422ea27d57ceea9dd794b5f74c561565ecc03e85a22ecdf74cbb33a"))
@@ -240,10 +241,13 @@ public:
                         //   (the tx=... number in the SetBestChain debug.log lines)
             500         // * estimated number of transactions per day after checkpoint
         };
+		*/
+
 		
 		
-		/*
-		checkpointData = (CCheckpointData) {
+		
+		checkpointData = (CCheckpointData) 
+		{
             boost::assign::map_list_of
             (    1, uint256S("0x18b37b60b422ea27d57ceea9dd794b5f74c561565ecc03e85a22ecdf74cbb33a"))
        		,
@@ -252,8 +256,7 @@ public:
                         //   (the tx=... number in the SetBestChain debug.log lines)
             500         // * estimated number of transactions per day after checkpoint
         };
-		*/
-
+	
 
     }
 };

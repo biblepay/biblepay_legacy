@@ -6980,7 +6980,9 @@ bool ProcessMessages(CNode* pfrom)
 
         if (!fRet)
 		{
-            if (fDebug) LogPrintf("%s(%s, %u bytes) FAILED peer=%d\n", __func__, SanitizeString(strCommand), nMessageSize, pfrom->id);
+
+            if (fDebugMaster) LogPrintf("%s (%s, %u bytes) FAILED peer = %d\n", __func__, SanitizeString(strCommand), nMessageSize, pfrom->id);
+			LogPrintf(" 103 \n");
 		}
 
         break;
