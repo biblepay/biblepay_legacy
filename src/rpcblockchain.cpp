@@ -2125,20 +2125,14 @@ UniValue exec(const UniValue& params, bool fHelp)
 		results.push_back(Pair("h5",h5.GetHex()));
 		bool f1 = CheckNonce(true, 1, 9000, 10000, 10060);
 		results.push_back(Pair("f1",f1));
-
 		bool f2 = CheckNonce(true, 256000, 9000, 10000, 10060);
 		results.push_back(Pair("f2",f2));
-
 		bool f3 = CheckNonce(true, 256000, 9000, 10000, 10000+1900);
 		results.push_back(Pair("f3",f3));
-
 		bool f4 = CheckNonce(true, 1256000, 9000, 10000, 10000+180);
 		results.push_back(Pair("f4",f4));
-				
 		bool f5 = CheckNonce(true, 1256000, 9000, 10000, 10000+18000);
 		results.push_back(Pair("f5",f5));
-
-		
 	}
 	else if (sItem == "datalist")
 	{

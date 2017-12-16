@@ -5029,10 +5029,10 @@ bool LoadExternalBlockFile(const CChainParams& chainparams, FILE* fileIn, CDiskB
     // Map of disk positions for blocks with unknown parent (only used for reindex)
     static std::multimap<uint256, CDiskBlockPos> mapBlocksUnknownParent;
     int64_t nStart = GetTimeMillis();
-	LogPrintf("Starting reindex operation... ");
-
+	
     int nLoaded = 0;
-    try {
+    try 
+	{
         // This takes over fileIn and calls fclose() on it in the CBufferedFile destructor
         CBufferedFile blkdat(fileIn, 2*MAX_BLOCK_SIZE, MAX_BLOCK_SIZE+8, SER_DISK, CLIENT_VERSION);
         uint64_t nRewind = blkdat.GetPos();
@@ -5092,8 +5092,7 @@ bool LoadExternalBlockFile(const CChainParams& chainparams, FILE* fileIn, CDiskB
 		
                     if (ProcessNewBlock(state, chainparams, NULL, &block, true, dbp))
                         nLoaded++;
-					LogPrintf(" %f ",(double)nLoaded);
-                    if (state.IsError())
+	                if (state.IsError())
                         break;
                 } 
 				else if (hash != cblockGenesis.GetHash() && mapBlockIndex[hash]->nHeight % 1000 == 0) 
@@ -5131,15 +5130,13 @@ bool LoadExternalBlockFile(const CChainParams& chainparams, FILE* fileIn, CDiskB
                 }
             } catch (const std::exception& e) 
 			{
-                LogPrintf("%s: Deserialize or I/O error - %s\n", __func__, e.what());
+                if (fDebugMaster) LogPrintf("%s: Deserialize or I/O error - %s\n", __func__, e.what());
             }
         }
     } 
 	catch (const std::runtime_error& e) 
 	{
-		LogPrintf("System Error");
-
-        AbortNode(std::string("System error: ") + e.what());
+	    AbortNode(std::string("System error: ") + e.what());
     }
     if (nLoaded > 0)
         LogPrintf("Loaded %i blocks from external file in %dms\n", nLoaded, GetTimeMillis() - nStart);
@@ -6980,9 +6977,8 @@ bool ProcessMessages(CNode* pfrom)
 
         if (!fRet)
 		{
-
             if (fDebugMaster) LogPrintf("%s (%s, %u bytes) FAILED peer = %d\n", __func__, SanitizeString(strCommand), nMessageSize, pfrom->id);
-			LogPrintf(" 103 \n");
+			// LogPrintf(" 103 \n");
 		}
 
         break;
