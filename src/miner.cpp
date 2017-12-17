@@ -114,7 +114,7 @@ CBlockTemplate* CreateNewBlock(const CChainParams& chainparams, const CScript& s
     	txNew.vout[0].scriptPubKey = spkPoolScript;
 	}
 
-	bool fTitheBlocksActive = ((pindexPrev->nHeight+1) < Params().GetConsensus().nSuperblockStartBlock);
+	bool fTitheBlocksActive = ((pindexPrev->nHeight+1) < Params().GetConsensus().nMasternodePaymentsStartBlock);
 	
 	if (fTitheBlocksActive)
 	{

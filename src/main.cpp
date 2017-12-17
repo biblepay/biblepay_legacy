@@ -3199,7 +3199,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     }
 
 	
-	bool fTitheBlocksActive = (pindex->nHeight < Params().GetConsensus().nSuperblockStartBlock);
+	bool fTitheBlocksActive = (pindex->nHeight < Params().GetConsensus().nMasternodePaymentsStartBlock);
 	if (fTitheBlocksActive)
 	{
 		if ((pindex->nHeight % TITHE_MODULUS)==0)
@@ -7824,7 +7824,7 @@ void GetMiningParams(int nPrevHeight, bool& f7000, bool& f8000, bool& f9000, boo
 	f7000 = ((!fProd && nPrevHeight > 1) || (fProd && nPrevHeight > F7000_CUTOVER_HEIGHT)) ? true : false;
     f8000 = ((fMasternodesEnabled) && ((!fProd && nPrevHeight >= F8000_CUTOVER_HEIGHT_TESTNET) || (fProd && nPrevHeight >= F8000_CUTOVER_HEIGHT)));
 	f9000 = ((!fProd && nPrevHeight >= F9000_CUTOVER_HEIGHT_TESTNET) || (fProd && nPrevHeight >= F9000_CUTOVER_HEIGHT));
-    fTitheBlocksActive = ((nPrevHeight+1) < Params().GetConsensus().nSuperblockStartBlock);
+    fTitheBlocksActive = ((nPrevHeight+1) < Params().GetConsensus().nMasternodePaymentsStartBlock);
 }
 
 
