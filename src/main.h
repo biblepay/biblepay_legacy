@@ -65,6 +65,9 @@ static const int F7000_CUTOVER_HEIGHT = 7000;
 static const int F7000_CUTOVER_HEIGHT_DIFF_END = 7500;
 static const int F9000_CUTOVER_HEIGHT = 21550;
 static const int F9000_CUTOVER_HEIGHT_TESTNET = 100;
+static const int LAST_TITHE_BLOCK = 21565;
+static const int LAST_TITHE_BLOCK_TESTNET = 1000;
+
 
 /** Default for -maxorphantx, maximum number of orphan transactions kept in memory */
 static const unsigned int DEFAULT_MAX_ORPHAN_TRANSACTIONS = 100;

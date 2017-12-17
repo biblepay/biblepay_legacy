@@ -42,11 +42,11 @@ public:
 		consensus.nInstantSendKeepLock = 24;
         consensus.nMasternodePaymentsIncreasePeriod = BLOCKS_PER_DAY * 30; // One month
         
-        consensus.nMasternodePaymentsStartBlock = 21549; // Must be less then nMasternodePaymentsIncreaseBlock
-        consensus.nMasternodePaymentsIncreaseBlock = 21551; 
+        consensus.nMasternodePaymentsStartBlock = 21600; // Must be less then nMasternodePaymentsIncreaseBlock
+        consensus.nMasternodePaymentsIncreaseBlock = 21601; 
         
 		consensus.nBudgetPaymentsStartBlock = 21551; // This is when we change our block distribution to include PR, P2P, IT expenses
-		consensus.nRuleChangeActivationThreshold = 21551; // Same as Masternode Payments Start block
+		consensus.nRuleChangeActivationThreshold = 21600; // Same as Masternode Payments Start block
       
         consensus.nBudgetPaymentsCycleBlocks = BLOCKS_PER_DAY * 30; // Monthly
         consensus.nBudgetPaymentsWindowBlocks = 100;
