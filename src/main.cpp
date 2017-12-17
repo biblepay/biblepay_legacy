@@ -3212,7 +3212,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
 			 }
 			 CAmount MasterNodeReward = GetBlockSubsidy(pindex->pprev, pindex->pprev->nBits, pindex->pprev->nHeight, chainparams.GetConsensus(), true);
 			 CAmount TithePart = blockReward - MasterNodeReward;
-     		 if (TithePart != block.vtx[0].vout[0].nValue)
+     		 if (TithePart != block.vtx[0].vout[0].nValue && false)
 			 {
 					 LogPrintf("Tithe Block Reward %f, TithePart %f, nValue %f  ",(double)MasterNodeReward/COIN,(double)TithePart/COIN, 
 						 (double)block.vtx[0].vout[0].nValue/COIN);
