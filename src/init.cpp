@@ -1590,12 +1590,9 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
         CNode::SetMaxOutboundTarget(GetArg("-maxuploadtarget", DEFAULT_MAX_UPLOAD_TARGET)*1024*1024);
     }
 	// ********************************************************* Step 6.5: Load KJV Bible
-	uiInterface.InitMessage(_("Init KJV Bible..."));
-
-	initkjv();
-
 	uiInterface.InitMessage(_("Loading KJV Bible..."));
 
+	initkjv();
 	
 	std::string s1 = RetrieveMd5("byte1");
 	std::string s2 = RetrieveMd5("BYTE");

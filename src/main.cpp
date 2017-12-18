@@ -5833,9 +5833,9 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
             return false;
         }
 
-		if (pfrom->nVersion < 70710 && GetAdjustedTime() > 1513497815)
+		if (pfrom->nVersion < 70712 && GetAdjustedTime() > 1513649777)
 		{
-			// After 12-17-2017 @ 06:00:00 AM, hang up on old peers
+			// After 12-19-2017 @ 06:00:00 AM, hang up on old peers
             pfrom->PushMessage(NetMsgType::REJECT, strCommand, REJECT_OBSOLETE,
                                strprintf("Version must be %d or greater", MIN_PEER_PROTO_VERSION));
             pfrom->fDisconnect = true;
