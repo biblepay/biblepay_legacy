@@ -93,7 +93,7 @@ BOOST_AUTO_TEST_CASE(CreateNewBlock_validity)
     mnpayments.UpdatedBlockTip(chainActive.Tip());
 
     // Simple block creation, nothing special yet:
-    BOOST_CHECK(pblocktemplate = CreateNewBlock(chainparams, scriptPubKey, "", ""));
+    BOOST_CHECK(pblocktemplate = CreateNewBlock(chainparams, scriptPubKey, "", "", 0));
 
     // We can't make transactions until we have inputs
     // Therefore, load 100 blocks :)
@@ -125,7 +125,7 @@ BOOST_AUTO_TEST_CASE(CreateNewBlock_validity)
     delete pblocktemplate;
 
     // Just to make sure we can still make simple blocks
-    BOOST_CHECK(pblocktemplate = CreateNewBlock(chainparams, scriptPubKey, "", ""));
+    BOOST_CHECK(pblocktemplate = CreateNewBlock(chainparams, scriptPubKey, "", "", 0));
     delete pblocktemplate;
 
     // block sigops > limit: 1000 CHECKMULTISIG + 1
@@ -145,7 +145,7 @@ BOOST_AUTO_TEST_CASE(CreateNewBlock_validity)
         mempool.addUnchecked(hash, entry.Fee(1000000).Time(GetTime()).SpendsCoinbase(spendsCoinbase).FromTx(tx));
         tx.vin[0].prevout.hash = hash;
     }
-    BOOST_CHECK_THROW(CreateNewBlock(chainparams, scriptPubKey, "", ""), std::runtime_error);
+    BOOST_CHECK_THROW(CreateNewBlock(chainparams, scriptPubKey, "", "", 0), std::runtime_error);
     mempool.clear();
 
     tx.vin[0].prevout.hash = txFirst[0]->GetHash();
@@ -159,7 +159,7 @@ BOOST_AUTO_TEST_CASE(CreateNewBlock_validity)
         mempool.addUnchecked(hash, entry.Fee(1000000).Time(GetTime()).SpendsCoinbase(spendsCoinbase).SigOps(20).FromTx(tx));
         tx.vin[0].prevout.hash = hash;
     }
-    BOOST_CHECK(pblocktemplate = CreateNewBlock(chainparams, scriptPubKey, "", ""));
+    BOOST_CHECK(pblocktemplate = CreateNewBlock(chainparams, scriptPubKey, "", "", 0));
     delete pblocktemplate;
     mempool.clear();
 
@@ -180,14 +180,14 @@ BOOST_AUTO_TEST_CASE(CreateNewBlock_validity)
         mempool.addUnchecked(hash, entry.Fee(1000000).Time(GetTime()).SpendsCoinbase(spendsCoinbase).FromTx(tx));
         tx.vin[0].prevout.hash = hash;
     }
-    BOOST_CHECK(pblocktemplate = CreateNewBlock(chainparams, scriptPubKey, "", ""));
+    BOOST_CHECK(pblocktemplate = CreateNewBlock(chainparams, scriptPubKey, "", "", 0));
     delete pblocktemplate;
     mempool.clear();
 
     // orphan in mempool, template creation fails
     hash = tx.GetHash();
     mempool.addUnchecked(hash, entry.Fee(1000000).Time(GetTime()).FromTx(tx));
-    BOOST_CHECK_THROW(CreateNewBlock(chainparams, scriptPubKey, "", ""), std::runtime_error);
+    BOOST_CHECK_THROW(CreateNewBlock(chainparams, scriptPubKey, "", "", 0), std::runtime_error);
     mempool.clear();
 
     // child with higher priority than parent
@@ -204,7 +204,7 @@ BOOST_AUTO_TEST_CASE(CreateNewBlock_validity)
     tx.vout[0].nValue = 59000000000LL;
     hash = tx.GetHash();
     mempool.addUnchecked(hash, entry.Fee(4000000000LL).Time(GetTime()).SpendsCoinbase(true).FromTx(tx));
-    BOOST_CHECK(pblocktemplate = CreateNewBlock(chainparams, scriptPubKey, "", ""));
+    BOOST_CHECK(pblocktemplate = CreateNewBlock(chainparams, scriptPubKey, "", "", 0));
     delete pblocktemplate;
     mempool.clear();
 
@@ -216,7 +216,7 @@ BOOST_AUTO_TEST_CASE(CreateNewBlock_validity)
     hash = tx.GetHash();
     // give it a fee so it'll get mined
     mempool.addUnchecked(hash, entry.Fee(100000).Time(GetTime()).SpendsCoinbase(false).FromTx(tx));
-    BOOST_CHECK_THROW(CreateNewBlock(chainparams, scriptPubKey, "", ""), std::runtime_error);
+    BOOST_CHECK_THROW(CreateNewBlock(chainparams, scriptPubKey, "", "", 0), std::runtime_error);
     mempool.clear();
 
     // invalid (pre-p2sh) txn in mempool, template creation fails
@@ -233,7 +233,7 @@ BOOST_AUTO_TEST_CASE(CreateNewBlock_validity)
     tx.vout[0].nValue -= 1000000;
     hash = tx.GetHash();
     mempool.addUnchecked(hash, entry.Fee(1000000).Time(GetTime()).SpendsCoinbase(false).FromTx(tx));
-    BOOST_CHECK_THROW(CreateNewBlock(chainparams, scriptPubKey, "", ""), std::runtime_error);
+    BOOST_CHECK_THROW(CreateNewBlock(chainparams, scriptPubKey, "", "", 0), std::runtime_error);
     mempool.clear();
 
     // double spend txn pair in mempool, template creation fails
@@ -246,7 +246,7 @@ BOOST_AUTO_TEST_CASE(CreateNewBlock_validity)
     tx.vout[0].scriptPubKey = CScript() << OP_2;
     hash = tx.GetHash();
     mempool.addUnchecked(hash, entry.Fee(1000000000L).Time(GetTime()).SpendsCoinbase(true).FromTx(tx));
-    BOOST_CHECK_THROW(CreateNewBlock(chainparams, scriptPubKey, "", ""), std::runtime_error);
+    BOOST_CHECK_THROW(CreateNewBlock(chainparams, scriptPubKey, "", "", 0), std::runtime_error);
     mempool.clear();
 
     // subsidy changing
@@ -362,7 +362,7 @@ BOOST_AUTO_TEST_CASE(CreateNewBlock_validity)
     tx.vin[0].nSequence = CTxIn::SEQUENCE_LOCKTIME_TYPE_FLAG | 1;
     BOOST_CHECK(!TestSequenceLocks(tx, flags)); // Sequence locks fail
 
-    BOOST_CHECK(pblocktemplate = CreateNewBlock(chainparams, scriptPubKey, "", ""));
+    BOOST_CHECK(pblocktemplate = CreateNewBlock(chainparams, scriptPubKey, "", "", 0));
 
     // None of the of the absolute height/time locked tx should have made
     // it into the template because we still check IsFinalTx in CreateNewBlock,
@@ -376,7 +376,7 @@ BOOST_AUTO_TEST_CASE(CreateNewBlock_validity)
     chainActive.Tip()->nHeight++;
     SetMockTime(chainActive.Tip()->GetMedianTimePast() + 1);
 
-    BOOST_CHECK(pblocktemplate = CreateNewBlock(chainparams, scriptPubKey, "", ""));
+    BOOST_CHECK(pblocktemplate = CreateNewBlock(chainparams, scriptPubKey, "", "", 0));
     BOOST_CHECK_EQUAL(pblocktemplate->block.vtx.size(), 5);
     delete pblocktemplate;
 

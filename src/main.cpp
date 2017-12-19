@@ -2186,7 +2186,15 @@ CAmount GetMasternodePayment(int nHeight, CAmount blockValue, CAmount nSanctuary
 	// Should we carve out additional 1-10% from superblocks for PR and/or P2P Rewards?
 	// Poll ended 12-4-2017: Yes, carve an addl 2.5% for PR and 2.5% for P2P rewards (5% more) leaving 80% for miner/sanctuaries.
 	// Final Distribution: 10% Charity, 2.5% PR, 2.5% P2P, 5% for IT, 40% for miner, 40% for sanctuary
-    CAmount ret = fSuperblocksEnabled ? blockValue * (!fProd ? .50 : .40) : blockValue * .10;
+	CAmount ret = 0;
+	if (fProd && nHeight > 24999)
+	{
+		ret = blockValue * .50; // Tithe blocks have ended, masternodes are live, budgets live, split masternode payment with miner.
+    }
+	else
+	{
+		ret = fSuperblocksEnabled ? blockValue * (!fProd ? .50 : .40) : blockValue * .10;
+    }
     return ret;
 }
 
@@ -4135,9 +4143,12 @@ bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, bool f
 
     // BiblePay - Check timestamp (reject if > 15 minutes in future).  This is is important since we lower the difficulty after all online nodes cannot solve block in one hour!  
     if (block.GetBlockTime() > GetAdjustedTime() + (15 * 60))
+        return state.Invalid(error("CheckBlockHeader(): BiblePay: Block timestamp way too far in the future"),
+                             REJECT_INVALID, "time-way-too-new");
+
+    if (nPrevHeight > 24999 && block.GetBlockTime() > GetAdjustedTime() + (5 * 60))
         return state.Invalid(error("CheckBlockHeader(): BiblePay: Block timestamp too far in the future"),
                              REJECT_INVALID, "time-too-new");
-	
     return true;
 }
 
