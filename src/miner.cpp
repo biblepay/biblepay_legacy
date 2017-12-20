@@ -49,7 +49,7 @@ using namespace std;
 
 uint64_t nLastBlockTx = 0;
 uint64_t nLastBlockSize = 0;
-uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight, const CBlockIndex* pindexLast, bool bRequireTxIndex, bool f7000, bool f8000, bool f9000, bool fTitheBlocksActive);
+uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight, const CBlockIndex* pindexLast, bool bRequireTxIndex, bool f7000, bool f8000, bool f9000, bool fTitheBlocksActive, unsigned int nNonce);
 std::string ExtractXML(std::string XMLdata, std::string key, std::string key_end);
 void WriteCache(std::string section, std::string key, std::string value, int64_t locktime);
 std::string ReadCache(std::string section, std::string key);
@@ -416,7 +416,7 @@ void IncrementExtraNonce(CBlock* pblock, const CBlockIndex* pindexPrev, unsigned
 
 
 void UpdatePoolProgress(const CBlock* pblock, std::string sPoolAddress, arith_uint256 hashPoolTarget, CBlockIndex* pindexPrev, std::string sMinerGuid, std::string sWorkID, 
-	int iThreadID, unsigned int iThreadWork, int64_t nThreadStart)
+	int iThreadID, unsigned int iThreadWork, int64_t nThreadStart, unsigned int nNonce)
 {
 	bool f7000;
 	bool f8000;
@@ -424,7 +424,7 @@ void UpdatePoolProgress(const CBlock* pblock, std::string sPoolAddress, arith_ui
 	bool fTitheBlocksActive;
 	GetMiningParams(pindexPrev->nHeight, f7000, f8000, f9000, fTitheBlocksActive);
 
-	uint256 hashSolution = BibleHash(pblock->GetHash(),pblock->GetBlockTime(),pindexPrev->nTime,true,pindexPrev->nHeight,NULL,false,f7000,f8000,f9000,fTitheBlocksActive);
+	uint256 hashSolution = BibleHash(pblock->GetHash(), pblock->GetBlockTime(), pindexPrev->nTime, true, pindexPrev->nHeight, NULL, false, f7000, f8000, f9000, fTitheBlocksActive, nNonce);
 
 	if (!sPoolAddress.empty())
 	{
@@ -443,7 +443,8 @@ void UpdatePoolProgress(const CBlock* pblock, std::string sPoolAddress, arith_ui
 			+ "," + RoundToString(nThreadStart,0) 
 			+ "," + RoundToString(nHashCounter,0) 
 			+ "," + RoundToString(nHPSTimerStart,0)
-			+ "," + RoundToString(GetTimeMillis(),0);
+			+ "," + RoundToString(GetTimeMillis(),0)
+			+ "," + RoundToString(nNonce,0);
 		WriteCache("pool" + RoundToString(iThreadID, 0),"communication","1",GetAdjustedTime());
 		SetThreadPriority(THREAD_PRIORITY_NORMAL);
 		// Clear the pool cache
@@ -753,7 +754,7 @@ recover:
 					// The BibleHash is generated from chained bible verses, a historical tx lookup, one AES encryption operation, and MD5 hash
 					uint256 x11_hash = pblock->GetHash();
 					uint256 hash;
-					hash = BibleHash(x11_hash, pblock->GetBlockTime(), pindexPrev->nTime, true, pindexPrev->nHeight, NULL, false, f7000, f8000, f9000, fTitheBlocksActive);
+					hash = BibleHash(x11_hash, pblock->GetBlockTime(), pindexPrev->nTime, true, pindexPrev->nHeight, NULL, false, f7000, f8000, f9000, fTitheBlocksActive, pblock->nNonce);
 					nBibleHashesDone += 1;
 					nHashesDone += 1;
 					nThreadWork += 1;
@@ -762,7 +763,7 @@ recover:
 					{
 						if (UintToArith256(hash) <= hashTargetPool)
 						{
-							hash = BibleHash(x11_hash, pblock->GetBlockTime(), pindexPrev->nTime, true, pindexPrev->nHeight, NULL, false, f7000, f8000, f9000, fTitheBlocksActive);
+							hash = BibleHash(x11_hash, pblock->GetBlockTime(), pindexPrev->nTime, true, pindexPrev->nHeight, NULL, false, f7000, f8000, f9000, fTitheBlocksActive, pblock->nNonce);
 							bool fNonce = CheckNonce(f9000, pblock->nNonce, pindexPrev->nHeight, pindexPrev->nTime, pblock->GetBlockTime());
 
 							if (UintToArith256(hash) <= hashTargetPool && fNonce)
@@ -772,7 +773,7 @@ recover:
 								if ((GetAdjustedTime() - nLastShareSubmitted) > (2*60))
 								{
 									nLastShareSubmitted = GetAdjustedTime();
-									UpdatePoolProgress(pblock, sPoolMiningAddress, hashTargetPool, pindexPrev, sMinerGuid, sWorkID, iThreadID, nThreadWork, nThreadStart);
+									UpdatePoolProgress(pblock, sPoolMiningAddress, hashTargetPool, pindexPrev, sMinerGuid, sWorkID, iThreadID, nThreadWork, nThreadStart, pblock->nNonce);
 									hashTargetPool = UintToArith256(uint256S("0x0"));
 									nThreadStart = GetTimeMillis();
 									nThreadWork = 0;

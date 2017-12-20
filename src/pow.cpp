@@ -16,7 +16,8 @@
 #include <openssl/crypto.h>
 
 extern bool LogLimiter(int iMax1000);
-uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight, const CBlockIndex* pindexLast, bool bRequireTxIndex, bool f7000, bool f8000, bool f9000, bool fTitheBlocksActive);
+uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight, const CBlockIndex* pindexLast, bool bRequireTxIndex, 
+	bool f7000, bool f8000, bool f9000, bool fTitheBlocksActive, unsigned int nNonce);
 std::string RoundToString(double d, int place);
 void GetMiningParams(int nPrevHeight, bool& f7000, bool& f8000, bool& f9000, bool& fTitheBlocksActive);
 extern bool CheckNonce(bool f9000, unsigned int nNonce, int nPrevHeight, int64_t nPrevBlockTime, int64_t nBlockTime);
@@ -317,10 +318,10 @@ bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params&
 	
 	if (f7000 || f_8000)
 	{
-		uint256 uBibleHash = BibleHash(hash, nBlockTime, nPrevBlockTime, true, nPrevHeight, NULL, false, f_7000, f_8000, f_9000, fTitheBlocksActive);
+		uint256 uBibleHash = BibleHash(hash, nBlockTime, nPrevBlockTime, true, nPrevHeight, NULL, false, f_7000, f_8000, f_9000, fTitheBlocksActive, nNonce);
 		if (UintToArith256(uBibleHash) > bnTarget)
 		{
-			uint256 uBibleHash2 = BibleHash(hash, nBlockTime, nPrevBlockTime, true, nPrevHeight, NULL, false, f_7000, f_8000, f_9000, fTitheBlocksActive);
+			uint256 uBibleHash2 = BibleHash(hash, nBlockTime, nPrevBlockTime, true, nPrevHeight, NULL, false, f_7000, f_8000, f_9000, fTitheBlocksActive, nNonce);
 			if (UintToArith256(uBibleHash2) > bnTarget)
 			{
 				uint256 uTarget = ArithToUint256(bnTarget);
@@ -351,7 +352,7 @@ bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params&
 
 	if (f7000 && !bLoadingBlockIndex && bRequireTxIndexLookup)
 	{
-		if	(UintToArith256(BibleHash(hash, nBlockTime, nPrevBlockTime, true, nPrevHeight, pindexPrev, true, f_7000, f_8000, f_9000, fTitheBlocksActive)) > bnTarget)
+		if	(UintToArith256(BibleHash(hash, nBlockTime, nPrevBlockTime, true, nPrevHeight, pindexPrev, true, f_7000, f_8000, f_9000, fTitheBlocksActive, nNonce)) > bnTarget)
 		{
 			uint256 h2 = (pindexPrev != NULL) ? pindexPrev->GetBlockHash() : uint256S("0x0");
 			return error("CheckProofOfWork(2): BibleHash does not meet POW level with TxIndex Lookup, prevheight %f pindexPrev %s ",(double)nPrevHeight,h2.GetHex().c_str());

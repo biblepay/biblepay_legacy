@@ -59,7 +59,7 @@ void WriteCache(std::string section, std::string key, std::string value, int64_t
 std::string AddNews(std::string sPrimaryKey, std::string sHTML, double dStorageFee);
 
 UniValue GetDataList(std::string sType, int iMaxAgeInDays, int& iSpecificEntry, std::string& outEntry);
-uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight, const CBlockIndex* pindexLast, bool bRequireTxIndex, bool f7000, bool f8000, bool f9000, bool fTitheBlocksActive);
+uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight, const CBlockIndex* pindexLast, bool bRequireTxIndex, bool f7000, bool f8000, bool f9000, bool fTitheBlocksActive, unsigned int nNonce);
 void MemorizeBlockChainPrayers(bool fDuringConnectBlock);
 std::string GetVerse(std::string sBook, int iChapter, int iVerse, int iStart, int iEnd);
 std::string GetBookByName(std::string sName);
@@ -215,7 +215,8 @@ UniValue blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool tx
 
 		arith_uint256 hashTarget = arith_uint256().SetCompact(blockindex->nBits);
 		uint256 hashWork = blockindex->GetBlockHash();
-		uint256 bibleHash = BibleHash(hashWork, block.GetBlockTime(), blockindex->pprev->nTime, false, blockindex->pprev->nHeight, blockindex->pprev, false, f7000, f8000, f9000, fTitheBlocksActive);
+		uint256 bibleHash = BibleHash(hashWork, block.GetBlockTime(), blockindex->pprev->nTime, false, blockindex->pprev->nHeight, blockindex->pprev, 
+			false, f7000, f8000, f9000, fTitheBlocksActive, blockindex->nNonce);
 		bool bSatisfiesBibleHash = (UintToArith256(bibleHash) <= hashTarget);
 		result.push_back(Pair("satisfiesbiblehash", bSatisfiesBibleHash ? "true" : "false"));
 		result.push_back(Pair("biblehash", bibleHash.GetHex()));
@@ -1719,16 +1720,18 @@ UniValue exec(const UniValue& params, bool fHelp)
 	}
 	else if (sItem == "biblehash")
 	{
-		if (params.size() != 5)
-			throw runtime_error("You must specify blockhash, blocktime, prevblocktime and prevheight, IE: run biblehash blockhash 12345 12234 100.");
+		if (params.size() != 6)
+			throw runtime_error("You must specify blockhash, blocktime, prevblocktime, prevheight, and nonce IE: run biblehash blockhash 12345 12234 100 256.");
 		std::string sBlockHash = params[1].get_str();
 		std::string sBlockTime = params[2].get_str();
 		std::string sPrevBlockTime = params[3].get_str();
 		std::string sPrevHeight = params[4].get_str();
+		std::string sNonce = params[5].get_str();
 		int64_t nHeight = cdbl(sPrevHeight,0);
 		uint256 blockHash = uint256S("0x" + sBlockHash);
 		int64_t nBlockTime = (int64_t)cdbl(sBlockTime,0);
 		int64_t nPrevBlockTime = (int64_t)cdbl(sPrevBlockTime,0);
+		unsigned int nNonce = cdbl(sNonce,0);
 		if (!sBlockHash.empty() && nBlockTime > 0 && nPrevBlockTime > 0 && nHeight >= 0)
 		{
 			bool f7000;
@@ -1737,9 +1740,19 @@ UniValue exec(const UniValue& params, bool fHelp)
 			bool fTitheBlocksActive;
 			GetMiningParams(nHeight, f7000, f8000, f9000, fTitheBlocksActive);
 
-			uint256 hash = BibleHash(blockHash, nBlockTime, nPrevBlockTime, true, nHeight, NULL, false, f7000, f8000, f9000, fTitheBlocksActive);
+			uint256 hash = BibleHash(blockHash, nBlockTime, nPrevBlockTime, true, nHeight, NULL, false, f7000, f8000, f9000, fTitheBlocksActive, nNonce);
 			results.push_back(Pair("BibleHash",hash.GetHex()));
 		}
+	}
+	else if (sItem == "pinfo")
+	{
+		results.push_back(Pair("height", chainActive.Tip()->nHeight));
+		int64_t nElapsed = GetAdjustedTime() - chainActive.Tip()->nTime;
+		int64_t nMN = nElapsed * 256;
+		if (nElapsed > (30 * 60)) nMN=999999999;
+		if (nMN < 512) nMN = 512;
+		results.push_back(Pair("pinfo", nMN));
+		results.push_back(Pair("elapsed", nElapsed));
 	}
 	else if (sItem == "subsidy")
 	{
@@ -1759,6 +1772,8 @@ UniValue exec(const UniValue& params, bool fHelp)
         				results.push_back(Pair("subsidy", block.vtx[0].vout[0].nValue/COIN));
 						std::string sRecipient = PubKeyToAddress(block.vtx[0].vout[0].scriptPubKey);
 						results.push_back(Pair("recipient", sRecipient));
+						results.push_back(Pair("blockversion", ExtractXML(block.vtx[0].vout[0].sTxOutMessage,"<VER>","</VER>")));
+						results.push_back(Pair("minerguid", ExtractXML(block.vtx[0].vout[0].sTxOutMessage,"<MINERGUID>","</MINERGUID>")));
 				}
 			}
 		}

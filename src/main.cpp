@@ -137,7 +137,7 @@ std::string TimestampToHRDate(double dtm);
 extern std::string RoundToString(double d, int place);
 extern std::string GetArrayElement(std::string s, std::string delim, int iPos);
 double GetDifficultyN(const CBlockIndex* blockindex, double N);
-uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight, const CBlockIndex* pindexLast, bool bRequireTxIndex, bool f7000, bool f8000, bool f9000, bool fTitheBlocksActive);
+uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight, const CBlockIndex* pindexLast, bool bRequireTxIndex, bool f7000, bool f8000, bool f9000, bool fTitheBlocksActive, unsigned int nNonce);
 
 
 bool fImporting = false;
@@ -2187,7 +2187,8 @@ CAmount GetMasternodePayment(int nHeight, CAmount blockValue, CAmount nSanctuary
 	// Poll ended 12-4-2017: Yes, carve an addl 2.5% for PR and 2.5% for P2P rewards (5% more) leaving 80% for miner/sanctuaries.
 	// Final Distribution: 10% Charity, 2.5% PR, 2.5% P2P, 5% for IT, 40% for miner, 40% for sanctuary
 	CAmount ret = 0;
-	if (fProd && nHeight > 24999)
+	int nSpork8Height = fProd ? SPORK8_HEIGHT : SPORK8_HEIGHT_TESTNET;
+	if (fProd && nHeight > nSpork8Height)
 	{
 		ret = blockValue * .50; // Tithe blocks have ended, masternodes are live, budgets live, split masternode payment with miner.
     }

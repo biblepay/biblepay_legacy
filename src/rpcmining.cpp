@@ -33,7 +33,8 @@
 
 using namespace std;
 
-uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight, const CBlockIndex* pindexLast, bool bRequireTxIndex, bool f7000, bool f8000, bool f9000, bool fTitheBlocksActive);
+uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight, const CBlockIndex* pindexLast, bool bRequireTxIndex, 
+	bool f7000, bool f8000, bool f9000, bool fTitheBlocksActive, unsigned int nNonce);
 
 
 std::string TimestampToHRDate(double dtm);

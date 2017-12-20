@@ -256,12 +256,15 @@ bool IsBlockPayeeValid(const CTransaction& txNew, int nBlockHeight, CAmount bloc
     }
 
     // IF THIS ISN'T A SUPERBLOCK OR SUPERBLOCK IS INVALID, IT SHOULD PAY A MASTERNODE DIRECTLY
-    if(mnpayments.IsTransactionValid(txNew, nBlockHeight)) {
+	int nSpork8Height = fProd ? SPORK8_HEIGHT : SPORK8_HEIGHT_TESTNET;
+	bool bSpork8 = nBlockHeight > nSpork8Height;
+		
+    if(mnpayments.IsTransactionValid(txNew, nBlockHeight)) 
+	{
         LogPrint("mnpayments", "IsBlockPayeeValid -- Valid masternode payment at height %d: %s", nBlockHeight, txNew.ToString());
         return true;
     }
-	bool bSpork8 = nBlockHeight > consensusParams.nMasternodePaymentsStartBlock + (7 * BLOCKS_PER_DAY);
-	if(bSpork8 && fMasternodesEnabled) 
+	else if(bSpork8 && fMasternodesEnabled) 
 	{
         LogPrintf("IsBlockPayeeValid -- ERROR: Invalid masternode payment detected at height %d: %s", nBlockHeight, txNew.ToString());
         return false;

@@ -12,7 +12,6 @@
 #endif
 
 
-
 #include "amount.h"
 #include "chain.h"
 #include "coins.h"
@@ -21,7 +20,6 @@
 #include "sync.h"
 #include "versionbits.h"
 #include "spentindex.h"
-
 #include <algorithm>
 #include <exception>
 #include <map>
@@ -30,7 +28,6 @@
 #include <string>
 #include <utility>
 #include <vector>
-
 #include <boost/unordered_map.hpp>
 
 class CBlockIndex;
@@ -65,6 +62,8 @@ static const int F7000_CUTOVER_HEIGHT = 7000;
 static const int F7000_CUTOVER_HEIGHT_DIFF_END = 7500;
 static const int F9000_CUTOVER_HEIGHT = 21550;
 static const int F9000_CUTOVER_HEIGHT_TESTNET = 100;
+static const int SPORK8_HEIGHT = 23000;
+static const int SPORK8_HEIGHT_TESTNET = 23000;
 static const int LAST_TITHE_BLOCK = 21565;
 static const int LAST_TITHE_BLOCK_TESTNET = 1000;
 
