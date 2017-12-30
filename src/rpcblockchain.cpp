@@ -1963,6 +1963,61 @@ UniValue exec(const UniValue& params, bool fHelp)
 			results.push_back(Pair("txid",wtx.GetHash().GetHex()));
 		}
 	}
+	else if (sItem == "sendmanyxml")
+	{
+		    // exec sendmanyxml from_account xml_payload comment
+		    if (!EnsureWalletIsAvailable(fHelp))        return NullUniValue;
+		    LOCK2(cs_main, pwalletMain->cs_wallet);
+			string strAccount = AccountFromValue(params[1]);
+			string sXML = params[2].get_str();
+			int nMinDepth = 1;
+			CWalletTx wtx;
+			wtx.strFromAccount = strAccount;
+			wtx.mapValue["comment"] = params[3].get_str();
+		    set<CBitcoinAddress> setAddress;
+		    vector<CRecipient> vecSend;
+	        CAmount totalAmount = 0;
+			std::string sRecipients = ExtractXML(sXML,"<RECIPIENTS>","</RECIPIENTS>");
+			std::vector<std::string> vRecips = Split(sRecipients.c_str(),"<ROW>");
+			for (int i = 0; i < (int)vRecips.size(); i++)
+			{
+				std::string sRecip = vRecips[i];
+				if (!sRecip.empty())
+				{
+					std::string sRecipient = ExtractXML(sRecip, "<RECIPIENT>","</RECIPIENT>");
+					double dAmount = cdbl(ExtractXML(sRecip,"<AMOUNT>","</AMOUNT>"),4);
+					if (!sRecipient.empty() && dAmount > 0)
+					{
+ 						  CBitcoinAddress address(sRecipient);
+	   			   	      if (!address.IsValid())		throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, string("Invalid Biblepay address: ")+sRecipient);
+						  if (setAddress.count(address)) throw JSONRPCError(RPC_INVALID_PARAMETER, string("Invalid parameter, duplicated address: ")+sRecipient);
+						  setAddress.insert(address);
+						  CScript scriptPubKey = GetScriptForDestination(address.Get());
+						  CAmount nAmount = dAmount * COIN;
+						  if (nAmount <= 0)    throw JSONRPCError(RPC_TYPE_ERROR, "Invalid amount for send");
+						  totalAmount += nAmount;
+						  bool fSubtractFeeFromAmount = false;
+					      CRecipient recipient = {scriptPubKey, nAmount, fSubtractFeeFromAmount, false, false, false, "", "", ""};
+						  vecSend.push_back(recipient);
+					}
+				}
+			}
+			EnsureWalletIsUnlocked();
+			// Check funds
+			CAmount nBalance = GetAccountBalance(strAccount, nMinDepth, ISMINE_SPENDABLE);
+			if (totalAmount > nBalance)  throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "Account has insufficient funds");
+			// Send
+			CReserveKey keyChange(pwalletMain);
+			CAmount nFeeRequired = 0;
+			int nChangePosRet = -1;
+			string strFailReason;
+			bool fUseInstantSend = false;
+			bool fUsePrivateSend = false;
+			bool fCreated = pwalletMain->CreateTransaction(vecSend, wtx, keyChange, nFeeRequired, nChangePosRet, strFailReason, NULL, true, fUsePrivateSend ? ONLY_DENOMINATED : ALL_COINS, fUseInstantSend);
+			if (!fCreated)    throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, strFailReason);
+			if (!pwalletMain->CommitTransaction(wtx, keyChange, fUseInstantSend ? NetMsgType::TXLOCKREQUEST : NetMsgType::TX))   throw JSONRPCError(RPC_WALLET_ERROR, "Transaction commit failed");
+		 	results.push_back(Pair("txid",wtx.GetHash().GetHex()));
+	}
 	else if (sItem == "deprecated_createescrowtransaction")
 	{
 
