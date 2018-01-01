@@ -647,7 +647,7 @@ void static BibleMiner(const CChainParams& chainparams, int iThreadID, int iFeat
 	int64_t nLastClearCache = GetAdjustedTime() - 480;
 	int64_t nLastShareSubmitted = GetAdjustedTime() - 480;
 	int iFailCount = 0;
-	bool fCompetetiveMining = GetArg("-competetivemining", "")=="true";
+	bool fCompetetiveMining = GetArg("-competetivemining", "true")=="true";
 
     CAmount competetiveMiningTithe = 0;
 recover:

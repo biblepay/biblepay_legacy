@@ -107,11 +107,11 @@ UniValue gobject(const UniValue& params, bool fHelp)
 		std::string sType = params[5].get_str();
 		std::string sQ = "\"";
 		std::string sJson = "[[" + sQ + "trigger" + sQ + ",{";
-		sJson += GJE("event_block_height",sEventBlockHeight,true,false); // Must be an int
-		sJson += GJE("payment_addresses",sPaymentAddresses,true,true);
-		sJson += GJE("payment_amounts",sPaymentAmounts,true,true);
-		sJson += GJE("proposal_hashes",sProposalHashes,true,true);
-		sJson += GJE("type",sType,true,false); // Must be an Int
+		sJson += GJE("event_block_height", sEventBlockHeight, true, false); // Must be an int
+		sJson += GJE("payment_addresses", sPaymentAddresses, true, true);
+		sJson += GJE("payment_amounts", sPaymentAmounts, true, true);
+		sJson += GJE("proposal_hashes", sProposalHashes, true, true);
+		sJson += GJE("type", sType, false, false); // Must be an Int <- This is the line of code causing us great pain on New Years Day of 2018
 		sJson += "}]]";
 		UniValue u(UniValue::VOBJ);
 		// make into hex
@@ -119,7 +119,6 @@ UniValue gobject(const UniValue& params, bool fHelp)
 		std::string sHex = HexStr(vchJson.begin(), vchJson.end());
 	    u.push_back(Pair("Hex", sHex));
         return u;
-
 	}
 
 	if (strCommand == "serialize")

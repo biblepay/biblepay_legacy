@@ -296,9 +296,8 @@ UniValue getmininginfo(const UniValue& params, bool fHelp)
 
     LOCK(cs_main);
 	const CChainParams& chainparams = Params();
-	bool fCompetetiveMining = GetArg("-competetivemining", "")=="true";
-
-	
+	bool fCompetetiveMining = GetArg("-competetivemining", "true")=="true";
+		
     UniValue obj(UniValue::VOBJ);
     obj.push_back(Pair("blocks",           (int)chainActive.Height()));
     obj.push_back(Pair("currentblocksize", (uint64_t)nLastBlockSize));
