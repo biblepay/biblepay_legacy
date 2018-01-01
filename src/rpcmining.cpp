@@ -186,7 +186,7 @@ UniValue generate(const UniValue& params, bool fHelp)
     UniValue blockHashes(UniValue::VARR);
     while (nHeight < nHeightEnd)
     {
-        auto_ptr<CBlockTemplate> pblocktemplate(CreateNewBlock(Params(), coinbaseScript->reserveScript, "", "", 0));
+        auto_ptr<CBlockTemplate> pblocktemplate(CreateNewBlock(Params(), coinbaseScript->reserveScript, "", "", 0, 0));
         if (!pblocktemplate.get())
             throw JSONRPCError(RPC_INTERNAL_ERROR, "Couldn't create new block");
         CBlock *pblock = &pblocktemplate->block;
@@ -296,6 +296,7 @@ UniValue getmininginfo(const UniValue& params, bool fHelp)
 
     LOCK(cs_main);
 	const CChainParams& chainparams = Params();
+	bool fCompetetiveMining = GetBoolArg("-competetivemining", false);
 	
     UniValue obj(UniValue::VOBJ);
     obj.push_back(Pair("blocks",           (int)chainActive.Height()));
@@ -314,6 +315,13 @@ UniValue getmininginfo(const UniValue& params, bool fHelp)
 		obj.push_back(Pair("hc1", nHashCounter));
 		obj.push_back(Pair("bhc2", nBibleHashCounter));
 	}
+	obj.push_back(Pair("hashcounter", nHashCounter));
+	obj.push_back(Pair("competetive_mining", fCompetetiveMining));
+	obj.push_back(Pair("competetivemining_hash_counter", nHashCounterGood));
+	obj.push_back(Pair("global_competetive_mining_tithe", caGlobalCompetetiveMiningTithe));
+	obj.push_back(Pair("global_competetive_mining_tithe2", (double)(caGlobalCompetetiveMiningTithe * COIN)));
+
+	obj.push_back(Pair("competetive_mining_ratio", nHashCounterGood/(nHashCounter+1)));
 	obj.push_back(Pair("pooledtx",         (uint64_t)mempool.size()));
     obj.push_back(Pair("testnet",          Params().TestnetToBeDeprecatedFieldRPC()));
     obj.push_back(Pair("chain",            Params().NetworkIDString()));
@@ -587,7 +595,7 @@ UniValue getblocktemplate(const UniValue& params, bool fHelp)
             pblocktemplate = NULL;
         }
         CScript scriptDummy = CScript() << OP_TRUE;
-        pblocktemplate = CreateNewBlock(Params(), scriptDummy, "", "",0);
+        pblocktemplate = CreateNewBlock(Params(), scriptDummy, "", "", 0, 0);
         if (!pblocktemplate)
             throw JSONRPCError(RPC_OUT_OF_MEMORY, "Out of memory");
 

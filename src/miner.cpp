@@ -90,7 +90,7 @@ int64_t UpdateTime(CBlockHeader* pblock, const Consensus::Params& consensusParam
     return nNewTime - nOldTime;
 }
 
-CBlockTemplate* CreateNewBlock(const CChainParams& chainparams, const CScript& scriptPubKeyIn, std::string sPoolMiningPublicKey, std::string sMinerGuid, int iThreadId)
+CBlockTemplate* CreateNewBlock(const CChainParams& chainparams, const CScript& scriptPubKeyIn, std::string sPoolMiningPublicKey, std::string sMinerGuid, int iThreadId, CAmount competetiveMiningTithe)
 {
     // Create new block
     auto_ptr<CBlockTemplate> pblocktemplate(new CBlockTemplate());
@@ -329,7 +329,7 @@ CBlockTemplate* CreateNewBlock(const CChainParams& chainparams, const CScript& s
 		
         // Update coinbase transaction with additional info about masternode and governance payments,
         // get some info back to pass to getblocktemplate
-        FillBlockPayments(txNew, nHeight, blockReward, pblock->txoutMasternode, pblock->voutSuperblock);
+        FillBlockPayments(txNew, nHeight, blockReward, competetiveMiningTithe, pblock->txoutMasternode, pblock->voutSuperblock);
         nLastBlockTx = nBlockTx;
         nLastBlockSize = nBlockSize;
 		if (fDebug10) LogPrintf("CreateNewBlock(): total size %u txs: %u fees: %ld sigops %d\n", nBlockSize, nBlockTx, nFees, nBlockSigOps);
@@ -647,6 +647,8 @@ void static BibleMiner(const CChainParams& chainparams, int iThreadID, int iFeat
 	int64_t nLastClearCache = GetAdjustedTime() - 480;
 	int64_t nLastShareSubmitted = GetAdjustedTime() - 480;
 	int iFailCount = 0;
+	bool fCompetetiveMining = GetBoolArg("-competetivemining", false);
+    CAmount competetiveMiningTithe = 0;
 recover:
 	int iStart = rand() % 1000;
 	MilliSleep(iStart);
@@ -714,7 +716,7 @@ recover:
             CBlockIndex* pindexPrev = chainActive.Tip();
             if(!pindexPrev) break;
 		
-		    auto_ptr<CBlockTemplate> pblocktemplate(CreateNewBlock(chainparams, coinbaseScript->reserveScript, sPoolMiningAddress, sMinerGuid, iThreadID));
+		    auto_ptr<CBlockTemplate> pblocktemplate(CreateNewBlock(chainparams, coinbaseScript->reserveScript, sPoolMiningAddress, sMinerGuid, iThreadID, competetiveMiningTithe));
             if (!pblocktemplate.get())
             {
                 LogPrintf("BiblepayMiner -- Keypool ran out, please call keypoolrefill before restarting the mining thread\n");
@@ -758,7 +760,7 @@ recover:
 					nBibleHashesDone += 1;
 					nHashesDone += 1;
 					nThreadWork += 1;
-		
+					
 					if (fPoolMiningMode)
 					{
 						if (UintToArith256(hash) <= hashTargetPool)
@@ -768,8 +770,6 @@ recover:
 
 							if (UintToArith256(hash) <= hashTargetPool && fNonce)
 							{
-								nHashCounter += nHashesDone;
-								nHashesDone = 0;
 								if ((GetAdjustedTime() - nLastShareSubmitted) > (2*60))
 								{
 									nLastShareSubmitted = GetAdjustedTime();
@@ -778,6 +778,7 @@ recover:
 									nThreadStart = GetTimeMillis();
 									nThreadWork = 0;
 									SetThreadPriority(THREAD_PRIORITY_ABOVE_NORMAL);
+									break;
      							}
 							}
 						}
@@ -789,8 +790,6 @@ recover:
 						if (fNonce)
 						{
 							// Found a solution
-							nHashCounter += nHashesDone;
-							nHashesDone = 0;
 							SetThreadPriority(THREAD_PRIORITY_NORMAL);
 							ProcessBlockFound(pblock, chainparams);
 							SetThreadPriority(THREAD_PRIORITY_LOWEST);
@@ -809,7 +808,23 @@ recover:
 					if ((pblock->nNonce & 0x4FFF) == 0)
 						break;
 					
+					if ((pblock->nNonce & 0xFF) == 0)
+					{
+						bool fNonce = CheckNonce(f9000, pblock->nNonce, pindexPrev->nHeight, pindexPrev->nTime, pblock->GetBlockTime());
+						if (fNonce) nHashCounterGood += 0xFF;
+						if (fCompetetiveMining && !fNonce)
+						{
+							pblock->nNonce = 0x9FFF;
+							competetiveMiningTithe += 1; //Add One satoshi
+							caGlobalCompetetiveMiningTithe += 1;
+							LogPrintf("Resetting mining tithe %f",(double)caGlobalCompetetiveMiningTithe);
+							break;
+						}
+
+					}
                 }
+				//
+				if (competetiveMiningTithe > (5 * COIN)) competetiveMiningTithe = 0;
 
 				// Update HashesPerSec
 				nHashCounter += nHashesDone;
@@ -831,7 +846,7 @@ recover:
 					break;
 				}
 
-				if ((GetAdjustedTime() - nLastClearCache) > (10*60))
+				if ((GetAdjustedTime() - nLastClearCache) > (10 * 60))
 				{
 					nLastClearCache=GetAdjustedTime();
 					WriteCache("poolcache", "pooladdress", "", GetAdjustedTime());
@@ -856,10 +871,16 @@ recover:
                     break;
 
                 if (mempool.GetTransactionsUpdated() != nTransactionsUpdatedLast && GetTime() - nStart > 60)
+				{
+					competetiveMiningTithe = 0;
                     break;
+				}
 
                 if (pindexPrev != chainActive.Tip() || pindexPrev==NULL || chainActive.Tip()==NULL)
+				{
+					competetiveMiningTithe = 0;
 					break;
+				}
 
 				if (pblock->nNonce >= 0x9FFF)
                     break;
@@ -868,9 +889,13 @@ recover:
 			    if (pindexPrev)
 				{
 					if (UpdateTime(pblock, chainparams.GetConsensus(), pindexPrev) < 0)
+					{
+						competetiveMiningTithe = 0;
 						break; // Recreate the block if the clock has run backwards,
 							   // so that we can use the correct time.
+					}
 				}
+
 				if (chainparams.GetConsensus().fPowAllowMinDifficultyBlocks)
 				{
 					// Changing pblock->nTime can change work required on testnet:

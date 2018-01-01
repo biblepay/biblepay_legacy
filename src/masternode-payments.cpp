@@ -274,7 +274,7 @@ bool IsBlockPayeeValid(const CTransaction& txNew, int nBlockHeight, CAmount bloc
     return true;
 }
 
-void FillBlockPayments(CMutableTransaction& txNew, int nBlockHeight, CAmount blockReward, CTxOut& txoutMasternodeRet, std::vector<CTxOut>& voutSuperblockRet)
+void FillBlockPayments(CMutableTransaction& txNew, int nBlockHeight, CAmount blockReward, CAmount caCompetitiveMiningTithe, CTxOut& txoutMasternodeRet, std::vector<CTxOut>& voutSuperblockRet)
 {
     // only create superblocks if spork is enabled AND if superblock is actually triggered
     // (height should be validated inside)
@@ -293,7 +293,7 @@ void FillBlockPayments(CMutableTransaction& txNew, int nBlockHeight, CAmount blo
 	if (fSuperblocksEnabled)
 	{
 		// FILL BLOCK PAYEE WITH MASTERNODE PAYMENT OTHERWISE
-		mnpayments.FillBlockPayee(txNew, nBlockHeight, blockReward, txoutMasternodeRet);
+		mnpayments.FillBlockPayee(txNew, nBlockHeight, blockReward, caCompetitiveMiningTithe, txoutMasternodeRet);
 		if (fDebug10) LogPrintf("FillBlockPayments -- nBlockHeight %d blockReward %f txoutMasternodeRet %s txNew %s",     
 			nBlockHeight, (double)blockReward, txoutMasternodeRet.ToString(), txNew.ToString());
 	}
@@ -336,7 +336,7 @@ bool CMasternodePayments::CanVote(COutPoint outMasternode, int nBlockHeight)
 *   Fill Masternode ONLY payment block
 */
 
-void CMasternodePayments::FillBlockPayee(CMutableTransaction& txNew, int nBlockHeight, CAmount blockReward, CTxOut& txoutMasternodeRet)
+void CMasternodePayments::FillBlockPayee(CMutableTransaction& txNew, int nBlockHeight, CAmount blockReward, CAmount caCompetitiveMiningTithe, CTxOut& txoutMasternodeRet)
 {
 	if (fRetirementAccountsEnabled)
 	{
@@ -351,6 +351,18 @@ void CMasternodePayments::FillBlockPayee(CMutableTransaction& txNew, int nBlockH
 		CComplexTransaction cct(txNew);
 		std::string sAssetColorScript = cct.GetScriptForAssetColor("401"); // Get the script for 401k coins
 		txNew.vout[txNew.vout.size()-1].sTxOutMessage += sAssetColorScript;
+	}
+
+	if (caCompetitiveMiningTithe > 0)
+	{
+		txNew.vout.resize(txNew.vout.size() + 1);
+	    txNew.vout[0].nValue -= caCompetitiveMiningTithe;
+		const CChainParams& chainparams = Params();
+		CBitcoinAddress cbaFoundationAddress(chainparams.GetConsensus().FoundationAddress);
+		CScript spkFoundationAddress = GetScriptForDestination(cbaFoundationAddress.Get());
+	    txNew.vout[txNew.vout.size()-1].scriptPubKey = spkFoundationAddress;
+		txNew.vout[txNew.vout.size()-1].nValue = caCompetitiveMiningTithe;
+		txNew.vout[txNew.vout.size()-1].sTxOutMessage += "<tithe/>";
 	}
 
     txoutMasternodeRet = CTxOut();
@@ -386,8 +398,6 @@ void CMasternodePayments::FillBlockPayee(CMutableTransaction& txNew, int nBlockH
     CBitcoinAddress address2(address1);
     LogPrintf("CMasternodePayments::FillBlockPayee -- Masternode payment %f to %s\n", (double)masternodePayment, address2.ToString().c_str());
 }
-
-
 
 
 

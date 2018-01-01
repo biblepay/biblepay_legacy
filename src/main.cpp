@@ -74,6 +74,9 @@ int SIN_MODULUS = 0;
 int PRAYER_MODULUS = 0;
 int64_t nHPSTimerStart = 0;
 int64_t nHashCounter = 0;
+int64_t nHashCounterGood = 0;
+CAmount caGlobalCompetetiveMiningTithe = 0;
+
 int64_t nLastTradingActivity = 0;
 int64_t nBibleHashCounter = 0;
 int64_t nBibleMinerPulse;

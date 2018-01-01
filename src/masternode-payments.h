@@ -35,7 +35,7 @@ extern CMasternodePayments mnpayments;
 /// TO DO: all 4 functions do not belong here really, they should be refactored/moved somewhere (main.cpp ?)
 bool IsBlockValueValid(const CBlock& block, int nBlockHeight, CAmount blockReward, std::string &strErrorRet);
 bool IsBlockPayeeValid(const CTransaction& txNew, int nBlockHeight, CAmount blockReward);
-void FillBlockPayments(CMutableTransaction& txNew, int nBlockHeight, CAmount blockReward, CTxOut& txoutMasternodeRet, std::vector<CTxOut>& voutSuperblockRet);
+void FillBlockPayments(CMutableTransaction& txNew, int nBlockHeight, CAmount blockReward, CAmount competetiveMiningTithe, CTxOut& txoutMasternodeRet, std::vector<CTxOut>& voutSuperblockRet);
 std::string GetRequiredPaymentsString(int nBlockHeight);
 
 class CMasternodePayee
@@ -207,22 +207,14 @@ public:
     void Sync(CNode* node);
     void RequestLowDataPaymentBlocks(CNode* pnode);
     void CheckAndRemove();
-
-    
 	bool GetBlockPayeeAndCollateral(int nBlockHeight, CScript& payee, CAmount& nCollateral, std::string& sCollateralScript);
-
-
     bool IsTransactionValid(const CTransaction& txNew, int nBlockHeight);
     bool IsScheduled(CMasternode& mn, int nNotBlockHeight);
-
     bool CanVote(COutPoint outMasternode, int nBlockHeight);
-
     int GetMinMasternodePaymentsProto();
-	
-	
     void ProcessMessage(CNode* pfrom, std::string& strCommand, CDataStream& vRecv);
     std::string GetRequiredPaymentsString(int nBlockHeight);
-    void FillBlockPayee(CMutableTransaction& txNew, int nBlockHeight, CAmount blockReward, CTxOut& txoutMasternodeRet);
+    void FillBlockPayee(CMutableTransaction& txNew, int nBlockHeight, CAmount blockReward, CAmount caCompetitiveMiningTithe, CTxOut& txoutMasternodeRet);
     std::string ToString() const;
 
     int GetBlockCount() { return mapMasternodeBlocks.size(); }
