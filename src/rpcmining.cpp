@@ -320,9 +320,8 @@ UniValue getmininginfo(const UniValue& params, bool fHelp)
 	obj.push_back(Pair("competetive_mining", fCompetetiveMining));
 	obj.push_back(Pair("competetivemining_hash_counter", nHashCounterGood));
 	obj.push_back(Pair("global_competetive_mining_tithe", caGlobalCompetetiveMiningTithe));
-	obj.push_back(Pair("global_competetive_mining_tithe2", (double)(caGlobalCompetetiveMiningTithe * COIN)));
-
-	obj.push_back(Pair("competetive_mining_ratio", nHashCounterGood/(nHashCounter+1)));
+	double dRatio = nHashCounterGood/(nHashCounter+1);
+	obj.push_back(Pair("competetive_mining_ratio", dRatio));
 	obj.push_back(Pair("pooledtx",         (uint64_t)mempool.size()));
     obj.push_back(Pair("testnet",          Params().TestnetToBeDeprecatedFieldRPC()));
     obj.push_back(Pair("chain",            Params().NetworkIDString()));
