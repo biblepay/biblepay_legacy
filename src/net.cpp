@@ -3013,8 +3013,6 @@ std::string BiblepayHTTPSPost(int iThreadID, std::string sActionName, std::strin
 			bio = BIO_new_ssl_connect(ctx);
 			std::string sDomain = GetDomainFromURL(sBaseURL);
 			std::string sDomainWithPort = sDomain + ":" + "443";
-			LogPrintf(" domainwithport %s domain %s ",sDomainWithPort.c_str(), sDomain.c_str());
-
 			BIO_set_conn_hostname(bio, sDomainWithPort.c_str());
 			bool fConnected = false;
 			if(BIO_do_connect(bio) <= 0)
@@ -3064,7 +3062,6 @@ std::string BiblepayHTTPSPost(int iThreadID, std::string sActionName, std::strin
 				buf[size] = 0;
 				string MyData(buf);
 				sData += MyData;
-				///..printf("%s", buf);
 				clock_t end = clock();
 				double elapsed_secs = double(end - begin) / (CLOCKS_PER_SEC + .01);
 				if (elapsed_secs > iTimeoutSecs) 
