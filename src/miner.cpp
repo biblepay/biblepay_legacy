@@ -61,7 +61,8 @@ void ClearCache(std::string section);
 std::string TimestampToHRDate(double dtm);
 void GetMiningParams(int nPrevHeight, bool& f7000, bool& f8000, bool& f9000, bool& fTitheBlocksActive);
 bool CheckNonce(bool f9000, unsigned int nNonce, int nPrevHeight, int64_t nPrevBlockTime, int64_t nBlockTime);
-
+std::string BiblepayHTTPSPost(int iThreadID, std::string sActionName, std::string sDistinctUser, std::string sPayload, std::string sBaseURL, std::string sPage, int iPort,
+	std::string sSolution, int iTimeoutSecs, int iMaxSize);
 
 
 class ScoreCompare
@@ -503,7 +504,17 @@ std::string PoolRequest(int iThreadID, std::string sAction, std::string sPoolURL
 {
 	int iPoolPort = (int)cdbl(GetArg("-poolport", "80"),0);
 	std::string sPoolPage = "Action.aspx";
-	std::string sMultiResponse = BiblepayHttpPost(iThreadID,"POST",sMinerID,sAction,sPoolURL,sPoolPage,iPoolPort,sSolution);
+	std::string sMultiResponse = "";
+	if (sPoolURL.find("https:") == string::npos)
+	{
+		sMultiResponse = BiblepayHttpPost(iThreadID, "POST", sMinerID, sAction, sPoolURL, sPoolPage, iPoolPort, sSolution);
+		fPoolMiningUseSSL = false;
+	}
+	else
+	{
+		sMultiResponse = BiblepayHTTPSPost(iThreadID, "POST", sMinerID, sAction, sPoolURL, sPoolPage, 443, sSolution, 15, 50000);
+		fPoolMiningUseSSL = true;
+	}
 	// Glean the pool responses
 	std::string sError = ExtractXML(sMultiResponse,"<ERROR>","</ERROR>");
 	std::string sResponse = ExtractXML(sMultiResponse,"<RESPONSE>","</RESPONSE>");
@@ -544,6 +555,7 @@ bool GetPoolMiningMode(int iThreadID, int& iFailCount, std::string& out_PoolAddr
 	std::string sCachedHashTarget = ReadCache("poolcache", "poolhashtarget");
 	std::string sCachedMinerGuid = ReadCache("poolcache", "minerguid");
 	std::string sCachedWorkID = ReadCache("poolcache", "workid");
+	sGlobalPoolURL = sPoolURL;
 
 	if (!sCachedAddress.empty() && !sCachedHashTarget.empty() && !sCachedMinerGuid.empty() && !sCachedWorkID.empty())
 	{

@@ -206,6 +206,7 @@ extern int64_t nHPSTimerStart;
 extern int64_t nHashCounter;
 extern int64_t nHashCounterGood;
 extern CAmount caGlobalCompetetiveMiningTithe;
+extern std::string sGlobalPoolURL;
 
 extern int64_t nLastTradingActivity;
 extern int64_t nBibleHashCounter;
@@ -224,6 +225,7 @@ extern int iPrayerIndex;
 extern std::string sOS;
 extern int iMinerThreadCount;
 extern bool fPoolMiningMode;
+extern bool fPoolMiningUseSSL;
 extern bool fCommunicatingWithPool;
 
 extern std::map<uint256, int64_t> mapRejectedBlocks;

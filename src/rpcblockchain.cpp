@@ -31,7 +31,6 @@
 #include <openssl/crypto.h>
 #include <stdint.h>
 #include <univalue.h>
-
 using namespace std;
 
 extern void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry);
@@ -49,6 +48,10 @@ std::string SignMessage(std::string sMsg, std::string sPrivateKey);
 extern double CAmountToRetirementDouble(CAmount Amount);
 void GetMiningParams(int nPrevHeight, bool& f7000, bool& f8000, bool& f9000, bool& fTitheBlocksActive);
 std::string strReplace(std::string& str, const std::string& oldStr, const std::string& newStr);
+std::string PrepareHTTPPost(std::string sPage, std::string sHostHeader, const string& sMsg, const map<string,string>& mapRequestHeaders);
+std::string GetDomainFromURL(std::string sURL);
+std::string BiblepayHTTPSPost(int iThreadID, std::string sActionName, std::string sDistinctUser, std::string sPayload, std::string sBaseURL, std::string sPage, int iPort,
+	std::string sSolution, int iTimeoutSecs, int iMaxSize);
 
 UniValue ContributionReport();
 std::string RoundToString(double d, int place);
@@ -2203,6 +2206,11 @@ UniValue exec(const UniValue& params, bool fHelp)
 		results.push_back(Pair("f4",f4));
 		bool f5 = CheckNonce(true, 1256000, 9000, 10000, 10000+18000);
 		results.push_back(Pair("f5",f5));
+	}
+	else if (sItem=="ssl")
+	{
+		std::string sResponse = BiblepayHTTPSPost(0,"POST","USER_A","PostSpeed","https://pool.biblepay.org","Action.aspx", 443, "SOLUTION", 20, 5000);
+		results.push_back(Pair("Test",sResponse));
 	}
 	else if (sItem == "datalist")
 	{

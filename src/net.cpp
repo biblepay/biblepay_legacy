@@ -28,6 +28,13 @@
 #include "masternode-sync.h"
 #include "masternodeman.h"
 
+// For Internet SSL (for the pool communication)
+#include <openssl/ssl.h>
+#include <openssl/err.h>
+#include <openssl/bio.h>
+// End of Internet SSL
+
+
 #ifdef WIN32
 #include <string.h>
 #else
@@ -68,8 +75,15 @@ bool AddSeedNode(std::string sNode);
 
 extern std::string BiblepayHttpPost(int iThreadID, std::string sActionName, std::string sDistinctUser, std::string sPayload, std::string sBaseURL, 
 	std::string sPage, int iPort, std::string sSolution);
+extern std::string BiblepayHTTPSPost(int iThreadID, std::string sActionName, std::string sDistinctUser, std::string sPayload, std::string sBaseURL, std::string sPage, int iPort,
+	std::string sSolution, int iTimeoutSecs, int iMaxSize);
+
 std::string RoundToString(double d, int place);
 extern std::string SQL(std::string sCommand, std::string sAddress, std::string sArguments, std::string& sError);
+extern std::string PrepareHTTPPost(std::string sPage, std::string sHostHeader, const string& sMsg, const map<string,string>& mapRequestHeaders);
+extern std::string GetDomainFromURL(std::string sURL);
+
+
 
 
 
@@ -2972,5 +2986,107 @@ std::string BiblepayHttpPost(int iThreadID, std::string sActionName, std::string
 }
 
 
+std::string BiblepayHTTPSPost(int iThreadID, std::string sActionName, std::string sDistinctUser, std::string sPayload, std::string sBaseURL, std::string sPage, int iPort, std::string sSolution, int iTimeoutSecs, int iMaxSize)
+{
+	try
+	{
+		    map<string, string> mapRequestHeaders;
+			mapRequestHeaders["Miner"] = sDistinctUser;
+			mapRequestHeaders["Action"] = sPayload;
+			mapRequestHeaders["Solution"] = sSolution;
+			mapRequestHeaders["Agent"] = FormatFullVersion();
+			// BiblePay supported pool Network Chain modes: main, test, regtest
+			const CChainParams& chainparams = Params();
+			mapRequestHeaders["NetworkID"] = chainparams.NetworkIDString();
+			mapRequestHeaders["ThreadID"] = RoundToString(iThreadID,0);
+			mapRequestHeaders["OS"] = sOS;
 
+			BIO* bio;
+			SSL_CTX* ctx;
+			//   Registers the SSL/TLS ciphers and digests and starts the security layer.
+			SSL_library_init();
+			ctx = SSL_CTX_new(SSLv23_client_method());
+			if (ctx == NULL)
+			{
+				return "<ERROR>CTX_IS_NULL</ERROR>";
+			}
+			bio = BIO_new_ssl_connect(ctx);
+			std::string sDomain = GetDomainFromURL(sBaseURL);
+			std::string sDomainWithPort = sDomain + ":" + "443";
+			LogPrintf(" domainwithport %s domain %s ",sDomainWithPort.c_str(), sDomain.c_str());
+
+			BIO_set_conn_hostname(bio, sDomainWithPort.c_str());
+			bool fConnected = false;
+			if(BIO_do_connect(bio) <= 0)
+			{
+				return "<ERROR>Failed connection to " + sDomainWithPort + "</ERROR>";
+			}
+			else
+			{
+				fConnected = true;
+			}
+
+			CService addrConnect;
+			if (sDomain.empty()) return "<ERROR>DOMAIN_MISSING</ERROR>";
+			CService addrIP(sDomain, 443, true);
+     		if (addrIP.IsValid())
+			{
+				addrConnect = addrIP;
+			}
+			else
+			{
+  				return "<ERROR>DNS_ERROR</ERROR>"; 
+			}
+			std::string sPost = PrepareHTTPPost(sPage, sDomain, sPayload, mapRequestHeaders);
+			const char* write_buf = sPost.c_str();
+			if(BIO_write(bio, write_buf, strlen(write_buf)) <= 0)
+			{
+				//  Handle failed writes here
+				if(!BIO_should_retry(bio))
+				{
+					// ToDo: Server requested a retry.  Handle this someday.
+				}
+				return "<ERROR>FAILED_HTTPS_POST</ERROR>";
+			}
+      		//  Variables used to read the response from the server
+			int size;
+			char buf[1024];
+			clock_t begin = clock();
+			std::string sData = "";
+			for(;;)
+			{
+				//  Get chunks of the response 1023 at the time.
+				size = BIO_read(bio, buf, 1023);
+				if(size <= 0)
+				{
+					break;
+				}
+				buf[size] = 0;
+				string MyData(buf);
+				sData += MyData;
+				///..printf("%s", buf);
+				clock_t end = clock();
+				double elapsed_secs = double(end - begin) / (CLOCKS_PER_SEC + .01);
+				if (elapsed_secs > iTimeoutSecs) 
+				{
+					return sData;
+				}
+				if (sData.find("</html>") != string::npos) return sData;
+				if (sData.find("</HTML>") != string::npos) return sData;
+				if (sData.find("<EOF>") != string::npos) return sData;
+				if (sData.find("<END>") != string::npos) return sData;
+				if ((int)sData.size() >= iMaxSize) return sData;
+			}
+
+			return sData;
+	}
+	catch (std::exception &e)
+	{
+        return "<ERROR>WEB_EXCEPTION</ERROR>";
+    }
+	catch (...)
+	{
+		return "<ERROR>GENERAL_WEB_EXCEPTION</ERROR>";
+	}
+}
 

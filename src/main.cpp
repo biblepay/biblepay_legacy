@@ -76,6 +76,7 @@ int64_t nHPSTimerStart = 0;
 int64_t nHashCounter = 0;
 int64_t nHashCounterGood = 0;
 CAmount caGlobalCompetetiveMiningTithe = 0;
+std::string sGlobalPoolURL = "";
 
 int64_t nLastTradingActivity = 0;
 int64_t nBibleHashCounter = 0;
@@ -119,6 +120,8 @@ std::map<std::string, int64_t> mvApplicationCacheTimestamp;
 std::map<int64_t, std::string> mapDebug;
 
 bool fPoolMiningMode = false;
+bool fPoolMiningUseSSL = false;
+
 bool fCommunicatingWithPool = false;
 int iMinerThreadCount = 0;
 

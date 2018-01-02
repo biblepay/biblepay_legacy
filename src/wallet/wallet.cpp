@@ -1950,10 +1950,7 @@ CAmount CWallet::GetRetirementBalance() const
         for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it)
         {
             const CWalletTx* pcoin = &(*it).second;
-            uint256 hash = (*it).first;
-			bool bCoinbase = (pcoin->IsCoinBase());
-           
-			CAmount nDebit = 0;
+     		CAmount nDebit = 0;
 
 			for (unsigned int i = 0; i < pcoin->vin.size(); i++) 
 			{

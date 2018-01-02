@@ -330,6 +330,9 @@ UniValue getmininginfo(const UniValue& params, bool fHelp)
     obj.push_back(Pair("poolinfo3",        ConcatenatePoolHealth("poolinfo3")));
 	obj.push_back(Pair("miningpulse",      nBibleMinerPulse));
 	obj.push_back(Pair("poolmining",       fPoolMiningMode));
+	obj.push_back(Pair("pool_url",         sGlobalPoolURL));
+	obj.push_back(Pair("poolmining_use_ssl", fPoolMiningUseSSL));
+
     return obj;
 }
 
