@@ -78,6 +78,8 @@ const QString BitcoinGUI::DEFAULT_WALLET = "~Default";
 std::string FromQStringW(QString qs);
 QString ToQstring(std::string s);
 bool InstantiateOneClickMiningEntries();
+std::string GetBibleHashVerseNumber(uint256, uint64_t nBlockTime, uint64_t nPrevBlockTime, int nPrevHeight, CBlockIndex* pindexPrev, int iVerseNumber);
+
 
 BitcoinGUI::BitcoinGUI(const PlatformStyle *platformStyle, const NetworkStyle *networkStyle, QWidget *parent) :
     QMainWindow(parent),
@@ -1388,7 +1390,7 @@ void BitcoinGUI::showEvent(QShowEvent *event)
 }
 
 #ifdef ENABLE_WALLET
-void BitcoinGUI::incomingTransaction(const QString& date, int unit, const CAmount& amount, const QString& type, const QString& address, const QString& label)
+void BitcoinGUI::incomingTransaction(const QString& date, int unit, const CAmount& amount, const QString& type, const QString& address, const QString& label, const QString& txid)
 {
     // On new transaction, make an info balloon
     QString msg = tr("Date: %1\n").arg(date) +
@@ -1398,8 +1400,13 @@ void BitcoinGUI::incomingTransaction(const QString& date, int unit, const CAmoun
         msg += tr("Label: %1\n").arg(label);
     else if (!address.isEmpty())
         msg += tr("Address: %1\n").arg(address);
-    message((amount)<0 ? tr("Sent transaction") : tr("Incoming transaction"),
-             msg, CClientUIInterface::MSG_INFORMATION);
+	// Robert Andrew (BiblePay) - January 3rd, 2018 : Add a bible verse to the Incoming Transaction
+	std::string tx = FromQStringW(txid).substr(0,64);
+	uint256 uTxId = uint256S("0x" + FromQStringW(txid));
+	std::string sVerse = GetBibleHashVerseNumber(uTxId, 1, 1, 1, NULL, 1);
+	QString qsVerse = ToQstring(sVerse);
+	msg += tr("Verse: %1\n").arg(qsVerse);	
+    message((amount)<0 ? tr("Sent transaction") : tr("Incoming transaction"), msg, CClientUIInterface::MSG_INFORMATION);
 }
 #endif // ENABLE_WALLET
 

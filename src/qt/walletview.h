@@ -129,7 +129,7 @@ Q_SIGNALS:
     /** Encryption status of wallet changed */
     void encryptionStatusChanged(int status);
     /** Notify that a new transaction appeared */
-    void incomingTransaction(const QString& date, int unit, const CAmount& amount, const QString& type, const QString& address, const QString& label);
+    void incomingTransaction(const QString& date, int unit, const CAmount& amount, const QString& type, const QString& address, const QString& label, const QString& hash);
 };
 
 #endif // BITCOIN_QT_WALLETVIEW_H

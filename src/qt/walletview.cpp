@@ -125,7 +125,7 @@ void WalletView::setBitcoinGUI(BitcoinGUI *gui)
         connect(this, SIGNAL(encryptionStatusChanged(int)), gui, SLOT(setEncryptionStatus(int)));
 
         // Pass through transaction notifications
-        connect(this, SIGNAL(incomingTransaction(QString,int,CAmount,QString,QString,QString)), gui, SLOT(incomingTransaction(QString,int,CAmount,QString,QString,QString)));
+        connect(this, SIGNAL(incomingTransaction(QString,int,CAmount,QString,QString,QString,QString)), gui, SLOT(incomingTransaction(QString,int,CAmount,QString,QString,QString,QString)));
     }
 }
 
@@ -194,8 +194,10 @@ void WalletView::processNewTransaction(const QModelIndex& parent, int start, int
     QModelIndex index = ttm->index(start, 0, parent);
     QString address = ttm->data(index, TransactionTableModel::AddressRole).toString();
     QString label = ttm->data(index, TransactionTableModel::LabelRole).toString();
-
-    Q_EMIT incomingTransaction(date, walletModel->getOptionsModel()->getDisplayUnit(), amount, type, address, label);
+	QString qshash = ttm->data(index, TransactionTableModel::TxHashRole).toString();
+	
+	// January 3rd 2018, R ANDREW - Pass TxID so we can display a Bible Verse in the Balloon:
+    Q_EMIT incomingTransaction(date, walletModel->getOptionsModel()->getDisplayUnit(), amount, type, address, label, qshash);
 }
 
 void WalletView::gotoOverviewPage()

@@ -3064,17 +3064,17 @@ std::string BiblepayHTTPSPost(int iThreadID, std::string sActionName, std::strin
 				sData += MyData;
 				clock_t end = clock();
 				double elapsed_secs = double(end - begin) / (CLOCKS_PER_SEC + .01);
-				if (elapsed_secs > iTimeoutSecs) 
-				{
-					return sData;
-				}
-				if (sData.find("</html>") != string::npos) return sData;
-				if (sData.find("</HTML>") != string::npos) return sData;
-				if (sData.find("<EOF>") != string::npos) return sData;
-				if (sData.find("<END>") != string::npos) return sData;
-				if ((int)sData.size() >= iMaxSize) return sData;
+				if (elapsed_secs > iTimeoutSecs) break;
+				if (sData.find("</html>") != string::npos) break;
+				if (sData.find("</HTML>") != string::npos) break;
+				if (sData.find("<EOF>") != string::npos) break;
+				if (sData.find("<END>") != string::npos) break;
+				if ((int)sData.size() >= iMaxSize) break;
 			}
+			// R ANDREW - JAN 4 2018: Free bio resources
 
+			BIO_free_all(bio);
+			
 			return sData;
 	}
 	catch (std::exception &e)
