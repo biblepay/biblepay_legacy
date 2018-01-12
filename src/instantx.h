@@ -26,8 +26,8 @@ extern CInstantSend instantsend;
 */
 static const int INSTANTSEND_CONFIRMATIONS_REQUIRED = 6;
 static const int DEFAULT_INSTANTSEND_DEPTH          = 5;
-
-static const int MIN_INSTANTSEND_PROTO_VERSION      = 70206;
+static const int INSTANTSEND_TIMEOUT_SECONDS        = 60;
+static const int MIN_INSTANTSEND_PROTO_VERSION      = 70207;
 
 extern bool fEnableInstantSend;
 extern int nInstantSendDepth;
@@ -36,8 +36,7 @@ extern int nCompleteTXLocks;
 class CInstantSend
 {
 private:
-    static const int ORPHAN_VOTE_SECONDS            = 60;
-
+    
     // Keep track of current block index
     const CBlockIndex *pCurrentBlockIndex;
 
@@ -56,6 +55,7 @@ private:
     std::map<COutPoint, int64_t> mapMasternodeOrphanVotes; // mn outpoint - time
 
     bool CreateTxLockCandidate(const CTxLockRequest& txLockRequest);
+	void CreateEmptyTxLockCandidate(const uint256& txHash);
     void Vote(CTxLockCandidate& txLockCandidate);
 
     //process consensus vote message
@@ -69,7 +69,7 @@ private:
     void LockTransactionInputs(const CTxLockCandidate& txLockCandidate);
     //update UI and notify external script if any
     void UpdateLockedTransaction(const CTxLockCandidate& txLockCandidate);
-    bool ResolveConflicts(const CTxLockCandidate& txLockCandidate, int nMaxBlocks);
+    bool ResolveConflicts(const CTxLockCandidate& txLockCandidate);
 
     bool IsInstantSendReadyToLock(const uint256 &txHash);
 
@@ -93,13 +93,13 @@ public:
 
     // verify if transaction is currently locked
     bool IsLockedInstantSendTransaction(const uint256& txHash);
-    // get the actual uber og accepted lock signatures
+    // get the actual number of accepted lock signatures
     int GetTransactionLockSignatures(const uint256& txHash);
 
     // remove expired entries from maps
     void CheckAndRemove();
     // verify if transaction lock timed out
-    bool IsTxLockRequestTimedOut(const uint256& txHash);
+    bool IsTxLockCandidateTimedOut(const uint256& txHash);
 
     void Relay(const uint256& txHash);
 
@@ -110,27 +110,29 @@ public:
 class CTxLockRequest : public CTransaction
 {
 private:
-    static const int TIMEOUT_SECONDS        = 5 * 60;
+    
     static const CAmount MIN_FEE            = 0.001 * COIN;
 
-    int64_t nTimeCreated;
+    
 
 public:
     static const int WARN_MANY_INPUTS       = 100;
 
-    CTxLockRequest() :
-        CTransaction(),
-        nTimeCreated(GetTime())
+	CTxLockRequest() :
+        CTransaction()
         {}
     CTxLockRequest(const CTransaction& tx) :
-        CTransaction(tx),
-        nTimeCreated(GetTime())
-        {}
+        CTransaction(tx)
+		{}
 
-    bool IsValid(bool fRequireUnspent = true) const;
+    bool IsValid() const;
+	bool IsBorn;
     CAmount GetMinFee() const;
     int GetMaxSignatures() const;
-    bool IsTimedOut() const;
+    bool IsBirthed() const
+    {
+        return *this != CTxLockRequest();
+    }
 };
 
 class CTxLockVote
@@ -178,12 +180,11 @@ public:
     uint256 GetTxHash() const { return txHash; }
     COutPoint GetOutpoint() const { return outpoint; }
     COutPoint GetMasternodeOutpoint() const { return outpointMasternode; }
-    int64_t GetTimeCreated() const { return nTimeCreated; }
-
+   
     bool IsValid(CNode* pnode) const;
     void SetConfirmedHeight(int nConfirmedHeightIn) { nConfirmedHeight = nConfirmedHeightIn; }
     bool IsExpired(int nHeight) const;
-
+	bool IsTimedOut() const;
     bool Sign();
     bool CheckSignature() const;
 
@@ -195,7 +196,8 @@ class COutPointLock
 private:
     COutPoint outpoint; // utxo
     std::map<COutPoint, CTxLockVote> mapMasternodeVotes; // masternode outpoint - vote
-
+	bool fAttacked;
+  
 public:
     static const int SIGNATURES_REQUIRED        = 6;
     static const int SIGNATURES_TOTAL           = 10;
@@ -210,8 +212,9 @@ public:
     bool AddVote(const CTxLockVote& vote);
     std::vector<CTxLockVote> GetVotes() const;
     bool HasMasternodeVoted(const COutPoint& outpointMasternodeIn) const;
-    int CountVotes() const { return mapMasternodeVotes.size(); }
-    bool IsReady() const { return CountVotes() >= SIGNATURES_REQUIRED; }
+    int CountVotes() const { return fAttacked ? 0 : mapMasternodeVotes.size(); }
+    bool IsReady() const { return !fAttacked && CountVotes() >= SIGNATURES_REQUIRED; }
+    void MarkAsAttacked() { fAttacked = true; }
 
     void Relay() const;
 };
@@ -220,10 +223,11 @@ class CTxLockCandidate
 {
 private:
     int nConfirmedHeight; // when corresponding tx is 0-confirmed or conflicted, nConfirmedHeight is -1
-
+	int64_t nTimeCreated;
 public:
     CTxLockCandidate(const CTxLockRequest& txLockRequestIn) :
         nConfirmedHeight(-1),
+		nTimeCreated(GetTime()),
         txLockRequest(txLockRequestIn),
         mapOutPointLocks()
         {}
@@ -234,6 +238,7 @@ public:
     uint256 GetHash() const { return txLockRequest.GetHash(); }
 
     void AddOutPointLock(const COutPoint& outpoint);
+	void MarkOutpointAsAttacked(const COutPoint& outpoint);
     bool AddVote(const CTxLockVote& vote);
     bool IsAllOutPointsReady() const;
 
@@ -242,7 +247,7 @@ public:
 
     void SetConfirmedHeight(int nConfirmedHeightIn) { nConfirmedHeight = nConfirmedHeightIn; }
     bool IsExpired(int nHeight) const;
-
+	bool IsTimedOut() const;
     void Relay() const;
 };
 

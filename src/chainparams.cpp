@@ -39,7 +39,7 @@ public:
     CMainParams() {
         strNetworkID = "main";
         consensus.nSubsidyHalvingInterval = BLOCKS_PER_DAY * 365; // We produce approx 74,825 blocks per year (205 per day)
-		consensus.nInstantSendKeepLock = 24;
+		consensus.nInstantSendKeepLock = 7;
         consensus.nMasternodePaymentsIncreasePeriod = BLOCKS_PER_DAY * 30; // One month
         
         consensus.nMasternodePaymentsStartBlock = 21600; // Must be less then nMasternodePaymentsIncreaseBlock
@@ -124,9 +124,8 @@ public:
 
         nPoolMaxTransactions = 3;
         nFulfilledRequestExpireTime = 60*60; // fulfilled requests expire in 1 hour
-        strSporkPubKey = "0";
-        strMasternodePaymentsPubKey = "0";
-
+        strSporkPubKey = "029ce47108ee0ac9212becfad36f6fd519f1264d1c274b2da0c452d959140fe8a6";
+        strMasternodePaymentsPubKey = "029ce47108ee0ac9212becfad36f6fd519f1264d1c274b2da0c452d959140fe8a6";
 	    checkpointData = (CCheckpointData) 
 		{
             boost::assign::map_list_of
@@ -230,8 +229,8 @@ public:
 
         nPoolMaxTransactions = 3;
         nFulfilledRequestExpireTime = 5*60; // fulfilled requests expire in 5 minutes
-        strSporkPubKey = "0";
-        strMasternodePaymentsPubKey = "0";
+        strSporkPubKey = "029ce47108ee0ac9212becfad36f6fd519f1264d1c274b2da0c452d959140fe8a6";
+        strMasternodePaymentsPubKey = "029ce47108ee0ac9212becfad36f6fd519f1264d1c274b2da0c452d959140fe8a6";
 
 		/*
         checkpointData = (CCheckpointData) {

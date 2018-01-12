@@ -3014,16 +3014,11 @@ std::string BiblepayHTTPSPost(int iThreadID, std::string sActionName, std::strin
 			std::string sDomain = GetDomainFromURL(sBaseURL);
 			std::string sDomainWithPort = sDomain + ":" + "443";
 			BIO_set_conn_hostname(bio, sDomainWithPort.c_str());
-			bool fConnected = false;
 			if(BIO_do_connect(bio) <= 0)
 			{
 				return "<ERROR>Failed connection to " + sDomainWithPort + "</ERROR>";
 			}
-			else
-			{
-				fConnected = true;
-			}
-
+	
 			CService addrConnect;
 			if (sDomain.empty()) return "<ERROR>DOMAIN_MISSING</ERROR>";
 			CService addrIP(sDomain, 443, true);

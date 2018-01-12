@@ -74,9 +74,10 @@ void CSporkManager::ProcessSpork(CNode* pfrom, std::string& strCommand, CDataStr
 void CSporkManager::ExecuteSpork(int nSporkID, int nValue)
 {
     //correct fork via spork technology
-    if(nSporkID == SPORK_12_RECONSIDER_BLOCKS && nValue > 0) {
+    if(nSporkID == SPORK_12_RECONSIDER_BLOCKS && nValue > 0) 
+	{
         // allow to reprocess 24h of blocks max, which should be enough to resolve any issues
-        int64_t nMaxBlocks = 576;
+        int64_t nMaxBlocks = BLOCKS_PER_DAY;
         // this potentially can be a heavy operation, so only allow this to be executed once per 10 minutes
         int64_t nTimeout = 10 * 60;
 
@@ -105,7 +106,8 @@ bool CSporkManager::UpdateSpork(int nSporkID, int64_t nValue)
 
     CSporkMessage spork = CSporkMessage(nSporkID, nValue, GetTime());
 
-    if(spork.Sign(strMasterPrivKey)) {
+    if(spork.Sign(strMasterPrivKey)) 
+	{
         spork.Relay();
         mapSporks[spork.GetHash()] = spork;
         mapSporksActive[nSporkID] = spork;
@@ -206,7 +208,8 @@ bool CSporkManager::SetPrivKey(std::string strPrivKey)
 
     spork.Sign(strPrivKey);
 
-    if(spork.CheckSignature()){
+    if(spork.CheckSignature())
+	{
         // Test signing successful, proceed
         LogPrintf("CSporkManager::SetPrivKey -- Successfully initialized as spork signer\n");
         strMasterPrivKey = strPrivKey;

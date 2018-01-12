@@ -1125,18 +1125,6 @@ unsigned int GetP2SHSigOpCount(const CTransaction& tx, const CCoinsViewCache& in
     return nSigOps;
 }
 
-int GetUTXOHeight(const COutPoint& outpoint)
-{
-    LOCK(cs_main);
-    CCoins coins;
-    if(!pcoinsTip->GetCoins(outpoint.hash, coins) ||
-       (unsigned int)outpoint.n>=coins.vout.size() ||
-       coins.vout[outpoint.n].IsNull()) {
-        return -1;
-    }
-    return coins.nHeight;
-}
-
 int GetInputAge(const CTxIn &txin)
 {
     CCoinsView viewDummy;
@@ -1176,6 +1164,29 @@ int GetIXConfirmations(const uint256 &nTXHash)
     return 0;
 }
 
+int GetUTXOHeight(const COutPoint& outpoint)
+{
+    LOCK(cs_main);
+    CCoins coins;
+    if(!pcoinsTip->GetCoins(outpoint.hash, coins) ||
+       (unsigned int)outpoint.n>=coins.vout.size() ||
+       coins.vout[outpoint.n].IsNull()) {
+        return -1;
+    }
+    return coins.nHeight;
+}
+
+
+bool GetUTXOCoins(const COutPoint& outpoint, CCoins& coins)
+{
+    LOCK(cs_main);
+    if (!pcoinsTip->GetCoins(outpoint.hash, coins))
+        return false;
+    if (coins.vout[outpoint.n].IsNull())
+        return false;
+    return true;
+}
+//txin.prevout.hash
 
 bool CheckTransaction(const CTransaction& tx, CValidationState &state)
 {
@@ -2019,7 +2030,7 @@ bool WriteBlockToDisk(const CBlock& block, CDiskBlockPos& pos, const CMessageHea
 bool ReadBlockFromDisk(CBlock& block, const CDiskBlockPos& pos, const Consensus::Params& consensusParams, std::string Context)
 {
 
-	// September 14th, 2017 - Robert Andrew - BiblePay
+	// September 14th, 2017 - Robert Andrija - BiblePay
 	// Depending on the context of the call, ensure the block is read from the disk without a CheckProofOfWork Error
 
 	boost::to_upper(Context);
@@ -4228,11 +4239,8 @@ bool CheckBlock(const CBlock& block, CValidationState& state, bool fCheckPOW, bo
             BOOST_FOREACH(const CTxIn& txin, tx.vin) {
                 uint256 hashLocked;
                 if(instantsend.GetLockedOutPointTxHash(txin.prevout, hashLocked) && hashLocked != tx.GetHash()) {
-                    // Every node which relayed this block to us must invalidate it
-                    // but they probably need more data.
-                    // Relay corresponding transaction lock request and all its votes
-                    // to let other nodes complete the lock.
-                    instantsend.Relay(hashLocked);
+                    // The node which relayed this will have to swtich later,
+                    // relaying instantsend data won't help it.
                     LOCK(cs_main);
                     mapRejectedBlocks.insert(make_pair(block.GetHash(), GetTime()));
                     return state.DoS(0, error("CheckBlock(biblepay): transaction %s conflicts with transaction lock %s",

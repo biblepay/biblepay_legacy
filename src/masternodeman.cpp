@@ -164,6 +164,20 @@ void CMasternodeMan::AskForMN(CNode* pnode, const CTxIn &vin)
     pnode->PushMessage(NetMsgType::DSEG, vin);
 }
 
+bool CMasternodeMan::PoSeBan(const COutPoint &outpoint)
+ {
+     LOCK(cs);
+     CMasternode* pmn = Find(outpoint);
+     if (!pmn) 
+	 {
+		 LogPrintf("cant find Sanctuary to Pose ban InstantSend \n");
+		 return false;
+     }
+     pmn->PoSeBan();
+	 LogPrintf(" Found Sanctuary to Pose ban - InstantSend \n");
+     return true;
+ }
+
 void CMasternodeMan::Check()
 {
     LOCK(cs);
@@ -479,6 +493,28 @@ CMasternode* CMasternodeMan::Find(const CPubKey &pubKeyMasternode)
     }
     return NULL;
 }
+
+/*
+CMasternode* CMasternodeMan::Find(const COutPoint &outpoint)
+{
+    LOCK(cs);
+    auto it = mapMasternodes.find(outpoint);
+    return it == mapMasternodes.end() ? NULL : &(it->second);
+}
+*/
+
+CMasternode* CMasternodeMan::Find(const COutPoint &outpoint)
+{
+    LOCK(cs);
+
+    BOOST_FOREACH(CMasternode& mn, vMasternodes)
+    {
+        if(mn.vin.prevout == outpoint)
+            return &mn;
+    }
+    return NULL;
+}
+
 
 bool CMasternodeMan::Get(const CPubKey& pubKeyMasternode, CMasternode& masternode)
 {

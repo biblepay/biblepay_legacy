@@ -153,6 +153,8 @@ private:
     int64_t nLastWatchdogVoteTime;
 
     friend class CMasternodeSync;
+	/// Find an entry
+    CMasternode* Find(const COutPoint& outpoint);
 
 public:
     // Keep track of all broadcasts I've seen
@@ -207,6 +209,7 @@ public:
 
     /// Check all Masternodes
     void Check();
+	bool PoSeBan(const COutPoint &outpoint);
 
     /// Check all Masternodes and remove inactive
     void CheckAndRemove();
