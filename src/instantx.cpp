@@ -855,14 +855,13 @@ bool CInstantSend::IsLockedInstantSendTransaction(const uint256& txHash)
 		
         if(!GetLockedOutPointTxHash(itOutpointLock->first, hashLocked)) 
 		{
-			if (LogLimiter(10)) LogPrintf(" InstantSend No HashLocks \n");
+			//LogPrintf(" InstantSend No HashLocks \n");
 			return false;
 		}
 		if (hashLocked != txHash)
 		{
-			if (LogLimiter(10)) LogPrintf(" InstantSend hashlocked != txHash %s %s \n", hashLocked.GetHex().c_str(), txHash.GetHex().c_str());
+			//LogPrintf(" InstantSend hashlocked != txHash %s %s \n", hashLocked.GetHex().c_str(), txHash.GetHex().c_str());
 			return false;
-
 		}
         ++itOutpointLock;
     }
