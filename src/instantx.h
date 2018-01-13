@@ -27,7 +27,7 @@ extern CInstantSend instantsend;
 static const int INSTANTSEND_CONFIRMATIONS_REQUIRED = 6;
 static const int DEFAULT_INSTANTSEND_DEPTH          = 5;
 static const int INSTANTSEND_TIMEOUT_SECONDS        = 60;
-static const int MIN_INSTANTSEND_PROTO_VERSION      = 70713;
+static const int MIN_INSTANTSEND_PROTO_VERSION      = 70714;
  
 extern bool fEnableInstantSend;
 extern int nInstantSendDepth;
@@ -38,7 +38,7 @@ class CInstantSend
 private:
     
     // Keep track of current block index
-    const CBlockIndex *pCurrentBlockIndex;
+    int nCachedBlockHeight;
 
     // maps for AlreadyHave
     std::map<uint256, CTxLockRequest> mapLockRequestAccepted; // tx hash - tx
@@ -95,7 +95,8 @@ public:
     bool IsLockedInstantSendTransaction(const uint256& txHash);
     // get the actual number of accepted lock signatures
     int GetTransactionLockSignatures(const uint256& txHash);
-
+	// get instantsend confirmations (only)
+    int GetConfirmations(const uint256 &nTXHash);
     // remove expired entries from maps
     void CheckAndRemove();
     // verify if transaction lock timed out
@@ -105,6 +106,8 @@ public:
 
     void UpdatedBlockTip(const CBlockIndex *pindex);
     void SyncTransaction(const CTransaction& tx, const CBlock* pblock);
+	
+    std::string ToString();
 };
 
 class CTxLockRequest : public CTransaction
