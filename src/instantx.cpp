@@ -836,14 +836,14 @@ bool CInstantSend::IsLockedInstantSendTransaction(const uint256& txHash)
     std::map<uint256, CTxLockCandidate>::iterator itLockCandidate = mapTxLockCandidates.find(txHash);
     if(itLockCandidate == mapTxLockCandidates.end()) 
 	{
-		LogPrintf(" InstantSend No Lock Candidate \n");
+		// LogPrintf(" InstantSend No Lock Candidate \n");
 		return false;
 	}
 
     // which should have outpoints
     if(itLockCandidate->second.mapOutPointLocks.empty()) 
 	{
-		LogPrintf(" InstantSend No Outpoints \n");
+		// LogPrintf(" InstantSend No Outpoints \n");
 		return false;
 	}
 
