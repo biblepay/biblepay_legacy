@@ -57,7 +57,7 @@ void CInstantSend::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataSt
     {
         if(pfrom->nVersion < MIN_INSTANTSEND_PROTO_VERSION) 
 		{
-			LogPrintf(" InstantSend < min_instantsendprotover %f ",(float)pfrom->nVersion);
+			// if (false) LogPrintf(" InstantSend < min_instantsendprotover %f ",(float)pfrom->nVersion);
 			return;
 		}
 
@@ -161,7 +161,6 @@ bool CInstantSend::CreateTxLockCandidate(const CTxLockRequest& txLockRequest)
          }
          mapTxLockCandidates.insert(std::make_pair(txHash, txLockCandidate));
 		 LogPrintf(" Created TxLockCandidate 777 InstantSend \n");
-		 // || itLockCandidate->second.txLockRequest.IsBorn==false
  	 }
 	 else if (!itLockCandidate->second.txLockRequest.IsBorn) 
 	 {
@@ -336,8 +335,7 @@ bool CInstantSend::ProcessTxLockVote(CNode* pfrom, CTxLockVote& vote)
     std::map<uint256, CTxLockCandidate>::iterator it = mapTxLockCandidates.find(txHash);
     if(it == mapTxLockCandidates.end() || !it->second.txLockRequest.IsBorn) 
 	{
-		it->second.txLockRequest.IsBorn = true;
-        if(!mapTxLockVotesOrphan.count(vote.GetHash())) 
+	    if(!mapTxLockVotesOrphan.count(vote.GetHash())) 
 		{
     		// start timeout countdown after the very first vote
             CreateEmptyTxLockCandidate(txHash);
@@ -1243,17 +1241,14 @@ bool CTxLockCandidate::AddVote(const CTxLockVote& vote)
     std::map<COutPoint, COutPointLock>::iterator it = mapOutPointLocks.find(vote.GetOutpoint());
     if(it == mapOutPointLocks.end())
 	{
-		LogPrintf(" UnableToAddVote %f",(float)902);
 		return false;
 	}
-	LogPrintf(" %f ",(float)903);
     return it->second.AddVote(vote);
 }
 bool CTxLockCandidate::IsAllOutPointsReady() const
 {
     if(mapOutPointLocks.empty()) 
 	{
-		LogPrintf(" %f ",(float)900);
 		return false;
 	}
 
@@ -1264,7 +1259,6 @@ bool CTxLockCandidate::IsAllOutPointsReady() const
         if(!it->second.IsReady()) return false;
         ++it;
 		iReady++;
-		LogPrintf(" IAOPR %f ",(float)iReady);
     }
     return true;
 }
@@ -1285,7 +1279,6 @@ int CTxLockCandidate::CountVotes() const
         nCountVotes += it->second.CountVotes();
         ++it;
     }
-	LogPrintf(" CountVotes %f ",(float)nCountVotes);
     return nCountVotes;
 }
 

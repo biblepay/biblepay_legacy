@@ -128,7 +128,7 @@ public:
         {}
     CTxLockRequest(const CTransaction& tx) :
         CTransaction(tx),
-		IsBorn(false)
+		IsBorn(true)
 		{}
 
     bool IsValid() const;
