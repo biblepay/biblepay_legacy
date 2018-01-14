@@ -163,7 +163,7 @@ bool CInstantSend::CreateTxLockCandidate(const CTxLockRequest& txLockRequest)
 		 LogPrintf(" Created TxLockCandidate 777 InstantSend \n");
 		 // || itLockCandidate->second.txLockRequest.IsBorn==false
  	 }
-	 else if (!itLockCandidate->second.txLockRequest.IsBirthed()) 
+	 else if (!itLockCandidate->second.txLockRequest.IsBorn) 
 	 {
 			// i.e. empty Transaction Lock Candidate was created earlier, let's update it with actual data
 		 	LogPrintf("CInstantSend::CreateTxLockCandidate -- creating birth, txid=%s\n", txHash.ToString());
@@ -309,13 +309,20 @@ void CInstantSend::Vote(CTxLockCandidate& txLockCandidate)
 //received a consensus vote
 bool CInstantSend::ProcessTxLockVote(CNode* pfrom, CTxLockVote& vote)
 {
-    LOCK2(cs_main, cs_instantsend);
+    // cs_main, cs_wallet and cs_instantsend should be already locked
+    AssertLockHeld(cs_main);
+#ifdef ENABLE_WALLET
+    if (pwalletMain)
+        AssertLockHeld(pwalletMain->cs_wallet);
+#endif
+    AssertLockHeld(cs_instantsend);
 
     uint256 txHash = vote.GetTxHash();
 
     if(!vote.IsValid(pfrom)) 
 	{
         // could be because of missing MN
+		LogPrintf(" invalid vote \n");
         LogPrint("instantsend", "CInstantSend::ProcessTxLockVote -- Vote is invalid, txid=%s\n", txHash.ToString());
         return false;
     }
@@ -327,8 +334,9 @@ bool CInstantSend::ProcessTxLockVote(CNode* pfrom, CTxLockVote& vote)
     // will actually process only after the lock request itself has arrived
 
     std::map<uint256, CTxLockCandidate>::iterator it = mapTxLockCandidates.find(txHash);
-    if(it == mapTxLockCandidates.end() || !it->second.txLockRequest.IsBirthed()) 
+    if(it == mapTxLockCandidates.end() || !it->second.txLockRequest.IsBorn) 
 	{
+		it->second.txLockRequest.IsBorn = true;
         if(!mapTxLockVotesOrphan.count(vote.GetHash())) 
 		{
     		// start timeout countdown after the very first vote
@@ -1233,18 +1241,30 @@ void CTxLockCandidate::MarkOutpointAsAttacked(const COutPoint& outpoint)
 bool CTxLockCandidate::AddVote(const CTxLockVote& vote)
 {
     std::map<COutPoint, COutPointLock>::iterator it = mapOutPointLocks.find(vote.GetOutpoint());
-    if(it == mapOutPointLocks.end()) return false;
+    if(it == mapOutPointLocks.end())
+	{
+		LogPrintf(" UnableToAddVote %f",(float)902);
+		return false;
+	}
+	LogPrintf(" %f ",(float)903);
     return it->second.AddVote(vote);
 }
 bool CTxLockCandidate::IsAllOutPointsReady() const
 {
-    if(mapOutPointLocks.empty()) return false;
+    if(mapOutPointLocks.empty()) 
+	{
+		LogPrintf(" %f ",(float)900);
+		return false;
+	}
 
     std::map<COutPoint, COutPointLock>::const_iterator it = mapOutPointLocks.begin();
+	int iReady = 0;
     while(it != mapOutPointLocks.end()) 
 	{
         if(!it->second.IsReady()) return false;
         ++it;
+		iReady++;
+		LogPrintf(" IAOPR %f ",(float)iReady);
     }
     return true;
 }
@@ -1260,10 +1280,12 @@ int CTxLockCandidate::CountVotes() const
     // Note: do NOT use vote count to figure out if tx is locked, use IsAllOutPointsReady() instead
     int nCountVotes = 0;
     std::map<COutPoint, COutPointLock>::const_iterator it = mapOutPointLocks.begin();
-    while(it != mapOutPointLocks.end()) {
+    while(it != mapOutPointLocks.end()) 
+	{
         nCountVotes += it->second.CountVotes();
         ++it;
     }
+	LogPrintf(" CountVotes %f ",(float)nCountVotes);
     return nCountVotes;
 }
 

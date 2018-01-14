@@ -120,17 +120,19 @@ private:
 
 public:
     static const int WARN_MANY_INPUTS       = 100;
-
+	bool IsBorn;
+    
 	CTxLockRequest() :
-        CTransaction()
+        CTransaction(),
+		IsBorn(false)
         {}
     CTxLockRequest(const CTransaction& tx) :
-        CTransaction(tx)
+        CTransaction(tx),
+		IsBorn(false)
 		{}
 
     bool IsValid() const;
-	bool IsBorn;
-    CAmount GetMinFee() const;
+	CAmount GetMinFee() const;
     int GetMaxSignatures() const;
     bool IsBirthed() const
     {
@@ -207,7 +209,8 @@ public:
 
     COutPointLock(const COutPoint& outpointIn) :
         outpoint(outpointIn),
-        mapMasternodeVotes()
+        mapMasternodeVotes(),
+		fAttacked(false)
         {}
 
     COutPoint GetOutpoint() const { return outpoint; }
