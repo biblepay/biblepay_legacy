@@ -1775,7 +1775,11 @@ UniValue exec(const UniValue& params, bool fHelp)
         				results.push_back(Pair("subsidy", block.vtx[0].vout[0].nValue/COIN));
 						std::string sRecipient = PubKeyToAddress(block.vtx[0].vout[0].scriptPubKey);
 						results.push_back(Pair("recipient", sRecipient));
-						results.push_back(Pair("blockversion", ExtractXML(block.vtx[0].vout[0].sTxOutMessage,"<VER>","</VER>")));
+						std::string sBlockVersion = ExtractXML(block.vtx[0].vout[0].sTxOutMessage,"<VER>","</VER>");
+						std::string sBlockVersion2 = strReplace(sBlockVersion, ".", "");
+						double dBlockVersion = cdbl(sBlockVersion2, 0);
+						results.push_back(Pair("blockversion", sBlockVersion));
+						results.push_back(Pair("blockversion2", dBlockVersion));
 						results.push_back(Pair("minerguid", ExtractXML(block.vtx[0].vout[0].sTxOutMessage,"<MINERGUID>","</MINERGUID>")));
 				}
 			}
