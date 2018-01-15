@@ -4360,7 +4360,7 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIn
 	std::string sBlockVersion = ExtractXML(block.vtx[0].vout[0].sTxOutMessage,"<VER>","</VER>");
 	sBlockVersion = strReplace(sBlockVersion, ".", "");
 	double dBlockVersion = cdbl(sBlockVersion, 0);
-	if (fProd && nHeight > 25900 && dBlockVersion < 1081)
+	if (fProd && nHeight > F10000_CUTOVER_HEIGHT && dBlockVersion < 1081)
 	{
 		 LogPrintf("ContextualCheckBlock::ERROR Rejecting block version %f at height %f \n",(double)dBlockVersion,(double)nHeight);
 		 return false;
