@@ -163,7 +163,6 @@ std::string VectorToString(std::vector<unsigned char> v)
 
 std::string ExtractXML(std::string XMLdata, std::string key, std::string key_end)
 {
-
 	std::string extraction = "";
 	std::string::size_type loc = XMLdata.find( key, 0 );
 	if( loc != std::string::npos )
@@ -172,7 +171,6 @@ std::string ExtractXML(std::string XMLdata, std::string key, std::string key_end
 		if (loc_end != std::string::npos )
 		{
 			extraction = XMLdata.substr(loc+(key.length()),loc_end-loc-(key.length()));
-
 		}
 	}
 	return extraction;
