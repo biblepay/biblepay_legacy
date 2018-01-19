@@ -272,6 +272,7 @@ UniValue blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool tx
 					bnTarget += UintToArith256(uBase);
 					uint256 hPOLBlockTarget = ArithToUint256(bnTarget);
 					result.push_back(Pair("proof_of_loyalty_block_target", hPOLBlockTarget.GetHex()));
+					result.push_back(Pair("proof_of_loyalty_influence_percentage", nPercent))
 				}
 			}
 		}
