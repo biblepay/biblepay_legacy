@@ -43,6 +43,8 @@ std::string PubKeyToAddress(const CScript& scriptPubKey);
 std::string GetTxNews(uint256 hash, std::string& sHeadline);
 std::vector<std::string> Split(std::string s, std::string delim);
 bool CheckMessageSignature(std::string sMsg, std::string sSig);
+bool CheckMessageSignature(std::string sMsg, std::string sSig, std::string sPubKey);
+extern uint256 PercentToBigIntBase(int iPercent);
 std::string GetTemplePrivKey();
 std::string SignMessage(std::string sMsg, std::string sPrivateKey);
 extern double CAmountToRetirementDouble(CAmount Amount);
@@ -52,7 +54,10 @@ std::string PrepareHTTPPost(std::string sPage, std::string sHostHeader, const st
 std::string GetDomainFromURL(std::string sURL);
 std::string BiblepayHTTPSPost(int iThreadID, std::string sActionName, std::string sDistinctUser, std::string sPayload, std::string sBaseURL, std::string sPage, int iPort,
 	std::string sSolution, int iTimeoutSecs, int iMaxSize);
-
+extern CTransaction CreateCoinStake(CBlockIndex* pindexLast, CScript scriptCoinstakeKey, CAmount nTargetValue, int iMinConfirms, std::string& sXML, std::string& sError);
+extern bool IsStakeSigned(std::string sXML);
+extern int64_t GetStakeTargetModifierPercent(int nHeight, double nWeight);
+extern double GetStakeWeight(CTransaction tx, int64_t nTipTime, std::string sXML, bool bVerifySignature, std::string& sMetrics, std::string& sError);
 UniValue ContributionReport();
 std::string RoundToString(double d, int place);
 extern std::string TimestampToHRDate(double dtm);
@@ -103,6 +108,24 @@ double GetDifficultyN(const CBlockIndex* blockindex, double N)
 		return GetDifficulty(blockindex)*N;
 	}
 }
+
+uint256 PercentToBigIntBase(int iPercent)
+{
+	// 1-18-2018 - Biblepay - Proof-Of-Loyalty
+	// Given a Proof-Of-Loyalty User Weight (boost level) of 0 - 90% (as a whole number), create a base hash target level for the user
+	if (iPercent == 0) return uint256S("0x0");
+	int iBigIntDecimalCount = (int)(iPercent * .08);
+	if (iBigIntDecimalCount > 8) iBigIntDecimalCount = 8;
+	if (iBigIntDecimalCount < 1) iBigIntDecimalCount = 1;
+	int iLead  = 9 - iBigIntDecimalCount;
+	int iInt64 = 64 - iLead;
+	std::string sZero = std::string(iLead, '0');
+	std::string sFF   = std::string(iInt64, 'F');
+	
+	uint256 hashBase = uint256S("0x" + sZero + sFF);
+	return hashBase;
+}
+
 
 double GetDifficulty(const CBlockIndex* blockindex)
 {
@@ -223,6 +246,37 @@ UniValue blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool tx
 		bool bSatisfiesBibleHash = (UintToArith256(bibleHash) <= hashTarget);
 		result.push_back(Pair("satisfiesbiblehash", bSatisfiesBibleHash ? "true" : "false"));
 		result.push_back(Pair("biblehash", bibleHash.GetHex()));
+		// Proof-Of-Loyalty - 01-18-2018 - Rob Andrija
+		if (fProofOfLoyaltyEnabled)
+		{
+			if (block.vtx.size() > 1)
+			{
+				bool bSigned = IsStakeSigned(block.vtx[0].vout[0].sTxOutMessage);
+				if (bSigned)
+				{
+					std::string sError = "";
+					std::string sMetrics = "";
+					double dStakeWeight = GetStakeWeight(block.vtx[1], block.GetBlockTime(), block.vtx[0].vout[0].sTxOutMessage, true, sMetrics, sError);
+					result.push_back(Pair("proof_of_loyalty_weight", dStakeWeight));
+					result.push_back(Pair("proof_of_loyalty_errors", sError));
+					result.push_back(Pair("proof_of_loyalty_xml", block.vtx[0].vout[0].sTxOutMessage));
+					result.push_back(Pair("proof_of_loyalty_metrics", sMetrics));
+					int64_t nPercent = GetStakeTargetModifierPercent(blockindex->pprev->nHeight, dStakeWeight);
+					uint256 uBase = PercentToBigIntBase(nPercent);
+					arith_uint256 bnTarget;
+					bool fNegative;
+					bool fOverflow;
+     				bnTarget.SetCompact(block.nBits, &fNegative, &fOverflow);
+					uint256 hBlockTarget = ArithToUint256(bnTarget);
+					result.push_back(Pair("block_target_hash", hBlockTarget.GetHex()));
+					bnTarget += UintToArith256(uBase);
+					uint256 hPOLBlockTarget = ArithToUint256(bnTarget);
+					result.push_back(Pair("proof_of_loyalty_block_target", hPOLBlockTarget.GetHex()));
+				}
+			}
+		}
+
+
 	}
 	else
 	{
@@ -1635,6 +1689,238 @@ UniValue GetVersionReport()
       return ret;
 }
 
+bool SignStake(std::string sBitcoinAddress, std::string strMessage, std::string& sError, std::string& sSignature)
+{
+		    CBitcoinAddress addr(sBitcoinAddress);
+            CKeyID keyID;
+			if (!addr.GetKeyID(keyID))
+			{
+				sError = "Address does not refer to key";
+				return false;
+			}
+			CKey key;
+		 	if (!pwalletMain->GetKey(keyID, key))
+			{
+				sError = "Private key not available";
+				return false;
+			}
+			CHashWriter ss(SER_GETHASH, 0);
+			ss << strMessageMagic;
+			ss << strMessage;
+		    vector<unsigned char> vchSig;
+			if (!key.SignCompact(ss.GetHash(), vchSig))
+			{
+				sError = "Sign failed";
+				return false;
+			}
+			sSignature = EncodeBase64(&vchSig[0], vchSig.size());
+			return true;
+}
+
+
+bool CheckStakeSignature(std::string sBitcoinAddress, std::string sSignature, std::string strMessage, std::string& strError)
+{
+		    CBitcoinAddress addr2(sBitcoinAddress);
+			if (!addr2.IsValid()) 
+			{
+				strError = "Invalid address";
+				return false;
+			}
+		    CKeyID keyID2;
+			if (!addr2.GetKeyID(keyID2)) 
+			{
+				strError = "Address does not refer to key";
+				return false;
+			}
+			bool fInvalid = false;
+			vector<unsigned char> vchSig2 = DecodeBase64(sSignature.c_str(), &fInvalid);
+			if (fInvalid)
+			{
+				strError = "Malformed base64 encoding";
+				return false;
+			}
+
+			CHashWriter ss2(SER_GETHASH, 0);
+			ss2 << strMessageMagic;
+			ss2 << strMessage;
+			CPubKey pubkey2;
+    		if (!pubkey2.RecoverCompact(ss2.GetHash(), vchSig2)) 
+			{
+				strError = "Unable to recover public key.";
+				return false;
+			}
+			bool fSuccess = (pubkey2.GetID() == keyID2);
+			return fSuccess;
+}
+
+bool IsStakeSigned(std::string sXML)
+{
+	std::string sSignature = ExtractXML(sXML, "<SIG_0>","</SIG_0>");
+	return (sSignature.empty()) ? false : true;
+}
+
+bool GetTransactionTimeAndAmount(uint256 txhash, int nVout, int64_t& nTime, CAmount& nAmount)
+{
+	uint256 hashBlock = uint256();
+	CTransaction tx2;
+	if (GetTransaction(txhash, tx2, Params().GetConsensus(), hashBlock, true))
+	{
+		   BlockMap::iterator mi = mapBlockIndex.find(hashBlock);
+           if (mi != mapBlockIndex.end() && (*mi).second) 
+		   {
+              CBlockIndex* pMNIndex = (*mi).second; 
+			  nTime = pMNIndex->GetBlockTime();
+		      nAmount = tx2.vout[nVout].nValue;
+			  return true;
+		   }
+	}
+	return false;
+}
+
+double GetStakeWeight(CTransaction tx, int64_t nTipTime, std::string sXML, bool bVerifySignature, std::string& sMetrics, std::string& sError)
+{
+	// Calculate coin age - Proof Of Loyalty - 01-17-2018
+	double dTotal = 0;
+	std::string sXMLAmt = "";
+	std::string sXMLAge = "";
+	CAmount nTotalAmount = 0;
+	double nTotalAge = 0;
+	int iInstances = 0;
+	if (tx.vin.size() < 1) return 0;
+    for (size_t iIndex = 0; iIndex < tx.vin.size(); iIndex++) 
+	{
+        //const CTxIn& txin = tx.vin[iIndex];
+    	int n = tx.vin[iIndex].prevout.n;
+		CAmount nAmount = 0;
+		int64_t nTime = 0;
+		bool bSuccess = GetTransactionTimeAndAmount(tx.vin[iIndex].prevout.hash, n, nTime, nAmount);
+		if (bSuccess && nTime > 0 && nAmount > 0)
+		{
+			double nAge = (nTipTime - nTime)/(86400+.01);
+			if (nAge > 365) nAge = 365;           // If the age > 1 YEAR, cap at 1 YEAR
+			if (nAge < 1 && fProd) nAge = 0;      // If the age < 1 DAY, set to zero (coins must be more than 1 day old to stake them)
+			nTotalAmount += nAmount;
+			nTotalAge += nAge;
+			iInstances++;
+			double dWeight = nAge * (nAmount/COIN);
+			dTotal += dWeight;
+		}
+		//LogPrintf(" time %f Amount %f  Age %s  , ",(double)nTime,(double)nAmount/COIN,RoundToString(nAge,2));
+	}
+	double dAverageAge = 0;
+	if (iInstances > 0) dAverageAge = nTotalAge / iInstances;
+	sXMLAmt = "<polamount>" + RoundToString(nTotalAmount/COIN, 2) + "</polamount>";
+	sXMLAge = "<polavgage>" + RoundToString(dAverageAge, 3) + "</polavgage>";
+
+	sMetrics = sXMLAmt + sXMLAge;
+	if (bVerifySignature)
+	{
+		bool fSigned = false;
+		// Ensure the signature works for every output:
+		std::string sMessage = ExtractXML(sXML, "<polmessage>","</polmessage>");
+		for (int iIndex = 0; iIndex < (int)tx.vout.size(); iIndex++) 
+		{
+			std::string sSignature = ExtractXML(sXML, "<SIG_" + RoundToString(iIndex,0) + ">","</SIG_" + RoundToString(iIndex,0) + ">");
+			const CTxOut& txout = tx.vout[iIndex];
+			std::string sAddr = PubKeyToAddress(txout.scriptPubKey);
+			fSigned = CheckStakeSignature(sAddr, sSignature, sMessage, sError);
+			if (!fSigned) break;
+		}
+
+		if (!fSigned) dTotal=0;
+	}
+	return dTotal;
+}
+
+CAmount GetMoneySupplyEstimate(int nHeight)
+{
+	int64_t nAvgReward = 13657;
+	CAmount nSupply = nAvgReward * nHeight * COIN;
+	return nSupply;
+}
+
+int64_t GetStakeTargetModifierPercent(int nHeight, double nWeight)
+{
+	// A user who controls 1% of the money supply may stake once per day
+	// Users Weight = CoinAmountStaked * CoinAgeInDays
+	// Target Modifier Percent = UserWeight / Supply
+	double dSupply = (GetMoneySupplyEstimate(nHeight)/COIN) + .01;
+	if (nWeight > dSupply) nWeight = dSupply;
+	double dPercent = (nWeight / dSupply) * 100;
+	if (dPercent > 90) dPercent = 90;
+	int64_t iPercent = (int64_t)dPercent;
+	return iPercent;
+}
+
+CTransaction CreateCoinStake(CBlockIndex* pindexLast, CScript scriptCoinstakeKey, double dProofOfLoyaltyPercentage, int iMinConfirms, std::string& sXML, std::string& sError)
+{
+    CAmount curBalance = pwalletMain->GetUnlockedBalance();
+	CAmount nTargetValue = curBalance * dProofOfLoyaltyPercentage;
+	CTransaction ctx;
+	
+    if (nTargetValue <= 0 || nTargetValue > curBalance) 
+	{
+		sError = "BALANCE TOO LOW TO STAKE";
+		return ctx;
+	}
+
+    CReserveKey reservekey(pwalletMain);
+    CAmount nFeeRequired;
+    std::string strError;
+    vector<CRecipient> vecSend;
+    int nChangePosRet = -1;
+    CRecipient recipient = {scriptCoinstakeKey, nTargetValue, false, false, false, false, "", "", ""};
+	recipient.Message = "<polweight>" + RoundToString(nTargetValue/COIN,2) + "</polweight>";
+				
+    vecSend.push_back(recipient);
+
+	CWalletTx wtx;
+
+	bool fCreated = pwalletMain->CreateTransaction(vecSend, wtx, reservekey, nFeeRequired, nChangePosRet, 
+		strError, NULL, true, ALL_COINS, false, iMinConfirms);
+	if (!fCreated)    
+	{
+		sError = "INSUFFICIENT FUNDS, ENSURE WALLET IS UNLOCKED";
+		return ctx;
+	}
+
+			
+	//ctx = (CTransaction)wtx;
+	ctx = (CTransaction)wtx;
+
+	std::string sMetrics = "";
+	double dWeight = GetStakeWeight(ctx, pindexLast->GetBlockTime(), "", false, sMetrics, sError);
+	
+
+    // EnsureWalletIsUnlocked();
+	// Ensure they can sign every output
+	std::string sMessage = GetRandHash().GetHex();
+	sXML = "<polmessage>" + sMessage + "</polmessage><polweight>"+RoundToString(dWeight,2) + "</polweight>" + sMetrics;
+	//wtx.vout[0].sTxMessage = sXML;
+	//LogPrintf("tx message %s \n", ctx.vout[0].sTxMessage.c_str());
+
+	for (int iIndex = 0; iIndex < (int)ctx.vout.size(); iIndex++) 
+	{
+		std::string sKey = "SIG_" + RoundToString(iIndex,0);
+		const CTxOut& txout = ctx.vout[iIndex];
+	    std::string sAddr = PubKeyToAddress(txout.scriptPubKey);
+		std::string sSignature = "";
+
+		bool bSigned = SignStake(sAddr, sMessage, sError, sSignature);
+		if (bSigned)
+		{
+			sXML += "<" + sKey + ">" + sSignature + "</" + sKey + ">";
+		}
+		else
+		{
+			sXML = "";
+			LogPrintf(" Unable to sign stake %s \n", sAddr.c_str());
+		}
+	}
+	//    ctx.vout[0].sTxOutMessage = sXML;
+	return ctx;
+}
+
 
 double CAmountToRetirementDouble(CAmount Amount)
 {
@@ -1746,6 +2032,11 @@ UniValue exec(const UniValue& params, bool fHelp)
 			uint256 hash = BibleHash(blockHash, nBlockTime, nPrevBlockTime, true, nHeight, NULL, false, f7000, f8000, f9000, fTitheBlocksActive, nNonce);
 			results.push_back(Pair("BibleHash",hash.GetHex()));
 		}
+	}
+	else if (sItem == "stakebalance")
+	{
+		CAmount nStakeBalance = pwalletMain->GetUnlockedBalance();
+		results.push_back(Pair("StakeBalance", nStakeBalance/COIN));
 	}
 	else if (sItem == "pinfo")
 	{
@@ -2215,6 +2506,22 @@ UniValue exec(const UniValue& params, bool fHelp)
 	{
 		std::string sResponse = BiblepayHTTPSPost(0,"POST","USER_A","PostSpeed","https://pool.biblepay.org","Action.aspx", 443, "SOLUTION", 20, 5000);
 		results.push_back(Pair("Test",sResponse));
+	}
+	else if (sItem == "hp")
+	{
+		// This is a simple test to show the POL effect on the hashtarget:		
+		std::string sType = params[1].get_str();
+		double d1 = cdbl(sType, 0);
+		uint256 h1 = PercentToBigIntBase((int)d1);
+		results.push_back(Pair("h1", h1.GetHex()));
+		uint256 h2 = PercentToBigIntBase((int)d1);
+		results.push_back(Pair("h2", h2.GetHex()));
+		// Move on to test the overflow condition
+		arith_uint256 bn1 = UintToArith256(h1);
+		arith_uint256 bn2 = UintToArith256(h2);
+		arith_uint256 bn3 = bn1 + bn2;
+		uint256 h3 = ArithToUint256(bn3);
+		results.push_back(Pair("h3", h3.GetHex()));
 	}
 	else if (sItem == "datalist")
 	{

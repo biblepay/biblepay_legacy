@@ -292,14 +292,15 @@ void CMasternodeSync::ProcessTick()
 
     // INITIAL SYNC SETUP / LOG REPORTING
     double nSyncProgress = double(nRequestedMasternodeAttempt + (nRequestedMasternodeAssets - 1) * 8) / (8*4);
-    if (fDebugMaster) LogPrintf("CMasternodeSync::ProcessTick1 -- nTick %d nRequestedMasternodeAssets %d nRequestedMasternodeAttempt %d nSyncProgress %f\n", nTick, nRequestedMasternodeAssets, nRequestedMasternodeAttempt, nSyncProgress);
+    if (fDebugMaster) LogPrint("masternode",
+		"CMasternodeSync::ProcessTick1 -- nTick %d nRequestedMasternodeAssets %d nRequestedMasternodeAttempt %d nSyncProgress %f\n", nTick, nRequestedMasternodeAssets, nRequestedMasternodeAttempt, nSyncProgress);
     uiInterface.NotifyAdditionalDataSyncProgressChanged(nSyncProgress);
 
     // sporks synced but blockchain is not, wait until we're almost at a recent block to continue
     if(Params().NetworkIDString() != CBaseChainParams::REGTEST &&
             !IsBlockchainSynced() && nRequestedMasternodeAssets > MASTERNODE_SYNC_SPORKS)
     {
-        if (fDebugMaster) LogPrintf("CMasternodeSync::ProcessTick2 -- nTick %d nRequestedMasternodeAssets %d nRequestedMasternodeAttempt %d -- blockchain is not synced yet\n", nTick, nRequestedMasternodeAssets, nRequestedMasternodeAttempt);
+        if (fDebugMaster) LogPrint("masternode","CMasternodeSync::ProcessTick2 -- nTick %d nRequestedMasternodeAssets %d nRequestedMasternodeAttempt %d -- blockchain is not synced yet\n", nTick, nRequestedMasternodeAssets, nRequestedMasternodeAttempt);
         nTimeLastMasternodeList = GetTime();
         nTimeLastPaymentVote = GetTime();
         nTimeLastGovernanceItem = GetTime();
@@ -365,7 +366,8 @@ void CMasternodeSync::ProcessTick()
             // MNLIST : SYNC MASTERNODE LIST FROM OTHER CONNECTED CLIENTS
 
             if(nRequestedMasternodeAssets == MASTERNODE_SYNC_LIST) {
-                if (fDebugMaster) LogPrint("masternode", "CMasternodeSync::ProcessTick5 -- nTick %d nRequestedMasternodeAssets %d nTimeLastMasternodeList %lld GetTime() %lld diff %lld\n", nTick, nRequestedMasternodeAssets, nTimeLastMasternodeList, GetTime(), GetTime() - nTimeLastMasternodeList);
+                if (fDebugMaster) LogPrint("masternode", 
+					"CMasternodeSync::ProcessTick5 -- nTick %d nRequestedMasternodeAssets %d nTimeLastMasternodeList %lld GetTime() %lld diff %lld\n", nTick, nRequestedMasternodeAssets, nTimeLastMasternodeList, GetTime(), GetTime() - nTimeLastMasternodeList);
                 // check for timeout first
                 if(nTimeLastMasternodeList < GetTime() - MASTERNODE_SYNC_TIMEOUT_SECONDS) {
                     if (fDebugMaster) LogPrintf("CMasternodeSync::ProcessTick6 -- nTick %d nRequestedMasternodeAssets %d -- timeout\n", nTick, nRequestedMasternodeAssets);
@@ -402,9 +404,9 @@ void CMasternodeSync::ProcessTick()
                 // This might take a lot longer than MASTERNODE_SYNC_TIMEOUT_SECONDS minutes due to new blocks,
                 // but that should be OK and it should timeout eventually.
                 if(nTimeLastPaymentVote < GetTime() - MASTERNODE_SYNC_TIMEOUT_SECONDS) {
-                    if (fDebugMaster) LogPrintf("CMasternodeSync::ProcessTick11 -- nTick %d nRequestedMasternodeAssets %d -- timeout\n", nTick, nRequestedMasternodeAssets);
+                    if (fDebugMaster) LogPrint("masternode","CMasternodeSync::ProcessTick11 -- nTick %d nRequestedMasternodeAssets %d -- timeout\n", nTick, nRequestedMasternodeAssets);
                     if (nRequestedMasternodeAttempt == 0) {
-                        LogPrintf("CMasternodeSync::ProcessTick12 -- ERROR: failed to sync %s\n", GetAssetName());
+                        LogPrint("masternode","CMasternodeSync::ProcessTick12 -- ERROR: failed to sync %s\n", GetAssetName());
                         // probably not a good idea to proceed without winner list
                         Fail();
                         ReleaseNodeVector(vNodesCopy);

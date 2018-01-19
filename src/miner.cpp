@@ -63,7 +63,11 @@ void GetMiningParams(int nPrevHeight, bool& f7000, bool& f8000, bool& f9000, boo
 bool CheckNonce(bool f9000, unsigned int nNonce, int nPrevHeight, int64_t nPrevBlockTime, int64_t nBlockTime);
 std::string BiblepayHTTPSPost(int iThreadID, std::string sActionName, std::string sDistinctUser, std::string sPayload, std::string sBaseURL, std::string sPage, int iPort,
 	std::string sSolution, int iTimeoutSecs, int iMaxSize);
-
+CTransaction CreateCoinStake(CBlockIndex* pindexLast, CScript scriptCoinstakeKey, double dPercent, int iMinConfirms, std::string& sXML, std::string& sError);
+double GetStakeWeight(CTransaction tx, int64_t nTipTime, std::string sXML, bool bVerifySignature, std::string& sMetrics, std::string& sError);
+uint256 PercentToBigIntBase(int iPercent);
+int64_t GetStakeTargetModifierPercent(int nHeight, double nWeight);
+bool IsStakeSigned(std::string sXML);
 
 class ScoreCompare
 {
@@ -91,7 +95,9 @@ int64_t UpdateTime(CBlockHeader* pblock, const Consensus::Params& consensusParam
     return nNewTime - nOldTime;
 }
 
-CBlockTemplate* CreateNewBlock(const CChainParams& chainparams, const CScript& scriptPubKeyIn, std::string sPoolMiningPublicKey, std::string sMinerGuid, int iThreadId, CAmount competetiveMiningTithe)
+
+CBlockTemplate* CreateNewBlock(const CChainParams& chainparams, const CScript& scriptPubKeyIn, std::string sPoolMiningPublicKey, std::string sMinerGuid, 
+	int iThreadId, CAmount competetiveMiningTithe, double dProofOfLoyaltyPercentage)
 {
     // Create new block
     auto_ptr<CBlockTemplate> pblocktemplate(new CBlockTemplate());
@@ -179,6 +185,29 @@ CBlockTemplate* CreateNewBlock(const CChainParams& chainparams, const CScript& s
         if (chainparams.MineBlocksOnDemand())
             pblock->nVersion = GetArg("-blockversion", pblock->nVersion);
 
+		// *****************************************  BIBLEPAY - Proof-Of-Loyalty - 01/19/2018 ***************************************************
+		std::string sXML = "";
+		
+		if (fProofOfLoyaltyEnabled && dProofOfLoyaltyPercentage > 0)
+		{
+				std::string sError = "";
+				CTransaction txPOL = CreateCoinStake(pindexPrev, scriptPubKeyIn, dProofOfLoyaltyPercentage, BLOCKS_PER_DAY, sXML, sError);
+				if (!sError.empty()) 
+				{
+					//	LogPrintf("Unable to create coin stake : %s, XML %s  \n",sError, sXML.c_str());
+					sGlobalPOLError = sError;
+				}
+				if (!sXML.empty())
+				{
+					pblock->vtx.push_back(txPOL);
+					LogPrintf("CreateNewBlock::Created Proof-Of-Loyalty Block for %f BBP with sig %s \n",dProofOfLoyaltyPercentage, sXML.c_str());
+					sGlobalPOLError = "";
+				}
+		}
+
+		// **************************************** End of Biblepay - Proof-Of-Loyalty ***********************************************************
+
+		// BIBLEPAY - Add Memory Pool Transactions to Block
         int64_t nLockTimeCutoff = (STANDARD_LOCKTIME_VERIFY_FLAGS & LOCKTIME_MEDIAN_TIME_PAST)
                                 ? nMedianTimePast
                                 : pblock->GetBlockTime();
@@ -326,6 +355,10 @@ CBlockTemplate* CreateNewBlock(const CChainParams& chainparams, const CScript& s
 		if (!sMinerGuid.empty())
 		{
 			txNew.vout[0].sTxOutMessage += "<MINERGUID>" + sMinerGuid + "</MINERGUID>";
+		}
+		if (fProofOfLoyaltyEnabled && !sXML.empty())
+		{
+			txNew.vout[0].sTxOutMessage += sXML;
 		}
 		
         // Update coinbase transaction with additional info about masternode and governance payments,
@@ -728,8 +761,9 @@ recover:
             unsigned int nTransactionsUpdatedLast = mempool.GetTransactionsUpdated();
             CBlockIndex* pindexPrev = chainActive.Tip();
             if(!pindexPrev) break;
-		
-		    auto_ptr<CBlockTemplate> pblocktemplate(CreateNewBlock(chainparams, coinbaseScript->reserveScript, sPoolMiningAddress, sMinerGuid, iThreadID, competetiveMiningTithe));
+			double dProofOfLoyaltyPercentage = cdbl(GetArg("-polpercentage", "10"),2) / 100;
+		    auto_ptr<CBlockTemplate> pblocktemplate(CreateNewBlock(chainparams, coinbaseScript->reserveScript, sPoolMiningAddress, sMinerGuid,
+				iThreadID, competetiveMiningTithe, dProofOfLoyaltyPercentage));
             if (!pblocktemplate.get())
             {
                 LogPrintf("BiblepayMiner -- Keypool ran out, please call keypoolrefill before restarting the mining thread\n");
@@ -749,7 +783,27 @@ recover:
             //
             int64_t nStart = GetTime();
             arith_uint256 hashTarget = arith_uint256().SetCompact(pblock->nBits);
-			
+			// Proof of Loyalty - 01-19-2018
+			nGlobalPOLWeight = 0;
+			nGlobalInfluencePercentage = 0;
+			if (fProofOfLoyaltyEnabled)
+			{
+				    std::string sMetrics = "";
+					std::string sError = "";
+					bool bSigned = IsStakeSigned(pblock->vtx[0].vout[0].sTxOutMessage);
+					if (bSigned)
+					{
+						double dStakeWeight = GetStakeWeight(pblock->vtx[1], pblock->GetBlockTime(), 
+							pblock->vtx[0].vout[0].sTxOutMessage, true, sMetrics, sError);
+						int64_t nPercent = GetStakeTargetModifierPercent(pindexPrev->nHeight, dStakeWeight);
+						uint256 uBase = PercentToBigIntBase(nPercent);
+						hashTarget += UintToArith256(uBase);
+						nGlobalPOLWeight = dStakeWeight;
+						nGlobalInfluencePercentage = nPercent;
+					}
+
+			}
+
 			unsigned int nHashesDone = 0;
 			unsigned int nBibleHashesDone = 0;
 			bool f7000;
@@ -778,7 +832,6 @@ recover:
 					{
 						if (UintToArith256(hash) <= hashTargetPool)
 						{
-							hash = BibleHash(x11_hash, pblock->GetBlockTime(), pindexPrev->nTime, true, pindexPrev->nHeight, NULL, false, f7000, f8000, f9000, fTitheBlocksActive, pblock->nNonce);
 							bool fNonce = CheckNonce(f9000, pblock->nNonce, pindexPrev->nHeight, pindexPrev->nTime, pblock->GetBlockTime());
 
 							if (UintToArith256(hash) <= hashTargetPool && fNonce)
@@ -914,8 +967,6 @@ recover:
 					// Changing pblock->nTime can change work required on testnet:
 					hashTarget.SetCompact(pblock->nBits);
 				}
-
-				
             }
         }
     }

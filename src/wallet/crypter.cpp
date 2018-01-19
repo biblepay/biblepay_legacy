@@ -180,6 +180,13 @@ std::string ExtractXML(std::string XMLdata, std::string key, std::string key_end
 
 std::string PubKeyToAddress(const CScript& scriptPubKey)
 {
+
+	   CTxDestination address1;
+       ExtractDestination(scriptPubKey, address1);
+       CBitcoinAddress address2(address1);
+       return address2.ToString();
+     
+/*
 	//Converts a script Public Key to wallet address
 	txnouttype type;
     std::vector<CTxDestination> addresses;
@@ -194,6 +201,7 @@ std::string PubKeyToAddress(const CScript& scriptPubKey)
 		address = CBitcoinAddress(addr).ToString();
 	}
 	return address;
+	*/
 }
 
 

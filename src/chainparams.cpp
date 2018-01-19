@@ -124,7 +124,7 @@ public:
 
         nPoolMaxTransactions = 3;
         nFulfilledRequestExpireTime = 60*60; // fulfilled requests expire in 1 hour
-        strSporkPubKey = "029ce47108ee0ac9212becfad36f6fd519f1264d1c274b2da0c452d959140fe8a6";
+        strSporkPubKey = "029ce47108ee0ac9212becfad36f6fd519f1264d1c274b2da0c452d959140fe8a6";        
         strMasternodePaymentsPubKey = "029ce47108ee0ac9212becfad36f6fd519f1264d1c274b2da0c452d959140fe8a6";
 	    checkpointData = (CCheckpointData) 
 		{

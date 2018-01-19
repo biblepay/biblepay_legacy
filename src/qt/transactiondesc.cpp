@@ -92,9 +92,7 @@ std::string MessageTypeToNarr(std::string sMT)
 	{
 		sNarr = sMT;
 	}
-
 	return sNarr;
-	
 }
 
 QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionRecord *rec, int unit)
@@ -329,10 +327,15 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionReco
 	std::string sMT = ExtractXML(sNetworkMessage,"<MT>","</MT>");
 	std::string sMK = ExtractXML(sNetworkMessage,"<MK>","</MK>");
 	std::string sMV = ExtractXML(sNetworkMessage,"<MV>","</MV>");
+	std::string sPolWeight = ExtractXML(sNetworkMessage,"<polweight>","</polweight>");
+	if (!sPolWeight.empty())
+	{
+			strHTML += "<br><font color=green><span>Proof-Of-Loyalty Weight: " + QString::fromStdString(sPolWeight) + "</span></font></b>";
+	}
 	std::string sNarr = MessageTypeToNarr(sMT) + ": ";
 	std::string sNarrLong = sNarr + sMV;
-	std::string sDebug = strReplace(sMV,"<","{");
-	sDebug = strReplace(sDebug,">","}");
+	std::string sDebug = strReplace(sNetworkMessage,"<","{");
+	sDebug = strReplace(sNetworkMessage,">","}");
 	strHTML += "<br><b><p><font color=red><span>" + QString::fromStdString(sNarrLong) + "</span></font></b><p>";
     strHTML += "<b>" + tr("Transaction ID") + ":</b> " + TransactionRecord::formatSubTxId(wtx.GetHash(), rec->idx) + "<br>";
 

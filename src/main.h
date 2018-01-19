@@ -67,6 +67,8 @@ static const int SPORK8_HEIGHT_TESTNET = 23000;
 static const int LAST_TITHE_BLOCK = 21565;
 static const int LAST_TITHE_BLOCK_TESTNET = 1000;
 static const int F10000_CUTOVER_HEIGHT = 25910;
+static const int F11000_CUTOVER_HEIGHT_PROD = 100000;
+static const int F11000_CUTOVER_HEIGHT_TESTNET = 23000;
 
 /** Default for -maxorphantx, maximum number of orphan transactions kept in memory */
 static const unsigned int DEFAULT_MAX_ORPHAN_TRANSACTIONS = 100;
@@ -188,6 +190,8 @@ extern bool fRequireStandard;
 extern bool fMasternodesEnabled;
 extern bool fTradingEnabled;
 extern bool fRetirementAccountsEnabled;
+extern bool fProofOfLoyaltyEnabled;
+
 
 extern unsigned int nBytesPerSigOp;
 extern bool fCheckBlockIndex;
@@ -207,6 +211,10 @@ extern int64_t nHashCounter;
 extern int64_t nHashCounterGood;
 extern CAmount caGlobalCompetetiveMiningTithe;
 extern std::string sGlobalPoolURL;
+extern std::string sGlobalPOLError;
+extern int64_t nGlobalPOLWeight;
+extern int64_t nGlobalInfluencePercentage;
+
 
 extern int64_t nLastTradingActivity;
 extern int64_t nBibleHashCounter;
@@ -823,7 +831,7 @@ bool CheckBlock(const CBlock& block, CValidationState& state, bool fCheckPOW, bo
 
 /** Context-dependent validity checks */
 bool ContextualCheckBlockHeader(const CBlockHeader& block, CValidationState& state, CBlockIndex *pindexPrev);
-bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIndex *pindexPrev);
+bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIndex *pindexPrev, bool fCheckPOW);
 
 /** Check a block is completely valid from start to finish (only works on top of our current best block, with cs_main held) */
 bool TestBlockValidity(CValidationState& state, const CChainParams& chainparams, const CBlock& block, CBlockIndex* pindexPrev, bool fCheckPOW = true, bool fCheckMerkleRoot = true);
