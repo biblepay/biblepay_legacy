@@ -674,7 +674,6 @@ bool CMasternodeBroadcast::CheckOutpoint(int& nDos)
             }
         }
     }
-	if (fDebugMaster) LogPrintf(".+.");
     return true;
 }
 

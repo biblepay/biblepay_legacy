@@ -12,6 +12,7 @@
 #include "uint256.h"
 #include "util.h"
 #include "kjv.h"
+#include "rpcblockchain.cpp"
 #include <math.h>
 #include <openssl/crypto.h>
 
@@ -21,6 +22,10 @@ uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool
 std::string RoundToString(double d, int place);
 void GetMiningParams(int nPrevHeight, bool& f7000, bool& f8000, bool& f9000, bool& fTitheBlocksActive);
 extern bool CheckNonce(bool f9000, unsigned int nNonce, int nPrevHeight, int64_t nPrevBlockTime, int64_t nBlockTime);
+uint256 PercentToBigIntBase(int iPercent);
+extern bool CheckProofOfLoyalty(double dWeight, uint256 hash, unsigned int nBits, const Consensus::Params& params, 
+	int64_t nBlockTime, int64_t nPrevBlockTime, int nPrevHeight, unsigned int nNonce, const CBlockIndex* pindexPrev, bool bLoadingBlockIndex);
+
 
 
 
@@ -157,6 +162,21 @@ unsigned int static DarkGravityWave(const CBlockIndex* pindexLast, const Consens
     arith_uint256 bnNew(PastDifficultyAverage);
 
     int64_t _nTargetTimespan = CountBlocks * params.nPowTargetSpacing; 
+	// 1-17-2018 Biblepay:  Change params.nPowTargetSpacing to 7*60*.70 during next mandatory
+	if ((fProdChain && pindexLast->nHeight > 100000) || (!fProdChain && pindexLast->nHeight > 100000))
+	{
+		_nTargetTimespan = CountBlocks * 294; 
+	}
+
+	if (!fProdChain && pindexLast->nHeight < 250)
+	{
+		_nTargetTimespan = CountBlocks; // One second blocks in testnet before block 1000
+	}
+	else if (!fProdChain && pindexLast->nHeight > 249 && pindexLast->nHeight < 450)
+	{
+		_nTargetTimespan = 30;
+	}
+
 
     if (nActualTimespan < _nTargetTimespan/2)
         nActualTimespan = _nTargetTimespan/2;
@@ -281,12 +301,54 @@ bool CheckNonce(bool f9000, unsigned int nNonce, int nPrevHeight, int64_t nPrevB
 	}
 }
 
+bool CheckProofOfLoyalty(double dWeight, uint256 hash, unsigned int nBits, const Consensus::Params& params, 
+	int64_t nBlockTime, int64_t nPrevBlockTime, int nPrevHeight, unsigned int nNonce, const CBlockIndex* pindexPrev, bool bLoadingBlockIndex)
+{
+    bool fNegative;
+    bool fOverflow;
+    arith_uint256 bnTarget;
+	bool fProdChain = Params().NetworkIDString() == "main" ? true : false;
+	bool f_7000;
+	bool f_8000;
+	bool f_9000; 
+	bool fTitheBlocksActive;
+	GetMiningParams(nPrevHeight, f_7000, f_8000, f_9000, fTitheBlocksActive);
+
+	// *********************************** PROOF OF LOYALTY - CHECKBLOCK **************************** 1-19-2018 ****************************
+    bnTarget.SetCompact(nBits, &fNegative, &fOverflow);
+    // Check range
+    if (fNegative || bnTarget == 0 || fOverflow || bnTarget > UintToArith256(params.powLimit))
+        return error("CheckProofOfLoyalty(): nBits below minimum work");
+	int64_t nPercent = GetStakeTargetModifierPercent(nPrevHeight, dWeight);
+	uint256 uBase = PercentToBigIntBase(nPercent);
+	bnTarget += UintToArith256(uBase);
+	uint256 uBibleHash = BibleHash(hash, nBlockTime, nPrevBlockTime, true, nPrevHeight, NULL, false, f_7000, f_8000, f_9000, fTitheBlocksActive, nNonce);
+
+	if (UintToArith256(uBibleHash) > bnTarget)
+	{
+		uint256 uTarget = ArithToUint256(bnTarget);
+		LogPrintf("CheckProofOfLoyalty::ERROR - High Loyalty Hash, InHash %s, RequiredHash %s, LoyaltyPercentage %f \n", uBibleHash.GetHex().c_str(),
+			uTarget.GetHex().c_str(),(double)nPercent);
+		return false;
+	}
+
+	bool fNonce = CheckNonce(f_9000, nNonce, nPrevHeight, nPrevBlockTime, nBlockTime);
+	if (!fNonce)
+	{
+		return error("CheckProofOfLoyalty: ERROR: High Nonce, PrevTime %f, Time %f, Nonce %f ",(double)nPrevBlockTime, (double)nBlockTime, (double)nNonce);
+	}
+	
+	return true;
+}
+
+
 bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params& params, 
 	int64_t nBlockTime, int64_t nPrevBlockTime, int nPrevHeight, unsigned int nNonce, const CBlockIndex* pindexPrev, bool bLoadingBlockIndex)
 {
     bool fNegative;
     bool fOverflow;
     arith_uint256 bnTarget;
+	if (fProofOfLoyaltyEnabled) return true;
 
 	bool fProdChain = Params().NetworkIDString() == "main" ? true : false;
 	bool bRequireTxIndexLookup = false;  // This is a project currently in TestNet, slated to go live after Sanctuaries are enabled and fully tested by slack team

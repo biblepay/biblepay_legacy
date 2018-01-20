@@ -121,13 +121,22 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
         }
         else if (fAllFromMe && fAllToMe)
         {
+
+			// Biblepay - R Andrija - 01/18/2018 - Ensure Proof-Of-Loyalty payments appear properly in transaction list
+
             // Payment to self
             // TO DO: this section still not accurate but covers most cases,
             // might need some additional work however
-
+			std::string sStakeWeight = ExtractXML(wtx.vout[0].sTxOutMessage, "<polweight>","</polweight>");
+		
             TransactionRecord sub(hash, nTime);
             // Payment to self by default
             sub.type = TransactionRecord::SendToSelf;
+			if (!sStakeWeight.empty())
+			{
+				sub.type=TransactionRecord::ProofOfLoyalty;
+			    sub.address = "Weight: " + sStakeWeight;
+         	}
             sub.address = "";
 
             if(mapValue["DS"] == "1")

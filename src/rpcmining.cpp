@@ -41,6 +41,7 @@ std::string TimestampToHRDate(double dtm);
 std::string RoundToString(double d, int place);
 std::string ReadCache(std::string section, std::string key);
 double GetDifficultyN(const CBlockIndex* blockindex, double N);
+double cdbl(std::string s, int place);
 
 /**
  * Return average network hashes per second based on the last 'lookup' blocks,
@@ -186,7 +187,7 @@ UniValue generate(const UniValue& params, bool fHelp)
     UniValue blockHashes(UniValue::VARR);
     while (nHeight < nHeightEnd)
     {
-        auto_ptr<CBlockTemplate> pblocktemplate(CreateNewBlock(Params(), coinbaseScript->reserveScript, "", "", 0, 0));
+        auto_ptr<CBlockTemplate> pblocktemplate(CreateNewBlock(Params(), coinbaseScript->reserveScript, "", "", 0, 0, 0));
         if (!pblocktemplate.get())
             throw JSONRPCError(RPC_INTERNAL_ERROR, "Couldn't create new block");
         CBlock *pblock = &pblocktemplate->block;
@@ -332,7 +333,14 @@ UniValue getmininginfo(const UniValue& params, bool fHelp)
 	obj.push_back(Pair("poolmining",       fPoolMiningMode));
 	obj.push_back(Pair("pool_url",         sGlobalPoolURL));
 	obj.push_back(Pair("poolmining_use_ssl", fPoolMiningUseSSL));
-
+	if (fProofOfLoyaltyEnabled)
+	{
+		double dProofOfLoyaltyPercentage = cdbl(GetArg("-polpercentage", "10"),2) / 100;
+		obj.push_back(Pair("proof_of_loyalty_target_percentage", dProofOfLoyaltyPercentage));
+		obj.push_back(Pair("proof_of_loyalty_weight", nGlobalPOLWeight));
+		obj.push_back(Pair("proof_of_loyalty_influence_percentage", nGlobalInfluencePercentage));
+		obj.push_back(Pair("proof_of_loyalty_errors", sGlobalPOLError));
+	}
     return obj;
 }
 
@@ -596,8 +604,8 @@ UniValue getblocktemplate(const UniValue& params, bool fHelp)
             delete pblocktemplate;
             pblocktemplate = NULL;
         }
-        CScript scriptDummy = CScript() << OP_TRUE;
-        pblocktemplate = CreateNewBlock(Params(), scriptDummy, "", "", 0, 0);
+		CScript scriptDummy = CScript() << OP_TRUE;
+        pblocktemplate = CreateNewBlock(Params(), scriptDummy, "", "", 0, 0, 0);
         if (!pblocktemplate)
             throw JSONRPCError(RPC_OUT_OF_MEMORY, "Out of memory");
 

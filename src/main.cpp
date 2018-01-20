@@ -77,6 +77,10 @@ int64_t nHashCounter = 0;
 int64_t nHashCounterGood = 0;
 CAmount caGlobalCompetetiveMiningTithe = 0;
 std::string sGlobalPoolURL = "";
+std::string sGlobalPOLError = "";
+
+int64_t nGlobalPOLWeight;
+int64_t nGlobalInfluencePercentage;
 
 int64_t nLastTradingActivity = 0;
 int64_t nBibleHashCounter = 0;
@@ -99,6 +103,13 @@ extern CAmount GetRetirementAccountContributionAmount(int nPrevHeight);
 extern std::string AmountToString(const CAmount& amount);
 extern CAmount StringToAmount(std::string sValue);
 extern bool CheckMessageSignature(std::string sMsg, std::string sSig);
+extern bool CheckMessageSignature(std::string sMsg, std::string sSig, std::string sPubKey);
+bool CheckProofOfLoyalty(double dWeight, uint256 hash, unsigned int nBits, const Consensus::Params& params, 
+	int64_t nBlockTime, int64_t nPrevBlockTime, int nPrevHeight, unsigned int nNonce, const CBlockIndex* pindexPrev, bool bLoadingBlockIndex);
+double GetStakeWeight(CTransaction tx, int64_t nTipTime, std::string sXML, bool bVerifySignature, std::string& sMetrics, std::string& sError);
+
+
+
 extern std::string GetTemplePrivKey();
 extern std::string SignMessage(std::string sMsg, std::string sPrivateKey);
 extern void GetMiningParams(int nPrevHeight, bool& f7000, bool& f8000, bool& f9000, bool& fTitheBlocksActive);
@@ -111,6 +122,7 @@ bool fLoadingIndex = false;
 bool fMasternodesEnabled = false;
 bool fTradingEnabled = false;
 bool fRetirementAccountsEnabled = false;
+bool fProofOfLoyaltyEnabled = false;
 
 int iPrayerIndex = 0;
 std::string sOS = "";
@@ -4323,7 +4335,7 @@ bool ContextualCheckBlockHeader(const CBlockHeader& block, CValidationState& sta
     return true;
 }
 
-bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIndex * const pindexPrev)
+bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIndex * const pindexPrev, bool fCheckPOW)
 {
     const int nHeight = pindexPrev == NULL ? 0 : pindexPrev->nHeight + 1;
     const Consensus::Params& consensusParams = Params().GetConsensus();
@@ -4365,6 +4377,29 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIn
 		 LogPrintf("ContextualCheckBlock::ERROR Rejecting block version %f at height %f \n",(double)dBlockVersion,(double)nHeight);
 		 return false;
     }
+
+	// Rob Andrija, Biblepay, 01-18-2018, Check Proof-Of-Loyalty
+	if (fProofOfLoyaltyEnabled && fCheckPOW)
+	{
+		std::string sError = "";
+		std::string sMetrics = "";
+		int64_t nAncestorTime = (pindexPrev==NULL) ? 0 : pindexPrev->nTime;
+		int nAncestorHeight = (pindexPrev==NULL) ? 0 : pindexPrev->nHeight;
+
+		// Check Stake Signature, and retrieve stake weight
+		double dStakeWeight = 0;
+		if (block.vtx.size() > 1)
+			 dStakeWeight = GetStakeWeight(block.vtx[1], block.GetBlockTime(), block.vtx[0].vout[0].sTxOutMessage, true, sMetrics, sError);
+	    bool bPass = CheckProofOfLoyalty(dStakeWeight, 
+			block.GetHash(), block.nBits, consensusParams, 
+			block.GetBlockTime(), nAncestorTime, nAncestorHeight, 
+			block.nNonce, pindexPrev, false);
+		if (!bPass)
+		{
+			LogPrintf("ContextualCheckBlock::ERROR - CheckProofOfLoyalty failed at height %f \n",(double)nHeight);
+			return false;
+		}
+	}
 
     return true;
 }
@@ -4450,7 +4485,9 @@ static bool AcceptBlock(const CBlock& block, CValidationState& state, const CCha
         if (fTooFarAhead) return true;      // Block height is too high
     }
 
-    if ((!CheckBlock(block, state, true, true, block.GetBlockTime(), pindex->pprev ? pindex->pprev->nTime : 0, pindex->pprev ? pindex->pprev->nHeight : 0, pindex->pprev)) || !ContextualCheckBlock(block, state, pindex->pprev)) 
+	bool fCheckPOW = true;
+    if ((!CheckBlock(block, state, true, true, block.GetBlockTime(), pindex->pprev ? pindex->pprev->nTime : 0, pindex->pprev ? pindex->pprev->nHeight : 0, pindex->pprev)) 
+		|| !ContextualCheckBlock(block, state, pindex->pprev, fCheckPOW)) 
 	{
         if (state.IsInvalid() && !state.CorruptionPossible()) 
 		{
@@ -4566,7 +4603,7 @@ bool TestBlockValidity(CValidationState& state, const CChainParams& chainparams,
         return false;
     if (!CheckBlock(block, state, fCheckPOW, fCheckMerkleRoot, block.GetBlockTime(), pindexPrev ? pindexPrev->nTime : 0, pindexPrev ? pindexPrev->nHeight : 0, pindexPrev))
         return false;
-    if (!ContextualCheckBlock(block, state, pindexPrev))
+    if (!ContextualCheckBlock(block, state, pindexPrev, fCheckPOW))
         return false;
     if (!ConnectBlock(block, state, &indexDummy, viewNew, true))
         return false;
@@ -7411,6 +7448,14 @@ bool CheckMessageSignature(std::string sMsg, std::string sSig)
 	 return (!key.Verify(Hash(vchMsg.begin(), vchMsg.end()), vchSig)) ? false : true;
 }
 
+bool CheckMessageSignature(std::string sMsg, std::string sSig, std::string sPubKey)
+{
+     std::string db64 = DecodeBase64(sSig);
+     CPubKey key(ParseHex(sPubKey));
+	 std::vector<unsigned char> vchMsg = vector<unsigned char>(sMsg.begin(), sMsg.end());
+     std::vector<unsigned char> vchSig = vector<unsigned char>(db64.begin(), db64.end());
+	 return (!key.Verify(Hash(vchMsg.begin(), vchMsg.end()), vchSig)) ? false : true;
+}
 
 
 void MemorizePrayer(std::string sMessage, int64_t nTime, double dAmount, int iPosition, std::string sTxID)

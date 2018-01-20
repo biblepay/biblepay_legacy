@@ -1866,6 +1866,35 @@ CAmount CWallet::GetBalance() const
     return nTotal;
 }
 
+
+CAmount CWallet::GetUnlockedBalance() const
+{
+	CAmount nTotal = 0;
+    {
+        LOCK2(cs_main, cs_wallet);
+        for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it)
+        {
+            const CWalletTx* pcoin = &(*it).second;
+            if (pcoin->IsTrusted())
+			{
+                CAmount nAmount = pcoin->GetAvailableCredit(true,"");
+		        bool fLocked = (nAmount == (SANCTUARY_COLLATERAL * COIN));
+				if (!fLocked)
+				{
+					int64_t nAge = GetAdjustedTime() - pcoin->nTimeReceived;
+					if (nAge > 86400 || (nAge > 60 && !fProd)) 
+					{
+						nTotal += nAmount;
+					}
+				}
+			}
+        }
+    }
+    return nTotal;
+}
+
+
+
 CAmount CWallet::GetAnonymizableBalance(bool fSkipDenominated) const
 {
     if(fLiteMode) return 0;
@@ -2163,11 +2192,10 @@ CAmount CWallet::GetImmatureWatchOnlyBalance() const
     return nTotal;
 }
 
-void CWallet::AvailableCoins(vector<COutput>& vCoins, bool fOnlyConfirmed, const CCoinControl *coinControl, bool fIncludeZeroValue, AvailableCoinsType nCoinType, bool fUseInstantSend) const
+void CWallet::AvailableCoins(vector<COutput>& vCoins, bool fOnlyConfirmed, const CCoinControl *coinControl, 
+	bool fIncludeZeroValue, AvailableCoinsType nCoinType, bool fUseInstantSend, int iMinConfirms) const
 {
     vCoins.clear();
-	LogPrintf(" AVAILABLE COINS RETIREMENT COIN TYPE %f ",(double)nCoinType);
-
     {
         LOCK2(cs_main, cs_wallet);
         for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it)
@@ -2188,6 +2216,9 @@ void CWallet::AvailableCoins(vector<COutput>& vCoins, bool fOnlyConfirmed, const
             // do not use IX for inputs that have less then INSTANTSEND_CONFIRMATIONS_REQUIRED blockchain confirmations
             if (fUseInstantSend && nDepth < INSTANTSEND_CONFIRMATIONS_REQUIRED)
                 continue;
+
+			if (iMinConfirms > 0 && nDepth < iMinConfirms)
+				continue;
 
             // We should not consider coins which aren't at least in our mempool
             // It's possible for these to be conflicted via ancestors which we may never be able to detect
@@ -2449,12 +2480,13 @@ bool CWallet::SelectCoinsMinConf(const CAmount& nTargetValue, int nConfMine, int
     return true;
 }
 
-bool CWallet::SelectCoins(const CAmount& nTargetValue, set<pair<const CWalletTx*,unsigned int> >& setCoinsRet, CAmount& nValueRet, const CCoinControl* coinControl, AvailableCoinsType nCoinType, bool fUseInstantSend) const
+bool CWallet::SelectCoins(const CAmount& nTargetValue, set<pair<const CWalletTx*,unsigned int> >& setCoinsRet, CAmount& nValueRet, 
+	const CCoinControl* coinControl, AvailableCoinsType nCoinType, bool fUseInstantSend, int iMinConfirms) const
 {
     // Note: this function should never be used for "always free" tx types like dstx
 
     vector<COutput> vCoins;
-    AvailableCoins(vCoins, true, coinControl, false, nCoinType, fUseInstantSend);
+    AvailableCoins(vCoins, true, coinControl, false, nCoinType, fUseInstantSend, iMinConfirms);
 
     // coin control -> return all selected outputs (we want all selected to go into the transaction for sure)
     if (coinControl && coinControl->HasSelected() && !coinControl->fAllowOtherInputs)
@@ -3003,11 +3035,10 @@ bool CWallet::ConvertList(std::vector<CTxIn> vecTxIn, std::vector<CAmount>& vecA
 
 bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wtxNew, CReserveKey& reservekey, CAmount& nFeeRet,
                                 int& nChangePosRet, std::string& strFailReason, 
-								const CCoinControl* coinControl, bool sign, AvailableCoinsType nCoinType, bool fUseInstantSend)
+								const CCoinControl* coinControl, bool sign, AvailableCoinsType nCoinType, bool fUseInstantSend, int iMinConfirms)
+
 {
     CAmount nFeePay = fUseInstantSend ? CTxLockRequest().GetMinFee() : 0;
-	LogPrintf(" CREATETRANSACTION RETIREMENT TYPE %f ",(double)nCoinType);
-
     CAmount nValue = 0;
     unsigned int nSubtractFeeFromAmount = 0;
     BOOST_FOREACH (const CRecipient& recipient, vecSend)
@@ -3132,9 +3163,7 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
                 CAmount nValueIn = 0;
 
 
-				if (nCoinType==ONLY_RETIREMENT_COINS) LogPrintf(" RETIREMENT SELECTCOINS COLOR 401 cointype %f \n",(double)nCoinType);
-
-                if (!SelectCoins(nValueToSelect, setCoins, nValueIn, coinControl, nCoinType, fUseInstantSend))
+                if (!SelectCoins(nValueToSelect, setCoins, nValueIn, coinControl, nCoinType, fUseInstantSend, iMinConfirms))
                 {
                     if (nCoinType == ONLY_NOT1000IFMN) {
                         strFailReason = _("Unable to locate enough funds for this transaction that are not equal 1000 biblepay.");
@@ -3157,6 +3186,7 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
 
                     return false;
                 }
+
 
 
                 BOOST_FOREACH(PAIRTYPE(const CWalletTx*, unsigned int) pcoin, setCoins)

@@ -531,7 +531,7 @@ private:
      * if they are not ours
      */
     bool SelectCoins(const CAmount& nTargetValue, std::set<std::pair<const CWalletTx*,unsigned int> >& setCoinsRet, CAmount& nValueRet, const CCoinControl *coinControl = NULL, 
-		AvailableCoinsType nCoinType=ALL_COINS, bool fUseInstantSend = true) const;
+		AvailableCoinsType nCoinType=ALL_COINS, bool fUseInstantSend = true, int iMinConfirms = 0) const;
 
     CWalletDB *pwalletdbEncryption;
 
@@ -649,7 +649,8 @@ public:
     /**
      * populate vCoins with vector of available COutputs.
      */
-    void AvailableCoins(std::vector<COutput>& vCoins, bool fOnlyConfirmed=true, const CCoinControl *coinControl = NULL, bool fIncludeZeroValue=false, AvailableCoinsType nCoinType=ALL_COINS, bool fUseInstantSend = false) const;
+    void AvailableCoins(std::vector<COutput>& vCoins, bool fOnlyConfirmed=true, const CCoinControl *coinControl = NULL, 
+		bool fIncludeZeroValue=false, AvailableCoinsType nCoinType=ALL_COINS, bool fUseInstantSend = false, int iMinConfirms = 0) const;
 
     /**
      * Shuffle and select coins until nTargetValue is reached while avoiding
@@ -746,6 +747,7 @@ public:
     void ResendWalletTransactions(int64_t nBestBlockTime);
     std::vector<uint256> ResendWalletTransactionsBefore(int64_t nTime);
     CAmount GetBalance() const;
+	CAmount GetUnlockedBalance() const;
     CAmount GetUnconfirmedBalance() const;
     CAmount GetImmatureBalance() const;
     CAmount GetWatchOnlyBalance() const;
@@ -775,7 +777,8 @@ public:
      * selected by SelectCoins(); Also create the change output, when needed
      */
     bool CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletTx& wtxNew, CReserveKey& reservekey, CAmount& nFeeRet, int& nChangePosRet,
-                           std::string& strFailReason, const CCoinControl *coinControl = NULL, bool sign = true, AvailableCoinsType nCoinType=ALL_COINS, bool fUseInstantSend=false);
+                           std::string& strFailReason, const CCoinControl *coinControl = NULL, 
+						   bool sign = true, AvailableCoinsType nCoinType=ALL_COINS, bool fUseInstantSend=false, int iMinConfirms = 0);
     bool CommitTransaction(CWalletTx& wtxNew, CReserveKey& reservekey, std::string strCommand="tx");
 
     bool CreateCollateralTransaction(CMutableTransaction& txCollateral, std::string& strReason);
