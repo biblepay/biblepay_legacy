@@ -3285,7 +3285,7 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
                             txNew.vout.insert(position, newTxOut);
 							// BiblePay - Rob A. - Colored change
 							txNew.vout[nChangePosRet].sTxOutMessage = sAssetColor;
-							if (fDebugMaster) LogPrintf(" AssetPos %f , AssetColor %s ",(double)nChangePosRet,txNew.vout[nChangePosRet].sTxOutMessage.c_str());
+							// if (fDebugMaster) LogPrintf(" AssetPos %f , AssetColor %s ",(double)nChangePosRet,txNew.vout[nChangePosRet].sTxOutMessage.c_str());
                         }
                     }
                 }
