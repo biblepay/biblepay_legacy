@@ -111,19 +111,22 @@ double GetDifficultyN(const CBlockIndex* blockindex, double N)
 
 uint256 PercentToBigIntBase(int iPercent)
 {
-	// 1-18-2018 - Biblepay - Proof-Of-Loyalty
+	// 1-23-2018 - Biblepay - Proof-Of-Loyalty
 	// Given a Proof-Of-Loyalty User Weight (boost level) of 0 - 90% (as a whole number), create a base hash target level for the user
 	if (iPercent == 0) return uint256S("0x0");
-	int iBigIntDecimalCount = (int)(iPercent * .08);
-	if (iBigIntDecimalCount > 8) iBigIntDecimalCount = 8;
-	if (iBigIntDecimalCount < 1) iBigIntDecimalCount = 1;
-	int iLead  = 9 - iBigIntDecimalCount;
-	int iInt64 = 64 - iLead;
-	std::string sZero = std::string(iLead, '0');
-	std::string sFF   = std::string(iInt64, 'F');
-	
-	uint256 hashBase = uint256S("0x" + sZero + sFF);
-	return hashBase;
+	if (iPercent > 100) iPercent = 100;
+	uint256 uRefHash1 = uint256S("0xffffffffffff");
+	arith_uint256 bn1 = UintToArith256(uRefHash1);
+	arith_uint256 bn2 = (bn1 * ((int64_t)iPercent)) / 100;
+	uint256 h1 = ArithToUint256(bn2);
+	int iBigIntLeadCount = (int)((100-iPercent) * .08);
+	std::string sH1 = h1.GetHex().substr(63 - 12, 12);
+	std::string sFF = std::string(63, 'F');
+	std::string sZero = std::string(iBigIntLeadCount, '0');
+	std::string sLeadingDiff = "00";
+	std::string sConcat = (sLeadingDiff + sZero + sH1 + sFF).substr(0,64);
+	uint256 uHash = uint256S("0x" + sConcat);
+	return uHash;
 }
 
 
@@ -189,43 +192,61 @@ UniValue blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool tx
 {
     UniValue result(UniValue::VOBJ);
     result.push_back(Pair("hash", block.GetHash().GetHex()));
-	result.push_back(Pair("hash2", block.GetHashBible().GetHex()));
+	//result.push_back(Pair("hash2", block.GetHashBible().GetHex()));
+
+	LogPrintf(" blockToJson %s \n",block.GetHash().GetHex().c_str());
 
     int confirmations = -1;
     // Only report confirmations if the block is on the main chain
-    if (chainActive.Contains(blockindex))
-        confirmations = chainActive.Height() - blockindex->nHeight + 1;
+	if (blockindex)
+	{
+		if (chainActive.Contains(blockindex))
+			confirmations = chainActive.Height() - blockindex->nHeight + 1;
+	}
+
     result.push_back(Pair("confirmations", confirmations));
     result.push_back(Pair("size", (int)::GetSerializeSize(block, SER_NETWORK, PROTOCOL_VERSION)));
-    result.push_back(Pair("height", blockindex->nHeight));
-    result.push_back(Pair("version", block.nVersion));
+	result.push_back(Pair("version", block.nVersion));
     result.push_back(Pair("merkleroot", block.hashMerkleRoot.GetHex()));
     UniValue txs(UniValue::VARR);
-    BOOST_FOREACH(const CTransaction&tx, block.vtx)
-    {
-        if(txDetails)
-        {
-            UniValue objTx(UniValue::VOBJ);
-            TxToJSON(tx, uint256(), objTx);
-            txs.push_back(objTx);
-        }
-        else
-            txs.push_back(tx.GetHash().GetHex());
-    }
-    result.push_back(Pair("tx", txs));
+	if (block.vtx.size() > 0)
+	{
+		BOOST_FOREACH(const CTransaction&tx, block.vtx)
+		{
+			if(txDetails)
+			{
+				UniValue objTx(UniValue::VOBJ);
+				TxToJSON(tx, uint256(), objTx);
+				txs.push_back(objTx);
+			}
+			else
+				txs.push_back(tx.GetHash().GetHex());
+		}
+		result.push_back(Pair("tx", txs));
+	}
     result.push_back(Pair("time", block.GetBlockTime()));
-    result.push_back(Pair("mediantime", (int64_t)blockindex->GetMedianTimePast()));
+    if (blockindex) 
+	{
+		result.push_back(Pair("height", blockindex->nHeight));
+		result.push_back(Pair("mediantime", (int64_t)blockindex->GetMedianTimePast()));
+	    result.push_back(Pair("difficulty", GetDifficultyN(blockindex,10)));
+		result.push_back(Pair("chainwork", blockindex->nChainWork.GetHex()));
+	}
+
 	result.push_back(Pair("hrtime",   TimestampToHRDate(block.GetBlockTime())));
     result.push_back(Pair("nonce", (uint64_t)block.nNonce));
     result.push_back(Pair("bits", strprintf("%08x", block.nBits)));
-    result.push_back(Pair("difficulty", GetDifficultyN(blockindex,10)));
-    result.push_back(Pair("chainwork", blockindex->nChainWork.GetHex()));
-	result.push_back(Pair("subsidy", block.vtx[0].vout[0].nValue/COIN));
-	result.push_back(Pair("blockversion", ExtractXML(block.vtx[0].vout[0].sTxOutMessage,"<VER>","</VER>")));
-	
+
+	if (block.vtx.size() > 0)
+	{
+    
+		result.push_back(Pair("subsidy", block.vtx[0].vout[0].nValue/COIN));
+		result.push_back(Pair("blockversion", ExtractXML(block.vtx[0].vout[0].sTxOutMessage,"<VER>","</VER>")));
+	}
+
 	const Consensus::Params& consensusParams = Params().GetConsensus();
 	
-	if (blockindex->pprev)
+	if (blockindex && blockindex->pprev)
 	{
 		CAmount MasterNodeReward = GetBlockSubsidy(blockindex->pprev, blockindex->pprev->nBits, blockindex->pprev->nHeight, consensusParams, true);
 		result.push_back(Pair("masternodereward", MasterNodeReward));
@@ -276,12 +297,10 @@ UniValue blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool tx
 				}
 			}
 		}
-
-
 	}
 	else
 	{
-		if (blockindex->nHeight==0)
+		if (blockindex && blockindex->nHeight==0)
 		{
 			int iStart=0;
 			int iEnd=0;
@@ -292,11 +311,17 @@ UniValue blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool tx
 			result.push_back(Pair("verses", sVerse));
     	}
 	}
-	std::string sPrayers = GetMessagesFromBlock(block, "PRAYER");
-	result.push_back(Pair("prayers", sPrayers));
-    CBlockIndex *pnext = chainActive.Next(blockindex);
-    if (pnext)
-        result.push_back(Pair("nextblockhash", pnext->GetBlockHash().GetHex()));
+	if (block.vtx.size() > 0)
+	{
+		std::string sPrayers = GetMessagesFromBlock(block, "PRAYER");
+		result.push_back(Pair("prayers", sPrayers));
+	}
+	if (blockindex)
+	{
+		CBlockIndex *pnext = chainActive.Next(blockindex);
+		if (pnext)
+			result.push_back(Pair("nextblockhash", pnext->GetBlockHash().GetHex()));
+	}
     return result;
 }
 
@@ -1833,10 +1858,12 @@ double GetStakeWeight(CTransaction tx, int64_t nTipTime, std::string sXML, bool 
 	return dTotal;
 }
 
+
 CAmount GetMoneySupplyEstimate(int nHeight)
 {
 	int64_t nAvgReward = 13657;
-	CAmount nSupply = nAvgReward * nHeight * COIN;
+	double nUnlockedSupplyPercentage = .40;
+	CAmount nSupply = nAvgReward * nHeight * nUnlockedSupplyPercentage * COIN;
 	return nSupply;
 }
 
@@ -1865,6 +1892,12 @@ CTransaction CreateCoinStake(CBlockIndex* pindexLast, CScript scriptCoinstakeKey
 		return ctx;
 	}
 
+	if (pwalletMain->IsLocked())
+	{
+		sError = "WALLET MUST BE UNLOCKED TO STAKE";
+		return ctx;
+	}
+
     CReserveKey reservekey(pwalletMain);
     CAmount nFeeRequired;
     std::string strError;
@@ -1881,7 +1914,7 @@ CTransaction CreateCoinStake(CBlockIndex* pindexLast, CScript scriptCoinstakeKey
 		strError, NULL, true, ALL_COINS, false, iMinConfirms);
 	if (!fCreated)    
 	{
-		sError = "INSUFFICIENT FUNDS, ENSURE WALLET IS UNLOCKED";
+		sError = "INSUFFICIENT FUNDS";
 		return ctx;
 	}
 
@@ -2029,7 +2062,6 @@ UniValue exec(const UniValue& params, bool fHelp)
 			bool f9000;
 			bool fTitheBlocksActive;
 			GetMiningParams(nHeight, f7000, f8000, f9000, fTitheBlocksActive);
-
 			uint256 hash = BibleHash(blockHash, nBlockTime, nPrevBlockTime, true, nHeight, NULL, false, f7000, f8000, f9000, fTitheBlocksActive, nNonce);
 			results.push_back(Pair("BibleHash",hash.GetHex()));
 		}
@@ -2523,6 +2555,45 @@ UniValue exec(const UniValue& params, bool fHelp)
 		arith_uint256 bn3 = bn1 + bn2;
 		uint256 h3 = ArithToUint256(bn3);
 		results.push_back(Pair("h3", h3.GetHex()));
+	}
+	else if (sItem == "hexblocktojson")
+	{
+		std::string sHex = params[1].get_str();
+		CBlock block;
+        if (!DecodeHexBlk(block, sHex))
+                throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "Block decode failed");
+        return blockToJSON(block, NULL);
+	}
+	else if (sItem == "hexblocktocoinbase")
+	{
+		std::string sBlockHex = params[1].get_str();
+		CBlock block;
+        if (!DecodeHexBlk(block, sBlockHex))
+                throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "Block decode failed");
+		std::string sTxHex = params[2].get_str();
+		CTransaction tx;
+	    if (!DecodeHexTx(tx, sTxHex))
+		    throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "TX decode failed");
+		if (block.vtx.size() < 1)
+		    throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "Block Mutilation Error");
+    	if (block.vtx[0].GetHash().GetHex() != tx.GetHash().GetHex())
+		{
+		    throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "Coinbase TX not in block");
+		}
+		results.push_back(Pair("txid", block.vtx[0].GetHash().GetHex()));
+		results.push_back(Pair("recipient", PubKeyToAddress(block.vtx[0].vout[0].scriptPubKey)));
+		// 1-23-2018:: Biblepay - R Andrija, add biblehash to tail end of coinbase tx
+		CBlockIndex* pindexPrev = chainActive.Tip();
+		bool f7000;
+		bool f8000;
+		bool f9000;
+		bool fTitheBlocksActive;
+		GetMiningParams(pindexPrev->nHeight, f7000, f8000, f9000, fTitheBlocksActive);
+		uint256 hash = BibleHash(block.GetHash(), block.GetBlockTime(), pindexPrev->nTime, true, 
+			pindexPrev->nHeight, NULL, false, f7000, f8000, f9000, fTitheBlocksActive, block.nNonce);
+		results.push_back(Pair("biblehash", hash.GetHex()));
+		results.push_back(Pair("subsidy", block.vtx[0].vout[0].nValue/COIN));
+		results.push_back(Pair("blockversion", ExtractXML(block.vtx[0].vout[0].sTxOutMessage,"<VER>","</VER>")));
 	}
 	else if (sItem == "datalist")
 	{

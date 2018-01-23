@@ -6247,6 +6247,8 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
         LOCK(cs_main);
 
         // Find the last block the caller has in the main chain
+
+		if (locator.IsNull()) return false;
         CBlockIndex* pindex = FindForkInGlobalIndex(chainActive, locator);
 
         // Send the rest of the chain

@@ -1878,11 +1878,13 @@ CAmount CWallet::GetUnlockedBalance() const
             if (pcoin->IsTrusted())
 			{
                 CAmount nAmount = pcoin->GetAvailableCredit(true,"");
-		        bool fLocked = (nAmount == (SANCTUARY_COLLATERAL * COIN));
+				// 1-22-2018 :: Ensure Depth in Main Chain is Honored
+				int nCoinDepth = pcoin->GetDepthInMainChain();
+                bool fLocked = (nAmount == (SANCTUARY_COLLATERAL * COIN));
 				if (!fLocked)
 				{
 					int64_t nAge = GetAdjustedTime() - pcoin->nTimeReceived;
-					if (nAge > 86400 || (nAge > 60 && !fProd)) 
+					if (nAge > 86400 && nCoinDepth > BLOCKS_PER_DAY) 
 					{
 						nTotal += nAmount;
 					}

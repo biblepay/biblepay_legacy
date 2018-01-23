@@ -189,7 +189,7 @@ void CInstantSend::CreateEmptyTxLockCandidate(const uint256& txHash)
 {
     if (mapTxLockCandidates.find(txHash) != mapTxLockCandidates.end())
         return;
-    LogPrintf("CInstantSend::CreateEmptyTxLockCandidate -- new, txid=%s\n", txHash.ToString());
+    LogPrint("instantsend","CInstantSend::CreateEmptyTxLockCandidate -- new, txid=%s\n", txHash.ToString());
     const CTxLockRequest txLockRequest = CTxLockRequest();
     mapTxLockCandidates.insert(std::make_pair(txHash, CTxLockCandidate(txLockRequest)));
 }

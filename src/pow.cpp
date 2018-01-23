@@ -308,6 +308,8 @@ bool CheckProofOfLoyalty(double dWeight, uint256 hash, unsigned int nBits, const
     bool fOverflow;
     arith_uint256 bnTarget;
 	bool fProdChain = Params().NetworkIDString() == "main" ? true : false;
+	if (!fProdChain && nPrevHeight < 3000) return true;
+
 	bool f_7000;
 	bool f_8000;
 	bool f_9000; 

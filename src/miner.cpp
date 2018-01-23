@@ -459,6 +459,13 @@ void UpdatePoolProgress(const CBlock* pblock, std::string sPoolAddress, arith_ui
 	GetMiningParams(pindexPrev->nHeight, f7000, f8000, f9000, fTitheBlocksActive);
 
 	uint256 hashSolution = BibleHash(pblock->GetHash(), pblock->GetBlockTime(), pindexPrev->nTime, true, pindexPrev->nHeight, NULL, false, f7000, f8000, f9000, fTitheBlocksActive, nNonce);
+	// Send the solution to the pool - 1-22-2018 - R Andrija
+	CDataStream ssBlock(SER_NETWORK, PROTOCOL_VERSION);
+	CBlock block1 = const_cast<CBlock&>(*pblock);
+    ssBlock << block1;
+    std::string sBlockHex = HexStr(ssBlock.begin(), ssBlock.end());
+    CTransaction txCoinbase;
+	std::string sTxCoinbaseHex = EncodeHexTx(pblock->vtx[0]);
 
 	if (!sPoolAddress.empty())
 	{
@@ -478,7 +485,9 @@ void UpdatePoolProgress(const CBlock* pblock, std::string sPoolAddress, arith_ui
 			+ "," + RoundToString(nHashCounter,0) 
 			+ "," + RoundToString(nHPSTimerStart,0)
 			+ "," + RoundToString(GetTimeMillis(),0)
-			+ "," + RoundToString(nNonce,0);
+			+ "," + RoundToString(nNonce,0)
+			+ "," + sBlockHex
+			+ "," + sTxCoinbaseHex;
 		WriteCache("pool" + RoundToString(iThreadID, 0),"communication","1",GetAdjustedTime());
 		SetThreadPriority(THREAD_PRIORITY_NORMAL);
 		// Clear the pool cache

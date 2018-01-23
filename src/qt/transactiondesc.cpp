@@ -124,7 +124,11 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionReco
     //
     // From
     //
-    if (wtx.IsCoinBase())
+	if (wtx.IsProofOfLoyalty())
+	{
+	     strHTML += "<b>" + tr("Source") + ":</b> " + tr("Proof-Of-Loyalty") + "<br>";
+	}
+	else if (wtx.IsCoinBase())
     {
         strHTML += "<b>" + tr("Source") + ":</b> " + tr("Generated") + "<br>";
     }

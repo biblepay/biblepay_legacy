@@ -31,19 +31,19 @@ bool CMasternodeSync::CheckNodeHeight(CNode* pnode, bool fDisconnectStuckNodes)
 		{
             // Disconnect to free this connection slot for another peer.
             pnode->fDisconnect = true;
-            LogPrintf("CMasternodeSync::CheckNodeHeight -- disconnecting from stuck peer, nHeight=%d, nCommonHeight=%d, peer=%d\n",
+            LogPrint("masternode","CMasternodeSync::CheckNodeHeight -- disconnecting from stuck peer, nHeight=%d, nCommonHeight=%d, peer=%d\n",
                         pCurrentBlockIndex->nHeight, stats.nCommonHeight, pnode->id);
         }
 		else 
 		{
-            if (fDebugMaster) LogPrintf("CMasternodeSync::CheckNodeHeight -- skipping stuck peer, nHeight=%d, nCommonHeight=%d, peer=%d\n",
+            if (fDebugMaster) LogPrint("masternode","CMasternodeSync::CheckNodeHeight -- skipping stuck peer, nHeight=%d, nCommonHeight=%d, peer=%d\n",
                         pCurrentBlockIndex->nHeight, stats.nCommonHeight, pnode->id);
         }
         return false;
     }
     else if(pCurrentBlockIndex->nHeight < stats.nSyncHeight - 1) {
         // This peer announced more headers than we have blocks currently
-        LogPrintf("CMasternodeSync::CheckNodeHeight -- skipping peer, who announced more headers than we have blocks currently, nHeight=%d, nSyncHeight=%d, peer=%d\n",
+        LogPrint("masternode","CMasternodeSync::CheckNodeHeight -- skipping peer, who announced more headers than we have blocks currently, nHeight=%d, nSyncHeight=%d, peer=%d\n",
                     pCurrentBlockIndex->nHeight, stats.nSyncHeight, pnode->id);
         return false;
     }
@@ -70,7 +70,7 @@ bool CMasternodeSync::IsBlockchainSynced(bool fBlockAccepted)
         // this should be only triggered while we are still syncing
         if(!IsSynced()) {
             // we are trying to download smth, reset blockchain sync status
-            if(fDebugMaster) LogPrintf("CMasternodeSync::IsBlockchainSynced -- reset\n");
+            if(fDebugMaster) LogPrint("masternode","CMasternodeSync::IsBlockchainSynced -- reset\n");
             fFirstBlockAccepted = true;
             fBlockchainSynced = false;
             nTimeLastProcess = GetTime();
@@ -84,7 +84,7 @@ bool CMasternodeSync::IsBlockchainSynced(bool fBlockAccepted)
         }
     }
 
-    if(fDebug10) LogPrintf("CMasternodeSync::IsBlockchainSynced -- state before check: %ssynced, skipped %d times\n", fBlockchainSynced ? "" : "not ", nSkipped);
+    if(fDebug10) LogPrint("masternode","CMasternodeSync::IsBlockchainSynced -- state before check: %ssynced, skipped %d times\n", fBlockchainSynced ? "" : "not ", nSkipped);
 
     nTimeLastProcess = GetTime();
     nSkipped = 0;
@@ -108,7 +108,7 @@ bool CMasternodeSync::IsBlockchainSynced(bool fBlockAccepted)
             // if we have decent number of such peers, most likely we are synced now
             if(nNodesAtSameHeight >= MASTERNODE_SYNC_ENOUGH_PEERS) 
 			{
-                if (fDebug10) LogPrintf("CMasternodeSync::IsBlockchainSynced -- found enough peers on the same height as we are, done\n");
+                if (fDebug10) LogPrint("masternode","CMasternodeSync::IsBlockchainSynced -- found enough peers on the same height as we are, done\n");
                 fBlockchainSynced = true;
                 ReleaseNodeVector(vNodesCopy);
                 return true;

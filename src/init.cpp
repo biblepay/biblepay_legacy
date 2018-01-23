@@ -1098,7 +1098,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
 		fProd = false;
 		SANCTUARY_COLLATERAL = 500000;
 		fMasternodesEnabled = true;
-		fRetirementAccountsEnabled = true;
+		fRetirementAccountsEnabled = false;
 		fProofOfLoyaltyEnabled = true;
 		strTemplePubKey = "04240caae65370e2ec32eaec8f27bce34e6ada9601b6a805c10b3e839e100ce3f369fdfbc1bb906d3dd442bd145e51d23a4eda247608b5dc33afc1fbf87c270f47";
 	}
@@ -2050,6 +2050,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     }
 
     LogPrintf("fLiteMode %d\n", fLiteMode);
+	LogPrintf("fRetirementAccountsEnabled %d\n", fRetirementAccountsEnabled);
     LogPrintf("nInstantSendDepth %d\n", nInstantSendDepth);
     LogPrintf("PrivateSend rounds %d\n", nPrivateSendRounds);
     LogPrintf("PrivateSend amount %d\n", nPrivateSendAmount);
@@ -2153,6 +2154,8 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     GenerateBiblecoins(GetBoolArg("-gen", DEFAULT_GENERATE), GetArg("-genproclimit", DEFAULT_GENERATE_THREADS), chainparams);
 
     // ********************************************************* Step 13: finished
+	// Print the genesis hash for sanity
+	LogPrintf(" Genesis Hash %s \n", chainActive.Genesis()->GetBlockHash().GetHex().c_str());
 
     SetRPCWarmupFinished();
     uiInterface.InitMessage(_("Done loading"));

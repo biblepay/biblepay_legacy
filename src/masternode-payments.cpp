@@ -189,7 +189,7 @@ bool IsBlockPayeeValid(const CTransaction& txNew, int nBlockHeight, CAmount bloc
     if(!masternodeSync.IsSynced()) 
 	{
         //there is no budget data to use to check anything, let's just accept the longest chain
-        if(fDebugMaster) LogPrintf("IsBlockPayeeValid -- WARNING: Client not synced, skipping block payee checks\n");
+        if(fDebugMaster) LogPrint("mnpayments","IsBlockPayeeValid -- WARNING: Client not synced, skipping block payee checks\n");
         return true;
     }
 
@@ -351,6 +351,7 @@ void CMasternodePayments::FillBlockPayee(CMutableTransaction& txNew, int nBlockH
 		CComplexTransaction cct(txNew);
 		std::string sAssetColorScript = cct.GetScriptForAssetColor("401"); // Get the script for 401k coins
 		txNew.vout[txNew.vout.size()-1].sTxOutMessage += sAssetColorScript;
+		LogPrintf(" Creating Retirement Amount %f \n", (double)retirementAmount/COIN);
 	}
 
 	if (caCompetitiveMiningTithe > 0)

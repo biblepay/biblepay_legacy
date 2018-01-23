@@ -55,8 +55,8 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
         {
             isminetype mine = wallet->IsMine(txout);
 			CComplexTransaction cct(txout);
-			bool b401k = (cct.Color=="401");
-            if(mine && !b401k)
+			// bool b401k = (cct.Color=="401" && false);
+            if(mine)
             {
                 TransactionRecord sub(hash, nTime);
                 CTxDestination address;
@@ -186,7 +186,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
             {
                 const CTxOut& txout = wtx.vout[nOut];
 				CComplexTransaction cct(txout);
-				bool b401k = (cct.Color=="401");
+				// bool b401k = false; // (cct.Color=="401");
 
                 TransactionRecord sub(hash, nTime);
                 sub.idx = parts.size();
@@ -199,7 +199,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                     continue;
                 }
 
-				if (b401k) continue;
+				// if (b401k && false) continue;
 
                 CTxDestination address;
                 if (ExtractDestination(txout.scriptPubKey, address))

@@ -1510,12 +1510,13 @@ void ListTransactions(const CWalletTx& wtx, const string& strAccount, int nMinDe
                 MaybePushAddress(entry, r.destination);
                 if (wtx.IsCoinBase())
                 {
+					std::string sSuffix = (wtx.IsProofOfLoyalty()) ? " proof-of-loyalty" : "";
                     if (wtx.GetDepthInMainChain() < 1)
-                        entry.push_back(Pair("category", "orphan"));
+                        entry.push_back(Pair("category", "orphan" + sSuffix));
                     else if (wtx.GetBlocksToMaturity() > 0)
-                        entry.push_back(Pair("category", "immature"));
-                    else
-                        entry.push_back(Pair("category", "generate"));
+                        entry.push_back(Pair("category", "immature" + sSuffix));
+                    else 
+                        entry.push_back(Pair("category", "generate" + sSuffix));
                 }
                 else
                 {

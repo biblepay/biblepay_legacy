@@ -11,6 +11,9 @@
 #include "serialize.h"
 #include "uint256.h"
 
+
+std::string ExtractXML(std::string XMLdata, std::string key, std::string key_end);
+
 /** An outpoint - a combination of a transaction hash and an index n into its vout */
 class COutPoint
 {
@@ -285,6 +288,17 @@ public:
     {
         return (vin.size() == 1 && vin[0].prevout.IsNull());
     }
+
+	bool IsProofOfLoyalty() const
+	{
+		if (vout.size() > 1)
+		{
+			std::string sWeight = ExtractXML(vout[1].sTxOutMessage,"<polweight>","</polweight>");
+			if (!sWeight.empty()) return true;
+		}
+		return false;
+	}
+
 
     friend bool operator==(const CTransaction& a, const CTransaction& b)
     {
