@@ -171,25 +171,25 @@ void CMasternodeSync::SwitchToNextAsset()
         case(MASTERNODE_SYNC_INITIAL):
             ClearFulfilledRequests();
             nRequestedMasternodeAssets = MASTERNODE_SYNC_SPORKS;
-            if (fDebugMaster) LogPrintf("CMasternodeSync::SwitchToNextAsset -- Starting %s\n", GetAssetName());
+            if (fDebugMaster) LogPrint("masternode","CMasternodeSync::SwitchToNextAsset -- Starting %s\n", GetAssetName());
             break;
         case(MASTERNODE_SYNC_SPORKS):
             nTimeLastMasternodeList = GetTime();
             nRequestedMasternodeAssets = MASTERNODE_SYNC_LIST;
-            if (fDebugMaster) LogPrintf("CMasternodeSync::SwitchToNextAsset -- Starting %s\n", GetAssetName());
+            if (fDebugMaster) LogPrint("masternode","CMasternodeSync::SwitchToNextAsset -- Starting %s\n", GetAssetName());
             break;
         case(MASTERNODE_SYNC_LIST):
             nTimeLastPaymentVote = GetTime();
             nRequestedMasternodeAssets = MASTERNODE_SYNC_MNW;
-            if (fDebugMaster) LogPrintf("CMasternodeSync::SwitchToNextAsset -- Starting %s\n", GetAssetName());
+            if (fDebugMaster) LogPrint("masternode","CMasternodeSync::SwitchToNextAsset -- Starting %s\n", GetAssetName());
             break;
         case(MASTERNODE_SYNC_MNW):
             nTimeLastGovernanceItem = GetTime();
             nRequestedMasternodeAssets = MASTERNODE_SYNC_GOVERNANCE;
-            if (fDebugMaster) LogPrintf("CMasternodeSync::SwitchToNextAsset -- Starting %s\n", GetAssetName());
+            if (fDebugMaster) LogPrint("masternode","CMasternodeSync::SwitchToNextAsset -- Starting %s\n", GetAssetName());
             break;
         case(MASTERNODE_SYNC_GOVERNANCE):
-            if (fDebugMaster) LogPrintf("CMasternodeSync::SwitchToNextAsset -- Sync has finished\n");
+            if (fDebugMaster) LogPrint("masternode","CMasternodeSync::SwitchToNextAsset -- Sync has finished\n");
             nRequestedMasternodeAssets = MASTERNODE_SYNC_FINISHED;
             uiInterface.NotifyAdditionalDataSyncProgressChanged(1);
             //try to activate our masternode if possible

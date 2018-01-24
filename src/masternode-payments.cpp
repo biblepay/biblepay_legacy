@@ -377,13 +377,13 @@ void CMasternodePayments::FillBlockPayee(CMutableTransaction& txNew, int nBlockH
         CMasternode *winningNode = mnodeman.GetNextMasternodeInQueueForPayment(nBlockHeight, true, nCount);
         if(!winningNode) {
             // ...and we can't calculate it on our own
-            if (fDebugMaster) LogPrintf("CMasternodePayments::FillBlockPayee -- Failed to detect masternode to pay\n");
+            if (fDebugMaster) LogPrint("mnpayments","CMasternodePayments::FillBlockPayee -- Failed to detect masternode to pay\n");
             return;
         }
         // fill payee with locally calculated winner and hope for the best
         payee = GetScriptForDestination(winningNode->pubKeyCollateralAddress.GetID());
     }
-	if (false && fDebugMaster) LogPrintf(" Collateral amount %f, Coll Script %s ",(double)nCollateral/COIN,sCollateralScript.c_str());
+	if (false && fDebugMaster) LogPrint("mnpayments","Collateral amount %f, Coll Script %s ",(double)nCollateral/COIN,sCollateralScript.c_str());
 
     // GET MASTERNODE PAYMENT VARIABLES SETUP
     CAmount masternodePayment = GetMasternodePayment(nBlockHeight, blockReward, nCollateral);
@@ -397,7 +397,7 @@ void CMasternodePayments::FillBlockPayee(CMutableTransaction& txNew, int nBlockH
     CTxDestination address1;
     ExtractDestination(payee, address1);
     CBitcoinAddress address2(address1);
-    LogPrintf("CMasternodePayments::FillBlockPayee -- Masternode payment %f to %s\n", (double)masternodePayment, address2.ToString().c_str());
+    LogPrint("mnpayments","CMasternodePayments::FillBlockPayee -- Masternode payment %f to %s\n", (double)masternodePayment, address2.ToString().c_str());
 }
 
 
@@ -852,7 +852,7 @@ void CMasternodePayments::CheckAndRemove()
             ++it;
         }
     }
-	if (fDebugMaster) LogPrintf("CMasternodePayments::CheckAndRemove -- %s\n", ToString());
+	if (fDebugMaster) LogPrint("mnpayments","CMasternodePayments::CheckAndRemove -- %s\n", ToString());
 }
 
 bool CMasternodePaymentVote::IsValid(CNode* pnode, int nValidationHeight, std::string& strError)
@@ -1071,7 +1071,7 @@ void CMasternodePayments::RequestLowDataPaymentBlocks(CNode* pnode)
             vToFetch.push_back(CInv(MSG_MASTERNODE_PAYMENT_BLOCK, pindex->GetBlockHash()));
             // We should not violate GETDATA rules
             if(vToFetch.size() == MAX_INV_SZ) {
-                if (fDebugMaster) LogPrintf("CMasternodePayments::SyncLowDataPaymentBlocks -- asking peer %d for %d blocks\n", pnode->id, MAX_INV_SZ);
+                if (fDebugMaster) LogPrint("mnpayments","CMasternodePayments::SyncLowDataPaymentBlocks -- asking peer %d for %d blocks\n", pnode->id, MAX_INV_SZ);
                 pnode->PushMessage(NetMsgType::GETDATA, vToFetch);
                 // Start filling new batch
                 vToFetch.clear();
@@ -1119,7 +1119,7 @@ void CMasternodePayments::RequestLowDataPaymentBlocks(CNode* pnode)
         }
         // We should not violate GETDATA rules
         if(vToFetch.size() == MAX_INV_SZ) {
-            if (fDebugMaster) LogPrintf("CMasternodePayments::SyncLowDataPaymentBlocks -- asking peer %d for %d payment blocks\n", pnode->id, MAX_INV_SZ);
+            if (fDebugMaster) LogPrint("mnpayments","CMasternodePayments::SyncLowDataPaymentBlocks -- asking peer %d for %d payment blocks\n", pnode->id, MAX_INV_SZ);
             pnode->PushMessage(NetMsgType::GETDATA, vToFetch);
             // Start filling new batch
             vToFetch.clear();
@@ -1129,7 +1129,7 @@ void CMasternodePayments::RequestLowDataPaymentBlocks(CNode* pnode)
     // Ask for the rest of it
     if(!vToFetch.empty()) 
 	{
-        if (fDebugMaster) LogPrintf("CMasternodePayments::SyncLowDataPaymentBlocks -- asking peer %d for %d payment blocks\n", pnode->id, vToFetch.size());
+        if (fDebugMaster) LogPrint("mnpayments","CMasternodePayments::SyncLowDataPaymentBlocks -- asking peer %d for %d payment blocks\n", pnode->id, vToFetch.size());
         pnode->PushMessage(NetMsgType::GETDATA, vToFetch);
     }
 }

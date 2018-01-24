@@ -275,7 +275,7 @@ bool CWallet::Unlock(const SecureString& strWalletPassphrase, bool fForMixingOnl
             if (CCryptoKeyStore::Unlock(vMasterKey, fForMixingOnly)) {
                 if(nWalletBackups == -2) {
                     TopUpKeyPool();
-                    LogPrintf("Keypool replenished, re-initializing automatic backups.\n");
+                    LogPrint("keypool","Keypool replenished, re-initializing automatic backups.\n");
                     nWalletBackups = GetArg("-createwalletbackups", 10);
                 }
                 return true;
@@ -3323,11 +3323,7 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
                     }
                 }
 				// Before we sign, insert any Prayers
-
-				LogPrintf(" CREATE_TRANSACTION:: Sending Message from WalletTx :: %s    \r\n",txNew.vout[0].sTxOutMessage.c_str());
-
-                // Sign
-                int nIn = 0;
+				int nIn = 0;
                 CTransaction txNewConst(txNew);
                 BOOST_FOREACH(const CTxIn& txin, txNew.vin)
                 {
@@ -3704,7 +3700,7 @@ void CWallet::ReserveKeyFromKeyPool(int64_t& nIndex, CKeyPool& keypool)
         if (!HaveKey(keypool.vchPubKey.GetID()))
             throw runtime_error("ReserveKeyFromKeyPool(): unknown key in key pool");
         assert(keypool.vchPubKey.IsValid());
-        if (fDebugMaster) LogPrintf("keypool reserve %d\n", nIndex);
+        if (fDebugMaster) LogPrint("keypool","keypool reserve %d\n", nIndex);
     }
 }
 
@@ -3727,7 +3723,7 @@ void CWallet::ReturnKey(int64_t nIndex)
         LOCK(cs_wallet);
         setKeyPool.insert(nIndex);
     }
-    if (fDebugMaster) LogPrintf("keypool return %d\n", nIndex);
+    if (fDebugMaster) LogPrint("keypool","keypool return %d\n", nIndex);
 }
 
 bool CWallet::GetKeyFromPool(CPubKey& result)

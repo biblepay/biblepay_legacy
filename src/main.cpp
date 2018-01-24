@@ -1192,13 +1192,11 @@ int GetUTXOHeight(const COutPoint& outpoint)
 bool GetUTXOCoins(const COutPoint& outpoint, CCoins& coins)
 {
     LOCK(cs_main);
-    if (!pcoinsTip->GetCoins(outpoint.hash, coins))
-        return false;
-    if (coins.vout[outpoint.n].IsNull())
-        return false;
-    return true;
+    return !(!pcoinsTip->GetCoins(outpoint.hash, coins) ||
+             (unsigned int)outpoint.n>=coins.vout.size() ||
+             coins.vout[outpoint.n].IsNull());
 }
-//txin.prevout.hash
+
 
 bool CheckTransaction(const CTransaction& tx, CValidationState &state)
 {
@@ -3659,7 +3657,7 @@ void ReprocessBlocks(int nBlocks)
             if (mi != mapBlockIndex.end() && (*mi).second) {
 
                 CBlockIndex* pindex = (*mi).second;
-                if (fDebugMaster) LogPrintf("ReprocessBlocks -- %s\n", (*it).first.ToString());
+                if (fDebugMaster) LogPrint("net","ReprocessBlocks -- %s\n", (*it).first.ToString());
 
                 CValidationState state;
                 ReconsiderBlock(state, pindex);
@@ -5203,7 +5201,7 @@ bool LoadExternalBlockFile(const CChainParams& chainparams, FILE* fileIn, CDiskB
                 }
             } catch (const std::exception& e) 
 			{
-                if (fDebugMaster) LogPrintf("%s: Deserialize or I/O error - %s\n", __func__, e.what());
+                if (fDebugMaster) LogPrint("net","%s: Deserialize or I/O error - %s\n", __func__, e.what());
             }
         }
     } 
@@ -5899,7 +5897,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
         if ((fProd && pfrom->nVersion < MIN_PEER_PROTO_VERSION) || (!fProd && pfrom->nVersion < MIN_PEER_TESTNET_PROTO_VERSION))
         {
             // disconnect from peers older than this proto version
-            if (fDebugMaster) LogPrintf("peer=%d using obsolete version %i; disconnecting\n", pfrom->id, pfrom->nVersion);
+            if (fDebugMaster) LogPrint("net","peer=%d using obsolete version %i; disconnecting\n", pfrom->id, pfrom->nVersion);
             pfrom->PushMessage(NetMsgType::REJECT, strCommand, REJECT_OBSOLETE,
                                strprintf("Version must be %d or greater", MIN_PEER_PROTO_VERSION));
             pfrom->fDisconnect = true;
@@ -5979,11 +5977,11 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
                 CAddress addr = GetLocalAddress(&pfrom->addr);
                 if (addr.IsRoutable())
                 {
-                    if (fDebugMaster) LogPrintf("ProcessMessages: advertising address %s\n", addr.ToString());
+                    if (fDebugMaster) LogPrint("net","ProcessMessages: advertising address %s\n", addr.ToString());
                     pfrom->PushAddress(addr);
                 } else if (IsPeerAddrLocalGood(pfrom)) {
                     addr.SetIP(pfrom->addrLocal);
-                    if (fDebugMaster) LogPrintf("ProcessMessages: advertising address %s\n", addr.ToString());
+                    if (fDebugMaster) LogPrint("net","ProcessMessages: advertising address %s\n", addr.ToString());
                     pfrom->PushAddress(addr);
                 }
             }
@@ -6024,7 +6022,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
 			 pfrom->fSuccessfullyConnected=false;
 		}
 	
-        if (fDebugMaster) LogPrintf("receive version message: %s: version %d, blocks=%d, us=%s, peer=%d%s\n",
+        if (fDebugMaster) LogPrint("net","receive version message: %s: version %d, blocks=%d, us=%s, peer=%d%s\n",
                   pfrom->cleanSubVer, pfrom->nVersion,
                   pfrom->nStartingHeight, addrMe.ToString(), pfrom->id,
                   remoteAddr);
@@ -7020,6 +7018,7 @@ bool ProcessMessages(CNode* pfrom)
         bool fRet = false;
         try
         {
+			//6984
             fRet = ProcessMessage(pfrom, strCommand, vRecv, msg.nTime);
             boost::this_thread::interruption_point();
         }

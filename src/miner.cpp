@@ -507,7 +507,7 @@ void UpdatePoolProgress(const CBlock* pblock, std::string sPoolAddress, arith_ui
 		std::string sResult = PoolRequest(iThreadID,"solution",sPoolURL,sWorkerID,sSolution);
 		WriteCache("pool" + RoundToString(iThreadID, 0),"communication","0",GetAdjustedTime());
 		WriteCache("poolthread"+RoundToString(iThreadID,0),"poolinfo2","Submitting Solution " + TimestampToHRDate(GetAdjustedTime()),GetAdjustedTime());
-		if (fDebugMaster) LogPrintf(" PoolStatus: %s, URL %s, workerid %s, solu %s ",sResult.c_str(), sPoolURL.c_str(), sWorkerID.c_str(), sSolution.c_str());
+		if (fDebugMaster) LogPrint("pool","PoolStatus: %s, URL %s, workerid %s, solu %s ",sResult.c_str(), sPoolURL.c_str(), sWorkerID.c_str(), sSolution.c_str());
 	}
 }
 
@@ -627,7 +627,7 @@ bool GetPoolMiningMode(int iThreadID, int& iFailCount, std::string& out_PoolAddr
 	WriteCache("pool" + RoundToString(iThreadID, 0),"communication","1",GetAdjustedTime());
 	std::string sResult = PoolRequest(iThreadID, "readytomine2", sPoolURL, sWorkerID, "");
 	WriteCache("pool" + RoundToString(iThreadID, 0),"communication","0",GetAdjustedTime());
-	if (fDebugMaster) LogPrintf(" POOL RESULT %s ",sResult.c_str());
+	if (fDebugMaster) LogPrint("pool","POOL RESULT %s ",sResult.c_str());
 	std::string sPoolAddress = ExtractXML(sResult,"<ADDRESS>","</ADDRESS>");
 	if (sPoolAddress.empty()) 
 	{
@@ -713,7 +713,7 @@ void static BibleMiner(const CChainParams& chainparams, int iThreadID, int iFeat
 	int64_t nLastClearCache = GetAdjustedTime() - 480;
 	int64_t nLastShareSubmitted = GetAdjustedTime() - 480;
 	int iFailCount = 0;
-	bool fCompetetiveMining = GetArg("-competetivemining", "true")=="true";
+	// bool fCompetetiveMining = GetArg("-competetivemining", "true")=="true";
 
     CAmount competetiveMiningTithe = 0;
 recover:
@@ -771,7 +771,7 @@ recover:
 				{
 					nLastReadyToMine = GetAdjustedTime();
 					fPoolMiningMode = GetPoolMiningMode(iThreadID, iFailCount, sPoolMiningAddress, hashTargetPool, sMinerGuid, sWorkID);
-					if (fDebugMaster) LogPrintf("Checking with Pool: Pool Address %s \r\n",sPoolMiningAddress.c_str());
+					if (fDebugMaster) LogPrint("pool","Checking with Pool: Pool Address %s \r\n",sPoolMiningAddress.c_str());
 				}
 			}
 		    

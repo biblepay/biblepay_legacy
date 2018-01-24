@@ -651,7 +651,7 @@ bool CMasternodeBroadcast::CheckOutpoint(int& nDos)
     if(!darkSendSigner.IsVinAssociatedWithPubkey(vin, pubKeyCollateralAddress)) 
 	{
 		//LogPrintf("Got mismatched pubKeyCollateralAddress and vin\nReceived %s, Expected pubKey Collateral Address %s\r\n",pmn->pubKeyCollateralAddress.GetID().ToString().c_str(),
-        LogPrintf("CMasternodeMan::CheckOutpoint(2) -- Got mismatched pubKeyCollateralAddress %s and vin\n", pubKeyCollateralAddress.GetID().ToString().c_str());
+        LogPrint("masternode","CMasternodeMan::CheckOutpoint(2) -- Got mismatched pubKeyCollateralAddress %s and vin\n", pubKeyCollateralAddress.GetID().ToString().c_str());
         nDos = 11;
         return false;
     }
