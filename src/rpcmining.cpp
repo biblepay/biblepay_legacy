@@ -341,6 +341,8 @@ UniValue getmininginfo(const UniValue& params, bool fHelp)
 		obj.push_back(Pair("proof_of_loyalty_influence_percentage", nGlobalInfluencePercentage));
 		obj.push_back(Pair("proof_of_loyalty_errors", sGlobalPOLError));
 	}
+	obj.push_back(Pair("base_blockhash", sGlobalBlockHash));
+
     return obj;
 }
 

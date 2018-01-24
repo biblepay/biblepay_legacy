@@ -78,6 +78,8 @@ int64_t nHashCounterGood = 0;
 CAmount caGlobalCompetetiveMiningTithe = 0;
 std::string sGlobalPoolURL = "";
 std::string sGlobalPOLError = "";
+std::string sGlobalBlockHash = "";
+bool fMiningDiagnostics = false;
 
 int64_t nGlobalPOLWeight;
 int64_t nGlobalInfluencePercentage;

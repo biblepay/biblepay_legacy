@@ -2595,6 +2595,19 @@ UniValue exec(const UniValue& params, bool fHelp)
 		results.push_back(Pair("subsidy", block.vtx[0].vout[0].nValue/COIN));
 		results.push_back(Pair("blockversion", ExtractXML(block.vtx[0].vout[0].sTxOutMessage,"<VER>","</VER>")));
 	}
+	else if (sItem == "miningdiagnostics")
+	{
+		std::string sSwitch = params[1].get_str();
+		if (sSwitch=="on")
+		{
+			fMiningDiagnostics = true;
+		}
+		else
+		{
+			fMiningDiagnostics = false;
+		}
+		results.push_back(Pair("mining_diagnostics", fMiningDiagnostics));
+	}
 	else if (sItem == "datalist")
 	{
 		if (params.size() != 2 && params.size() != 3)

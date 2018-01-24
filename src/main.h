@@ -214,6 +214,10 @@ extern std::string sGlobalPoolURL;
 extern std::string sGlobalPOLError;
 extern int64_t nGlobalPOLWeight;
 extern int64_t nGlobalInfluencePercentage;
+extern std::string sGlobalBlockHash;
+extern bool fMiningDiagnostics;
+
+
 
 
 extern int64_t nLastTradingActivity;

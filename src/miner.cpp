@@ -167,12 +167,15 @@ CBlockTemplate* CreateNewBlock(const CChainParams& chainparams, const CScript& s
     unsigned int nBlockSigOps = 100;
     int lastFewTxs = 0;
     CAmount nFees = 0;
-	if (iThreadId > 30) iThreadId = 0;
-
+	if (iThreadId > 30 && iThreadId != 999) iThreadId = 0;
     {
         LOCK2(cs_main, mempool.cs);
         const int nHeight = pindexPrev->nHeight + 1;
         pblock->nTime = GetAdjustedTime() + iThreadId;
+		if (iThreadId==999)
+		{
+			pblock->nTime = 1517009000;
+		}
         const int64_t nMedianTimePast = pindexPrev->GetMedianTimePast();
 
         // Add our coinbase tx as first transaction
@@ -784,7 +787,7 @@ recover:
             if(!pindexPrev) break;
 			double dProofOfLoyaltyPercentage = cdbl(GetArg("-polpercentage", "10"),2) / 100;
 			competetiveMiningTithe = 0;
-
+			if (fMiningDiagnostics) iThreadID = 99;  // Pool will reject work, but blocktemplate will have a static timestamp
 		    auto_ptr<CBlockTemplate> pblocktemplate(CreateNewBlock(chainparams, coinbaseScript->reserveScript, sPoolMiningAddress, sMinerGuid,
 				iThreadID, competetiveMiningTithe, dProofOfLoyaltyPercentage));
             if (!pblocktemplate.get())
@@ -795,9 +798,9 @@ recover:
             }
             CBlock *pblock = &pblocktemplate->block;
             IncrementExtraNonce(pblock, pindexPrev, nExtraNonce);
-			
+			// Take a snapshot of the base block hash here, with nonce 0, custom transaction, and if in debug mode, a common timestamp
+			sGlobalBlockHash = pblock->GetHash().GetHex();
 			std::string sPoolNarr = GetPoolMiningNarr(sPoolMiningAddress);
-			
 			if (fDebugMaster && fDebug10) LogPrintf("BiblepayMiner -- Running miner %s with %u transactions in block (%u bytes)\n", sPoolNarr.c_str(),
 				pblock->vtx.size(), ::GetSerializeSize(*pblock, SER_NETWORK, PROTOCOL_VERSION));
 
