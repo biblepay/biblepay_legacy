@@ -187,20 +187,32 @@ CBlockTemplate* CreateNewBlock(const CChainParams& chainparams, const CScript& s
 
 		// *****************************************  BIBLEPAY - Proof-Of-Loyalty - 01/19/2018 ***************************************************
 		std::string sXML = "";
+		std::string sError = "";
 		
 		if (fProofOfLoyaltyEnabled && dProofOfLoyaltyPercentage > 0)
 		{
-				std::string sError = "";
 				CTransaction txPOL = CreateCoinStake(pindexPrev, scriptPubKeyIn, dProofOfLoyaltyPercentage, BLOCKS_PER_DAY, sXML, sError);
 				if (!sError.empty()) 
 				{
-					//	LogPrintf("Unable to create coin stake : %s, XML %s  \n",sError, sXML.c_str());
 					sGlobalPOLError = sError;
 				}
 				if (!sXML.empty())
 				{
 					pblock->vtx.push_back(txPOL);
 					LogPrintf("CreateNewBlock::Created Proof-Of-Loyalty Block for %f BBP with sig %s \n",dProofOfLoyaltyPercentage, sXML.c_str());
+					sGlobalPOLError = "";
+				}
+		}
+		else
+		{
+				CTransaction txPOL = CreateCoinStake(pindexPrev, scriptPubKeyIn, .01, BLOCKS_PER_DAY, sXML, sError);
+				if (!sError.empty()) 
+				{
+					sGlobalPOLError = sError;
+				}
+				if (!sXML.empty())
+				{
+					pblock->vtx.push_back(txPOL);
 					sGlobalPOLError = "";
 				}
 		}
@@ -735,15 +747,15 @@ recover:
 			{
                 // Busy-wait for the network to come online so we don't waste time mining
                 // on an obsolete chain. In regtest mode we expect to fly solo.
-                do {
+                do 
+				{
                     bool fvNodesEmpty;
                     {
                         LOCK(cs_vNodes);
                         fvNodesEmpty = vNodes.empty();
                     }
-		            if ((!fvNodesEmpty && !IsInitialBlockDownload()) || fDebug) 
+		            if ((!fvNodesEmpty && !IsInitialBlockDownload())) 
 					{
-				        MilliSleep(1000); // Avoid races
 						break;
 					}
 					// if (chainActive.Tip()->nHeight < 60000 || masternodeSync.IsSynced()))
@@ -771,6 +783,8 @@ recover:
             CBlockIndex* pindexPrev = chainActive.Tip();
             if(!pindexPrev) break;
 			double dProofOfLoyaltyPercentage = cdbl(GetArg("-polpercentage", "10"),2) / 100;
+			competetiveMiningTithe = 0;
+
 		    auto_ptr<CBlockTemplate> pblocktemplate(CreateNewBlock(chainparams, coinbaseScript->reserveScript, sPoolMiningAddress, sMinerGuid,
 				iThreadID, competetiveMiningTithe, dProofOfLoyaltyPercentage));
             if (!pblocktemplate.get())
@@ -888,12 +902,12 @@ recover:
 					{
 						bool fNonce = CheckNonce(f9000, pblock->nNonce, pindexPrev->nHeight, pindexPrev->nTime, pblock->GetBlockTime());
 						if (fNonce) nHashCounterGood += 0xFF;
-						if (fCompetetiveMining && !fNonce)
+						if (!fNonce)
 						{
 							pblock->nNonce = 0x9FFF;
 							competetiveMiningTithe += 1; //Add One satoshi
 							caGlobalCompetetiveMiningTithe += 1;
-							LogPrintf("Resetting mining tithe %f",(double)caGlobalCompetetiveMiningTithe);
+							// LogPrintf("Resetting mining tithe %f",(double)caGlobalCompetetiveMiningTithe);
 							break;
 						}
 
