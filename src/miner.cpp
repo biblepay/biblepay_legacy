@@ -809,6 +809,7 @@ recover:
 						hashTarget += UintToArith256(uBase);
 						nGlobalPOLWeight = dStakeWeight;
 						nGlobalInfluencePercentage = nPercent;
+						LogPrintf(" POLWeight %f, InfluencePercent %f  ubase %s  \n",(double)nGlobalPOLWeight,(double)nGlobalInfluencePercentage, uBase.GetHex().c_str());
 					}
 
 			}
