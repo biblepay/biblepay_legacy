@@ -172,7 +172,7 @@ unsigned int static DarkGravityWave(const CBlockIndex* pindexLast, const Consens
 	{
 		_nTargetTimespan = CountBlocks; // One second blocks in testnet before block 1000
 	}
-	else if (!fProdChain && pindexLast->nHeight > 249 && pindexLast->nHeight < 450)
+	else if (!fProdChain && pindexLast->nHeight > 249 && pindexLast->nHeight < 2000)
 	{
 		_nTargetTimespan = 30;
 	}
@@ -307,9 +307,8 @@ bool CheckProofOfLoyalty(double dWeight, uint256 hash, unsigned int nBits, const
     bool fNegative;
     bool fOverflow;
     arith_uint256 bnTarget;
-	bool fProdChain = Params().NetworkIDString() == "main" ? true : false;
-	if (!fProdChain && nPrevHeight < 4300) return true;
-
+	// bool fProdChain = Params().NetworkIDString() == "main" ? true : false;
+	
 	bool f_7000;
 	bool f_8000;
 	bool f_9000; 
@@ -329,9 +328,12 @@ bool CheckProofOfLoyalty(double dWeight, uint256 hash, unsigned int nBits, const
 	if (UintToArith256(uBibleHash) > bnTarget)
 	{
 		uint256 uTarget = ArithToUint256(bnTarget);
-		LogPrintf("CheckProofOfLoyalty::ERROR - High Loyalty Hash, InHash %s, RequiredHash %s, LoyaltyPercentage %f \n", uBibleHash.GetHex().c_str(),
+		if (fDebugMaster)
+		{
+			LogPrintf("pol","CheckProofOfLoyalty::ERROR - High Loyalty Hash, InHash %s, RequiredHash %s, LoyaltyPercentage %f \n", uBibleHash.GetHex().c_str(), uTarget.GetHex().c_str(),(double)nPercent);
+		}
+		return error("CheckProofOfLoyalty::ERROR - High Loyalty Hash, InHash %s, RequiredHash %s, LoyaltyPercentage %f \n", uBibleHash.GetHex().c_str(),
 			uTarget.GetHex().c_str(),(double)nPercent);
-		return false;
 	}
 
 	bool fNonce = CheckNonce(f_9000, nNonce, nPrevHeight, nPrevBlockTime, nBlockTime);

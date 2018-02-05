@@ -41,6 +41,7 @@ const char *TXLOCKVOTE="txlvote";
 const char *SPORK="spork";
 const char *GETSPORKS="getsporks";
 const char *MASTERNODEPAYMENTVOTE="mnw";
+const char *DISTRIBUTEDCOMPUTINGVOTE="dcv";
 const char *MASTERNODEPAYMENTBLOCK="mnwb";
 const char *MASTERNODEPAYMENTSYNC="mnget";
 const char *MNBUDGETSYNC="mnvs"; // depreciated since 12.1
@@ -91,6 +92,7 @@ static const char* ppszTypeName[] =
     NetMsgType::MNGOVERNANCEOBJECT,
     NetMsgType::MNGOVERNANCEOBJECTVOTE,
     NetMsgType::MNVERIFY,
+	NetMsgType::DISTRIBUTEDCOMPUTINGVOTE,
 };
 
 /** All known message types. Keep this in the same order as the list of
@@ -144,6 +146,7 @@ const static std::string allNetMessageTypes[] = {
     NetMsgType::MNGOVERNANCEOBJECT,
     NetMsgType::MNGOVERNANCEOBJECTVOTE,
     NetMsgType::MNVERIFY,
+	NetMsgType::DISTRIBUTEDCOMPUTINGVOTE,
 };
 const static std::vector<std::string> allNetMessageTypesVec(allNetMessageTypes, allNetMessageTypes+ARRAYLEN(allNetMessageTypes));
 
@@ -198,7 +201,6 @@ bool CMessageHeader::IsValid(const MessageStartChars& pchMessageStartIn) const
 
     return true;
 }
-
 
 
 CAddress::CAddress() : CService()

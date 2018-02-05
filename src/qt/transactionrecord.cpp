@@ -132,7 +132,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
             TransactionRecord sub(hash, nTime);
             // Payment to self by default
             sub.type = TransactionRecord::SendToSelf;
-			if (!sStakeWeight.empty())
+			if (!sStakeWeight.empty() && fProofOfLoyaltyEnabled)
 			{
 				sub.type=TransactionRecord::ProofOfLoyalty;
 			    sub.address = "Weight: " + sStakeWeight;

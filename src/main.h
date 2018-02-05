@@ -203,6 +203,9 @@ extern bool fEnableReplacement;
 extern std::string msGlobalStatus;
 extern std::string msGlobalStatus2;
 extern std::string msGlobalStatus3;
+extern double mnMagnitude;
+extern std::string msGlobalCPID;
+
 extern int PRAYER_MODULUS;
 extern std::string strTemplePubKey;
 
@@ -216,9 +219,9 @@ extern int64_t nGlobalPOLWeight;
 extern int64_t nGlobalInfluencePercentage;
 extern std::string sGlobalBlockHash;
 extern bool fMiningDiagnostics;
-
-
-
+extern bool fDistributedComputingCycle;
+extern bool fDistributedComputingEnabled;
+extern bool fDistributedComputingCycleDownloading;
 
 extern int64_t nLastTradingActivity;
 extern int64_t nBibleHashCounter;

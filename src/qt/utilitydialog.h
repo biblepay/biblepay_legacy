@@ -53,7 +53,6 @@ private Q_SLOTS:
 	void on_comboBookClicked(int iClick);
 	void on_comboChapterClicked(int iClick);
 	
-
 };
 
 

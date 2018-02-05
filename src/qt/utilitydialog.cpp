@@ -497,22 +497,6 @@ bool FileExists(std::string sPath)
 }
 	
 
-std::string NameFromURL(std::string sURL)
-{
-	std::vector<std::string> vURL = Split(sURL.c_str(),"/");
-	std::string sOut = "";
-	if (vURL.size() > 0)
-	{
-		std::string sName = vURL[vURL.size()-1];
-		sName=strReplace(sName,"'","");
-		std::string sDir = GetSANDirectory();
-		std::string sPath = sDir + sName;
-		LogPrintf(" FULL NAME %s ",sPath.c_str());
-		return sPath;
-	}
-	return "";
-}
-
 QString FromHTMLToEscaped(QString qsp)
 {
 	// The data is stored in qt5 Rich QTextEdit control, with escaped < > / characters.  Convert back to HTML so the user can PREVIEW
@@ -535,6 +519,22 @@ void HelpMessageDialog::on_btnPreviewClicked()
 	WriteCache("preview-news","preview",sPreview,GetAdjustedTime());
 	WriteCache("preview-news","headline","BiblePay News Preview - Headline",GetAdjustedTime());
  	NewsPreviewWindow::showNewsPreviewWindow(this);
+}
+
+
+std::string NameFromURL(std::string sURL)
+{
+	std::vector<std::string> vURL = Split(sURL.c_str(),"/");
+	std::string sOut = "";
+	if (vURL.size() > 0)
+	{
+		std::string sName = vURL[vURL.size()-1];
+		sName=strReplace(sName,"'","");
+		std::string sDir = GetSANDirectory();
+		std::string sPath = sDir + sName;
+		return sPath;
+	}
+	return "";
 }
 
 

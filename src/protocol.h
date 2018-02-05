@@ -227,6 +227,7 @@ extern const char *TXLOCKVOTE;
 extern const char *SPORK;
 extern const char *GETSPORKS;
 extern const char *MASTERNODEPAYMENTVOTE;
+extern const char *DISTRIBUTEDCOMPUTINGVOTE;
 extern const char *MASTERNODEPAYMENTSYNC;
 extern const char *MNANNOUNCE;
 extern const char *MNPING;
@@ -359,6 +360,7 @@ enum {
     MSG_GOVERNANCE_OBJECT,
     MSG_GOVERNANCE_OBJECT_VOTE,
     MSG_MASTERNODE_VERIFY,
+	MSG_DISTRIBUTED_COMPUTING_VOTE,
 };
 
 #endif // BITCOIN_PROTOCOL_H

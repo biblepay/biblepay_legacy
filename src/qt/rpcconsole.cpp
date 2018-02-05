@@ -11,6 +11,7 @@
 #include "guiutil.h"
 #include "platformstyle.h"
 #include "bantablemodel.h"
+#include "timedata.h"
 
 #include "chainparams.h"
 #include "rpcserver.h"
@@ -34,6 +35,11 @@
 #include <QTime>
 #include <QTimer>
 #include <QStringList>
+#include <fstream>
+#include <boost/filesystem.hpp>
+#include <boost/filesystem/fstream.hpp>
+#include <boost/algorithm/string/case_conv.hpp> // for to_lower()
+#include <boost/algorithm/string.hpp> // for trim()
 
 #if QT_VERSION < 0x050000
 #include <QUrl>
@@ -56,6 +62,24 @@ const QString ZAPTXES2("-zapwallettxes=2");
 const QString UPGRADEWALLET("-upgradewallet");
 const QString REINDEX("-reindex");
 const QString EMPTY("");
+QString ToQstring(std::string s);
+std::string strReplace(std::string& str, const std::string& oldStr, const std::string& newStr);
+extern std::vector<std::string> Split(std::string s, std::string delim);
+
+extern bool FilterFile(int iBufferSize);
+std::string RetrieveMd5(std::string s1);
+std::string GetDCCPublicKey(const std::string& cpid);
+std::string RoundToString(double d, int place);
+double cdbl(std::string s, int place);
+void WriteCache(std::string section, std::string key, std::string value, int64_t locktime);
+bool Contains(std::string data, std::string instring);
+uint256 GetDCCFileHash();
+uint256 GetDCCHash(std::string sContract);
+std::string GetSANDirectory2();
+std::string GetSporkValue(std::string sKey);
+std::vector<std::string> GetListOfDCCS(std::string sSearch);
+std::string GetDCCElement(std::string sData, int iElement);
+void TouchDailyMagnitudeFile();
 
 
 const struct {
@@ -531,6 +555,299 @@ void RPCConsole::walletReindex()
     buildParameterlist(REINDEX);
 }
 
+
+
+std::string SystemCommand2(const char* cmd)
+{
+    FILE* pipe = popen(cmd, "r");
+    if (!pipe) return "ERROR";
+    char buffer[128];
+    std::string result = "";
+    while(!feof(pipe))
+    {
+        if(fgets(buffer, 128, pipe) != NULL)
+            result += buffer;
+    }
+    pclose(pipe);
+    return result;
+}
+
+
+std::string NameFromURL2(std::string sURL)
+{
+	std::vector<std::string> vURL = Split(sURL.c_str(),"/");
+	std::string sOut = "";
+	if (vURL.size() > 0)
+	{
+		std::string sName = vURL[vURL.size()-1];
+		sName=strReplace(sName,"'","");
+		std::string sDir = GetSANDirectory2();
+		std::string sPath = sDir + sName;
+		return sPath;
+	}
+	return "";
+}
+
+
+std::string FilterBoincData(std::string sData, std::string sRootElement, std::string sEndElement)
+{
+	std::vector<std::string> vRows = Split(sData.c_str(),"<ROW>");
+	std::string sOut = sRootElement + "\r\n";
+	for (int i = vRows.size()-1; i >= 0; i--)
+	{
+		// Filter backwards through the file until we find the root XML element:
+		std::string sLine = vRows[i];
+		if (sLine == sRootElement)
+		{
+			sOut += sEndElement + "\r\n";
+			return sOut;
+		}
+		sOut += sLine + "\r\n";
+	}
+	return "";
+}
+
+
+double GetSumOfXMLColumnFromXMLFile(std::string sFileName, std::string sElementName)
+{
+	boost::filesystem::path pathIn(sFileName);
+    std::ifstream streamIn;
+    streamIn.open(pathIn.string().c_str());
+	if (!streamIn) return 0;
+	double dTotal = 0;
+	std::string sLine = "";
+    while(std::getline(streamIn, sLine))
+    {
+		  std::string sValue = ExtractXML(sLine, "<" + sElementName + ">","</" + sElementName + ">");
+		  double dValue = cdbl(sValue,2);
+		  dTotal += dValue;
+    }
+	streamIn.close();
+    return dTotal;
+}
+
+
+
+bool FilterFile(int iBufferSize, std::string& sError)
+{
+	std::vector<std::string> vCPIDs = GetListOfDCCS("");
+    std::string buffer;
+    std::string line;
+    std::string sTarget = GetSANDirectory2() + "user";
+	std::string sFiltered = GetSANDirectory2() + "filtered";
+	std::string sDailyMagnitudeFile = GetSANDirectory2() + "magnitude";
+
+    if (!boost::filesystem::exists(sTarget.c_str())) 
+	{
+        sError = "DCC input file does not exist.";
+        return false;
+    }
+
+	FILE *outFile = fopen(sFiltered.c_str(),"w");
+    std::string sBuffer = "";
+	int iBuffer = 0;
+
+	boost::filesystem::path pathIn(sTarget);
+    std::ifstream streamIn;
+    streamIn.open(pathIn.string().c_str());
+	if (!streamIn) return false;
+	std::string sConcatCPIDs = "";
+	for (int i = 0; i < (int)vCPIDs.size(); i++)
+	{
+		sConcatCPIDs += GetDCCElement(vCPIDs[i], 0) + ",";
+	}
+
+	boost::to_upper(sConcatCPIDs);
+	LogPrintf("CPID List concatenated %s ",sConcatCPIDs.c_str());
+
+	// Phase 1: Scan the Combined Researcher file for all Biblepay Researchers (who have associated BiblePay Keys with Research Projects)
+	// Filter the file down to BiblePay researchers:
+	int iLines = 0;
+	std::string sOutData = "";
+    while(std::getline(streamIn, line))
+    {
+		  std::string sCpid = ExtractXML(line,"<cpid>","</cpid>");
+		  sBuffer += line + "<ROW>";
+		  iBuffer++;
+		  iLines++;
+		  if (iLines % 1000000 == 0) LogPrintf(" Processing DCC Line %f ",(double)iLines);
+		  if (!sCpid.empty())
+		  {
+			 boost::to_upper(sCpid);
+			 if (Contains(sConcatCPIDs, sCpid))
+			 {
+				// LogPrintf(" \n mycpid %s \n", sCpid.c_str());
+				for (int i = 0; i < (int)vCPIDs.size(); i++)
+				{
+					std::string sBiblepayResearcher = GetDCCElement(vCPIDs[i], 0);
+					boost::to_upper(sBiblepayResearcher);
+					if (!sBiblepayResearcher.empty() && sBiblepayResearcher == sCpid)
+					{
+						std::string sData = FilterBoincData(sBuffer, "<user>","</user>");
+						sOutData += sData;
+						sBuffer = "";
+					}
+			 	}
+			 }
+			 else
+			 {
+				 sBuffer="";
+			 }
+		  }
+    }
+	fputs(sOutData.c_str(), outFile);
+	streamIn.close();
+    fclose(outFile);
+	//  Phase II : Normalize the file for Biblepay (this process asseses the magnitude of each BiblePay Researcher relative to one another, with 100 being the leader, 0 being a researcher with no activity)
+	//  We measure users by RAC - the BOINC Decay function: expavg_credit.  This is the half-life of the users cobblestone emission over a one month period.
+
+	double dTotalRAC = GetSumOfXMLColumnFromXMLFile(sFiltered, "expavg_credit");
+	if (dTotalRAC < 1)
+	{
+		sError = "Total DCC credit less than one.  Unable to calculate magnitudes.";
+		return false;
+	}
+	// Emit the BiblePay DCC Leaderboard file, and then stamp it with the Biblepay hash
+	// Leaderboard file format:  Biblepay-Public-Key-Compressed, DCC-CPID, DCC-Magnitude <rowdelimiter>
+	boost::filesystem::path pathFiltered(sFiltered);
+    std::ifstream streamFiltered;
+    streamFiltered.open(pathFiltered.string().c_str());
+	if (!streamFiltered) 
+	{
+		sError = "Unable to open filtered file";
+		return false;
+	}
+
+	std::string sUser = "";
+	std::string sDCC = "";
+    while(std::getline(streamFiltered, line))
+    {
+		sUser += line;
+		if (Contains(line, "</user>"))
+		{
+			std::string sCPID = ExtractXML(sUser,"<cpid>","</cpid>");
+			double dAvgCredit = cdbl(ExtractXML(sUser,"<expavg_credit>","</expavg_credit>"),2);
+			std::string BPK = GetDCCPublicKey(sCPID);
+			double dMagnitude = dAvgCredit / dTotalRAC * 1000;
+			std::string sRow = BPK + "," + sCPID + "," + RoundToString(dMagnitude,2) + "<ROW>";
+			sDCC += sRow;
+			sUser = "";
+		}
+    }
+	streamFiltered.close();
+    // Phase 3: Create the Daily Magnitude Contract and hash it
+	FILE *outMagFile = fopen(sDailyMagnitudeFile.c_str(),"w");
+    fputs(sDCC.c_str(), outMagFile);
+	fclose(outMagFile);
+
+	uint256 uhash = GetDCCHash(sDCC);
+	// Persist the contract in memory for verification
+    WriteCache("dcc", "contract", sDCC, GetAdjustedTime());
+	WriteCache("dcc", "contract_hash", uhash.GetHex(), GetAdjustedTime());
+
+    return true;
+}
+
+
+
+void RPCConsole::downloadDCCFinished(QNetworkReply *reply)
+{
+	if (reply->error() != QNetworkReply::NoError) 
+	{
+		LogPrintf(" UNABLE TO DOWNLOAD DCC \n");
+		return;
+	}
+	// First delete:
+	std::string sPath = GetSANDirectory2() + "user.gz";
+	std::string sTarget = GetSANDirectory2() + "user";
+
+    boost::filesystem::remove(sTarget);
+    boost::filesystem::remove(sPath);
+	// Then Write
+
+	QUrl url = reply->url();
+	std::string sURL = url.toEncoded().constData();
+	std::string sName = NameFromURL2(sURL);
+	QByteArray qData = reply->readAll();
+	QFile file(ToQstring(sName));
+	file.open(QIODevice::WriteOnly);
+	file.write(qData);
+	file.close();
+	std::string sCommand = "gunzip " + sPath;
+    std::string result = SystemCommand2(sCommand.c_str());
+	std::string sError = "";
+	FilterFile(50, sError);
+	
+	fDistributedComputingCycleDownloading = false;
+
+}
+
+
+
+bool FileExists2(std::string sPath)
+{
+	if (!sPath.empty())
+	{
+		try
+		{
+			boost::filesystem::path pathImg(sPath);
+			return (boost::filesystem::exists(pathImg));
+		}
+		catch(const boost::filesystem::filesystem_error& e)
+		{
+			return false;
+		}
+		catch (const std::exception& e) 
+		{
+			return false;
+		}
+		catch(...)
+		{
+			return false;
+		}
+
+	}
+	return false;
+}
+	
+
+bool RPCConsole::DownloadDCCFile(std::string sURL)
+{
+	fDistributedComputingCycleDownloading = true;
+
+	std::string sPath = NameFromURL2(sURL);
+	LogPrintf("Downloading DCC File NAME %s FROM URL %s ",sPath.c_str(),sURL.c_str());
+	bool fExists = FileExists2(sPath);
+	if (fExists) return true;
+	QNetworkAccessManager *manager = new QNetworkAccessManager(this);
+	connect(manager, SIGNAL(finished(QNetworkReply*)), this, SLOT(downloadDCCFinished(QNetworkReply*)));
+	manager->get(QNetworkRequest(QUrl(ToQstring(sURL))));
+	return true;
+}
+
+
+
+void RPCConsole::DownloadDCC()
+{
+	// Proof-of-concept - R Andrija - Biblepay - 01-28-2018 - POC for integration with Rosetta/BakerLabs Distributed Computing Cancer Project
+	// Download the GZ file from reference site
+	// First Touch the daily magnitude to prevent duplicate downloads:
+	if (fDistributedComputingCycleDownloading) return;
+
+	TouchDailyMagnitudeFile();
+	std::string sProjectId = "projectuser1"; // Cancer Research
+	// spork project1 = boinc.bakerlab.org
+	// spork projectuser1 = https://boinc.bakerlab.org/rosetta/stats/user.gz
+	std::string sSrc = GetSporkValue(sProjectId);
+	DownloadDCCFile(sSrc);
+}
+
+
+void RPCConsole::DCC()
+{
+	// 1-28-2018 - R Andrijas - Add support for Distributed Computing
+	DownloadDCC();
+}
 
 void RPCConsole::walletReboot()
 {

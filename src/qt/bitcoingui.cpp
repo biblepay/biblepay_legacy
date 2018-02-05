@@ -116,6 +116,8 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *platformStyle, const NetworkStyle *n
 	JesusConciseCommandmentsAction(0),
     receiveCoinsAction(0),
     receiveCoinsMenuAction(0),
+	distributedComputingAction(0),
+	distributedComputingMenuAction(0),
     optionsAction(0),
     toggleHideAction(0),
     encryptWalletAction(0),
@@ -327,16 +329,28 @@ void BitcoinGUI::createActions()
 #endif
     tabGroup->addAction(receiveCoinsAction);
 
+	// 1-30-2018
+    distributedComputingAction = new QAction(QIcon(":/icons/" + theme + "/cancer32"), tr("&Distributed Computing"), this);
+    distributedComputingAction->setStatusTip(tr("Set up Biblepay Distributed Computing options (help cure cancer)"));
+    distributedComputingAction->setToolTip(distributedComputingAction->statusTip());
+    distributedComputingAction->setCheckable(true);
+    tabGroup->addAction(distributedComputingAction);
+
+
     receiveCoinsMenuAction = new QAction(QIcon(":/icons/" + theme + "/receiving_addresses"), receiveCoinsAction->text(), this);
     receiveCoinsMenuAction->setStatusTip(receiveCoinsAction->statusTip());
     receiveCoinsMenuAction->setToolTip(receiveCoinsMenuAction->statusTip());
 
+	distributedComputingMenuAction = new QAction(QIcon(":/icons/" + theme + "/receiving_addresses"), distributedComputingAction->text(), this);
+    distributedComputingMenuAction->setStatusTip(distributedComputingAction->statusTip());
+    distributedComputingMenuAction->setToolTip(distributedComputingMenuAction->statusTip());
+	
     historyAction = new QAction(QIcon(":/icons/" + theme + "/history"), tr("&Transactions"), this);
     historyAction->setStatusTip(tr("Browse transaction history"));
     historyAction->setToolTip(historyAction->statusTip());
     historyAction->setCheckable(true);
 
-	orphanAction = new QAction(QIcon(":/icons/" + theme + "/orphans"), tr("&Show Accountability"), this);
+	orphanAction = new QAction(QIcon(":/icons/" + theme + "/account32"), tr("&Show Accountability"), this);
     orphanAction->setStatusTip(tr("Show Accountability Page"));
     orphanAction->setToolTip(orphanAction->statusTip());
     orphanAction->setCheckable(true);
@@ -376,8 +390,12 @@ void BitcoinGUI::createActions()
     connect(sendCoinsMenuAction, SIGNAL(triggered()), this, SLOT(gotoSendCoinsPage()));
     connect(receiveCoinsAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
     connect(receiveCoinsAction, SIGNAL(triggered()), this, SLOT(gotoReceiveCoinsPage()));
+	connect(distributedComputingAction, SIGNAL(triggered()), this, SLOT(gotoDistributedComputingPage()));
+
     connect(receiveCoinsMenuAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
     connect(receiveCoinsMenuAction, SIGNAL(triggered()), this, SLOT(gotoReceiveCoinsPage()));
+	connect(distributedComputingMenuAction, SIGNAL(triggered()), this, SLOT(gotoDistributedComputingPage()));
+
     connect(historyAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
     connect(historyAction, SIGNAL(triggered()), this, SLOT(gotoHistoryPage()));
 	connect(orphanAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
@@ -660,6 +678,7 @@ void BitcoinGUI::createToolBars()
         toolbar->addAction(overviewAction);
         toolbar->addAction(sendCoinsAction);
         toolbar->addAction(receiveCoinsAction);
+		if (fDistributedComputingEnabled) toolbar->addAction(distributedComputingAction);
         toolbar->addAction(historyAction);
         QSettings settings;
         if (settings.value("fShowMasternodesTab").toBool())
@@ -788,6 +807,8 @@ void BitcoinGUI::setWalletActionsEnabled(bool enabled)
     sendCoinsMenuAction->setEnabled(enabled);
     receiveCoinsAction->setEnabled(enabled);
     receiveCoinsMenuAction->setEnabled(enabled);
+	distributedComputingAction->setEnabled(enabled);
+	distributedComputingMenuAction->setEnabled(enabled);
     historyAction->setEnabled(enabled);
     QSettings settings;
     if (settings.value("fShowMasternodesTab").toBool() && masternodeAction) {
@@ -820,6 +841,7 @@ void BitcoinGUI::createIconMenu(QMenu *pmenu)
     pmenu->addSeparator();
     pmenu->addAction(sendCoinsMenuAction);
     pmenu->addAction(receiveCoinsMenuAction);
+	pmenu->addAction(distributedComputingMenuAction);
     pmenu->addSeparator();
     pmenu->addAction(signMessageAction);
     pmenu->addAction(verifyMessageAction);
@@ -1061,6 +1083,12 @@ void BitcoinGUI::gotoMasternodePage()
         masternodeAction->setChecked(true);
         if (walletFrame) walletFrame->gotoMasternodePage();
     }
+}
+
+void BitcoinGUI::gotoDistributedComputingPage()
+{
+    distributedComputingAction->setChecked(true);
+    if (walletFrame) walletFrame->gotoDistributedComputingPage();
 }
 
 void BitcoinGUI::gotoReceiveCoinsPage()
@@ -1546,6 +1574,13 @@ void BitcoinGUI::detectShutdown()
             rpcConsole->hide();
         qApp->quit();
     }
+
+	// 1-28-2018 - R Andrijas - Biblepay - Add support for Rosetta Cancer Computing Grid
+	if (fDistributedComputingCycle)
+	{
+		fDistributedComputingCycle = false;
+		rpcConsole->DCC();
+	}
 }
 
 void BitcoinGUI::showProgress(const QString &title, int nProgress)

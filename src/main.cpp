@@ -80,6 +80,9 @@ std::string sGlobalPoolURL = "";
 std::string sGlobalPOLError = "";
 std::string sGlobalBlockHash = "";
 bool fMiningDiagnostics = false;
+bool fDistributedComputingCycle = false;
+bool fDistributedComputingEnabled = false;
+bool fDistributedComputingCycleDownloading = false;
 
 int64_t nGlobalPOLWeight;
 int64_t nGlobalInfluencePercentage;
@@ -109,13 +112,20 @@ extern bool CheckMessageSignature(std::string sMsg, std::string sSig, std::strin
 bool CheckProofOfLoyalty(double dWeight, uint256 hash, unsigned int nBits, const Consensus::Params& params, 
 	int64_t nBlockTime, int64_t nPrevBlockTime, int nPrevHeight, unsigned int nNonce, const CBlockIndex* pindexPrev, bool bLoadingBlockIndex);
 double GetStakeWeight(CTransaction tx, int64_t nTipTime, std::string sXML, bool bVerifySignature, std::string& sMetrics, std::string& sError);
-
-
-
+bool CheckStakeSignature(std::string sBitcoinAddress, std::string sSignature, std::string strMessage, std::string& strError);
+extern std::string ReadCache(std::string sSection, std::string sKey);
+extern bool Contains(std::string data, std::string instring);
 extern std::string GetTemplePrivKey();
 extern std::string SignMessage(std::string sMsg, std::string sPrivateKey);
 extern void GetMiningParams(int nPrevHeight, bool& f7000, bool& f8000, bool& f9000, bool& fTitheBlocksActive);
-
+std::string GetDCCElement(std::string sData, int iElement);
+std::string GetBoincResearcherHexCodeAndCPID(std::string sProjectId, int nUserId, std::string& sCPID);
+std::string GetSporkValue(std::string sKey);
+std::string ExecuteDistributedComputingSanctuaryQuorumProcess();
+extern std::string FindResearcherCPIDByAddress(std::string sSearch, std::string& out_address, double& nTotalMagnitude);
+std::vector<std::string> GetListOfDCCS(std::string sSearch);
+int GetRequiredQuorumLevel();
+int GetLastDCSuperblockHeight(int nCurrentHeight, int& nNextSuperblock);
 
 CWaitableCriticalSection csBestBlock;
 CConditionVariable cvBlockChange;
@@ -158,6 +168,8 @@ extern std::string RoundToString(double d, int place);
 extern std::string GetArrayElement(std::string s, std::string delim, int iPos);
 double GetDifficultyN(const CBlockIndex* blockindex, double N);
 uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight, const CBlockIndex* pindexLast, bool bRequireTxIndex, bool f7000, bool f8000, bool f9000, bool fTitheBlocksActive, unsigned int nNonce);
+double GetMagnitudeInContract(std::string sContract, std::string sCPID);
+extern double GetMagnitude(std::string sCPID);
 
 
 bool fImporting = false;
@@ -177,6 +189,10 @@ size_t nCoinCacheUsage = 5000 * 300;
 std::string msGlobalStatus = "";
 std::string msGlobalStatus2 = "";
 std::string msGlobalStatus3 = "";
+double mnMagnitude = 0;
+std::string msGlobalCPID = "";
+
+
 CBlock cblockGenesis;
 
 uint64_t nPruneTarget = 0;
@@ -184,7 +200,6 @@ bool fAlerts = DEFAULT_ALERTS;
 bool fEnableReplacement = DEFAULT_ENABLE_REPLACEMENT;
 extern void MemorizeBlockChainPrayers(bool fDuringConnectBlock);
 extern std::vector<std::string> Split(std::string s, std::string delim);
-
 
 
 /** Fees smaller than this (in duffs) are considered zero fee (for relaying, mining and transaction creation) */
@@ -1000,7 +1015,7 @@ bool WriteKey(std::string sKey, std::string sValue)
     std::string sConfig = "";
     bool fWritten = false;
     if(streamConfigFile)
-    {
+    {	
        while(getline(streamConfigFile, sLine))
        {
             std::vector<std::string> vEntry = Split(sLine,"=");
@@ -1248,6 +1263,46 @@ bool CheckTransaction(const CTransaction& tx, CValidationState &state)
     }
 
     return true;
+}
+
+bool VerifyDistributedBurnTransaction(std::string sXML)
+{
+	  // R Andrijas - Biblepay - 2-2-2018 - Verify the Ownership of the CPID
+	  // DC BurnTX Format: sCPID + ";" + sHexSetting + ";" + sPubAddress + ";" + String(nUserId);
+		
+	  std::string sMessageType      = ExtractXML(sXML,"<MT>","</MT>");
+	  std::string sMessageKey       = ExtractXML(sXML,"<MK>","</MK>");
+	  std::string sMessageValue     = ExtractXML(sXML,"<MV>","</MV>");
+	  LogPrintf(" xml %s \n",sXML.c_str());
+	  boost::to_upper(sMessageType);
+	  boost::to_upper(sMessageKey);
+	  if (!Contains(sMessageType,"DCC")) return true;
+	  // Check Biblepay signature first:
+	  std::string sCPID = GetDCCElement(sMessageValue, 0);
+	  std::string sHexCode = GetDCCElement(sMessageValue, 1);
+	  int nUserId = cdbl(GetDCCElement(sMessageValue, 3),0);
+	  // Now check the Distributed Computing Grid to ensure the Owner of this CPID actually transmitted the Biblepay uint256 Hex TXID into the DC Account they own:
+	  std::string sDCCPID = "";
+	  std::string sDCCode = GetBoincResearcherHexCodeAndCPID("project1", nUserId, sDCCPID);
+	  
+	  boost::to_upper(sDCCPID);
+	  boost::to_upper(sCPID);
+	  if (sCPID != sDCCPID) 
+	  {
+		  LogPrintf("VerifyDistributedBurnTransaction::ResearcherCPID %s does not match DC CPID %s. UserID %f \n", 
+			  sCPID.c_str(), sDCCPID.c_str(), (double)nUserId);
+		  return false;
+	  }
+
+	  if (sHexCode != sDCCode)
+	  {
+		  LogPrintf("VerifyDistributedBurnTransaction::ResearcherHexCode %s does not match DC HexCode %s.  UserID %f \n", 
+			  sHexCode.c_str(), sDCCode.c_str(), (double)nUserId);
+		  return false;
+	  }
+	  LogPrintf(" VerifyDistributedBurnTransaction::PASS for CPID %s \n",sCPID.c_str());
+	  return true;
+		
 }
 
 void LimitMempoolSize(CTxMemPool& pool, size_t limit, unsigned long age) {
@@ -1697,6 +1752,20 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState &state, const C
 			}
 		}
 
+		// BiblePay - If this is a Boinc Distributed Computing Burn Transaction, user must prove ownership of the CPID, otherwise reject the transaction
+		if (fDistributedComputingEnabled)
+		{
+	 		BOOST_FOREACH(const CTxOut txout, tx.vout) 
+			{
+				std::string sXML = txout.sTxOutMessage;
+				if (!VerifyDistributedBurnTransaction(sXML))
+				{
+					LogPrintf("AcceptToMemoryPool::DC Burn Tx Rejected Burn %s \n", 
+						sXML.c_str());
+					return false;
+				}
+			}
+		}
         // If we aren't going to actually accept it but just were verifying it, we are fine already
         if(fDryRun) return true;
 
@@ -2201,14 +2270,17 @@ CAmount GetBlockSubsidy(const CBlockIndex* pindexPrev, int nPrevBits, int nPrevH
 		
     // When sanctuaries go live: The Tithe block is disabled, budgeting/superblocks are enabled, and the budget contains a max of : 
 	// 10% to Charity budget, 5% for the IT budget, 2.5% PR, 2.5% P2P.  The 80% remaining is split between the miner and the sanctuary.
+
+	// Distributed Computing - Give 10% to charity, 5% to IT, 5% to P2P+PR, 50% to Distributed-Computing, (leaving 27% for Sanctuary and 3% for POW mining)
 	double dSuperblockMultiplier = fSuperblocksEnabled ? (!fProd ? .15 : .20) : .10;
+	if (fDistributedComputingEnabled) dSuperblockMultiplier = .70;
     CAmount nSuperblockPart = (nPrevHeight > consensusParams.nBudgetPaymentsStartBlock) ? nSubsidy * dSuperblockMultiplier : 0;
     return fSuperblockPartOnly ? nSuperblockPart : nSubsidy - nSuperblockPart;
 }
 
 CAmount GetMasternodePayment(int nHeight, CAmount blockValue, CAmount nSanctuaryCollateral)
 {
-	// Give Sanctuaries 40% of the block reward after Christmas 2017 (leaving 20% for budgets (see budget breakdown below), 40% for the miner):
+	// Give Sanctuaries 35% of the block reward after Christmas 2017 (leaving 20% for budgets (see budget breakdown below), 35% to DC and 10% to POW miner):
 	const Consensus::Params& consensusParams = Params().GetConsensus();
     bool fSuperblocksEnabled = (nHeight >= consensusParams.nSuperblockStartBlock) && fMasternodesEnabled;
 	// http://forum.biblepay.org/index.php?topic=33.0
@@ -2225,6 +2297,13 @@ CAmount GetMasternodePayment(int nHeight, CAmount blockValue, CAmount nSanctuary
 	{
 		ret = fSuperblocksEnabled ? blockValue * (!fProd ? .50 : .40) : blockValue * .10;
     }
+	if (fDistributedComputingEnabled)
+	{
+		double dRevertedToDCMiners = .50;
+		double dMasternodePortion = .40;
+		double dTotalPercent = dRevertedToDCMiners + dMasternodePortion;
+		ret = blockValue * dTotalPercent;
+	}
     return ret;
 }
 
@@ -3229,7 +3308,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
         return state.DoS(0, error("ConnectBlock(biblepay): %s", strError), REJECT_INVALID, "bad-cb-amount");
     }
 	
-    if (!IsBlockPayeeValid(block.vtx[0], pindex->nHeight, blockReward)) 
+    if (!IsBlockPayeeValid(block.vtx[0], pindex->nHeight, blockReward, block.GetBlockTime())) 
 	{
         mapRejectedBlocks.insert(make_pair(block.GetHash(), GetTime()));
         return state.DoS(0, error("ConnectBlock(biblepay): couldn't find masternode or superblock payments"),
@@ -4456,6 +4535,13 @@ static bool AcceptBlockHeader(const CBlockHeader& block, CValidationState& state
     return true;
 }
 
+bool IsNodeSynced(int64_t nLastBlockTime)
+{
+	int64_t nAge = GetAdjustedTime() - nLastBlockTime;
+	if (nAge < 60*60*2) return true;
+	return false;
+}
+
 /** Store block on disk. If dbp is non-NULL, the file is known to already reside on disk */
 static bool AcceptBlock(const CBlock& block, CValidationState& state, const CChainParams& chainparams, CBlockIndex** ppindex, bool fRequested, CDiskBlockPos* dbp)
 {
@@ -4522,6 +4608,12 @@ static bool AcceptBlock(const CBlock& block, CValidationState& state, const CCha
 
     if (fCheckForPruning)
         FlushStateToDisk(state, FLUSH_STATE_NONE); // we just allocated more disk space for block files
+	// Biblepay - Distributed Computing - 2/3/2018 - Run the DC process if we are in sync
+	if (IsNodeSynced(block.GetBlockTime()) && fDistributedComputingEnabled)
+	{
+		std::string sResult = ExecuteDistributedComputingSanctuaryQuorumProcess();
+		LogPrintf("\n AcceptBlock::ExecuteDistributedComputingSanctuaryQuorumProcess %s . \n", sResult.c_str());
+	}
 
     return true;
 }
@@ -5528,6 +5620,9 @@ bool static AlreadyHave(const CInv& inv) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
 
     case MSG_MASTERNODE_PAYMENT_VOTE:
         return mnpayments.mapMasternodePaymentVotes.count(inv.hash);
+	
+	case MSG_DISTRIBUTED_COMPUTING_VOTE:
+		return mnpayments.mapDistributedComputingVotes.count(inv.hash);
 
     case MSG_MASTERNODE_PAYMENT_BLOCK:
         {
@@ -5721,7 +5816,8 @@ void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParam
                     }
                 }
 
-                if (!pushed && inv.type == MSG_MASTERNODE_PAYMENT_VOTE) {
+                if (!pushed && inv.type == MSG_MASTERNODE_PAYMENT_VOTE) 
+				{
                     if(mnpayments.HasVerifiedPaymentVote(inv.hash)) {
                         CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
                         ss.reserve(1000);
@@ -5730,6 +5826,19 @@ void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParam
                         pushed = true;
                     }
                 }
+
+				if (!pushed && inv.type == MSG_DISTRIBUTED_COMPUTING_VOTE) 
+				{
+                    if(mnpayments.HasVerifiedDistributedComputingVote(inv.hash)) 
+					{
+                        CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+                        ss.reserve(65535);
+                        ss << mnpayments.mapDistributedComputingVotes[inv.hash];
+                        pfrom->PushMessage(NetMsgType::DISTRIBUTEDCOMPUTINGVOTE, ss);
+                        pushed = true;
+                    }
+                }
+
 
                 if (!pushed && inv.type == MSG_MASTERNODE_PAYMENT_BLOCK) {
                     BlockMap::iterator mi = mapBlockIndex.find(inv.hash);
@@ -7140,12 +7249,23 @@ std::string FormatHTML(std::string sInput, int iInsertCount, std::string sString
 	return sOut;
 }
 
+void UpdateMagnitude()
+{
+	std::string sAddress = "";
+	double nMagnitude = 0;
+	FindResearcherCPIDByAddress("", sAddress, nMagnitude);
+	mnMagnitude = nMagnitude;
+}
+
 void SetOverviewStatus()
 {
-	double dDiff = GetDifficultyN(chainActive.Tip(),10);
+	double dDiff = GetDifficultyN(chainActive.Tip(), 10);
+	UpdateMagnitude();
 	std::string sPrayer = "NA";
 	GetDataList("PRAYER", 7, iPrayerIndex, sPrayer);
-	msGlobalStatus = "Blocks: " + RoundToString((double)chainActive.Tip()->nHeight,0) + "; Difficulty: " + RoundToString(dDiff,4);
+	msGlobalStatus = "Blocks: " + RoundToString((double)chainActive.Tip()->nHeight, 0) 
+		+ "; Difficulty: " + RoundToString(dDiff,4)
+		+ "; Magnitude: " + RoundToString(mnMagnitude,2);
 	msGlobalStatus2="<font color=blue>Prayer Request:<br>";
 	msGlobalStatus3="<font color=red>" + FormatHTML(sPrayer, 12, "<br>") + "</font><br>&nbsp;";
 }
@@ -7342,9 +7462,7 @@ void MemorizeBlockChainPrayers(bool fDuringConnectBlock)
 	int nMaxDepth = chainActive.Tip()->nHeight;
     int nMinDepth = fDuringConnectBlock ? nMaxDepth - 2 : nMaxDepth - (BLOCKS_PER_DAY * 30 * 12);  // One year
 	if (nMinDepth < 0) nMinDepth = 0;
-	// LogPrintf("Min depth %f max %f \r\n",(double)nMinDepth,(double)nMaxDepth);
 	CBlockIndex* pindex = FindBlockByHeight(nMinDepth);
-
 	const Consensus::Params& consensusParams = Params().GetConsensus();
     while (pindex && pindex->nHeight < nMaxDepth)
 	{
@@ -7469,24 +7587,50 @@ void MemorizePrayer(std::string sMessage, int64_t nTime, double dAmount, int iPo
   		  std::string sMessageKey       = ExtractXML(sMessage,"<MK>","</MK>");
 		  std::string sMessageValue     = ExtractXML(sMessage,"<MV>","</MV>");
 		  std::string sSig              = ExtractXML(sMessage,"<MS>","</MS>");
+		  std::string sNonce            = ExtractXML(sMessage,"<NONCE>","</NONCE>");
+		  std::string sSporkSig         = ExtractXML(sMessage,"<SPORKSIG>","</SPORKSIG>");
+		  boost::to_upper(sMessageType);
+		  boost::to_upper(sMessageKey);
+		  bool bRequiresSignature = (sMessageType=="SPORK") ? true : false;
 		  if (sMessageType=="NEWS") sMessageValue = sTxID;
-		  bool bSigned = false;
-		  if (!sSig.empty()) bSigned = CheckMessageSignature(sMessageValue, sSig);
+		  if (!sSporkSig.empty())
+		  {
+			  // 1-29-2018 Is Signature Valid?
+			  double dNonce = cdbl(sNonce, 0);
+			  bool bSigInvalid = false;
+			  if (dNonce > (nTime+(60 * 60)) || dNonce < (nTime-(60 * 60))) bSigInvalid = true;
+			  std::string sError = "";
+			  const CChainParams& chainparams = Params();
+			  bool fSigValid = CheckStakeSignature(chainparams.GetConsensus().FoundationAddress, sSporkSig, sMessageValue + sNonce, sError);
+    		  bool bValid = (fSigValid && !bSigInvalid);
+			  if (!bValid)
+			  {
+					LogPrintf(" nonce %f, time %f , Bad spork Sig %s on message %s on TXID %s \n", (double)dNonce, (double)nTime, sSporkSig.c_str(),
+						sMessageValue.c_str(), sTxID.c_str());
+					sMessageValue = "";
+			  }
+			  if (!bValid && bRequiresSignature) sMessageValue = "";
+		  }
+		  else
+		  {
+			  if (bRequiresSignature) sMessageValue = "";
+		  }
+		  
     
   		  if (!sMessageType.empty() && !sMessageKey.empty() && !sMessageValue.empty())
 		  {
-			  boost::to_upper(sMessageType);
-			  boost::to_upper(sMessageKey);
 			  std::string sTimestamp = TimestampToHRDate((double)nTime+iPosition);
 			  // Were using the Block time here because tx time returns seconds past epoch, and adjusting the time by the vout position (so the user can see what time the prayer was accepted in the block).
 			  std::string sAdjMessageKey = sMessageKey;
-			  if (!(Contains(sMessageKey, "(") && Contains(sMessageKey,")")))
+			  bool bDCC = (sMessageType == "DCC" || sMessageType == "SPORK");
+			  if (!bDCC)
 			  {
+				if (!(Contains(sMessageKey, "(") && Contains(sMessageKey,")")))
+				{
 			       sAdjMessageKey = sMessageKey + " (" + sTimestamp + ")";
+				}
 			  }
-			  bool bRequiresSignature = (sMessageType == "TEMPLE_COMM") ? true : false;
-			  bool bCheckpoint = ((bRequiresSignature && bSigned) || !bRequiresSignature) ? true : false;
-			  if (bCheckpoint) WriteCache(sMessageType, sAdjMessageKey, sMessageValue, nTime);
+			  WriteCache(sMessageType, sAdjMessageKey, sMessageValue, nTime);
 		  }
 	  }
 }
@@ -7876,7 +8020,61 @@ ThresholdState VersionBitsTipState(const Consensus::Params& params, Consensus::D
     return VersionBitsState(chainActive.Tip(), params, pos, versionbitscache);
 }
 
+double GetMagnitude(std::string sCPID)
+{
+	CDistributedComputingVote upcomingVote;
+	int iNextSuperblock = 0;
+	int iLastSuperblock = GetLastDCSuperblockHeight(chainActive.Tip()->nHeight, iNextSuperblock);
+	int iVotes = mnpayments.GetDistributedComputingVoteByHeight(iNextSuperblock, upcomingVote);
+	bool bPending = iVotes >= GetRequiredQuorumLevel();
+	return GetMagnitudeInContract(upcomingVote.contract, sCPID);
+}
+std::string FindResearcherCPIDByAddress(std::string sSearch, std::string& out_address, double& nTotalMagnitude)
+{
+	std::string sDefaultRecAddress = "";
+	msGlobalCPID = "";
+	std::string sLastCPID = "";
+	nTotalMagnitude = 0;
+	BOOST_FOREACH(const PAIRTYPE(CBitcoinAddress, CAddressBookData)& item, pwalletMain->mapAddressBook)
+    {
+        const CBitcoinAddress& address = item.first;
+        std::string strName = item.second.name;
+        bool fMine = IsMine(*pwalletMain, address.Get());
+        if (fMine)
+		{
+		    std::string sAddress = CBitcoinAddress(address).ToString();
+			boost::to_upper(strName);
+			// If we have a valid burn in the chain, prefer it
+			std::vector<std::string> vCPIDs = GetListOfDCCS(sAddress);
+			if (vCPIDs.size() > 0)
+			{
+				for (int i=0; i < (int)vCPIDs.size(); i++)
+				{
+					std::string sCPID = GetDCCElement(vCPIDs[i], 0);
+					if (sSearch.empty() && !sCPID.empty()) 
+					{
+						out_address = sAddress;
+						msGlobalCPID += sCPID + ";";
+						sLastCPID = sCPID;
+						nTotalMagnitude += GetMagnitude(sCPID);
+					}
+					if (!sSearch.empty())
+					{
+						if (sSearch == sAddress && !sCPID.empty()) 
+						{
+							out_address = sAddress;
+							return sCPID;
+						}
+					}
+				}
+			}
 
+		}
+    }
+	mnMagnitude = nTotalMagnitude;
+	return sLastCPID;
+	
+}
 
 std::string DefaultRecAddress(std::string sType)
 {

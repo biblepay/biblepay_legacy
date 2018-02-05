@@ -71,11 +71,14 @@ private:
 public:
 
     static bool IsSuperblockTriggered(int nBlockHeight);
-
+	
+	static bool IsDistributedComputingSuperblockTriggered(int nBlockHeight);
+	
     static void CreateSuperblock(CMutableTransaction& txNewRet, int nBlockHeight, std::vector<CTxOut>& voutSuperblockRet);
+	static void CreateDistributedComputingSuperblock(CMutableTransaction& txNewRet, int nBlockHeight, std::vector<CTxOut>& voutSuperblockRet);
 
     static std::string GetRequiredPaymentsString(int nBlockHeight);
-    static bool IsValid(const CTransaction& txNew, int nBlockHeight, CAmount blockReward);
+    static bool IsValidSuperblock(const CTransaction& txNew, int nBlockHeight, CAmount blockReward, int64_t nBlockTime);
 };
 
 /**
@@ -160,7 +163,10 @@ public:
     CSuperblock(uint256& nHash);
 
     static bool IsValidBlockHeight(int nBlockHeight);
+	static bool IsDCCSuperblock(int nHeight);
     static CAmount GetPaymentsLimit(int nBlockHeight);
+
+	std::string GetBlockData(const CTransaction& txNew);
 
     int GetStatus() { return nStatus; }
     void SetStatus(int nStatusIn) { nStatus = nStatusIn; }
@@ -203,7 +209,7 @@ public:
     bool GetPayment(int nPaymentIndex, CGovernancePayment& paymentRet);
     CAmount GetPaymentsTotalAmount();
 
-    bool IsValid(const CTransaction& txNew, int nBlockHeight, CAmount blockReward);
+    bool IsValidSuperblock(const CTransaction& txNew, int nBlockHeight, CAmount blockReward, int64_t nBlockTime);
 };
 
 #endif

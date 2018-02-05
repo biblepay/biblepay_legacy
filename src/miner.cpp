@@ -62,7 +62,7 @@ std::string TimestampToHRDate(double dtm);
 void GetMiningParams(int nPrevHeight, bool& f7000, bool& f8000, bool& f9000, bool& fTitheBlocksActive);
 bool CheckNonce(bool f9000, unsigned int nNonce, int nPrevHeight, int64_t nPrevBlockTime, int64_t nBlockTime);
 std::string BiblepayHTTPSPost(int iThreadID, std::string sActionName, std::string sDistinctUser, std::string sPayload, std::string sBaseURL, std::string sPage, int iPort,
-	std::string sSolution, int iTimeoutSecs, int iMaxSize);
+	std::string sSolution, int iTimeoutSecs, int iMaxSize, bool fBreakOnError = false);
 CTransaction CreateCoinStake(CBlockIndex* pindexLast, CScript scriptCoinstakeKey, double dPercent, int iMinConfirms, std::string& sXML, std::string& sError);
 double GetStakeWeight(CTransaction tx, int64_t nTipTime, std::string sXML, bool bVerifySignature, std::string& sMetrics, std::string& sError);
 uint256 PercentToBigIntBase(int iPercent);
@@ -381,11 +381,13 @@ CBlockTemplate* CreateNewBlock(const CChainParams& chainparams, const CScript& s
         FillBlockPayments(txNew, nHeight, blockReward, competetiveMiningTithe, pblock->txoutMasternode, pblock->voutSuperblock);
         nLastBlockTx = nBlockTx;
         nLastBlockSize = nBlockSize;
-		if (fDebug10) LogPrintf("CreateNewBlock(): total size %u txs: %u fees: %ld sigops %d\n", nBlockSize, nBlockTx, nFees, nBlockSigOps);
-
+		
         // Update block coinbase
         pblock->vtx[0] = txNew;
         pblocktemplate->vTxFees[0] = -nFees;
+
+		if (fDebugMaster) LogPrintf("CreateNewBlock(): height %f total size %u txs: %u fees: %ld sigops %d, voutSize %f \n", (double)(pindexPrev->nHeight + 1), 
+			nBlockSize, nBlockTx, nFees, nBlockSigOps, (double)pblock->vtx.size());
 
         // Fill in header
         pblock->hashPrevBlock  = pindexPrev->GetBlockHash();

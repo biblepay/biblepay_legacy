@@ -20,7 +20,7 @@ CMasternodePayments mnpayments;
 CCriticalSection cs_vecPayees;
 CCriticalSection cs_mapMasternodeBlocks;
 CCriticalSection cs_mapMasternodePaymentVotes;
-
+CCriticalSection cs_mapDistributedComputingVote;
 /**
 * IsBlockValueValid
 *
@@ -110,8 +110,9 @@ bool IsBlockValueValid(const CBlock& block, int nBlockHeight, CAmount blockRewar
 	
     if(!masternodeSync.IsSynced()) 
 	{
+		//2-3-2018
         // not enough data but at least it must NOT exceed superblock max value
-        if(CSuperblock::IsValidBlockHeight(nBlockHeight)) 
+        if(CSuperblock::IsValidBlockHeight(nBlockHeight) || (fDistributedComputingEnabled && CSuperblock::IsDCCSuperblock(nBlockHeight)))
 		{
             if(fDebugMaster) LogPrintf("IsBlockPayeeValid -- WARNING: Client not synced, checking superblock max bounds only \n");
             if(!isSuperblockMaxValueMet) 
@@ -140,9 +141,9 @@ bool IsBlockValueValid(const CBlock& block, int nBlockHeight, CAmount blockRewar
 	{
         if(CSuperblockManager::IsSuperblockTriggered(nBlockHeight)) 
 		{
-            if(CSuperblockManager::IsValid(block.vtx[0], nBlockHeight, blockReward)) 
+	        if(	CSuperblockManager::IsValidSuperblock(block.vtx[0], nBlockHeight, blockReward, block.GetBlockTime()))
 			{
-                LogPrint("gobject", "IsBlockValueValid -- Valid superblock at height %d: %s", nBlockHeight, block.vtx[0].ToString());
+                LogPrintf("IsBlockValueValid -- Valid superblock at height %d: %s", nBlockHeight, block.vtx[0].ToString());
                 // all checks are done in CSuperblock::IsValid, nothing to do here
                 return true;
             }
@@ -178,7 +179,7 @@ bool IsBlockValueValid(const CBlock& block, int nBlockHeight, CAmount blockRewar
     return isBlockRewardValueMet;
 }
 
-bool IsBlockPayeeValid(const CTransaction& txNew, int nBlockHeight, CAmount blockReward)
+bool IsBlockPayeeValid(const CTransaction& txNew, int nBlockHeight, CAmount blockReward, int64_t nBlockTime)
 {
 
 	const Consensus::Params& consensusParams = Params().GetConsensus();
@@ -238,8 +239,10 @@ bool IsBlockPayeeValid(const CTransaction& txNew, int nBlockHeight, CAmount bloc
 
     if(fSuperblocksEnabled) 
 	{
-        if(CSuperblockManager::IsSuperblockTriggered(nBlockHeight)) {
-            if(CSuperblockManager::IsValid(txNew, nBlockHeight, blockReward)) {
+        if(CSuperblockManager::IsSuperblockTriggered(nBlockHeight)) 
+		{
+            if(CSuperblockManager::IsValidSuperblock(txNew, nBlockHeight, blockReward, nBlockTime))
+			{
                 LogPrint("gobject", "IsBlockPayeeValid -- Valid superblock at height %d: %s", nBlockHeight, txNew.ToString());
                 return true;
             }
@@ -282,10 +285,20 @@ void FillBlockPayments(CMutableTransaction& txNew, int nBlockHeight, CAmount blo
     const Consensus::Params& consensusParams = Params().GetConsensus();
 	bool fSuperblocksEnabled = nBlockHeight >= consensusParams.nSuperblockStartBlock && fMasternodesEnabled;
 
-    if(fSuperblocksEnabled &&
-        CSuperblockManager::IsSuperblockTriggered(nBlockHeight)) 
+	// Do this if this is a Distributed Computing Superblock (once per day):
+	if (fDistributedComputingEnabled && CSuperblockManager::IsDistributedComputingSuperblockTriggered(nBlockHeight))
 	{
-            if (fDebugMaster) LogPrint("gobject", "FillBlockPayments -- triggered superblock creation at height %d\n", nBlockHeight);
+		   // This means we have a Sanctuary Quorum Agreement in place 
+		   LogPrintf("Triggering DCC \n");
+	       if (fDebugMaster) LogPrintf("FillBlockPayments -- triggered DCC superblock creation at height %d\n", nBlockHeight);
+           CSuperblockManager::CreateDistributedComputingSuperblock(txNew, nBlockHeight, voutSuperblockRet);
+           return;
+	}
+
+	// Do this if this is a governance superblock (once per month):
+    if(fSuperblocksEnabled && CSuperblockManager::IsSuperblockTriggered(nBlockHeight)) 
+	{
+            if (fDebugMaster) LogPrintf("FillBlockPayments -- triggered superblock creation at height %d\n", nBlockHeight);
             CSuperblockManager::CreateSuperblock(txNew, nBlockHeight, voutSuperblockRet);
             return;
     }
@@ -516,14 +529,103 @@ void CMasternodePayments::ProcessMessage(CNode* pfrom, std::string& strCommand, 
         ExtractDestination(vote.payee, address1);
         CBitcoinAddress address2(address1);
 
-        LogPrint("mnpayments", "MASTERNODEPAYMENTVOTE -- vote: address=%s, nBlockHeight=%d, nHeight=%d, prevout=%s\n", address2.ToString(), vote.nBlockHeight, pCurrentBlockIndex->nHeight, 
+        LogPrint("mnpayments", "MASTERNODEPAYMENTVOTE -- vote: address=%s, nBlockHeight=%d, nHeight=%d, prevout=%s\n", address2.ToString(), 
+			vote.nBlockHeight, pCurrentBlockIndex->nHeight, 
 			vote.vinMasternode.prevout.ToStringShort());
 
         if(AddPaymentVote(vote)){
             vote.Relay();
             masternodeSync.AddedPaymentVote();
         }
+    } 
+	else if (strCommand == NetMsgType::DISTRIBUTEDCOMPUTINGVOTE) 
+	{ 
+		// Vote on Distributed Computing Credit Contract
+		// 1-31-2018 - R Andrijas - Biblepay
+        CDistributedComputingVote vote;
+        vRecv >> vote;
+
+        if(pfrom->nVersion < GetMinMasternodePaymentsProto()) return;
+
+        if(!pCurrentBlockIndex) return;
+
+        uint256 nHash = vote.GetHash();
+
+        pfrom->setAskFor.erase(nHash);
+
+        {
+            LOCK(cs_mapDistributedComputingVote);
+			
+            if(mapDistributedComputingVotes.count(nHash)) 
+			{
+                LogPrintf("DISTRIBUTEDCOMPUTINGVOTE -- hash=%s, nHeight=%d seen\n", nHash.ToString(), pCurrentBlockIndex->nHeight);
+                return;
+            }
+
+            // Avoid processing same vote multiple times
+            mapDistributedComputingVotes[nHash] = vote;
+            mapDistributedComputingVotes[nHash].MarkAsNotVerified();
+        }
+
+        int nFirstBlock = pCurrentBlockIndex->nHeight - GetStorageLimit();
+        if(vote.nHeight < (nFirstBlock - 1000)
+			|| vote.nHeight > (pCurrentBlockIndex->nHeight + 1000)) 
+		{
+            LogPrintf("DISTRIBUTEDCOMPUTINGVOTE -- vote out of range: nFirstBlock=%d, nBlockHeight=%d, nHeight=%d\n", 
+				nFirstBlock, vote.nHeight, pCurrentBlockIndex->nHeight);
+            return;
+        }
+
+        std::string strError = "";
+        if(!vote.IsValid(pfrom, vote.contractHash, strError)) 
+		{
+            LogPrintf("DISTRIBUTEDCOMPUTINGVOTE -- invalid message, error: %s\n", strError);
+            return;
+        }
+
+        masternode_info_t mnInfo = mnodeman.GetMasternodeInfo(vote.vinMasternode);
+        if(!mnInfo.fInfoValid) {
+            // mn was not found, so we can't check vote, some info is probably missing
+            LogPrintf("DISTRIBUTEDCOMPUTINGVOTE -- masternode is missing %s\n", vote.vinMasternode.prevout.ToStringShort());
+            mnodeman.AskForMN(pfrom, vote.vinMasternode);
+            return;
+        }
+
+        int nDos = 0;
+        if(!vote.CheckSignature(mnInfo.pubKeyMasternode, vote.contractHash, nDos)) 
+		{
+            if(nDos) 
+			{
+                LogPrintf("DISTRIBUTEDCOMPUTINGVOTE -- ERROR: invalid signature\n");
+                Misbehaving(pfrom->GetId(), 1);
+            } else {
+                // only warn about anything non-critical (i.e. nDos == 0) in debug mode
+                LogPrintf("DISTRIBUTEDCOMPUTINGVOTE -- WARNING: invalid signature\n");
+            }
+            // Either our info or vote info could be outdated.
+            // In case our info is outdated, ask for an update,
+            mnodeman.AskForMN(pfrom, vote.vinMasternode);
+            // but there is nothing we can do if vote info itself is outdated
+            // (i.e. it was signed by a mn which changed its key),
+            // so just quit here.
+            return;
+        }
+
+        CTxDestination address1;
+        ExtractDestination(vote.payee, address1);
+        CBitcoinAddress address2(address1);
+
+        LogPrintf("DISTRIBUTEDCOMPUTINGVOTE -- vote: address=%s, nBlockHeight=%d, hash=%s, nHeight=%d, prevout=%s\n", address2.ToString(), 
+			vote.nHeight, vote.contractHash.GetHex().c_str(), pCurrentBlockIndex->nHeight, 
+			vote.vinMasternode.prevout.ToStringShort());
+
+        if(AddDistributedComputingVote(vote))
+		{
+            vote.Relay();
+        }
     }
+
+
 }
 
 bool CMasternodePaymentVote::Sign()
@@ -585,6 +687,15 @@ bool CMasternodePayments::IsScheduled(CMasternode& mn, int nNotBlockHeight)
     return false;
 }
 
+bool CMasternodePayments::AddDistributedComputingVote(const CDistributedComputingVote& vote)
+{
+    if(HasVerifiedDistributedComputingVote(vote.GetHash())) return false;
+	LOCK(cs_mapDistributedComputingVote);
+	if (ScriptToAsmStr(vote.payee).empty()) return false;
+    mapDistributedComputingVotes[vote.GetHash()] = vote;
+    return true;
+} 
+
 bool CMasternodePayments::AddPaymentVote(const CMasternodePaymentVote& vote)
 {
     uint256 blockHash = uint256();
@@ -612,6 +723,109 @@ bool CMasternodePayments::HasVerifiedPaymentVote(uint256 hashIn)
     std::map<uint256, CMasternodePaymentVote>::iterator it = mapMasternodePaymentVotes.find(hashIn);
     return it != mapMasternodePaymentVotes.end() && it->second.IsVerified();
 }
+
+bool CMasternodePayments::HasVerifiedDistributedComputingVote(uint256 hashIn)
+{
+    LOCK(cs_mapDistributedComputingVote);
+	{
+		std::map<uint256, CDistributedComputingVote>::iterator it = mapDistributedComputingVotes.find(hashIn);
+		return it != mapDistributedComputingVotes.end() && it->second.IsVerified();
+	}
+}
+
+std::string CMasternodePayments::SerializeSanctuaryQuorumSignatures(int nHeight, uint256 hashIn)
+{
+	// This procedure generates a list of Signing Sanctuaries who individually downloaded, hashed, approved and Signed the daily Distributed Computing Magnitude File for a given superblock height and file hash
+	// R Andrijas - 2/3/2018 - Biblepay
+    if(!mapDistributedComputingVotes.size()) return "";
+	std::string sSerialize = "<SIGS>";
+	int nSigners = 0;
+    LOCK(cs_mapDistributedComputingVote);
+	{
+		std::map<uint256, CDistributedComputingVote>::iterator it = mapDistributedComputingVotes.begin();
+		while(it != mapDistributedComputingVotes.end()) 
+		{
+			CDistributedComputingVote v = (*it).second;
+			if (v.contractHash == hashIn && nHeight == v.nHeight) 
+			{
+				nSigners++;
+				std::string sSig = EncodeBase64(&v.vchSig[0], v.vchSig.size());
+				std::string strError = "";
+				std::string sSignMessage = v.vinMasternode.prevout.ToStringShort() + v.contractHash.GetHex() + ScriptToAsmStr(v.payee);
+				std::string sPubKeyMaster = HexStr(v.pubKeyMasternode.begin(), v.pubKeyMasternode.end());
+				bool bVerified = darkSendSigner.VerifyMessage(v.pubKeyMasternode, v.vchSig, sSignMessage, strError);
+				std::string sVerified = bVerified ? "1" : "0";
+				if (bVerified)
+				{
+					std::string sRow = RoundToString(nSigners,0) + "," 
+						+ v.vinMasternode.prevout.ToStringShort() + "," + boost::lexical_cast<std::string>(v.nHeight) 
+					    + "," + sSig + "," + sSignMessage + "," + sVerified + "," + sPubKeyMaster + "<SIG>\r\n";
+					
+					sSerialize += sRow;
+				}
+			}
+	        ++it;
+    	}
+	}
+	sSerialize += "</SIGS>";
+	return sSerialize;
+}
+
+int CMasternodePayments::GetDistributedComputingVoteCountByContractHash(int nHeight, uint256 hashIn)
+{
+    if(!mapDistributedComputingVotes.size()) return 0;
+    int nVotes = 0;
+	LOCK(cs_mapDistributedComputingVote);
+	{
+		std::map<uint256, CDistributedComputingVote>::iterator it = mapDistributedComputingVotes.begin();
+		while(it != mapDistributedComputingVotes.end()) 
+		{
+			CDistributedComputingVote v = (*it).second;
+			if (v.contractHash == hashIn && nHeight == v.nHeight) nVotes++;
+	        ++it;
+    	}
+	}
+    return nVotes;
+}
+
+
+int CMasternodePayments::GetDistributedComputingVoteByHeight(int nHeight, CDistributedComputingVote& out_Vote)
+{
+	
+    if(!mapDistributedComputingVotes.size()) return 0;
+
+	std::map<uint256, int> mvDCCountByHash;
+	mvDCCountByHash.clear();
+    int nHiVotes = 0;
+	LOCK(cs_mapDistributedComputingVote);
+	{
+		std::map<uint256, CDistributedComputingVote>::iterator it = mapDistributedComputingVotes.begin();
+		while(it != mapDistributedComputingVotes.end()) 
+		{
+			CDistributedComputingVote v = (*it).second;
+			if (v.nHeight == nHeight)
+			{
+				int nCount = mvDCCountByHash[v.contractHash];
+		
+				if (nCount == 0)
+				{
+					mvDCCountByHash.insert(map<uint256,int>::value_type(v.contractHash,v.nHeight));
+				}
+				mvDCCountByHash[v.contractHash] = nCount + 1;
+				if ((nCount + 1) > nHiVotes)
+				{
+					nHiVotes = nCount+1;
+					out_Vote = (*it).second;
+				}
+			}
+	       ++it;
+     
+		}
+	}
+    return nHiVotes;
+}
+
+
 
 
 CAmount GetSanctuaryCollateral(CTxIn vin)
@@ -653,23 +867,6 @@ void CMasternodeBlockPayees::AddPayee(const CMasternodePaymentVote& vote)
 }
 
 
-
-/*
-std::string GetTempleCollateralScript(CMasternodePayee& payee)
-{
-
-	CAmount caCollateral = GetSanctuaryCollateral(payee.GetVin());
-	if (caCollateral == (TEMPLE_COLLATERAL * COIN))
-	{
-			std::string sCollateral = "<COLLATERAL><HASH>" + payee.GetVin().prevout.hash.GetHex() + "</HASH><N>" 
-						+ RoundToString((int)payee.GetVin().prevout.n,0) + "</N><AMOUNT>" 
-						+ RoundToString(caCollateral/COIN,4) + "</AMOUNT></COLLATERAL>";
-					return sCollateral;
-	}
-    return "<COLLATERAL></COLLATERAL>";
-
-}
-*/
 
 
 
@@ -992,6 +1189,13 @@ void CMasternodePaymentVote::Relay()
     RelayInv(inv);
 }
 
+void CDistributedComputingVote::Relay()
+{
+    CInv inv(MSG_DISTRIBUTED_COMPUTING_VOTE, GetHash());
+    RelayInv(inv);
+
+}
+
 bool CMasternodePaymentVote::CheckSignature(const CPubKey& pubKeyMasternode, int nValidationHeight, int &nDos)
 {
     // do not ban by default
@@ -1015,12 +1219,86 @@ bool CMasternodePaymentVote::CheckSignature(const CPubKey& pubKeyMasternode, int
     return true;
 }
 
+
+bool CDistributedComputingVote::CheckSignature(const CPubKey& pubKeyMasternode, uint256 uContractHash, int &nDos)
+{
+    nDos = 0;
+    std::string strMessage = vinMasternode.prevout.ToStringShort() +
+				contractHash.GetHex() +
+			    ScriptToAsmStr(payee);
+
+    std::string strError = "";
+    if (!darkSendSigner.VerifyMessage(pubKeyMasternode, vchSig, strMessage, strError)) 
+	{
+        return error("CDistributedComputingVote::CheckSignature -- Got bad Masternode payment signature, masternode=%s, error: %s", 
+			vinMasternode.prevout.ToStringShort().c_str(), strError);
+    }
+
+    return true;
+}
+
+
+
 std::string CMasternodePaymentVote::ToString() const
 {
     std::ostringstream info;
 
     info << vinMasternode.prevout.ToStringShort() <<
             ", " << nBlockHeight <<
+            ", " << ScriptToAsmStr(payee) <<
+            ", " << (int)vchSig.size();
+
+    return info.str();
+}
+
+bool CDistributedComputingVote::Sign()
+{
+    std::string strError;
+    std::string strMessage = vinMasternode.prevout.ToStringShort() +
+            	contractHash.GetHex() +
+				ScriptToAsmStr(payee);
+
+    if(!darkSendSigner.SignMessage(strMessage, vchSig, activeMasternode.keyMasternode)) {
+        LogPrintf("CDistributedComputingVote::Sign -- SignMessage() failed\n");
+        return false;
+    }
+
+    if(!darkSendSigner.VerifyMessage(activeMasternode.pubKeyMasternode, vchSig, strMessage, strError)) {
+        LogPrintf("CDistributedComputingVote::Sign -- VerifyMessage() failed, error: %s\n", strError);
+        return false;
+    }
+
+    return true;
+}
+
+
+
+
+bool CDistributedComputingVote::IsValid(CNode* pnode, uint256 uHash, std::string& strError)
+{
+    CMasternode* pmn = mnodeman.Find(vinMasternode);
+
+    if(!pmn) {
+        strError = strprintf("Unknown Masternode: prevout=%s", vinMasternode.prevout.ToStringShort());
+        // Only ask if we are already synced and still have no idea about that Masternode
+        if(masternodeSync.IsMasternodeListSynced()) {
+            mnodeman.AskForMN(pnode, vinMasternode);
+        }
+        return false;
+    }
+    
+    return true;
+}
+
+
+
+
+std::string CDistributedComputingVote::ToString() const
+{
+    std::ostringstream info;
+
+    info << vinMasternode.prevout.ToStringShort() <<
+            ", " << contractHash.GetHex() <<
             ", " << ScriptToAsmStr(payee) <<
             ", " << (int)vchSig.size();
 

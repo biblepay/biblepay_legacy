@@ -53,6 +53,8 @@ public:
         consensus.nBudgetProposalEstablishingTime = 60*60*24;  // One Day
 
         consensus.nSuperblockStartBlock = 21710; // The first superblock
+		consensus.nDCCSuperblockStartBlock = 30001;
+		consensus.nDCCSuperblockCycle = BLOCKS_PER_DAY * 1; // Daily
         consensus.nSuperblockCycle = BLOCKS_PER_DAY * 30; // Monthly
         consensus.nGovernanceMinQuorum = 10;
         
@@ -156,18 +158,21 @@ public:
         strNetworkID = "test";
 		// TestNet - fSantuary feature must disable tithe block Before nMasternodePaymentsStartBlock
         consensus.nSubsidyHalvingInterval = 365 * BLOCKS_PER_DAY;
-        consensus.nMasternodePaymentsStartBlock = 1201; // not true, but it's ok as long as it's less then nMasternodePaymentsIncreaseBlock
-        consensus.nMasternodePaymentsIncreaseBlock = 1201;
+        consensus.nMasternodePaymentsStartBlock = 201; // not true, but it's ok as long as it's less then nMasternodePaymentsIncreaseBlock
+        consensus.nMasternodePaymentsIncreaseBlock = 201;
         consensus.nMasternodePaymentsIncreasePeriod = BLOCKS_PER_DAY*30;
         consensus.nInstantSendKeepLock = 6;
-        consensus.nBudgetPaymentsStartBlock = 1199;
+        consensus.nBudgetPaymentsStartBlock = 200;
 		consensus.nBudgetPaymentsCycleBlocks = 50;
         consensus.nBudgetPaymentsWindowBlocks = 10;
     	consensus.nRuleChangeActivationThreshold = 1201; // 75% for testchains
-	    consensus.nSuperblockStartBlock = 1201; // NOTE: Should satisfy nSuperblockStartBlock > nBudgetPaymentsStartBlock
+	    consensus.nSuperblockStartBlock = 201; // NOTE: Should satisfy nSuperblockStartBlock > nBudgetPaymentsStartBlock
         consensus.nBudgetProposalEstablishingTime = 60*20; //Possibly 8 in the future
 		consensus.FoundationAddress = "yadZnJ3hD3FRC8CiLZEVNqejvQFgNtu5ci";
-        consensus.nSuperblockCycle = 25; // Superblocks can be issued hourly on testnet
+        consensus.nSuperblockCycle = BLOCKS_PER_DAY * 7; // Superblocks can be issued weekly on testnet
+		consensus.nDCCSuperblockStartBlock = 470;
+		consensus.nDCCSuperblockCycle = BLOCKS_PER_DAY; // Daily
+    
         consensus.nGovernanceMinQuorum = 1;
         consensus.nGovernanceFilterElements = 500;
         consensus.nMasternodeMinimumConfirmations = 1;
@@ -221,7 +226,7 @@ public:
 
         vFixedSeeds = std::vector<SeedSpec6>(pnSeed6_test, pnSeed6_test + ARRAYLEN(pnSeed6_test));
 
-        fMiningRequiresPeers = true;
+        fMiningRequiresPeers = false;
         fDefaultConsistencyChecks = false;
         fRequireStandard = false;
         fMineBlocksOnDemand = false;
@@ -229,9 +234,9 @@ public:
 
         nPoolMaxTransactions = 3;
         nFulfilledRequestExpireTime = 5*60; // fulfilled requests expire in 5 minutes
-        strSporkPubKey = "0249c088e6e2da9baae20b498e38bbda50e01bc96ccd2cd5ab3eed23149e1bf379";
-        strMasternodePaymentsPubKey = "0249c088e6e2da9baae20b498e38bbda50e01bc96ccd2cd5ab3eed23149e1bf379";
-
+        strSporkPubKey = "03f68e2a0583fd30a7690bbc53b79bb55b95ac32070dfa9848da8edf1874e09f05";
+        strMasternodePaymentsPubKey = "03f68e2a0583fd30a7690bbc53b79bb55b95ac32070dfa9848da8edf1874e09f05";
+		                               
 		/*
         checkpointData = (CCheckpointData) {
             boost::assign::map_list_of
@@ -291,7 +296,9 @@ public:
         consensus.BIP34Height = 1; 
         consensus.BIP34Hash = uint256();
 		consensus.FoundationAddress = "yedEtKvuw9CMBKdzGNVM1ezzMMy2ibtXDR";
-
+		consensus.nDCCSuperblockStartBlock = 2001;
+		consensus.nDCCSuperblockCycle = BLOCKS_PER_DAY * 1; // Daily
+    
         consensus.powLimit = uint256S("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
         consensus.nPowTargetTimespan = 24 * 60 * 60; // Biblepay: 1 day
         consensus.nPowTargetSpacing = 7 * 60; // Biblepay: 7 minutes

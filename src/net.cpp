@@ -76,7 +76,7 @@ bool AddSeedNode(std::string sNode);
 extern std::string BiblepayHttpPost(int iThreadID, std::string sActionName, std::string sDistinctUser, std::string sPayload, std::string sBaseURL, 
 	std::string sPage, int iPort, std::string sSolution);
 extern std::string BiblepayHTTPSPost(int iThreadID, std::string sActionName, std::string sDistinctUser, std::string sPayload, std::string sBaseURL, std::string sPage, int iPort,
-	std::string sSolution, int iTimeoutSecs, int iMaxSize);
+	std::string sSolution, int iTimeoutSecs, int iMaxSize, bool fBreakOnError = false);
 
 std::string RoundToString(double d, int place);
 extern std::string SQL(std::string sCommand, std::string sAddress, std::string sArguments, std::string& sError);
@@ -2986,7 +2986,8 @@ std::string BiblepayHttpPost(int iThreadID, std::string sActionName, std::string
 }
 
 
-std::string BiblepayHTTPSPost(int iThreadID, std::string sActionName, std::string sDistinctUser, std::string sPayload, std::string sBaseURL, std::string sPage, int iPort, std::string sSolution, int iTimeoutSecs, int iMaxSize)
+std::string BiblepayHTTPSPost(int iThreadID, std::string sActionName, std::string sDistinctUser, std::string sPayload, std::string sBaseURL, 
+	std::string sPage, int iPort, std::string sSolution, int iTimeoutSecs, int iMaxSize, bool fBreakOnError)
 {
 	try
 	{
@@ -3064,6 +3065,13 @@ std::string BiblepayHTTPSPost(int iThreadID, std::string sActionName, std::strin
 				if (sData.find("</HTML>") != string::npos) break;
 				if (sData.find("<EOF>") != string::npos) break;
 				if (sData.find("<END>") != string::npos) break;
+				if (sData.find("</account_out>") != string::npos) break;
+				if (sData.find("</am_set_info_reply>") != string::npos) break;
+				if (sData.find("</am_get_info_reply>") != string::npos) break;
+				if (fBreakOnError) if (sData.find("</user>") != string::npos) break;
+				if (fBreakOnError) if (sData.find("</error>") != string::npos) break;
+				if (fBreakOnError) if (sData.find("</error_msg>") != string::npos) break;
+
 				if ((int)sData.size() >= iMaxSize) break;
 			}
 			// R ANDREW - JAN 4 2018: Free bio resources

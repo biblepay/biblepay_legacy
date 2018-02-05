@@ -15,6 +15,7 @@
 class CMasternodePayments;
 class CMasternodePaymentVote;
 class CMasternodeBlockPayees;
+class CDistributedComputingVote;
 
 static const int MNPAYMENTS_SIGNATURES_REQUIRED         = 6;
 static const int MNPAYMENTS_SIGNATURES_TOTAL            = 10;
@@ -34,7 +35,7 @@ extern CMasternodePayments mnpayments;
 
 /// TO DO: all 4 functions do not belong here really, they should be refactored/moved somewhere (main.cpp ?)
 bool IsBlockValueValid(const CBlock& block, int nBlockHeight, CAmount blockReward, std::string &strErrorRet);
-bool IsBlockPayeeValid(const CTransaction& txNew, int nBlockHeight, CAmount blockReward);
+bool IsBlockPayeeValid(const CTransaction& txNew, int nBlockHeight, CAmount blockReward, int64_t nBlockTime);
 void FillBlockPayments(CMutableTransaction& txNew, int nBlockHeight, CAmount blockReward, CAmount competetiveMiningTithe, CTxOut& txoutMasternodeRet, std::vector<CTxOut>& voutSuperblockRet);
 std::string GetRequiredPaymentsString(int nBlockHeight);
 
@@ -103,7 +104,7 @@ public:
     }
 
     void AddPayee(const CMasternodePaymentVote& vote);
-   bool GetBestPayee(CScript& payeeRet, CAmount& nCollateral, std::string& sScript);
+    bool GetBestPayee(CScript& payeeRet, CAmount& nCollateral, std::string& sScript);
 
     bool HasPayeeWithVotes(CScript payeeIn, int nVotesReq);
 	CAmount GetTxSanctuaryCollateral(const CTransaction& txNew);
@@ -112,6 +113,82 @@ public:
 
     std::string GetRequiredPaymentsString();
 };
+
+
+
+
+
+
+
+// vote for the winning distributed computing credit contract
+class CDistributedComputingVote
+{
+public:
+    CTxIn vinMasternode;
+	int nHeight;
+    uint256 contractHash;
+    CScript payee;
+    std::vector<unsigned char> vchSig;
+	std::string contract;
+	CPubKey pubKeyMasternode;
+
+    CDistributedComputingVote() :
+        vinMasternode(),
+		nHeight(0),
+        contractHash(uint256S("0x0")),
+        payee(),
+        vchSig(),
+		contract(""),
+		pubKeyMasternode()
+        {}
+
+    CDistributedComputingVote(CTxIn vinMasternode, int iHeight, uint256 uContractHash, CScript payee, std::string sContract, CPubKey pkMaster) :
+        vinMasternode(vinMasternode),
+		nHeight(iHeight),
+        contractHash(uContractHash),
+        payee(payee),
+        vchSig(),
+		contract(sContract),
+		pubKeyMasternode(pkMaster)
+        {}
+
+    ADD_SERIALIZE_METHODS;
+
+    template <typename Stream, typename Operation>
+    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) 
+	{
+        READWRITE(vinMasternode);
+		READWRITE(nHeight);
+        READWRITE(contractHash);
+        READWRITE(*(CScriptBase*)(&payee));
+        READWRITE(vchSig);
+		READWRITE(contract);
+		READWRITE(pubKeyMasternode);
+    }
+
+    uint256 GetHash() const 
+	{
+        CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
+    	ss << nHeight;
+        ss << contractHash;
+        ss << vinMasternode.prevout;
+        return ss.GetHash();
+    }
+
+    bool Sign();
+    bool CheckSignature(const CPubKey& pubKeyMasternode, uint256 contractHash, int &nDos);
+
+    bool IsValid(CNode* pnode, uint256 contractHash, std::string& strError);
+    void Relay();
+
+    bool IsVerified() { return !vchSig.empty(); }
+    void MarkAsNotVerified() { vchSig.clear(); }
+
+    std::string ToString() const;
+};
+
+
+
 
 // vote for the winning payment
 class CMasternodePaymentVote
@@ -185,6 +262,7 @@ private:
 
 public:
     std::map<uint256, CMasternodePaymentVote> mapMasternodePaymentVotes;
+	std::map<uint256, CDistributedComputingVote> mapDistributedComputingVotes;
     std::map<int, CMasternodeBlockPayees> mapMasternodeBlocks;
     std::map<COutPoint, int> mapMasternodesLastVote;
 
@@ -193,18 +271,24 @@ public:
     ADD_SERIALIZE_METHODS;
 
     template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
+    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) 
+	{
         READWRITE(mapMasternodePaymentVotes);
         READWRITE(mapMasternodeBlocks);
+		READWRITE(mapDistributedComputingVotes);
     }
 
     void Clear();
 
     bool AddPaymentVote(const CMasternodePaymentVote& vote);
     bool HasVerifiedPaymentVote(uint256 hashIn);
-    bool ProcessBlock(int nBlockHeight);
-
-    void Sync(CNode* node);
+	bool HasVerifiedDistributedComputingVote(uint256 hashIn);
+	std::string SerializeSanctuaryQuorumSignatures(int nHeight, uint256 hashIn);
+	bool ProcessBlock(int nBlockHeight);
+	int GetDistributedComputingVoteCountByContractHash(int nHeight, uint256 hashIn);
+	int GetDistributedComputingVoteByHeight(int nHeight, CDistributedComputingVote& out_Vote);
+	bool AddDistributedComputingVote(const CDistributedComputingVote& vote);
+	void Sync(CNode* node);
     void RequestLowDataPaymentBlocks(CNode* pnode);
     void CheckAndRemove();
 	bool GetBlockPayeeAndCollateral(int nBlockHeight, CScript& payee, CAmount& nCollateral, std::string& sCollateralScript);
@@ -219,7 +303,7 @@ public:
 
     int GetBlockCount() { return mapMasternodeBlocks.size(); }
     int GetVoteCount() { return mapMasternodePaymentVotes.size(); }
-
+	int GetDistributedComputingVoteCount() { return mapDistributedComputingVotes.size(); }
     bool IsEnoughData();
     int GetStorageLimit();
 
