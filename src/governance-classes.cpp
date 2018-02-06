@@ -653,6 +653,12 @@ CSuperblock(uint256& nHash)
 {
     DBG( cout << "CSuperblock Constructor Start" << endl; );
 
+	if (nGovObjHash == uint256S("0x1"))
+	{
+		// Distributed Computing Superblock
+		return;
+	}
+
     CGovernanceObject* pGovObj = GetGovernanceObject();
 
     if(!pGovObj) {

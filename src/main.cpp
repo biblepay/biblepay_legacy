@@ -5829,7 +5829,7 @@ void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParam
 
 				if (!pushed && inv.type == MSG_DISTRIBUTED_COMPUTING_VOTE) 
 				{
-					LogPrtinf(" **Pushing Distributed Votes ** \n");
+					LogPrintf(" **Pushing Distributed Votes ** \n");
                     if(mnpayments.HasVerifiedDistributedComputingVote(inv.hash)) 
 					{
 						LogPrintf(" \nPushing Distributed Votes ** \n");
