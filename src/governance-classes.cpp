@@ -866,8 +866,11 @@ bool CSuperblock::IsValidSuperblock(const CTransaction& txNew, int nBlockHeight,
     int nPayments = CountPayments();
     int nMinerPayments = nOutputs - nPayments;
 
-    LogPrint("gobject", "CSuperblock::IsValid nOutputs = %d, nPayments = %d, strData = %s\n",
+	if (IsValidBlockHeight(nBlockHeight))
+	{
+		LogPrint("gobject", "CSuperblock::IsValid nOutputs = %d, nPayments = %d, strData = %s\n",
              nOutputs, nPayments, GetGovernanceObject()->GetDataAsHex());
+	}
 
     // We require an exact match (including order) between the expected
     // superblock payments and the payments actually in the block.
@@ -885,14 +888,16 @@ bool CSuperblock::IsValidSuperblock(const CTransaction& txNew, int nBlockHeight,
 	
     CAmount nPaymentsTotalAmount = GetPaymentsTotalAmount();
     CAmount nPaymentsLimit = GetPaymentsLimit(nBlockHeight);
-    if(nPaymentsTotalAmount > nPaymentsLimit) {
+    if(nPaymentsTotalAmount > nPaymentsLimit) 
+	{
         LogPrintf("CSuperblock::IsValid -- ERROR: Block invalid, payments limit exceeded: payments %lld, limit %lld\n", nPaymentsTotalAmount, nPaymentsLimit);
         return false;
     }
 
     // miner should not get more than he would usually get
     CAmount nBlockValue = txNew.GetValueOut();
-    if(nBlockValue > blockReward + nPaymentsTotalAmount) {
+    if(nBlockValue > blockReward + nPaymentsTotalAmount) 
+	{
         LogPrintf("CSuperblock::IsValid -- ERROR: Block invalid, block value limit exceeded: block %lld, limit %lld\n", nBlockValue, blockReward + nPaymentsTotalAmount);
         return false;
     }
@@ -987,7 +992,6 @@ bool CSuperblock::IsValidSuperblock(const CTransaction& txNew, int nBlockHeight,
 		}
 		// Verify SanctuaryQuorum Signatures
 		int iSigsRequired = GetRequiredQuorumLevel();
-		
 		int iSignaturesValid = VerifySanctuarySignatures(sSigs);
 		
 		if (iSignaturesValid < iSigsRequired)
