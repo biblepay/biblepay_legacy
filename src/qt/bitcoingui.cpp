@@ -678,7 +678,7 @@ void BitcoinGUI::createToolBars()
         toolbar->addAction(overviewAction);
         toolbar->addAction(sendCoinsAction);
         toolbar->addAction(receiveCoinsAction);
-		if (fDistributedComputingEnabled) toolbar->addAction(distributedComputingAction);
+		if (fDistributedComputingEnabled || !fProd) toolbar->addAction(distributedComputingAction);
         toolbar->addAction(historyAction);
         QSettings settings;
         if (settings.value("fShowMasternodesTab").toBool())

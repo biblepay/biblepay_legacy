@@ -964,7 +964,11 @@ bool CSuperblock::IsValidSuperblock(const CTransaction& txNew, int nBlockHeight,
 					{
 						// Find superblock payment
 						fPaymentMatch = ((scriptPubKey == txNew.vout[j].scriptPubKey) && (nAmount == txNew.vout[j].nValue));
-						if (fPaymentMatch) break;
+						if (fPaymentMatch) 
+						{
+							LogPrintf(" VERIFY DCSUPERBLOCK - PAYMENT MATCH Address %s \n", sAddress.c_str());
+							break;
+						}
 					}
 					if (!fPaymentMatch) 
 					{
@@ -985,6 +989,11 @@ bool CSuperblock::IsValidSuperblock(const CTransaction& txNew, int nBlockHeight,
 					(double)iSigsRequired, (double)iSignaturesValid, uHash.GetHex().c_str());
 				return false;
 		}
+		else
+		{
+				LogPrintf("\n ** VERIFY DCSUPERBLOCK - HAS ENOUGH SIGNATURES : Required %f, Votes %f, ContractHash %s  ", 
+					(double)iSigsRequired, (double)iSignaturesValid, uHash.GetHex().c_str());
+		}
 
 		if (nAge < 86400)
 		{
@@ -992,6 +1001,8 @@ bool CSuperblock::IsValidSuperblock(const CTransaction& txNew, int nBlockHeight,
 			CDistributedComputingVote upcomingVote;
 			int iVotes = mnpayments.GetDistributedComputingVoteCountByContractHash(nBlockHeight, uHash);
 			bool bPending = iVotes >= GetRequiredQuorumLevel();
+			LogPrintf(" ** VERIFY DCSUPERBLOCK - VOTES %f \n", (double)iVotes);
+
 			if (!bPending)
 			{
 				LogPrintf("\n ** SUPERBLOCK DOES NOT HAVE ENOUGH VOTES : Required %f, Votes %f, ContractHash %s  ", 
@@ -1003,7 +1014,7 @@ bool CSuperblock::IsValidSuperblock(const CTransaction& txNew, int nBlockHeight,
 
 	}
 	
-
+	LogPrintf(" VERIFY DCSUPERBLOCK - ACCEPTED \n");
     return true;
 }
 
