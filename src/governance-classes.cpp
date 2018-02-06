@@ -406,7 +406,8 @@ bool CSuperblockManager::IsSuperblockTriggered(int nBlockHeight)
 
 bool CSuperblockManager::GetBestSuperblock(CSuperblock_sptr& pSuperblockRet, int nBlockHeight)
 {
-    if(!CSuperblock::IsValidBlockHeight(nBlockHeight)) {
+    if(!CSuperblock::IsValidBlockHeight(nBlockHeight) && !CSuperblock::IsDCCSuperblock(nBlockHeight)) 
+	{
         return false;
     }
 
@@ -576,8 +577,9 @@ void CSuperblockManager::CreateSuperblock(CMutableTransaction& txNewRet, int nBl
     // GET THE BEST SUPERBLOCK FOR THIS BLOCK HEIGHT
 
     CSuperblock_sptr pSuperblock;
-    if(!CSuperblockManager::GetBestSuperblock(pSuperblock, nBlockHeight)) {
-        LogPrint("gobject", "CSuperblockManager::CreateSuperblock -- Can't find superblock for height %d\n", nBlockHeight);
+    if(!CSuperblockManager::GetBestSuperblock(pSuperblock, nBlockHeight)) 
+	{
+        LogPrintf("CSuperblockManager::CreateSuperblock -- Can't find superblock for height %d\n", nBlockHeight);
         DBG( cout << "CSuperblockManager::CreateSuperblock Failed to get superblock for height, returning" << endl; );
         return;
     }
@@ -594,6 +596,7 @@ void CSuperblockManager::CreateSuperblock(CMutableTransaction& txNewRet, int nBl
     //       Consider at least following limits:
     //          - max coinbase tx size
     //          - max "budget" available
+	LogPrintf(" Creating superblock with %f payments \n", (double)pSuperblock->CountPayments());
     for(int i = 0; i < pSuperblock->CountPayments(); i++) {
         CGovernancePayment payment;
         DBG( cout << "CSuperblockManager::CreateSuperblock i = " << i << endl; );
@@ -628,7 +631,7 @@ bool CSuperblockManager::IsValidSuperblock(const CTransaction& txNew, int nBlock
     LOCK(governance.cs);
 	// If this is a DistributedComputing Superblock, handle this block type:
 	/*
-	if (fDistributedComputingEnabled && CSuperblock::IsDCCSuperblock(nBlockHeight))
+	if (fDistributedComputingEnabled && CSuperblockCCSuperblock(nBlockHeight))
 	{
 		CSuperblock_sptr pSuperblock;
 		uint256 nHash = uint256S("0x1");
@@ -713,6 +716,7 @@ bool CSuperblock::IsValidBlockHeight(int nBlockHeight)
 
 bool CSuperblock::IsDCCSuperblock(int nHeight)
 {
+	if (!fDistributedComputingEnabled) return false;
     return nHeight >= Params().GetConsensus().nDCCSuperblockStartBlock &&
             ((nHeight % Params().GetConsensus().nDCCSuperblockCycle) == 0);
 }
