@@ -461,7 +461,7 @@ void CSuperblockManager::uperblock(CMutableTransaction& txNewRet, int nBlockHeig
     // Superblock payments are appended to the end of the coinbase vout vector
     // TO DO: How many payments can we add before things blow up?  According to the Bitcoins largest transaction, about 32767 payments
 	// (We should be OK for at least 5 years, then we will need to upgrade to multiple daily superblocks)
-	CAmount nDCPaymentsTotal = CSuperblock::GetPaymentsLimit(nBlockHeight);
+	CAmount nDCPaymentsTotal = CSuperblockLimit(nBlockHeight);
 	int iPendingVotes = 0;
 	uint256 uGovObjHash;
 	vObjByHeight(nBlockHeight, uint256S("0x0"), iPendingVotes, uGovObjHash);
@@ -961,7 +961,7 @@ bool CSuperblock::IsValidSuperblock(const CTransaction& txNew, int nBlockHeight,
 		int64_t nAge = GetAdjustedTime() - nBlockTime;
 		uint256 uHash = GetDCCHash(sContract);
 		// ENSURE DC RECIPIENTS MATCH SUPERBLOCK RECIPIENTS
-		CAmount nDCPaymentsTotal = CSuperblock::GetPaymentsLimit(nBlockHeight);
+		CAmount nDCPaymentsTotal = CSuperblock::(nBlockHeight);
 		double dDCPaymentsTotal = nDCPaymentsTotal / COIN;
 		double nTotalMagnitude = 0;
 		int iCPIDCount = GetCPIDCount(sContract, nTotalMagnitude);

@@ -397,7 +397,6 @@ int VerifySanctuarySignatures(std::string sSignatureData)
 double GetMagnitudeInContract(std::string sContract, std::string sCPID)
 {
 	std::vector<std::string> vC = Split(sContract.c_str(),"<ROW>");
-	//int iCPIDCount = 0;
 	for (int i = 0; i < (int)vC.size(); i++)
 	{
 		std::vector<std::string> vCPID = Split(vC[i].c_str(),",");
@@ -452,7 +451,7 @@ uint256 GetDCPAMHashByContract(std::string sContract, int nHeight)
 {
 	std::string sPAD = "";
 	std::string sPAM = "";
-	bool bSuccess = GetContractPaymentData(sContract, nHeight, sPAD, sPAM);
+	GetContractPaymentData(sContract, nHeight, sPAD, sPAM);
 	if (sPAD.empty() || sPAM.empty()) return uint256S("0x0");
 	uint256 uHash = GetDCPAMHash(sPAD, sPAM);
 	return uHash;
@@ -853,19 +852,13 @@ std::string ExecuteDistributedComputingSanctuaryQuorumProcess()
 
 			if (!bContractExists)
 			{
-				// If this chosen sanctuary is online during this sanctuary timeslice window (IE 30 second window), this particular sanc 
-				// If another sanctuary created the proposal before me, honor it (IE we will all vote on the single daily contract)
-				// Create the proposal if it is time
-				// A: Should we shoot out a tx with this in it, and prevent others from downloading, or, check above for a memory lock?
-				// B: Memory lock: we have no contract but we have a pending contract.  
-				// C: We wait until the daily superblock, and insert the DC data in the block for more efficient payments
+				// If this chosen sanctuary is online during this sanctuary timeslice window (IE 30 second window)
 				// We are the chosen sanctuary - no contract exists - create it
 				std::string sQuorumTrigger = SerializeSanctuaryQuorumTrigger(iNextSuperblock, sContract);
 				std::string sGobjectHash = "";
-				bool bStatus = SubmitDistributedComputingTrigger(sQuorumTrigger, sGobjectHash, sError);
+				SubmitDistributedComputingTrigger(sQuorumTrigger, sGobjectHash, sError);
 				LogPrintf(" ** DISTRIBUTEDCOMPUTING::CreatingDCContract Hex %s , Gobject %s, results %s **\n", sQuorumTrigger.c_str(), sGobjectHash.c_str(), sError.c_str());
 				return "CREATING_CONTRACT";
-
 			}
 
 			int iRequiredVotes = GetRequiredQuorumLevel();

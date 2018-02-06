@@ -43,6 +43,7 @@
 #include "masternode-payments.h"
 #include "masternode-sync.h"
 #include "masternodeman.h"
+#include "governance-classes.h"
 
 #include <sstream>
 
@@ -8023,7 +8024,7 @@ ThresholdState VersionBitsTipState(const Consensus::Params& params, Consensus::D
     return VersionBitsState(chainActive.Tip(), params, pos, versionbitscache);
 }
 
-double GetMagnitude(std::string sCPID)
+double GetMagnitudeByAddress(std::string sAddress)
 {
 	CDistributedComputingVote upcomingVote;
 	int iNextSuperblock = 0;
@@ -8032,14 +8033,52 @@ double GetMagnitude(std::string sCPID)
 	int iVotes = 0;
 	std::string sContract = "";
 	uint256 uGovObjHash;
+	double nTotal = 0;
 	std::string sPAD = "";
 	std::string sPAM = "";
-	GetDistributedComputingGovObjByHeight(iNextSuperblock, uint256S("0x0"), iVotes, uGovObjHash, sPAD, sPAM);
+	GetDistributedComputingGovObjByHeight(iLastSuperblock, uint256S("0x0"), iVotes, uGovObjHash, sPAD, sPAM);
+		
+	double dBudget = CSuperblock::GetPaymentsLimit(iLastSuperblock) / COIN;
+	std::vector<std::string> vSPAD = Split(sPAD.c_str(), "|");
+	std::vector<std::string> vSPAM = Split(sPAM.c_str(), "|");
 
-
-	bool bPending = iVotes >= GetRequiredQuorumLevel();
-	return GetMagnitudeInContract(sContract, sCPID);
+	if (dBudget < 1) return 0;
+	// Since an address my have more than one cpid... (not recommended but nevertheless...) get the grand total magnitude per address 
+	for (int i=0; i < (int)vSPAD.size() && i < (int)vSPAM.size(); i++)
+	{
+		std::string sLocalAddress = vSPAD[i];
+		double dAmt = cdbl(vSPAM[i],2);
+		std::string sAmount = vSPAM[i];
+		if (sAddress==sLocalAddress) 
+		{
+			double dMag = (dAmt / dBudget) * 1000;
+			nTotal += dMag;
+		}
+	  
+	}
+	nTotal = cdbl(RoundToString(nTotal,2),2);
+	return nTotal;
 }
+
+
+std::string GetMyPublicKeys()
+{
+	std::string sPK = "";
+	BOOST_FOREACH(const PAIRTYPE(CBitcoinAddress, CAddressBookData)& item, pwalletMain->mapAddressBook)
+    {
+        const CBitcoinAddress& address = item.first;
+        std::string strName = item.second.name;
+        bool fMine = IsMine(*pwalletMain, address.Get());
+        if (fMine)
+		{
+		    std::string sAddress = CBitcoinAddress(address).ToString();
+			sPK += sAddress + "|";
+	    }
+	}
+	if (sPK.length() > 1) sPK = sPK.substr(0,sPK.length()-1);
+	return sPK;
+}
+
 std::string FindResearcherCPIDByAddress(std::string sSearch, std::string& out_address, double& nTotalMagnitude)
 {
 	std::string sDefaultRecAddress = "";
@@ -8057,6 +8096,8 @@ std::string FindResearcherCPIDByAddress(std::string sSearch, std::string& out_ad
 			boost::to_upper(strName);
 			// If we have a valid burn in the chain, prefer it
 			std::vector<std::string> vCPIDs = GetListOfDCCS(sAddress);
+			nTotalMagnitude += GetMagnitudeByAddress(sAddress);
+			
 			if (vCPIDs.size() > 0)
 			{
 				for (int i=0; i < (int)vCPIDs.size(); i++)
@@ -8067,18 +8108,20 @@ std::string FindResearcherCPIDByAddress(std::string sSearch, std::string& out_ad
 						out_address = sAddress;
 						msGlobalCPID += sCPID + ";";
 						sLastCPID = sCPID;
-						nTotalMagnitude += GetMagnitude(sCPID);
+						//LogPrintf(" cpid %s   magnitude %f ",sCPID.c_str(), (double)nTotalMagnitude);
 					}
 					if (!sSearch.empty())
 					{
 						if (sSearch == sAddress && !sCPID.empty()) 
 						{
+							nTotalMagnitude = GetMagnitudeByAddress(sAddress);
 							out_address = sAddress;
 							return sCPID;
 						}
 					}
 				}
 			}
+			
 
 		}
     }
