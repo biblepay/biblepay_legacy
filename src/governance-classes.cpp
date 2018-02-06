@@ -883,7 +883,7 @@ bool CSuperblock::IsValidSuperblock(const CTransaction& txNew, int nBlockHeight,
         return false;
     }
 
-    // payments should not exceed limit
+    // payments should not exceed limit 2-5-2018
 
 	
     CAmount nPaymentsTotalAmount = GetPaymentsTotalAmount();
@@ -896,11 +896,14 @@ bool CSuperblock::IsValidSuperblock(const CTransaction& txNew, int nBlockHeight,
 
     // miner should not get more than he would usually get
     CAmount nBlockValue = txNew.GetValueOut();
-    if(nBlockValue > blockReward + nPaymentsTotalAmount) 
+	if (IsValidBlockHeight(nBlockHeight))
 	{
-        LogPrintf("CSuperblock::IsValid -- ERROR: Block invalid, block value limit exceeded: block %lld, limit %lld\n", nBlockValue, blockReward + nPaymentsTotalAmount);
-        return false;
-    }
+		if(nBlockValue > blockReward + nPaymentsTotalAmount) 
+		{
+			LogPrintf("CSuperblock::IsValid -- ERROR: Block invalid, block value limit exceeded: block %lld, limit %lld\n", (double)nBlockValue, (double)blockReward + nPaymentsTotalAmount);
+			return false;
+		}
+	}
 
 	// R ANDRIJAS - BIBLEPAY : HANDLE MONTHLY SUPERBLOCKS:
 	if(IsValidBlockHeight(nBlockHeight))
