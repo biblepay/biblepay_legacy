@@ -89,6 +89,7 @@ using namespace std;
 
 extern void ThreadSendAlert();
 extern void CheckGenesisBlock(CBlock block, uint256 targetBlockHash, uint256 targetMerkleRoot);
+std::string FindResearcherCPIDByAddress(std::string sSearch, std::string& out_address, double& nTotalMagnitude);
 
 #ifdef ENABLE_WALLET
 CWallet* pwalletMain = NULL;
@@ -2161,6 +2162,12 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     // ********************************************************* Step 13: finished
 	// Print the genesis hash for sanity
 	LogPrintf(" Genesis Hash %s \n", chainActive.Genesis()->GetBlockHash().GetHex().c_str());
+	// Initialize distributed-computing CPID
+	std::string out_address = "";
+	double nMagnitude = 0;
+	std::string sAddress = "";
+	FindResearcherCPIDByAddress(sAddress, out_address, nMagnitude);
+	mnMagnitude=nMagnitude;
 
     SetRPCWarmupFinished();
     uiInterface.InitMessage(_("Done loading"));
