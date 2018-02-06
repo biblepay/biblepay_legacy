@@ -621,7 +621,7 @@ bool CSuperblockManager::IsValidSuperblock(const CTransaction& txNew, int nBlock
 	if (fDistributedComputingEnabled && CSuperblock::IsDCCSuperblock(nBlockHeight))
 	{
 		CSuperblock_sptr pSuperblock;
-		uint256 nHash = uint256S("0x0");
+		uint256 nHash = uint256S("0x1");
         CSuperblock_sptr pSuperblockTmp(new CSuperblock(nHash));
     
 		return pSuperblockTmp->IsValidSuperblock(txNew, nBlockHeight, blockReward, nBlockTime);
