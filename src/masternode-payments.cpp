@@ -812,7 +812,7 @@ int CMasternodePayments::GetDistributedComputingVoteByHeight(int nHeight, CDistr
 					mvDCCountByHash.insert(map<uint256,int>::value_type(v.contractHash,v.nHeight));
 				}
 				mvDCCountByHash[v.contractHash] = nCount + 1;
-				if ((nCount + 1) > nHiVotes)
+				if ((nCount + 1) > nHiVotes && (v.contractHash != (uint256S("0x0"))))
 				{
 					nHiVotes = nCount+1;
 					out_Vote = (*it).second;
@@ -1193,7 +1193,6 @@ void CDistributedComputingVote::Relay()
 {
     CInv inv(MSG_DISTRIBUTED_COMPUTING_VOTE, GetHash());
     RelayInv(inv);
-
 }
 
 bool CMasternodePaymentVote::CheckSignature(const CPubKey& pubKeyMasternode, int nValidationHeight, int &nDos)

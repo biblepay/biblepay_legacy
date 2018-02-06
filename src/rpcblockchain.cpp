@@ -3142,10 +3142,8 @@ UniValue exec(const UniValue& params, bool fHelp)
 		results.push_back(Pair("RequiredVotes", iRequiredVotes));
 		results.push_back(Pair("last_superblock", iLastSuperblock));
 		results.push_back(Pair("next_superblock", iNextSuperblock));
-		
 		bool fTriggered = CSuperblockManager::IsSuperblockTriggered(iNextSuperblock);
 		results.push_back(Pair("next_superblock_triggered", fTriggered));
-
 
 		bool bRes = VoteForDistributedComputingContract(iNextSuperblock, uDCChash, sContract);
 		results.push_back(Pair("vote1",bRes));

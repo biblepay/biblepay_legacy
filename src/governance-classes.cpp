@@ -471,7 +471,8 @@ void CSuperblockManager::CreateDistributedComputingSuperblock(CMutableTransactio
 	int iCPIDCount = GetCPIDCount(sContract, nTotalMagnitude);
 	if (nTotalMagnitude < .01) 
 	{
-		LogPrintf(" \n ** CreateDistributedComputingSuperblock::SUPERBLOCK CONTAINS NO MAGNITUDE (cpid count %f ), hash %s ** \n", (double)iCPIDCount, uHash.GetHex().c_str());
+		LogPrintf(" \n ** CreateDistributedComputingSuperblock::SUPERBLOCK CONTAINS NO MAGNITUDE height %f (cpid count %f ), hash %s %s** \n", (double)nBlockHeight, 
+			(double)iCPIDCount, uHash.GetHex().c_str(), sContract.c_str());
 		return;
 	}
 	double dDCPaymentsTotal = nDCPaymentsTotal / COIN;

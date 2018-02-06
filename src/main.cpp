@@ -5829,8 +5829,10 @@ void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParam
 
 				if (!pushed && inv.type == MSG_DISTRIBUTED_COMPUTING_VOTE) 
 				{
+					LogPrtinf(" **Pushing Distributed Votes ** \n");
                     if(mnpayments.HasVerifiedDistributedComputingVote(inv.hash)) 
 					{
+						LogPrintf(" \nPushing Distributed Votes ** \n");
                         CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
                         ss.reserve(65535);
                         ss << mnpayments.mapDistributedComputingVotes[inv.hash];

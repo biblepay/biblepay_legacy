@@ -171,7 +171,7 @@ public:
 		consensus.FoundationAddress = "yadZnJ3hD3FRC8CiLZEVNqejvQFgNtu5ci";
         consensus.nSuperblockCycle = BLOCKS_PER_DAY * 7; // Superblocks can be issued weekly on testnet
 		consensus.nDCCSuperblockStartBlock = 470;
-		consensus.nDCCSuperblockCycle = BLOCKS_PER_DAY; // Daily
+		consensus.nDCCSuperblockCycle = 99; // Daily
     
         consensus.nGovernanceMinQuorum = 1;
         consensus.nGovernanceFilterElements = 500;
