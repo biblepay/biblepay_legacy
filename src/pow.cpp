@@ -162,17 +162,17 @@ unsigned int static DarkGravityWave(const CBlockIndex* pindexLast, const Consens
     arith_uint256 bnNew(PastDifficultyAverage);
 
     int64_t _nTargetTimespan = CountBlocks * params.nPowTargetSpacing; 
-	// 1-17-2018 Biblepay:  Change params.nPowTargetSpacing to 7*60*.70 during next mandatory
-	if ((fProdChain && pindexLast->nHeight > 100000) || (!fProdChain && pindexLast->nHeight > 100000))
+	// 1-17-2018 Biblepay:  Change params.nPowTargetSpacing to 7*60*.75 during next mandatory
+	if ((fProdChain && pindexLast->nHeight > 100000))
 	{
-		_nTargetTimespan = CountBlocks * 294; 
+		_nTargetTimespan = CountBlocks * 350;
 	}
 
 	if (!fProdChain && pindexLast->nHeight < 250)
 	{
 		_nTargetTimespan = CountBlocks; // One second blocks in testnet before block 1000
 	}
-	else if (!fProdChain && pindexLast->nHeight > 249 && pindexLast->nHeight < 2000)
+	else if (!fProdChain && pindexLast->nHeight > 249 && pindexLast->nHeight < 2500)
 	{
 		_nTargetTimespan = 30;
 	}

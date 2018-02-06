@@ -126,6 +126,7 @@ extern std::string FindResearcherCPIDByAddress(std::string sSearch, std::string&
 std::vector<std::string> GetListOfDCCS(std::string sSearch);
 int GetRequiredQuorumLevel();
 int GetLastDCSuperblockHeight(int nCurrentHeight, int& nNextSuperblock);
+void GetDistributedComputingGovObjByHeight(int nHeight, uint256 uOptFilter, int& out_nVotes, uint256& out_uGovObjHash, std::string& out_PAD, std::string& out_PAM);
 
 CWaitableCriticalSection csBestBlock;
 CConditionVariable cvBlockChange;
@@ -8027,9 +8028,17 @@ double GetMagnitude(std::string sCPID)
 	CDistributedComputingVote upcomingVote;
 	int iNextSuperblock = 0;
 	int iLastSuperblock = GetLastDCSuperblockHeight(chainActive.Tip()->nHeight, iNextSuperblock);
-	int iVotes = mnpayments.GetDistributedComputingVoteByHeight(iNextSuperblock, upcomingVote);
+	
+	int iVotes = 0;
+	std::string sContract = "";
+	uint256 uGovObjHash;
+	std::string sPAD = "";
+	std::string sPAM = "";
+	GetDistributedComputingGovObjByHeight(iNextSuperblock, uint256S("0x0"), iVotes, uGovObjHash, sPAD, sPAM);
+
+
 	bool bPending = iVotes >= GetRequiredQuorumLevel();
-	return GetMagnitudeInContract(upcomingVote.contract, sCPID);
+	return GetMagnitudeInContract(sContract, sCPID);
 }
 std::string FindResearcherCPIDByAddress(std::string sSearch, std::string& out_address, double& nTotalMagnitude)
 {

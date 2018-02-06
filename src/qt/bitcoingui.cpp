@@ -677,9 +677,11 @@ void BitcoinGUI::createToolBars()
         toolbar->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
         toolbar->addAction(overviewAction);
         toolbar->addAction(sendCoinsAction);
-        toolbar->addAction(receiveCoinsAction);
-		if (fDistributedComputingEnabled || !fProd) toolbar->addAction(distributedComputingAction);
         toolbar->addAction(historyAction);
+        
+		if (fDistributedComputingEnabled || !fProd) toolbar->addAction(distributedComputingAction);
+		toolbar->addAction(receiveCoinsAction);
+		
         QSettings settings;
         if (settings.value("fShowMasternodesTab").toBool())
         {

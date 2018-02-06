@@ -285,9 +285,7 @@ public:
 	bool HasVerifiedDistributedComputingVote(uint256 hashIn);
 	std::string SerializeSanctuaryQuorumSignatures(int nHeight, uint256 hashIn);
 	bool ProcessBlock(int nBlockHeight);
-	int GetDistributedComputingVoteCountByContractHash(int nHeight, uint256 hashIn);
-	int GetDistributedComputingVoteByHeight(int nHeight, CDistributedComputingVote& out_Vote);
-	bool AddDistributedComputingVote(const CDistributedComputingVote& vote);
+	//bool AddDistributedComputingVote(const CDistributedComputingVote& vote);
 	void Sync(CNode* node);
     void RequestLowDataPaymentBlocks(CNode* pnode);
     void CheckAndRemove();
@@ -303,7 +301,6 @@ public:
 
     int GetBlockCount() { return mapMasternodeBlocks.size(); }
     int GetVoteCount() { return mapMasternodePaymentVotes.size(); }
-	int GetDistributedComputingVoteCount() { return mapDistributedComputingVotes.size(); }
     bool IsEnoughData();
     int GetStorageLimit();
 

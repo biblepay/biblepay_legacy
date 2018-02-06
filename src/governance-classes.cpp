@@ -27,6 +27,9 @@ int GetCPIDCount(std::string sContract, double& nTotalMagnitude);
 double cdbl(std::string s, int place);
 std::string RoundToString(double d, int place);
 int VerifySanctuarySignatures(std::string sSignatureData);
+void GetDistributedComputingGovObjByHeight(int nHeight, uint256 uOptFilter, int& out_nVotes, uint256& out_uGovObjHash, 
+	std::string& out_sAddresses, std::string& out_sAmounts);
+
 
 // DECLARE GLOBAL VARIABLES FOR GOVERNANCE CLASSES
 CGovernanceTriggerManager triggerman;
@@ -294,27 +297,26 @@ bool CSuperblockManager::IsDistributedComputingSuperblockTriggered(int nBlockHei
     }
 	LOCK(governance.cs);
     // Check for Sanctuary Quorum Agreement 
-	CDistributedComputingVote upcomingVote;
-	int iPendingVotes = mnpayments.GetDistributedComputingVoteByHeight(nBlockHeight, upcomingVote);
+
+	int iPendingVotes = 0;
+	uint256 uGovObjHash;
+	std::string sAddresses = "";
+	std::string sAmounts = "";
+	GetDistributedComputingGovObjByHeight(nBlockHeight, uint256S("0x0"), iPendingVotes, uGovObjHash, sAddresses, sAmounts);
+
 	bool bPending = iPendingVotes >= GetRequiredQuorumLevel();
 	if (!bPending)
 	{
 		LogPrintf("\n ** SUPERBLOCK DOES NOT HAVE ENOUGH VOTES : Required %f, Votes %f ", (double)GetRequiredQuorumLevel(), (double)iPendingVotes);
 		return false;
 	}
-	std::string sContract = upcomingVote.contract;
-	uint256 uHash = GetDCCHash(sContract);
-	if (sContract.empty())
+	if (sAddresses.empty() || sAmounts.empty())
 	{
 		LogPrintf("\n ** SUPERBLOCK CONTRACT EMPTY at height %f ** \n",(double)nBlockHeight);
 		return false;
 	}
 
-	if (uHash == uint256S("0x0"))
-	{
-		LogPrintf("\n ** SUPERBLOCK CONTRACT 0x0 at height %f ** %s \n",(double)nBlockHeight, sContract.c_str());
-	}
-	LogPrintf(" ** IsDCCTriggered::Superblock has enough support - Votes %f Contract %s **",(double)iPendingVotes, sContract.c_str());
+	LogPrintf(" ** IsDCCTriggered::Superblock has enough support - Votes %f  Addresses %s Amounts %s  **",(double)iPendingVotes, sAddresses.c_str(), sAmounts.c_str());
 	
 	return true;
 
@@ -370,7 +372,7 @@ bool CSuperblockManager::IsSuperblockTriggered(int nBlockHeight)
         // note : 12.1 - is epoch calculation correct?
 
         if(nBlockHeight != pSuperblock->GetBlockStart()) {
-            LogPrint("gobject", "CSuperblockManager::IsSuperblockTriggered -- block height doesn't match nBlockHeight = %d, blockStart = %d, continuing\n",
+            LogPrintf("\n *****	CSuperblockManager::IsSuperblockTriggered -- block height doesn't match nBlockHeight = %d, blockStart = %d, continuing\n",
                      nBlockHeight,
                      pSuperblock->GetBlockStart());
             DBG( cout << "IsSuperblockTriggered Not the target block, continuing"
@@ -384,15 +386,18 @@ bool CSuperblockManager::IsSuperblockTriggered(int nBlockHeight)
 
         pObj->UpdateSentinelVariables();
 
-        if(pObj->IsSetCachedFunding()) {
+        if(pObj->IsSetCachedFunding()) 
+		{
             LogPrint("gobject", "CSuperblockManager::IsSuperblockTriggered -- fCacheFunding = true, returning true\n");
             DBG( cout << "IsSuperblockTriggered returning true" << endl; );
             return true;
         }
-        else  {
+        else  
+		{
             LogPrint("gobject", "CSuperblockManager::IsSuperblockTriggered -- fCacheFunding = false, continuing\n");
             DBG( cout << "IsSuperblockTriggered No fCachedFunding, continuing" << endl; );
         }
+		//	if (IsDistributedComputingSuperblockTriggered(nBlockHeight)) return true;  // Dont fail a DCC block for watchman-on-the-wall
     }
 
     return false;
@@ -443,8 +448,8 @@ bool CSuperblockManager::GetBestSuperblock(CSuperblock_sptr& pSuperblockRet, int
 
 
 
-
-void CSuperblockManager::CreateDistributedComputingSuperblock(CMutableTransaction& txNewRet, int nBlockHeight, std::vector<CTxOut>& voutSuperblockRet)
+/*
+void CSuperblockManager::uperblock(CMutableTransaction& txNewRet, int nBlockHeight, std::vector<CTxOut>& voutSuperblockRet)
 {
 
 	if (!fDistributedComputingEnabled) return;
@@ -456,13 +461,15 @@ void CSuperblockManager::CreateDistributedComputingSuperblock(CMutableTransactio
     // TO DO: How many payments can we add before things blow up?  According to the Bitcoins largest transaction, about 32767 payments
 	// (We should be OK for at least 5 years, then we will need to upgrade to multiple daily superblocks)
 	CAmount nDCPaymentsTotal = CSuperblock::GetPaymentsLimit(nBlockHeight);
-	CDistributedComputingVote upcomingVote;
-	int iPendingVotes = mnpayments.GetDistributedComputingVoteByHeight(nBlockHeight, upcomingVote);
+	int iPendingVotes = 0;
+	uint256 uGovObjHash;
+	vObjByHeight(nBlockHeight, uint256S("0x0"), iPendingVotes, uGovObjHash);
+
 	bool bPending = iPendingVotes >= GetRequiredQuorumLevel();
 	LogPrintf(" Checking for Pending DCC - Votes %f ",(double)iPendingVotes);
 	if (!bPending)
 	{
-		LogPrintf("\n ** CreateDistributedComputingSuperblock::SUPERBLOCK DOES NOT HAVE ENOUGH VOTES : Required %f, Votes %f ", (double)GetRequiredQuorumLevel(), (double)iPendingVotes);
+		LogPrintf("\n ** uperblock::SUPERBLOCK DOES NOT HAVE ENOUGH VOTES : Required %f, Votes %f ", (double)GetRequiredQuorumLevel(), (double)iPendingVotes);
 		return;
 	}
 	std::string sContract = upcomingVote.contract;
@@ -471,14 +478,14 @@ void CSuperblockManager::CreateDistributedComputingSuperblock(CMutableTransactio
 	int iCPIDCount = GetCPIDCount(sContract, nTotalMagnitude);
 	if (nTotalMagnitude < .01) 
 	{
-		LogPrintf(" \n ** CreateDistributedComputingSuperblock::SUPERBLOCK CONTAINS NO MAGNITUDE height %f (cpid count %f ), hash %s %s** \n", (double)nBlockHeight, 
+		LogPrintf(" \n ** uperblock::SUPERBLOCK CONTAINS NO MAGNITUDE height %f (cpid count %f ), hash %s %s** \n", (double)nBlockHeight, 
 			(double)iCPIDCount, uHash.GetHex().c_str(), sContract.c_str());
 		return;
 	}
 	double dDCPaymentsTotal = nDCPaymentsTotal / COIN;
 	if (dDCPaymentsTotal < 1)
 	{
-		LogPrintf(" \n ** CreateDistributedComputingSuperblock::Superblock Payment Budget is lower than 1 BBP ** \n");
+		LogPrintf(" \n ** uperblock::Superblock Payment Budget is lower than 1 BBP ** \n");
 		return;
 	}
 	double PaymentPerMagnitude = (dDCPaymentsTotal-1) / nTotalMagnitude;
@@ -502,7 +509,7 @@ void CSuperblockManager::CreateDistributedComputingSuperblock(CMutableTransactio
 			    txNewRet.vout.push_back(txout);
 	            voutSuperblockRet.push_back(txout);
 	            // PRINT NICE LOG OUTPUT FOR SUPERBLOCK PAYMENT
-                LogPrintf("CreateDistributedComputingSuperblock::DCC Superblock : output %d (addr %s, amount %f)\n", i, sAddress.c_str(), (double)dOwed);
+                LogPrintf("uperblock::DCC Superblock : output %d (addr %s, amount %f)\n", i, sAddress.c_str(), (double)dOwed);
 			}
 		}
 	}
@@ -540,15 +547,17 @@ void CSuperblockManager::CreateDistributedComputingSuperblock(CMutableTransactio
 
 	if (dTotalPaid > dDCPaymentsTotal)
 	{
-		LogPrintf("CreateDistributedComputingSuperblock::DCC Superblock failure: Total Paid exceeds Available Daily Budget.  Creation Failed.  Paid %f - Budget %f\n", dTotalPaid, dDCPaymentsTotal);
+		LogPrintf("uperblock::DCC Superblock failure: Total Paid exceeds Available Daily Budget.  Creation Failed.  Paid %f - Budget %f\n", dTotalPaid, dDCPaymentsTotal);
         voutSuperblockRet.clear();
 		return;
 	}
-	LogPrintf("\nCreateDistributedComputingSuperblock::Success\n");
+	LogPrintf("\nuperblock::Success\n");
 	return;
 
 }
 
+
+*/
 
 
 
@@ -618,6 +627,7 @@ bool CSuperblockManager::IsValidSuperblock(const CTransaction& txNew, int nBlock
     // GET BEST SUPERBLOCK, SHOULD MATCH
     LOCK(governance.cs);
 	// If this is a DistributedComputing Superblock, handle this block type:
+	/*
 	if (fDistributedComputingEnabled && CSuperblock::IsDCCSuperblock(nBlockHeight))
 	{
 		CSuperblock_sptr pSuperblock;
@@ -626,6 +636,8 @@ bool CSuperblockManager::IsValidSuperblock(const CTransaction& txNew, int nBlock
     
 		return pSuperblockTmp->IsValidSuperblock(txNew, nBlockHeight, blockReward, nBlockTime);
 	}
+	*/
+
 
     CSuperblock_sptr pSuperblock;
     if(CSuperblockManager::GetBestSuperblock(pSuperblock, nBlockHeight)) 
@@ -652,12 +664,6 @@ CSuperblock(uint256& nHash)
       vecPayments()
 {
     DBG( cout << "CSuperblock Constructor Start" << endl; );
-
-	if (nGovObjHash == uint256S("0x1"))
-	{
-		// Distributed Computing Superblock
-		return;
-	}
 
     CGovernanceObject* pGovObj = GetGovernanceObject();
 
@@ -905,11 +911,10 @@ bool CSuperblock::IsValidSuperblock(const CTransaction& txNew, int nBlockHeight,
 		}
 	}
 
-	// R ANDRIJAS - BIBLEPAY : HANDLE MONTHLY SUPERBLOCKS:
-	if(IsValidBlockHeight(nBlockHeight))
+	// R ANDRIJA - HANDLE BOTH MONTHLY AND DAILY SUPERBLOCKS:
+	int nVoutIndex = 0;
+	for(int i = 0; i < nPayments; i++) 
 	{
-		int nVoutIndex = 0;
-		for(int i = 0; i < nPayments; i++) {
 			CGovernancePayment payment;
 			if(!GetPayment(i, payment)) {
 				// This shouldn't happen so log a warning
@@ -940,11 +945,12 @@ bool CSuperblock::IsValidSuperblock(const CTransaction& txNew, int nBlockHeight,
 
 				return false;
 			}
-		}
 	}
-	else if (IsDCCSuperblock(nBlockHeight))
-	{
-		// HANDLE DISTRIBUTED COMPUTING SUPERBLOCKS
+	
+	
+
+	/*
+		
 		std::string sData = GetBlockData(txNew);
 		std::string sContract = ExtractXML(sData,"<CONTRACT>","</CONTRACT>");
 		std::string sSigs = ExtractXML(sData,"<SIGS>","</SIGS>");
@@ -993,27 +999,18 @@ bool CSuperblock::IsValidSuperblock(const CTransaction& txNew, int nBlockHeight,
 				}
 			}
 		}
-		// Verify SanctuaryQuorum Signatures
-		int iSigsRequired = GetRequiredQuorumLevel();
-		int iSignaturesValid = VerifySanctuarySignatures(sSigs);
-		
-		if (iSignaturesValid < iSigsRequired)
-		{
-				LogPrintf("\n ** SUPERBLOCK DOES NOT HAVE ENOUGH SIGNATURES : Required %f, Votes %f, ContractHash %s  ", 
-					(double)iSigsRequired, (double)iSignaturesValid, uHash.GetHex().c_str());
-				return false;
-		}
-		else
-		{
-				LogPrintf("\n ** VERIFY DCSUPERBLOCK - HAS ENOUGH SIGNATURES : Required %f, Votes %f, ContractHash %s  ", 
-					(double)iSigsRequired, (double)iSignaturesValid, uHash.GetHex().c_str());
-		}
-
+	
 		if (nAge < 86400)
 		{
 			// Verify DC Hash matches todays SanctuaryQuorum Hash:
 			CDistributedComputingVote upcomingVote;
-			int iVotes = mnpayments.GetDistributedComputingVoteCountByContractHash(nBlockHeight, uHash);
+			
+
+			int iVotes = 0;
+			uint256 uGovObjHash;
+			vObjByHeight(nBlockHeight, uint256S("0x0"), iVotes, uGovObjHash);
+
+
 			bool bPending = iVotes >= GetRequiredQuorumLevel();
 			LogPrintf(" ** VERIFY DCSUPERBLOCK - VOTES %f \n", (double)iVotes);
 
@@ -1027,6 +1024,7 @@ bool CSuperblock::IsValidSuperblock(const CTransaction& txNew, int nBlockHeight,
 		}
 
 	}
+	*/
 	
 	LogPrintf(" VERIFY DCSUPERBLOCK - ACCEPTED \n");
     return true;

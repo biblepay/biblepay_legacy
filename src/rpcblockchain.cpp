@@ -28,6 +28,7 @@
 #include "activemasternode.h"
 #include "masternodeman.h"
 #include "governance-classes.h"
+#include "masternode-sync.h"
 
 #include <boost/lexical_cast.hpp>
 #include <boost/algorithm/string/case_conv.hpp> // for to_lower()
@@ -108,7 +109,9 @@ std::string GetBook(int iBookNumber);
 extern std::string rPad(std::string data, int minWidth);
 bool CheckNonce(bool f9000, unsigned int nNonce, int nPrevHeight, int64_t nPrevBlockTime, int64_t nBlockTime);
 extern int GetLastDCSuperblockHeight(int nCurrentHeight, int& nNextSuperblock);
-extern bool VoteForDistributedComputingContract(int nHeight, uint256 hashContract, std::string sContract);
+
+extern bool VoteForDistributedComputingContract(int nHeight, std::string sContract, std::string sError);
+
 std::string GetMessagesFromBlock(const CBlock& block, std::string sMessages);
 std::string GetBibleHashVerses(uint256 hash, uint64_t nBlockTime, uint64_t nPrevBlockTime, int nPrevHeight, CBlockIndex* pindexprev);
 double cdbl(std::string s, int place);
@@ -126,6 +129,18 @@ extern std::string GetDCCPublicKey(const std::string& cpid);
 extern std::string RelayTrade(CTradeTx& t, std::string Type);
 extern std::string GetTrades();
 static bool bEngineActive = false;
+extern void GetDistributedComputingGovObjByHeight(int nHeight, uint256 uOptFilter, int& out_nVotes, uint256& out_uGovObjHash, std::string& out_sAddresses, std::string& out_sAmounts);
+extern bool VoteForGobject(uint256 govobj, std::string& sError);
+std::string GJE(std::string sKey, std::string sValue, bool bIncludeDelimiter, bool bQuoteValue);
+extern uint256 GetDCPAMHash(std::string sAddresses, std::string sAmounts);
+
+extern uint256 GetDCPAMHashByContract(std::string sContract, int nHeight);
+
+
+extern bool GetContractPaymentData(std::string sContract, int nBlockHeight, std::string& sPaymentAddresses, std::string& sAmounts);
+
+
+
 
 
 double GetDifficultyN(const CBlockIndex* blockindex, double N)
@@ -267,6 +282,9 @@ bool AmIMasternode()
 int GetRequiredQuorumLevel()
 {
 	// This is an anti-ddos feature that prevents ddossing the distributed computing grid
+
+	// REQUIREDQUORUM = X
+
 	int iSanctuaryQuorumLevel = fProd ? .10 : .02;
 	int iRequiredVotes = GetSanctuaryCount() * iSanctuaryQuorumLevel;
 	if (fProd && iRequiredVotes < 2) iRequiredVotes = 2;
@@ -379,7 +397,7 @@ int VerifySanctuarySignatures(std::string sSignatureData)
 double GetMagnitudeInContract(std::string sContract, std::string sCPID)
 {
 	std::vector<std::string> vC = Split(sContract.c_str(),"<ROW>");
-	int iCPIDCount = 0;
+	//int iCPIDCount = 0;
 	for (int i = 0; i < (int)vC.size(); i++)
 	{
 		std::vector<std::string> vCPID = Split(vC[i].c_str(),",");
@@ -430,6 +448,24 @@ double GetMinimumMagnitude()
 	return fProd ? 5 : 1;
 }
 
+uint256 GetDCPAMHashByContract(std::string sContract, int nHeight)
+{
+	std::string sPAD = "";
+	std::string sPAM = "";
+	bool bSuccess = GetContractPaymentData(sContract, nHeight, sPAD, sPAM);
+	if (sPAD.empty() || sPAM.empty()) return uint256S("0x0");
+	uint256 uHash = GetDCPAMHash(sPAD, sPAM);
+	return uHash;
+}
+
+uint256 GetDCPAMHash(std::string sAddresses, std::string sAmounts)
+{
+	std::string sConcat = sAddresses + sAmounts;
+	if (sConcat.empty()) return uint256S("0x0");
+	std::string sHash = RetrieveMd5(sConcat);
+	return uint256S("0x" + sHash);
+}
+
 uint256 GetDCCHash(std::string sContract)
 {
 	std::string sHash = RetrieveMd5(sContract);
@@ -440,6 +476,287 @@ uint256 GetDCCHash(std::string sContract)
 	if (iCPIDCount < GetMinimumResearcherParticipationLevel()) return uint256S("0x0");
 	if (nTotalMagnitude < GetMinimumMagnitude()) return uint256S("0x0");
 	return uint256S("0x" + sHash);
+}
+
+bool VoteForDistributedComputingContract(int nHeight, std::string sMyContract, std::string sError)
+{
+	int iPendingVotes = 0;
+	uint256 uGovObjHash;
+	std::string sPaymentAddresses = "";
+	std::string sAmounts = "";
+	uint256 uPamHash = GetDCPAMHashByContract(sMyContract, nHeight);
+	GetDistributedComputingGovObjByHeight(nHeight, uPamHash, iPendingVotes, uGovObjHash, sPaymentAddresses, sAmounts);
+	// Verify Payment data matches our payment data, otherwise dont vote for it
+	std::string sMyLocalPaymentAddresses = "";
+	std::string sMyLocalAmounts = "";
+
+	GetContractPaymentData(sMyContract, nHeight, sMyLocalPaymentAddresses, sMyLocalAmounts);
+	if (sMyLocalPaymentAddresses.empty() || sMyLocalAmounts.empty())
+	{
+		sError = "Unable to vote for DC contract::Local Addresses or Amounts empty.";
+		return false;
+	}
+
+	if (sPaymentAddresses.empty() || sAmounts.empty())
+	{
+		sError = "Ünable to vote for DC Contract::Foreign addresses or amounts empty.";
+		return false;
+	}
+
+	if (sPaymentAddresses != sMyLocalPaymentAddresses)
+	{
+		sError = "Unable to vote for DC Contract::My local contract != foreign contract payment addresses.";
+		return false;
+	}
+
+	if (sAmounts != sMyLocalAmounts)
+	{
+		sError = "Unable to vote for DC Contract::My local contract Amounts != foreign contract amounts.";
+		return false;
+	}
+	bool bResult = VoteForGobject(uGovObjHash, sError);
+	return bResult;
+}
+
+
+bool VoteForGobject(uint256 govobj, std::string& sError)
+{
+	    vote_signal_enum_t eVoteSignal = CGovernanceVoting::ConvertVoteSignal("funding");
+        vote_outcome_enum_t eVoteOutcome = CGovernanceVoting::ConvertVoteOutcome("yes");
+        int nSuccessful = 0;
+        int nFailed = 0;
+        std::vector<unsigned char> vchMasterNodeSignature;
+        std::string strMasterNodeSignMessage;
+        CMasternode mn;
+        bool fMnFound = mnodeman.Get(activeMasternode.vin, mn);
+
+        if(!fMnFound) {
+            nFailed++;
+			sError = "Can't find masternode by collateral output";
+			return false;
+        }
+
+        CGovernanceVote vote(mn.vin, govobj, eVoteSignal, eVoteOutcome);
+        if(!vote.Sign(activeMasternode.keyMasternode, activeMasternode.pubKeyMasternode)) 
+		{
+            nFailed++;
+			sError = "Failure to sign distributed computing contract.";
+			return false;
+        }
+
+        CGovernanceException exception;
+        if(governance.ProcessVoteAndRelay(vote, exception)) 
+		{
+            nSuccessful++;
+			return true;
+        }
+        else 
+		{
+            nFailed++;
+            sError = "Failed to Relay object " + exception.GetMessage();
+			return false;
+        }
+		return true;
+}
+
+
+
+void GetDistributedComputingGovObjByHeight(int nHeight, uint256 uOptFilter, int& out_nVotes, uint256& out_uGovObjHash, 
+	std::string& out_PaymentAddresses, std::string& out_PaymentAmounts)
+{
+	    std::string strType = "triggers";
+        int nStartTime = 0; 
+        LOCK2(cs_main, governance.cs);
+        std::vector<CGovernanceObject*> objs = governance.GetAllNewerThan(nStartTime);
+		int iHighVotes = -1;
+        BOOST_FOREACH(CGovernanceObject* pGovObj, objs)
+        {
+            if(strType == "proposals" && pGovObj->GetObjectType() != GOVERNANCE_OBJECT_PROPOSAL) continue;
+            if(strType == "triggers" && pGovObj->GetObjectType() != GOVERNANCE_OBJECT_TRIGGER) continue;
+            if(strType == "watchdogs" && pGovObj->GetObjectType() != GOVERNANCE_OBJECT_WATCHDOG) continue;
+
+            //bObj.push_back(Pair("DataHex",  pGovObj->GetDataAsHex()));
+            //bObj.push_back(Pair("DataString",  pGovObj->GetDataAsString()));
+            //bObj.push_back(Pair("Hash",  pGovObj->GetHash().ToString()));
+            //bObj.push_back(Pair("ObjectType", pGovObj->GetObjectType()));
+            //bObj.push_back(Pair("CreationTime", pGovObj->GetCreationTime()));
+
+			UniValue obj = pGovObj->GetJSONObject();
+			int nLocalHeight = obj["event_block_height"].get_int();
+
+            if (nLocalHeight == nHeight)
+			{
+				
+				int iVotes = pGovObj->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING);
+				std::string sPAD = obj["payment_addresses"].get_str();
+				std::string sPAM = obj["payment_amounts"].get_str();
+				uint256 uHash = GetDCPAMHash(sPAD, sPAM);
+				
+				LogPrintf(" PAD %s, PAM %s, localheight %f , LocalPamHash %s ", sPAD.c_str(), sPAM.c_str(), (double)nLocalHeight, uHash.GetHex().c_str());
+
+				if (uOptFilter != uint256S("0x0") && uHash != uOptFilter) continue;
+				// This governance-object matches the trigger height and the optional filter
+				if (iVotes > iHighVotes) 
+				{
+					iHighVotes = iVotes;
+					
+					out_PaymentAddresses = sPAD;
+					out_PaymentAmounts = sPAM;
+					out_nVotes = iHighVotes;
+					out_uGovObjHash = pGovObj->GetHash();
+				}
+			}
+           
+        }
+
+ }
+
+
+//gobject submit 0 1 0 5b5b2274726967676572222c7b226576656e745f626c6f636b5f686569676874223a313638332c227061796d656e745f616464726573736573223a2230222c227061796d656e745f616d6f756e7473223a2230222c2270726f706f73616c5f686173686573223a22313233222c2274797065223a327d5d5d
+
+bool SubmitDistributedComputingTrigger(std::string sHex, std::string& gobjecthash, std::string& sError)
+{
+	  if(!masternodeSync.IsBlockchainSynced()) 
+	  {
+			sError = "Must wait for client to sync with masternode network. Try again in a minute or so.";
+			return false;
+      }
+      CMasternode mn;
+      bool fMnFound = mnodeman.Get(activeMasternode.vin, mn);
+
+      DBG( cout << "gobject: submit activeMasternode.pubKeyMasternode = " << activeMasternode.pubKeyMasternode.GetHash().ToString()
+             << ", vin = " << activeMasternode.vin.prevout.ToStringShort()
+             << ", params.size() = " << params.size()
+             << ", fMnFound = " << fMnFound << endl; );
+
+      // ASSEMBLE NEW GOVERNANCE OBJECT FROM USER PARAMETERS
+      uint256 txidFee;
+      uint256 hashParent = uint256();
+      int nRevision = 1;
+      int nTime = GetAdjustedTime();
+	  std::string strData = sHex;
+	  CGovernanceObject govobj(hashParent, nRevision, nTime, txidFee, strData);
+
+      DBG( cout << "gobject: submit "
+             << " strData = " << govobj.GetDataAsString()
+             << ", hash = " << govobj.GetHash().GetHex()
+             << ", txidFee = " << txidFee.GetHex()
+             << endl; );
+
+      // Attempt to sign triggers if we are a MN
+      if((govobj.GetObjectType() == GOVERNANCE_OBJECT_TRIGGER)) 
+	  {
+            if(fMnFound) 
+			{
+                govobj.SetMasternodeInfo(mn.vin);
+                govobj.Sign(activeMasternode.keyMasternode, activeMasternode.pubKeyMasternode);
+            }
+            else 
+			{
+                sError = "Only valid masternodes can submit this type of object";
+				return false;
+            }
+      }
+
+      std::string strHash = govobj.GetHash().ToString();
+      if(!govobj.IsValidLocally(sError, true)) 
+	  {
+            LogPrintf("SubmitDistributedComputingContract::Object submission rejected because object is not valid - hash = %s, strError = %s\n", strHash, sError);
+			sError += "Governance object is not valid - " + strHash;
+			return false;
+      }
+
+      // RELAY THIS OBJECT
+      // Reject if rate check fails but don't update buffer
+      if(!governance.MasternodeRateCheck(govobj)) 
+	  {
+            LogPrintf("gobject(submit) -- Object submission rejected because of rate check failure - hash = %s\n", strHash);
+            sError = "Object creation rate limit exceeded";
+			return false;
+	  }
+      // This check should always pass, update buffer
+      if(!governance.MasternodeRateCheck(govobj, UPDATE_TRUE)) 
+	  {
+            sError = "Local Creation rate limit exceeded";
+			return false;
+      }
+      governance.AddSeenGovernanceObject(govobj.GetHash(), SEEN_OBJECT_IS_VALID);
+      govobj.Relay();
+      LogPrintf("gobject(submit) -- Adding locally created governance object - %s\n", strHash);
+      bool fAddToSeen = true;
+      governance.AddGovernanceObject(govobj, fAddToSeen);
+	  gobjecthash = govobj.GetHash().ToString();
+	  return true;
+}
+
+bool GetContractPaymentData(std::string sContract, int nBlockHeight, std::string& sPaymentAddresses, std::string& sAmounts)
+{
+	// 2-6-2018 - Proof-of-distributed-computing
+	CAmount nDCPaymentsTotal = CSuperblock::GetPaymentsLimit(nBlockHeight);
+	uint256 uHash = GetDCCHash(sContract);
+	double nTotalMagnitude = 0;
+	int iCPIDCount = GetCPIDCount(sContract, nTotalMagnitude);
+	if (nTotalMagnitude < .01) 
+	{
+		LogPrintf(" \n ** GetContractPaymentData::SUPERBLOCK CONTAINS NO MAGNITUDE height %f (cpid count %f ), hash %s %s** \n", (double)nBlockHeight, 
+			(double)iCPIDCount, uHash.GetHex().c_str(), sContract.c_str());
+		return false;
+	}
+	double dDCPaymentsTotal = nDCPaymentsTotal / COIN;
+	if (dDCPaymentsTotal < 1)
+	{
+		LogPrintf(" \n ** GetContractPaymentData::Superblock Payment Budget is lower than 1 BBP ** \n");
+		return false;
+	}
+	double PaymentPerMagnitude = (dDCPaymentsTotal-1) / nTotalMagnitude;
+	std::vector<std::string> vRows = Split(sContract.c_str(),"<ROW>");
+	double dTotalPaid = 0;
+	
+	for (int i = 0; i < (int)vRows.size(); i++)
+	{
+		std::vector<std::string> vCPID = Split(vRows[i].c_str(),",");
+		if (vCPID.size() >= 3)
+		{
+			std::string sCpid = vCPID[1];
+			std::string sAddress = vCPID[0];
+			double dMagnitude = cdbl(vCPID[2],2);
+			if (!sCpid.empty() && dMagnitude > 0)
+			{
+				double dOwed = PaymentPerMagnitude * dMagnitude;
+				dTotalPaid += dOwed;
+				sPaymentAddresses += sAddress + "|";
+				sAmounts += RoundToString(dOwed,2) + "|";
+			}
+		}
+	}
+	
+	if (sPaymentAddresses.length() > 1) sPaymentAddresses=sPaymentAddresses.substr(0,sPaymentAddresses.length()-1);
+	if (sAmounts.length() > 1) sAmounts=sAmounts.substr(0,sAmounts.length()-1);
+	return true;
+
+}
+
+std::string SerializeSanctuaryQuorumTrigger(int nEventBlockHeight, std::string sContract)
+{
+		std::string sEventBlockHeight = RoundToString(nEventBlockHeight,0);
+		std::string sPaymentAddresses = "";
+		std::string sPaymentAmounts = "";
+		bool bStatus = GetContractPaymentData(sContract, nEventBlockHeight, sPaymentAddresses, sPaymentAmounts);
+		if (!bStatus) return "";
+		std::string sProposalHashes = GetDCCHash(sContract).GetHex();
+		std::string sType = "2"; //DC Trigger is always 2
+		std::string sQ = "\"";
+		std::string sJson = "[[" + sQ + "trigger" + sQ + ",{";
+		sJson += GJE("event_block_height", sEventBlockHeight, true, false); // Must be an int
+		sJson += GJE("payment_addresses", sPaymentAddresses, true, true);
+		sJson += GJE("payment_amounts", sPaymentAmounts, true, true);
+		sJson += GJE("proposal_hashes", sProposalHashes, true, true);
+		//sJson += GJE("contract", sContract, true, true);
+		sJson += GJE("type", sType, false, false); 
+		sJson += "}]]";
+	    std::vector<unsigned char> vchJson = vector<unsigned char>(sJson.begin(), sJson.end());
+		std::string sHex = HexStr(vchJson.begin(), vchJson.end());
+	    return sHex;
 }
 
 uint256 GetDCCFileHash()
@@ -492,8 +809,14 @@ std::string ExecuteDistributedComputingSanctuaryQuorumProcess()
 	int iLastSuperblock = GetLastDCSuperblockHeight(chainActive.Tip()->nHeight, iNextSuperblock);
 	
 	//  Check for Pending Contract
-	CDistributedComputingVote upcomingVote;
-	int iPendingVotes = mnpayments.GetDistributedComputingVoteByHeight(iNextSuperblock, upcomingVote);
+
+	int iPendingVotes = 0;
+	uint256 uGovObjHash;
+	std::string sAddresses = "";
+	std::string sAmounts = "";
+	GetDistributedComputingGovObjByHeight(iNextSuperblock, uint256S("0x0"), iPendingVotes, uGovObjHash, sAddresses, sAmounts);
+	std::string sError = "";
+		
 	bool bPending = iPendingVotes >= GetRequiredQuorumLevel();
 
 	if (bPending) 
@@ -509,7 +832,7 @@ std::string ExecuteDistributedComputingSanctuaryQuorumProcess()
 			// I am a chosen Sanctuary...
 			int64_t nAge = GetDCCFileAge();
 			uint256 uDCChash = GetDCCFileHash();
-			std::string sContract = GetDCCFileContract();
+			sContract = GetDCCFileContract();
 			LogPrintf(" DCC hash %s  Age %f ",uDCChash.GetHex(), (float)nAge);
 			if (uDCChash == uint256S("0x0") || nAge > (60 * 60))
 			{
@@ -519,24 +842,49 @@ std::string ExecuteDistributedComputingSanctuaryQuorumProcess()
 				return "DOWNLOADING_DCC_FILE";
 			}
 			LogPrintf(" DCC hash %s ",uDCChash.GetHex());
-			int iVotes = mnpayments.GetDistributedComputingVoteCountByContractHash(iNextSuperblock, uDCChash);
+
+			int iVotes = 0;
+			uint256 uGovObjHash = uint256S("0x0");
+			std::string sAddresses = "";
+			std::string sAmounts = "";
+			uint256 uPAMhash = GetDCPAMHashByContract(sContract, iNextSuperblock);
+			GetDistributedComputingGovObjByHeight(iNextSuperblock, uPAMhash, iVotes, uGovObjHash, sAddresses, sAmounts);
+			bool bContractExists = (uGovObjHash != uint256S("0x0"));
+
+			if (!bContractExists)
+			{
+				// If this chosen sanctuary is online during this sanctuary timeslice window (IE 30 second window), this particular sanc 
+				// If another sanctuary created the proposal before me, honor it (IE we will all vote on the single daily contract)
+				// Create the proposal if it is time
+				// A: Should we shoot out a tx with this in it, and prevent others from downloading, or, check above for a memory lock?
+				// B: Memory lock: we have no contract but we have a pending contract.  
+				// C: We wait until the daily superblock, and insert the DC data in the block for more efficient payments
+				// We are the chosen sanctuary - no contract exists - create it
+				std::string sQuorumTrigger = SerializeSanctuaryQuorumTrigger(iNextSuperblock, sContract);
+				std::string sGobjectHash = "";
+				bool bStatus = SubmitDistributedComputingTrigger(sQuorumTrigger, sGobjectHash, sError);
+				LogPrintf(" ** DISTRIBUTEDCOMPUTING::CreatingDCContract Hex %s , Gobject %s, results %s **\n", sQuorumTrigger.c_str(), sGobjectHash.c_str(), sError.c_str());
+				return "CREATING_CONTRACT";
+
+			}
+
 			int iRequiredVotes = GetRequiredQuorumLevel();
+
 			if (iVotes < iRequiredVotes)
 			{
-				VoteForDistributedComputingContract(iNextSuperblock, uDCChash, sContract);
-				return "VOTED_FOR_DC_CONTRACT";
+				
+				bool bResult = VoteForDistributedComputingContract(iNextSuperblock, sContract, sError);
+				if (bResult) return "VOTED_FOR_DC_CONTRACT";
+				if (!bResult)
+				{
+					LogPrintf(" **unable to vote for DC contract %s ", sError.c_str());
+				}
+				return "UNABLE_TO_VOTE_FOR_DC_CONTRACT";
 			}
 			else if (iVotes >= iRequiredVotes)
 			{
 				LogPrintf(" DCC Contract %s has won.  Waiting for superblock. ", uDCChash.GetHex());
 				return "PENDING_SUPERBLOCK";
-				// If this chosen sanctuary is online during this sanctuary timeslice window (IE 30 second window), this particular sanc 
-				// If another sanctuary created the proposal before me, honor it (IE we will all vote on the single daily contract)
-				// Create the proposal if it is time
-
-				// A: Should we shoot out a tx with this in it, and prevent others from downloading, or, check above for a memory lock?
-				// B: Memory lock: we have no contract but we have a pending contract.  
-				// C: We wait until the daily superblock, and insert the DC data in the block for more efficient payments
 			}
 		}
 		
@@ -546,31 +894,6 @@ std::string ExecuteDistributedComputingSanctuaryQuorumProcess()
 }
 
 
-bool VoteForDistributedComputingContract(int nHeight, uint256 hashContract, std::string sContract)
-{
-	 CScript payee;
-	 CMasternode mn;
-     if(mnodeman.Get(activeMasternode.vin, mn)) 
-	 {
-         CBitcoinAddress mnAddress(mn.pubKeyCollateralAddress.GetID());
-		 payee = GetScriptForDestination(mn.pubKeyCollateralAddress.GetID());
-	 }
-
-     CDistributedComputingVote voteNew(activeMasternode.vin, nHeight, hashContract, payee, sContract, mn.pubKeyMasternode);
-     if (fDebugMaster) LogPrintf("VoteForDistributedComputingContract -- vote: nBlockHeight=%d\n", nHeight);
-     // SIGN MESSAGE TO NETWORK WITH OUR MASTERNODE KEYS
-     if (voteNew.Sign()) 
- 	 {
-        
-        if (mnpayments.AddDistributedComputingVote(voteNew)) 
-		{
-            voteNew.Relay();
-            return true;
-        }
-     }
-
-	 return false;
-}
 
 
 double GetDifficulty(const CBlockIndex* blockindex)
@@ -3125,28 +3448,56 @@ UniValue exec(const UniValue& params, bool fHelp)
 	{
 		int64_t nAge = GetDCCFileAge();
 		uint256 uDCChash = GetDCCFileHash();
+		int iNextSuperblock = 0;
+		int iLastSuperblock = GetLastDCSuperblockHeight(chainActive.Tip()->nHeight, iNextSuperblock);
+	
 		std::string sContract = GetDCCFileContract();
 		results.push_back(Pair("fileage", nAge));
 		results.push_back(Pair("filehash", uDCChash.GetHex()));
 		results.push_back(Pair("contract", sContract));
+		std::string sAddresses="";
+		std::string sAmounts = "";
+		uint256 uPAMHash = GetDCPAMHashByContract(sContract, iNextSuperblock);
+		
+		results.push_back(Pair("pam_hash", uPAMHash.GetHex()));
+
 		LogPrintf(" ********* fileage %f  contract %s \n ",(double)nAge, sContract.c_str());
-		int iNextSuperblock = 0;
-		int iLastSuperblock = GetLastDCSuperblockHeight(chainActive.Tip()->nHeight, iNextSuperblock);
-		int iVotes = mnpayments.GetDistributedComputingVoteCountByContractHash(iNextSuperblock, uDCChash);
-		LogPrintf(" count %f \n",(double)iVotes);
+		
+		int iVotes = 0;
+		uint256 uGovObjHash = uint256S("0x0");
+		
+		GetDistributedComputingGovObjByHeight(iNextSuperblock, uPAMHash, iVotes, uGovObjHash, sAddresses, sAmounts);
+		std::string sError = "";
+		LogPrintf(" count %f \n", (double)iVotes);
+		results.push_back(Pair("govobjhash", uGovObjHash.GetHex()));
+		results.push_back(Pair("Addresses", sAddresses));
+		results.push_back(Pair("Amounts", sAmounts));
+		uint256 uPamHash2 = GetDCPAMHash(sAddresses, sAmounts);
+		results.push_back(Pair("pam_hash2", uPamHash2.GetHex()));
+
+		if (uGovObjHash == uint256S("0x0"))
+		{
+			// create the contract
+			std::string sQuorumTrigger = SerializeSanctuaryQuorumTrigger(iNextSuperblock, sContract);
+			std::string sGobjectHash = "";
+			SubmitDistributedComputingTrigger(sQuorumTrigger, sGobjectHash, sError);
+			results.push_back(Pair("quorum_hex", sQuorumTrigger));
+			results.push_back(Pair("quorum_gobject_trigger_hash", sGobjectHash));
+			results.push_back(Pair("quorum_error", sError));
+		}
 		results.push_back(Pair("votes_for_my_contract", iVotes));
-		uint256 uTest = uint256S("0x1");
-		int iVotes2 = mnpayments.GetDistributedComputingVoteCountByContractHash(iNextSuperblock, uTest);
-		results.push_back(Pair("votes_for_0x1", iVotes2));
+		results.push_back(Pair("contract1", sContract));
 		int iRequiredVotes = GetRequiredQuorumLevel();
 		results.push_back(Pair("RequiredVotes", iRequiredVotes));
 		results.push_back(Pair("last_superblock", iLastSuperblock));
 		results.push_back(Pair("next_superblock", iNextSuperblock));
 		bool fTriggered = CSuperblockManager::IsSuperblockTriggered(iNextSuperblock);
 		results.push_back(Pair("next_superblock_triggered", fTriggered));
-
-		bool bRes = VoteForDistributedComputingContract(iNextSuperblock, uDCChash, sContract);
+		
+		bool bRes = VoteForDistributedComputingContract(iNextSuperblock, sContract, sError);
 		results.push_back(Pair("vote1",bRes));
+		results.push_back(Pair("vote1error",sError));
+
 		// Verify the Vote serialization:
 		std::string sSerialize = mnpayments.SerializeSanctuaryQuorumSignatures(iNextSuperblock, uDCChash);
 		std::string sSigs = ExtractXML(sSerialize,"<SIGS>","</SIGS>");
@@ -3624,7 +3975,7 @@ std::string AssociateDCAccount(std::string sProjectId, std::string sBoincEmail, 
 	std::string sCode = GetBoincResearcherHexCodeAndCPID(sProjectId, nUserId, sCPID);
 	if (sCPID.empty()) return "INVALID_CREDENTIALS";
 	std::string sError = "";
-	bool bSuccess = AdvertiseDistributedComputingKey(sProjectId, sAuth, sCPID, nUserId, sError);
+	AdvertiseDistributedComputingKey(sProjectId, sAuth, sCPID, nUserId, sError);
 	return sError;
 }
 
@@ -3649,7 +4000,7 @@ bool AdvertiseDistributedComputingKey(std::string sProjectId, std::string sAuth,
                 sError = _("A DCBTX was advertised less then 5 blocks ago. Please wait a full 5 blocks for your DCBTX to enter the chain.");
                 return false;
             }
-            uint256 hashRand = GetRandHash();
+            // uint256 hashRand = GetRandHash();
             CAmount nStakeBalance = pwalletMain->GetBalance();
 
             if (nStakeBalance < (1*COIN))

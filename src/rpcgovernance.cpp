@@ -18,8 +18,9 @@
 #include "rpcserver.h"
 #include "util.h"
 #include "utilmoneystr.h"
-
 #include <boost/lexical_cast.hpp>
+
+extern std::string GJE(std::string sKey, std::string sValue, bool bIncludeDelimiter, bool bQuoteValue);
 
 
 std::string GJE(std::string sKey, std::string sValue, bool bIncludeDelimiter, bool bQuoteValue)

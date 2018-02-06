@@ -290,9 +290,9 @@ void FillBlockPayments(CMutableTransaction& txNew, int nBlockHeight, CAmount blo
 	{
 		   // This means we have a Sanctuary Quorum Agreement in place 
 		   LogPrintf("Triggering DCC \n");
-	       if (fDebugMaster) LogPrintf("FillBlockPayments -- triggered DCC superblock creation at height %d\n", nBlockHeight);
-           CSuperblockManager::CreateDistributedComputingSuperblock(txNew, nBlockHeight, voutSuperblockRet);
-           return;
+	       //if (fDebugMaster) LogPrintf("FillBlockPayments -- triggered DCC superblock creation at height %d\n", nBlockHeight);
+           //CSuperblockManager::CreateDcuperblock(txNew, nBlockHeight, voutSuperblockRet);
+           //return;
 	}
 
 	// Do this if this is a governance superblock (once per month):
@@ -540,28 +540,21 @@ void CMasternodePayments::ProcessMessage(CNode* pfrom, std::string& strCommand, 
     } 
 	else if (strCommand == NetMsgType::DISTRIBUTEDCOMPUTINGVOTE) 
 	{ 
+		/*
 		// Vote on Distributed Computing Credit Contract
-		// 1-31-2018 - R Andrijas - Biblepay
-        CDistributedComputingVote vote;
+	    CDistributedComputingVote vote;
         vRecv >> vote;
-
         if(pfrom->nVersion < GetMinMasternodePaymentsProto()) return;
-
         if(!pCurrentBlockIndex) return;
-
         uint256 nHash = vote.GetHash();
-
         pfrom->setAskFor.erase(nHash);
-
         {
             LOCK(cs_mapDistributedComputingVote);
-			
             if(mapDistributedComputingVotes.count(nHash)) 
 			{
                 LogPrintf("DISTRIBUTEDCOMPUTINGVOTE -- hash=%s, nHeight=%d seen\n", nHash.ToString(), pCurrentBlockIndex->nHeight);
                 return;
             }
-
             // Avoid processing same vote multiple times
             mapDistributedComputingVotes[nHash] = vote;
             mapDistributedComputingVotes[nHash].MarkAsNotVerified();
@@ -623,6 +616,7 @@ void CMasternodePayments::ProcessMessage(CNode* pfrom, std::string& strCommand, 
 		{
             vote.Relay();
         }
+		*/
     }
 
 
@@ -687,6 +681,7 @@ bool CMasternodePayments::IsScheduled(CMasternode& mn, int nNotBlockHeight)
     return false;
 }
 
+/*
 bool CMasternodePayments::AddDistributedComputingVote(const CDistributedComputingVote& vote)
 {
     if(HasVerifiedDistributedComputingVote(vote.GetHash())) return false;
@@ -695,6 +690,8 @@ bool CMasternodePayments::AddDistributedComputingVote(const CDistributedComputin
     mapDistributedComputingVotes[vote.GetHash()] = vote;
     return true;
 } 
+*/
+
 
 bool CMasternodePayments::AddPaymentVote(const CMasternodePaymentVote& vote)
 {
@@ -771,7 +768,8 @@ std::string CMasternodePayments::SerializeSanctuaryQuorumSignatures(int nHeight,
 	return sSerialize;
 }
 
-int CMasternodePayments::GetDistributedComputingVoteCountByContractHash(int nHeight, uint256 hashIn)
+/*
+int CMasternodePayments::utingVoteCountByContractHash(int nHeight, uint256 hashIn)
 {
     if(!mapDistributedComputingVotes.size()) return 0;
     int nVotes = 0;
@@ -789,7 +787,7 @@ int CMasternodePayments::GetDistributedComputingVoteCountByContractHash(int nHei
 }
 
 
-int CMasternodePayments::GetDistributedComputingVoteByHeight(int nHeight, CDistributedComputingVote& out_Vote)
+int CMasternodePayments::utingVoteByHeight(int nHeight, CDistributedComputingVote& out_Vote)
 {
 	
     if(!mapDistributedComputingVotes.size()) return 0;
@@ -825,6 +823,7 @@ int CMasternodePayments::GetDistributedComputingVoteByHeight(int nHeight, CDistr
     return nHiVotes;
 }
 
+*/
 
 
 
