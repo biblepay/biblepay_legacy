@@ -24,7 +24,7 @@
 #include <QTextDocument>
 QString ToQstring(std::string s);
 std::string FromQStringW(QString qs);
-std::string AssociateDCAccount(std::string sProjectId, std::string sBoincEmail, std::string sBoincPassword);
+std::string AssociateDCAccount(std::string sProjectId, std::string sBoincEmail, std::string sBoincPassword, bool fForce);
 std::string RoundToString(double d, int place);
 
 DistributedComputingDialog::DistributedComputingDialog(const PlatformStyle *platformStyle, QWidget *parent) :
@@ -101,7 +101,7 @@ void DistributedComputingDialog::on_btnAssociate_clicked()
         return;
 	std::string sEmail = FromQStringW(ui->txtEmail->text());
 	std::string sPassword = FromQStringW(ui->txtPassword->text());
-	std::string sError = AssociateDCAccount("project1", sEmail, sPassword);
+	std::string sError = AssociateDCAccount("project1", sEmail, sPassword, false);
 	std::string sNarr = (sError.empty()) ? "Successfully advertised DC-Key.  Type exec getboincinfo to find more researcher information.  Welcome Aboard!  Thank you for donating your clock-cycles to help cure cancer!" : sError;
 	int ret = QMessageBox::warning(this, tr("Boinc Researcher Association Result"), ToQstring(sNarr), QMessageBox::Ok, QMessageBox::Ok);
     clear();

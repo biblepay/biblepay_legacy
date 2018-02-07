@@ -86,8 +86,8 @@ std::string ReadCache(std::string sSection, std::string sKey);
 extern uint256 GetDCCFileHash();
 extern std::string GetDCCFileContract();
 extern uint256 GetDCCHash(std::string sContract);
-extern bool AdvertiseDistributedComputingKey(std::string sProjectId, std::string sAuth, std::string sCPID, int nUserId, std::string &sError);
-extern std::string AssociateDCAccount(std::string sProjectId, std::string sBoincEmail, std::string sBoincPassword);
+extern bool AdvertiseDistributedComputingKey(std::string sProjectId, std::string sAuth, std::string sCPID, int nUserId, bool fForce, std::string &sError);
+extern std::string AssociateDCAccount(std::string sProjectId, std::string sBoincEmail, std::string sBoincPassword, bool fForce);
 extern std::vector<std::string> GetListOfDCCS(std::string sSearch);
 extern std::string GetSporkValue(std::string sKey);
 extern std::string GetDCCElement(std::string sData, int iElement);
@@ -3399,10 +3399,13 @@ UniValue exec(const UniValue& params, bool fHelp)
 	else if (sItem == "associate")
 	{
 		if (params.size() < 3)
-			throw runtime_error("You must specify boincemail, boincpassword. ");
+			throw runtime_error("You must specify boincemail, boincpassword.  Optionally specify force=true/false.");
 		std::string sEmail = params[1].get_str();
 		std::string sPW = params[2].get_str();
-		std::string sError = AssociateDCAccount("project1", sEmail, sPW);
+		std::string sForce = "";
+		if (params.size() > 3) sForce = params[3].get_str();
+		bool fForce = sForce=="true" ? true : false;
+		std::string sError = AssociateDCAccount("project1", sEmail, sPW, fForce);
 		std::string sNarr = (sError.empty()) ? "Successfully advertised DC-Key.  Type exec getboincinfo to find more researcher information.  Welcome Aboard!  Thank you for donating your clock-cycles to help cure cancer!" : sError;
 		results.push_back(Pair("E-Mail", sEmail));
 		results.push_back(Pair("Results", sNarr));
@@ -3967,7 +3970,7 @@ void TouchDailyMagnitudeFile()
 	fclose(outMagFile);
 }
 
-std::string AssociateDCAccount(std::string sProjectId, std::string sBoincEmail, std::string sBoincPassword)
+std::string AssociateDCAccount(std::string sProjectId, std::string sBoincEmail, std::string sBoincPassword, bool fForce)
 {
 	if (sBoincEmail.empty()) return "E-MAIL_EMPTY";
 	if (sBoincPassword.empty()) return "BOINC_PASSWORD_EMPTY";
@@ -3978,20 +3981,21 @@ std::string AssociateDCAccount(std::string sProjectId, std::string sBoincEmail, 
 	std::string sCode = GetBoincResearcherHexCodeAndCPID(sProjectId, nUserId, sCPID);
 	if (sCPID.empty()) return "INVALID_CREDENTIALS";
 	std::string sError = "";
-	AdvertiseDistributedComputingKey(sProjectId, sAuth, sCPID, nUserId, sError);
+	AdvertiseDistributedComputingKey(sProjectId, sAuth, sCPID, nUserId, fForce, sError);
 	return sError;
 }
 
 
-bool AdvertiseDistributedComputingKey(std::string sProjectId, std::string sAuth, std::string sCPID, int nUserId, std::string &sError)
+bool AdvertiseDistributedComputingKey(std::string sProjectId, std::string sAuth, std::string sCPID, int nUserId, bool fForce, std::string &sError)
 {	
      LOCK(cs_main);
      {
 		 try
 		 {
             std::string sDCC = GetDCCPublicKey(sCPID);
-            if (!sDCC.empty()) 
+            if (!sDCC.empty() && !fForce) 
             {
+				// The fForce flag allows the researcher to re-associate the CPID to another BBP address - for example when they lose their wallet.
                 sError = "ALREADY_IN_CHAIN";
                 return false;
             }
@@ -4037,8 +4041,7 @@ bool AdvertiseDistributedComputingKey(std::string sProjectId, std::string sAuth,
 				return false;
 			}
 
-			//std::string sBase = EncodeBase64(sData);
-            // This prevents repeated DCC advertisements
+		    // This prevents repeated DCC advertisements
             nLastDCCAdvertised = chainActive.Tip()->nHeight;
 			std::string sResult = SendBlockchainMessage("DCC", sCPID, sData, 1, false, sError);
 			if (!sError.empty())
@@ -4054,14 +4057,10 @@ bool AdvertiseDistributedComputingKey(std::string sProjectId, std::string sAuth,
          }
 	catch(...)
 		 {
-			//sError = j.what();
-				// throw JSONRPCError(RPC_WALLET_ERROR, strError);
-			 LogPrintf(" rpc error \n");
+			 LogPrintf("RPC error \n");
 			 sError = "RPC Error";
 			 return false;
 		 }
-	
-        
 	}
 }
 
