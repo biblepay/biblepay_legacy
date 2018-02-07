@@ -3395,7 +3395,17 @@ UniValue exec(const UniValue& params, bool fHelp)
 		std::string sHash = ReadCache("dcc", "contract_hash");
 		results.push_back(Pair("contract", sContract));
 		results.push_back(Pair("hash", sHash));
-
+	}
+	else if (sItem == "associate")
+	{
+		if (params.size() < 3)
+			throw runtime_error("You must specify boincemail, boincpassword. ");
+		std::string sEmail = params[1].get_str();
+		std::string sPW = params[2].get_str();
+		std::string sError = AssociateDCAccount("project1", sEmail, sPW);
+		std::string sNarr = (sError.empty()) ? "Successfully advertised DC-Key.  Type exec getboincinfo to find more researcher information.  Welcome Aboard!  Thank you for donating your clock-cycles to help cure cancer!" : sError;
+		results.push_back(Pair("E-Mail", sEmail));
+		results.push_back(Pair("Results", sNarr));
 	}
 	else if (sItem == "boinctest")
 	{
