@@ -904,6 +904,10 @@ bool AppInitServers(boost::thread_group& threadGroup)
 // Parameter interaction based on rules
 void InitParameterInteraction()
 {
+	bool fTestNet = GetBoolArg("-testnet", false);
+	fProd = fTestNet ? false : true;
+    if (!fProd) fDistributedComputingEnabled = true;
+
     // when specifying an explicit binding address, you want to listen on it
     // even when -connect or -proxy is specified
     if (mapArgs.count("-bind")) {
@@ -1333,7 +1337,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
         fEnableReplacement = (std::find(vstrReplacementModes.begin(), vstrReplacementModes.end(), "fee") != vstrReplacementModes.end());
     }
 
-    // ********************************************************* Step 4: application initialization: dir lock, daemonize, pidfile, debug log, seed insecure_rand()
+    // *************************** Step 4: application initialization: dir lock, daemonize, pidfile, debug log, seed insecure_rand()
 
     // Initialize fast PRNG
     seed_insecure_rand(false);

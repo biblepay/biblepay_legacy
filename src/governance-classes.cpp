@@ -12,8 +12,6 @@
 #include "darksend.h"
 
 #include "masternode-payments.h"
-//#include "masternode-sync.h"
-//#include "masternodeman.h"
 
 #include <boost/algorithm/string.hpp>
 #include <boost/foreach.hpp>

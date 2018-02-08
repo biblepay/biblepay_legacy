@@ -84,6 +84,7 @@ bool fMiningDiagnostics = false;
 bool fDistributedComputingCycle = false;
 bool fDistributedComputingEnabled = false;
 bool fDistributedComputingCycleDownloading = false;
+double GetUserMagnitude(double& nBudget, double& nTotalPaid, int& iLastSuperblock);
 
 int64_t nGlobalPOLWeight;
 int64_t nGlobalInfluencePercentage;
@@ -128,6 +129,8 @@ std::vector<std::string> GetListOfDCCS(std::string sSearch);
 int GetRequiredQuorumLevel();
 int GetLastDCSuperblockHeight(int nCurrentHeight, int& nNextSuperblock);
 void GetDistributedComputingGovObjByHeight(int nHeight, uint256 uOptFilter, int& out_nVotes, uint256& out_uGovObjHash, std::string& out_PAD, std::string& out_PAM);
+extern std::string GetMyPublicKeys();
+
 
 CWaitableCriticalSection csBestBlock;
 CConditionVariable cvBlockChange;
@@ -1856,8 +1859,6 @@ bool ProcessComplexTransaction(CTxMemPool& pool, CValidationState &state, const 
 				LogPrintf(" 801 - Size of mapcomplexTransactions %f \n",mapComplexTransactions.size());
 			}
 			// Scan complex order pool for matching complex transaction
-			//			map<uint256, COrphanTx> mapOrphanTransactions GUARDED_BY(cs_main);;
-			//	    std::map<uint256, CTransaction>::iterator it = mapComplexTransactions.begin();
 			BOOST_FOREACH(PAIRTYPE(const uint256, CTransaction)& item, mapComplexTransactions)
 			{
 				LogPrintf("74\n");
@@ -7255,10 +7256,13 @@ std::string FormatHTML(std::string sInput, int iInsertCount, std::string sString
 
 void UpdateMagnitude()
 {
-	std::string sAddress = "";
-	double nMagnitude = 0;
-	FindResearcherCPIDByAddress("", sAddress, nMagnitude);
-	mnMagnitude = nMagnitude;
+	// std::string sAddress = "";
+	// FindResearcherCPIDByAddress("", sAddress, nMagnitude);
+	double nTotalPaid = 0;
+	int iLastSuperblock = 0;
+	double nBudget = 0;
+	mnMagnitude = GetUserMagnitude(nBudget, nTotalPaid, iLastSuperblock);
+
 }
 
 void SetOverviewStatus()

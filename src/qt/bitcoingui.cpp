@@ -333,7 +333,10 @@ void BitcoinGUI::createActions()
     distributedComputingAction = new QAction(QIcon(":/icons/" + theme + "/key"), tr("&Distributed Computing"), this);
     distributedComputingAction->setStatusTip(tr("Set up Biblepay Distributed Computing options (help cure cancer)"));
     distributedComputingAction->setToolTip(distributedComputingAction->statusTip());
-    distributedComputingAction->setCheckable(true);
+	if (fDistributedComputingEnabled)
+	{
+		distributedComputingAction->setCheckable(true);
+	}
     tabGroup->addAction(distributedComputingAction);
 
 
@@ -679,7 +682,7 @@ void BitcoinGUI::createToolBars()
         toolbar->addAction(sendCoinsAction);
         toolbar->addAction(historyAction);
         
-		if (fDistributedComputingEnabled || !fProd) toolbar->addAction(distributedComputingAction);
+		if (fDistributedComputingEnabled) toolbar->addAction(distributedComputingAction);
 		toolbar->addAction(receiveCoinsAction);
 		
         QSettings settings;
@@ -809,8 +812,13 @@ void BitcoinGUI::setWalletActionsEnabled(bool enabled)
     sendCoinsMenuAction->setEnabled(enabled);
     receiveCoinsAction->setEnabled(enabled);
     receiveCoinsMenuAction->setEnabled(enabled);
-	distributedComputingAction->setEnabled(enabled);
-	distributedComputingMenuAction->setEnabled(enabled);
+
+	if (fDistributedComputingEnabled)
+	{
+		distributedComputingAction->setEnabled(enabled);
+		distributedComputingMenuAction->setEnabled(enabled);
+	}
+
     historyAction->setEnabled(enabled);
     QSettings settings;
     if (settings.value("fShowMasternodesTab").toBool() && masternodeAction) {
@@ -1089,6 +1097,7 @@ void BitcoinGUI::gotoMasternodePage()
 
 void BitcoinGUI::gotoDistributedComputingPage()
 {
+	if (!fDistributedComputingEnabled) return;
     distributedComputingAction->setChecked(true);
     if (walletFrame) walletFrame->gotoDistributedComputingPage();
 }
