@@ -242,6 +242,8 @@ extern int iMinerThreadCount;
 extern bool fPoolMiningMode;
 extern bool fPoolMiningUseSSL;
 extern bool fCommunicatingWithPool;
+extern int64_t nLastDCContractSubmitted;
+
 
 extern std::map<uint256, int64_t> mapRejectedBlocks;
 

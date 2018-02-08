@@ -141,6 +141,9 @@ bool fTradingEnabled = false;
 bool fRetirementAccountsEnabled = false;
 bool fProofOfLoyaltyEnabled = false;
 
+int64_t nLastDCContractSubmitted = 0;
+
+
 int iPrayerIndex = 0;
 std::string sOS = "";
 
@@ -7256,24 +7259,22 @@ std::string FormatHTML(std::string sInput, int iInsertCount, std::string sString
 
 void UpdateMagnitude()
 {
-	// std::string sAddress = "";
-	// FindResearcherCPIDByAddress("", sAddress, nMagnitude);
 	double nTotalPaid = 0;
 	int iLastSuperblock = 0;
 	double nBudget = 0;
 	mnMagnitude = GetUserMagnitude(nBudget, nTotalPaid, iLastSuperblock);
-
 }
 
 void SetOverviewStatus()
 {
 	double dDiff = GetDifficultyN(chainActive.Tip(), 10);
-	UpdateMagnitude();
+	if (fDistributedComputingEnabled) UpdateMagnitude();
 	std::string sPrayer = "NA";
 	GetDataList("PRAYER", 7, iPrayerIndex, sPrayer);
 	msGlobalStatus = "Blocks: " + RoundToString((double)chainActive.Tip()->nHeight, 0) 
 		+ "; Difficulty: " + RoundToString(dDiff,4)
-		+ "; Magnitude: " + RoundToString(mnMagnitude,2);
+		+ ";";
+    if (fDistributedComputingEnabled) msGlobalStatus += "Magnitude: " + RoundToString(mnMagnitude,2);
 	msGlobalStatus2="<font color=blue>Prayer Request:<br>";
 	msGlobalStatus3="<font color=red>" + FormatHTML(sPrayer, 12, "<br>") + "</font><br>&nbsp;";
 }

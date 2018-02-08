@@ -619,11 +619,8 @@ void GetDistributedComputingGovObjByHeight(int nHeight, uint256 uOptFilter, int&
 			}
            
         }
-
  }
 
-
-//gobject submit 0 1 0 5b5b2274726967676572222c7b226576656e745f626c6f636b5f686569676874223a313638332c227061796d656e745f616464726573736573223a2230222c227061796d656e745f616d6f756e7473223a2230222c2270726f706f73616c5f686173686573223a22313233222c2274797065223a327d5d5d
 
 bool SubmitDistributedComputingTrigger(std::string sHex, std::string& gobjecthash, std::string& sError)
 {
@@ -640,7 +637,6 @@ bool SubmitDistributedComputingTrigger(std::string sHex, std::string& gobjecthas
              << ", params.size() = " << params.size()
              << ", fMnFound = " << fMnFound << endl; );
 
-      // ASSEMBLE NEW GOVERNANCE OBJECT FROM USER PARAMETERS
       uint256 txidFee;
       uint256 hashParent = uint256();
       int nRevision = 1;
@@ -677,26 +673,22 @@ bool SubmitDistributedComputingTrigger(std::string sHex, std::string& gobjecthas
 			return false;
       }
 
-      // RELAY THIS OBJECT
-      // Reject if rate check fails but don't update buffer
-      if(!governance.MasternodeRateCheck(govobj)) 
+      // RELAY THIS OBJECT 2/8/2018
+	  int64_t nAge = GetAdjustedTime() - nLastDCContractSubmitted;
+	  if (nAge < (60*15))
 	  {
-            LogPrintf("gobject(submit) -- Object submission rejected because of rate check failure - hash = %s\n", strHash);
-            sError = "Object creation rate limit exceeded";
+            sError = "Local Creation rate limit exceeded (0208)";
 			return false;
 	  }
-      // This check should always pass, update buffer
-      if(!governance.MasternodeRateCheck(govobj, UPDATE_TRUE)) 
-	  {
-            sError = "Local Creation rate limit exceeded";
-			return false;
-      }
+
       governance.AddSeenGovernanceObject(govobj.GetHash(), SEEN_OBJECT_IS_VALID);
       govobj.Relay();
       LogPrintf("gobject(submit) -- Adding locally created governance object - %s\n", strHash);
       bool fAddToSeen = true;
       governance.AddGovernanceObject(govobj, fAddToSeen);
 	  gobjecthash = govobj.GetHash().ToString();
+	  nLastDCContractSubmitted = GetAdjustedTime();
+
 	  return true;
 }
 
@@ -784,7 +776,6 @@ std::string GetSANDirectory2()
 	 boost::filesystem::path dir = pathConfigFile.parent_path();
 	 std::string sDir = dir.string() + "/SAN/";
 	 boost::filesystem::path pathSAN(sDir);
-	 LogPrintf(" Checking if dir %s exists ",sDir.c_str());
 	 if (!boost::filesystem::exists(pathSAN))
 	 {
 		 boost::filesystem::create_directory(pathSAN);
@@ -796,13 +787,15 @@ int64_t GetDCCFileAge()
 {
 	std::string sDailyMagnitudeFile = GetSANDirectory2() + "magnitude";
 	boost::filesystem::path pathFiltered(sDailyMagnitudeFile);
+	// ST13 last_write_time error:  Rob A. - Biblepay - 2/8/2018
+	if (!boost::filesystem::exists(pathFiltered)) return GetAdjustedTime() - 0;
 	int64_t nTime = last_write_time(pathFiltered);
 	int64_t nAge = GetAdjustedTime() - nTime;
 	return nAge;
 }
 
 
-// R Andrijas - Biblepay - 1/31/2018 - Support for Distributed Computing
+// Support for Distributed Computing - Robert A. - Biblepay - 1/31/2018 
 // This is the Distributed Computing Consensus Process
 // Each morning, a sanctuary goes through this process:  Do I have an active superblock?  If not, do I have an active Daily DCC Proposal?
 
@@ -852,7 +845,7 @@ std::string ExecuteDistributedComputingSanctuaryQuorumProcess()
 				fDistributedComputingCycle = true;  // Done on a different thread
 				return "DOWNLOADING_DCC_FILE";
 			}
-			LogPrintf(" DCC hash %s ",uDCChash.GetHex());
+			if (fDebugMaster) LogPrintf(" DCC hash %s ",uDCChash.GetHex());
 
 			int iVotes = 0;
 			uint256 uGovObjHash = uint256S("0x0");
@@ -3468,7 +3461,6 @@ UniValue exec(const UniValue& params, bool fHelp)
 		uint256 uDCChash = GetDCCFileHash();
 		int iNextSuperblock = 0;
 		int iLastSuperblock = GetLastDCSuperblockHeight(chainActive.Tip()->nHeight, iNextSuperblock);
-	
 		std::string sContract = GetDCCFileContract();
 		results.push_back(Pair("fileage", nAge));
 		results.push_back(Pair("filehash", uDCChash.GetHex()));
@@ -3476,14 +3468,10 @@ UniValue exec(const UniValue& params, bool fHelp)
 		std::string sAddresses="";
 		std::string sAmounts = "";
 		uint256 uPAMHash = GetDCPAMHashByContract(sContract, iNextSuperblock);
-		
 		results.push_back(Pair("pam_hash", uPAMHash.GetHex()));
-
 		LogPrintf(" ********* fileage %f  contract %s \n ",(double)nAge, sContract.c_str());
-		
 		int iVotes = 0;
 		uint256 uGovObjHash = uint256S("0x0");
-		
 		GetDistributedComputingGovObjByHeight(iNextSuperblock, uPAMHash, iVotes, uGovObjHash, sAddresses, sAmounts);
 		std::string sError = "";
 		LogPrintf(" count %f \n", (double)iVotes);
@@ -3511,7 +3499,6 @@ UniValue exec(const UniValue& params, bool fHelp)
 		results.push_back(Pair("next_superblock", iNextSuperblock));
 		bool fTriggered = CSuperblockManager::IsSuperblockTriggered(iNextSuperblock);
 		results.push_back(Pair("next_superblock_triggered", fTriggered));
-		
 		bool bRes = VoteForDistributedComputingContract(iNextSuperblock, sContract, sError);
 		results.push_back(Pair("vote1",bRes));
 		results.push_back(Pair("vote1error",sError));
@@ -4049,10 +4036,10 @@ double GetUserMagnitude(double& nBudget, double& nTotalPaid, int& iLastSuperbloc
 					  {
 				            std::string sRecipient = PubKeyToAddress(block.vtx[0].vout[i].scriptPubKey);
 							double dAmount = block.vtx[0].vout[i].nValue/COIN;
+							nTotalBlock += dAmount;
 							if (Contains(sPK, sRecipient))
 							{
 								nTotalPaid += dAmount;
-								nTotalBlock += dAmount;
 							}
 					  }
 					  if (nTotalBlock > nBudget-100) break;
