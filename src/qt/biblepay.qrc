@@ -24,9 +24,6 @@
         <file alias="eye_plus">res/icons/drkblue/eye_plus.png</file>
         <file alias="options">res/icons/drkblue/configure.png</file>
         <file alias="receiving_addresses">res/icons/drkblue/receive.png</file>
-        <file alias="account32">res/icons/drkblue/receive.png</file>
-        <file alias="baby32">res/icons/drkblue/receive.png</file>
-        <file alias="cancer32">res/icons/drkblue/cancer32.png</file>
         <file alias="editpaste">res/icons/drkblue/editpaste.png</file>
         <file alias="editcopy">res/icons/drkblue/editcopy.png</file>
         <file alias="add">res/icons/drkblue/add.png</file>
@@ -77,9 +74,6 @@
         <file alias="eye_plus">res/icons/gradient/eye_plus.png</file>
         <file alias="options">res/icons/gradient/configure.png</file>
         <file alias="receiving_addresses">res/icons/gradient/receive.png</file>
-        <file alias="account32">res/icons/gradient/account32.png</file>
-	<file alias="baby32">res/icons/gradient/baby32.png</file>
-	<file alias="cancer32">res/icons/gradient/cancer32.png</file>
         <file alias="editpaste">res/icons/gradient/editpaste.png</file>
         <file alias="editcopy">res/icons/gradient/editcopy.png</file>
         <file alias="add">res/icons/gradient/add.png</file>
@@ -130,9 +124,6 @@
         <file alias="eye_plus">res/icons/light/eye_plus.png</file>
         <file alias="options">res/icons/light/configure.png</file>
         <file alias="receiving_addresses">res/icons/light/receive.png</file>
-        <file alias="account32">res/icons/light/account32.png</file>
-	<file alias="baby32">res/icons/light/baby32.png</file>
-	<file alias="cancer32">res/icons/light/cancer32.png</file>
         <file alias="editpaste">res/icons/light/editpaste.png</file>
         <file alias="editcopy">res/icons/light/editcopy.png</file>
         <file alias="add">res/icons/light/add.png</file>
@@ -183,9 +174,6 @@
         <file alias="eye_plus">res/icons/trad/eye_plus.png</file>
         <file alias="options">res/icons/trad/configure.png</file>
         <file alias="receiving_addresses">res/icons/trad/receive.png</file>
-        <file alias="account32">res/icons/trad/account32.png</file>
-	<file alias="baby32">res/icons/trad/baby32.png</file>
-	<file alias="cancer32">res/icons/trad/cancer32.png</file>
         <file alias="editpaste">res/icons/trad/editpaste.png</file>
         <file alias="editcopy">res/icons/trad/editcopy.png</file>
         <file alias="add">res/icons/trad/add.png</file>

@@ -330,7 +330,7 @@ void BitcoinGUI::createActions()
     tabGroup->addAction(receiveCoinsAction);
 
 	// 1-30-2018
-    distributedComputingAction = new QAction(QIcon(":/icons/" + theme + "/cancer32"), tr("&Distributed Computing"), this);
+    distributedComputingAction = new QAction(QIcon(":/icons/" + theme + "/key"), tr("&Distributed Computing"), this);
     distributedComputingAction->setStatusTip(tr("Set up Biblepay Distributed Computing options (help cure cancer)"));
     distributedComputingAction->setToolTip(distributedComputingAction->statusTip());
     distributedComputingAction->setCheckable(true);
@@ -341,7 +341,7 @@ void BitcoinGUI::createActions()
     receiveCoinsMenuAction->setStatusTip(receiveCoinsAction->statusTip());
     receiveCoinsMenuAction->setToolTip(receiveCoinsMenuAction->statusTip());
 
-	distributedComputingMenuAction = new QAction(QIcon(":/icons/" + theme + "/receiving_addresses"), distributedComputingAction->text(), this);
+	distributedComputingMenuAction = new QAction(QIcon(":/icons/" + theme + "/key"), distributedComputingAction->text(), this);
     distributedComputingMenuAction->setStatusTip(distributedComputingAction->statusTip());
     distributedComputingMenuAction->setToolTip(distributedComputingMenuAction->statusTip());
 	
@@ -350,7 +350,7 @@ void BitcoinGUI::createActions()
     historyAction->setToolTip(historyAction->statusTip());
     historyAction->setCheckable(true);
 
-	orphanAction = new QAction(QIcon(":/icons/" + theme + "/account32"), tr("&Show Accountability"), this);
+	orphanAction = new QAction(QIcon(":/icons/" + theme + "/edit"), tr("&Show Accountability"), this);
     orphanAction->setStatusTip(tr("Show Accountability Page"));
     orphanAction->setToolTip(orphanAction->statusTip());
     orphanAction->setCheckable(true);
