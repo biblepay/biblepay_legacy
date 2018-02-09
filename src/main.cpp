@@ -85,6 +85,7 @@ bool fDistributedComputingCycle = false;
 bool fDistributedComputingEnabled = false;
 bool fDistributedComputingCycleDownloading = false;
 double GetUserMagnitude(double& nBudget, double& nTotalPaid, int& iLastSuperblock);
+std::string GetElement(std::string sIn, std::string sDelimiter, int iPos);
 
 int64_t nGlobalPOLWeight;
 int64_t nGlobalInfluencePercentage;
@@ -131,7 +132,6 @@ int GetLastDCSuperblockHeight(int nCurrentHeight, int& nNextSuperblock);
 void GetDistributedComputingGovObjByHeight(int nHeight, uint256 uOptFilter, int& out_nVotes, uint256& out_uGovObjHash, std::string& out_PAD, std::string& out_PAM);
 extern std::string GetMyPublicKeys();
 bool VerifyCPIDSignature(std::string sFullSig, bool bRequireEndToEndVerification, std::string& sError);
-
 
 CWaitableCriticalSection csBestBlock;
 CConditionVariable cvBlockChange;
@@ -4389,6 +4389,30 @@ static bool CheckIndexAgainstCheckpoint(const CBlockIndex* pindexPrev, CValidati
     return true;
 }
 
+bool HasThisCPIDSolvedPriorBlocks(std::string CPID, CBlockIndex* pindexPrev)
+{
+	int iCheckWindow = fProd ? 4 : 1;
+	CBlockIndex* pindex = pindexPrev;
+	int64_t headerAge = GetAdjustedTime() - pindexPrev->nTime;
+	if (headerAge > (60*60*4)) return false;
+	if (CPID.empty()) return false;
+	for (int i = 0; i < iCheckWindow; i++)
+	{
+		if (pindex != NULL)
+		{
+			CBlockHeader block = pindex->GetBlockHeader();
+			std::string lastcpid = GetElement(block.sBlockMessage, ";", 0);
+			if (!lastcpid.empty())
+			{
+				LogPrintf(" Current CPID %s, LastCPID %s, Height %f --- ", CPID.c_str(), lastcpid.c_str(), (double)pindex->nHeight);
+				if (lastcpid == CPID) return true;
+				pindex = pindexPrev->pprev;
+			}
+		}
+	}
+	return false;
+}
+
 bool ContextualCheckBlockHeader(const CBlockHeader& block, CValidationState& state, CBlockIndex * const pindexPrev)
 {
     const Consensus::Params& consensusParams = Params().GetConsensus();
@@ -4418,7 +4442,7 @@ bool ContextualCheckBlockHeader(const CBlockHeader& block, CValidationState& sta
         return state.Invalid(error("%s : rejected nVersion=3 block", __func__),
                              REJECT_OBSOLETE, "bad-version");
 	// Rob A. - Biblepay - 2/8/2018 - Contextual check CPID signature on each block to prevent botnet from forming
-	if (fDistributedComputingEnabled && false)
+	if (fDistributedComputingEnabled)
 	{
 		std::string sError = "";
 		int64_t nHeaderAge = GetAdjustedTime() - pindexPrev->nTime;
@@ -4428,6 +4452,19 @@ bool ContextualCheckBlockHeader(const CBlockHeader& block, CValidationState& sta
 		{
 			LogPrintf(" CPID Signature Check Failed.  CPID %s, Error %s \n", block.sBlockMessage.c_str(), sError.c_str());
 		}
+		// Ensure this CPID has not solved any of the last N blocks in prod or last block in testnet:
+		std::string sCPID = GetElement(block.sBlockMessage, ";", 0);
+		bool bSolvedPriorBlocks = HasThisCPIDSolvedPriorBlocks(sCPID, pindexPrev);
+	    if (bSolvedPriorBlocks)
+		{
+			LogPrintf(" CPID has solved prior blocks.  Contextual check block failed.  CPID %s ",sCPID.c_str());
+		}
+
+	}
+
+	if (fDistributedComputingEnabled)
+	{
+		LogPrintf(" Contextual check block header - CPID Info %s ",block.sBlockMessage.c_str());
 	}
     return true;
 }

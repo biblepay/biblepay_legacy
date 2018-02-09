@@ -387,6 +387,7 @@ CBlockTemplate* CreateNewBlock(const CChainParams& chainparams, const CScript& s
 			}
 
 			pblock->sBlockMessage = sFullSig + ";" + txNew.vout[0].sTxOutMessage;
+			LogPrintf(" CNB-CPIDSIG %s ", sFullSig.c_str());
 
 		}
     

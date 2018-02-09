@@ -111,9 +111,8 @@ std::string GetBook(int iBookNumber);
 extern std::string rPad(std::string data, int minWidth);
 bool CheckNonce(bool f9000, unsigned int nNonce, int nPrevHeight, int64_t nPrevBlockTime, int64_t nBlockTime);
 extern int GetLastDCSuperblockHeight(int nCurrentHeight, int& nNextSuperblock);
-
+extern std::string GetElement(std::string sIn, std::string sDelimiter, int iPos);
 extern bool VoteForDistributedComputingContract(int nHeight, std::string sContract, std::string sError);
-
 std::string GetMessagesFromBlock(const CBlock& block, std::string sMessages);
 std::string GetBibleHashVerses(uint256 hash, uint64_t nBlockTime, uint64_t nPrevBlockTime, int nPrevHeight, CBlockIndex* pindexprev);
 double cdbl(std::string s, int place);
@@ -4060,15 +4059,14 @@ std::string GetElement(std::string sIn, std::string sDelimiter, int iPos)
 bool VerifyCPIDSignature(std::string sFullSig, bool bRequireEndToEndVerification, std::string& sError)
 {
 	std::string sCPID = GetElement(sFullSig, ";", 0);
-	std::string sMessage = GetElement(sFullSig, ";", 1);
-	std::string sHash = GetElement(sFullSig, ";", 2);
-	std::string sPK = GetElement(sFullSig, ";", 3);
-	std::string sSig = GetElement(sFullSig, ";", 4);
-	std::string sOrig = sCPID + ";" + sHash + ";" + sPK;
-	bool bVerified = CheckStakeSignature(sPK, sSig, sOrig, sError);
+	std::string sHash = GetElement(sFullSig, ";", 1);
+	std::string sPK = GetElement(sFullSig, ";", 2);
+    std::string sMessage = sCPID + ";" + sHash + ";" + sPK;
+	std::string sSig = GetElement(sFullSig, ";", 3);
+	bool bVerified = CheckStakeSignature(sPK, sSig, sMessage, sError);
 	if (!bVerified)
 	{
-		LogPrintf(" CPID Signature Failed : %s, Addr %s  Sig %s \n", sOrig, sPK, sSig);
+		LogPrintf(" CPID Signature Failed : %s, Addr %s  Sig %s \n", sMessage, sPK, sSig);
 		return false;
 	}
 	if (bRequireEndToEndVerification)
