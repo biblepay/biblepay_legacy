@@ -168,6 +168,7 @@ public:
         nTime          = 0;
         nBits          = 0;
         nNonce         = 0;
+		sBlockMessage  = "";
     }
 
     CBlockIndex()
@@ -184,11 +185,14 @@ public:
         nTime          = block.nTime;
         nBits          = block.nBits;
         nNonce         = block.nNonce;
+	    sBlockMessage  = block.sBlockMessage;
     }
 
-    CDiskBlockPos GetBlockPos() const {
+    CDiskBlockPos GetBlockPos() const 
+	{
         CDiskBlockPos ret;
-        if (nStatus & BLOCK_HAVE_DATA) {
+        if (nStatus & BLOCK_HAVE_DATA) 
+		{
             ret.nFile = nFile;
             ret.nPos  = nDataPos;
         }
@@ -214,6 +218,8 @@ public:
         block.nTime          = nTime;
         block.nBits          = nBits;
         block.nNonce         = nNonce;
+		block.sBlockMessage  = sBlockMessage;
+
         return block;
     }
 

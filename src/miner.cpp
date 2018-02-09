@@ -68,6 +68,9 @@ double GetStakeWeight(CTransaction tx, int64_t nTipTime, std::string sXML, bool 
 uint256 PercentToBigIntBase(int iPercent);
 int64_t GetStakeTargetModifierPercent(int nHeight, double nWeight);
 bool IsStakeSigned(std::string sXML);
+bool SignCPID(std::string& sError, std::string& out_FullSig);
+bool VerifyCPIDSignature(std::string sFullSig, bool bRequireEndToEndVerification, std::string& sError);
+
 
 class ScoreCompare
 {
@@ -367,6 +370,26 @@ CBlockTemplate* CreateNewBlock(const CChainParams& chainparams, const CScript& s
 		// Add BiblePay version to the subsidy tx message
 		std::string sVersion = FormatFullVersion();
 		txNew.vout[0].sTxOutMessage += "<VER>" + sVersion + "</VER>";
+		if (fDistributedComputingEnabled)
+		{
+			// 2-8-2018 Rob A. - Biblepay
+			std::string sErr2 = "";
+			std::string sFullSig = "";
+			bool fSigned = SignCPID(sErr2, sFullSig);
+			if (!fSigned)
+			{
+				LogPrintf("\n Failed to Sign CPID Signature.  %s ",sErr2);
+			}
+			bool fSigChecked = VerifyCPIDSignature(sFullSig, true, sErr2);
+			if (!fSigChecked)
+			{
+				LogPrintf("\n Failed to Verify Signature of %s with Error %s ",sFullSig.c_str(), sErr2.c_str());
+			}
+
+			pblock->sBlockMessage = sFullSig + ";" + txNew.vout[0].sTxOutMessage;
+
+		}
+    
 		if (!sMinerGuid.empty())
 		{
 			txNew.vout[0].sTxOutMessage += "<MINERGUID>" + sMinerGuid + "</MINERGUID>";

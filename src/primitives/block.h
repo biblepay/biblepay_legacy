@@ -27,6 +27,7 @@ public:
     uint32_t nTime;
     uint32_t nBits;
     uint32_t nNonce;
+	std::string sBlockMessage;
 
     CBlockHeader()
     {
@@ -36,7 +37,8 @@ public:
     ADD_SERIALIZE_METHODS;
 
     template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
+    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) 
+	{
         READWRITE(this->nVersion);
         nVersion = this->nVersion;
         READWRITE(hashPrevBlock);
@@ -54,6 +56,7 @@ public:
         nTime = 0;
         nBits = 0;
         nNonce = 0;
+		sBlockMessage = "";
     }
 
     bool IsNull() const
@@ -119,6 +122,7 @@ public:
         block.nTime          = nTime;
         block.nBits          = nBits;
         block.nNonce         = nNonce;
+		block.sBlockMessage  = sBlockMessage;
         return block;
     }
 

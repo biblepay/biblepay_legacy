@@ -93,8 +93,8 @@ extern std::string GetSporkValue(std::string sKey);
 extern std::string GetDCCElement(std::string sData, int iElement);
 std::string FindResearcherCPIDByAddress(std::string sSearch, std::string& out_address, double& nTotalMagnitude);
 extern double GetUserMagnitude(double& nBudget, double& nTotalPaid, int& iLastSuperblock);
-
-
+extern bool SignCPID(std::string& sError, std::string& out_FullSig);
+extern bool VerifyCPIDSignature(std::string sFullSig, bool bRequireEndToEndVerification, std::string& sError);
 extern int GetCPIDCount(std::string sContract, double& nTotalMagnitude);
 extern int VerifySanctuarySignatures(std::string sSignatureData);
 extern double GetMagnitudeInContract(std::string sContract, std::string sCPID);
@@ -266,7 +266,7 @@ double MyPercentile(int nHeight)
 	int iSanctuaryCount = GetSanctuaryCount();
 	if (iSanctuaryCount < 1) return 0;
 	double dPercentile = iRank / iSanctuaryCount;
-	return dPercentile;
+	return dPercentile * 100;
 }
 
 bool AmIMasternode()
@@ -289,8 +289,8 @@ int GetRequiredQuorumLevel()
 
 	int iSanctuaryQuorumLevel = fProd ? .10 : .02;
 	int iRequiredVotes = GetSanctuaryCount() * iSanctuaryQuorumLevel;
-	if (fProd && iRequiredVotes < 2) iRequiredVotes = 2;
-	if (!fProd && iRequiredVotes < 1) iRequiredVotes = 1;
+	if (fProd && iRequiredVotes < 3) iRequiredVotes = 3;
+	if (!fProd && iRequiredVotes < 2) iRequiredVotes = 2;
 	return iRequiredVotes;
 }
 
@@ -829,7 +829,7 @@ std::string ExecuteDistributedComputingSanctuaryQuorumProcess()
 		return "PENDING_SUPERBLOCK";
 	}
 
-	if (MyPercentile(iLastSuperblock) <= 10 || (MyPercentile(iLastSuperblock) < 99 && !fProd))
+	if ((fProd && MyPercentile(iLastSuperblock) <= 33) || (MyPercentile(iLastSuperblock) < 99 && !fProd))
 	{
 	    LOCK(cs_main);
 		{
@@ -995,6 +995,7 @@ UniValue blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool tx
 		result.push_back(Pair("mediantime", (int64_t)blockindex->GetMedianTimePast()));
 	    result.push_back(Pair("difficulty", GetDifficultyN(blockindex,10)));
 		result.push_back(Pair("chainwork", blockindex->nChainWork.GetHex()));
+		
 	}
 
 	result.push_back(Pair("hrtime",   TimestampToHRDate(block.GetBlockTime())));
@@ -1029,9 +1030,10 @@ UniValue blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool tx
 		uint256 bibleHash = BibleHash(hashWork, block.GetBlockTime(), blockindex->pprev->nTime, false, blockindex->pprev->nHeight, blockindex->pprev, 
 			false, f7000, f8000, f9000, fTitheBlocksActive, blockindex->nNonce);
 		bool bSatisfiesBibleHash = (UintToArith256(bibleHash) <= hashTarget);
-		result.push_back(Pair("satisfiesbiblehash", bSatisfiesBibleHash ? "true" : "false"));
+		result.push_back(Pair("blockmessage", blockindex->sBlockMessage));
+    	result.push_back(Pair("satisfiesbiblehash", bSatisfiesBibleHash ? "true" : "false"));
 		result.push_back(Pair("biblehash", bibleHash.GetHex()));
-		// Proof-Of-Loyalty - 01-18-2018 - Rob Andrija
+		// Proof-Of-Loyalty - 01-18-2018 - Rob A.
 		if (fProofOfLoyaltyEnabled)
 		{
 			if (block.vtx.size() > 1)
@@ -1956,11 +1958,8 @@ void ScanBlockChainVersion(int nLookback)
          pblockindex = pblockindex->pprev;
          if (ReadBlockFromDisk(block, pblockindex, consensusParams, "SCANBLOCKCHAINVERSION")) 
 		 {
-			//std::string sVersion = RoundToString(block.nVersion,0); // In case we ever add a version suffix
 			std::string sVersion2 = ExtractXML(block.vtx[0].vout[0].sTxOutMessage,"<VER>","</VER>");
-			//mvBlockVersion[sVersion]++;
 			mvBlockVersion[sVersion2]++;
-
 		 }
     }
 }
@@ -2688,14 +2687,11 @@ CTransaction CreateCoinStake(CBlockIndex* pindexLast, CScript scriptCoinstakeKey
 
 	std::string sMetrics = "";
 	double dWeight = GetStakeWeight(ctx, pindexLast->GetBlockTime(), "", false, sMetrics, sError);
-	
 
     // EnsureWalletIsUnlocked();
 	// Ensure they can sign every output
 	std::string sMessage = GetRandHash().GetHex();
 	sXML = "<polmessage>" + sMessage + "</polmessage><polweight>"+RoundToString(dWeight,2) + "</polweight>" + sMetrics;
-	//wtx.vout[0].sTxMessage = sXML;
-	//LogPrintf("tx message %s \n", ctx.vout[0].sTxMessage.c_str());
 
 	for (int iIndex = 0; iIndex < (int)ctx.vout.size(); iIndex++) 
 	{
@@ -2703,7 +2699,6 @@ CTransaction CreateCoinStake(CBlockIndex* pindexLast, CScript scriptCoinstakeKey
 		const CTxOut& txout = ctx.vout[iIndex];
 	    std::string sAddr = PubKeyToAddress(txout.scriptPubKey);
 		std::string sSignature = "";
-
 		bool bSigned = SignStake(sAddr, sMessage, sError, sSignature);
 		if (bSigned)
 		{
@@ -2715,7 +2710,6 @@ CTransaction CreateCoinStake(CBlockIndex* pindexLast, CScript scriptCoinstakeKey
 			LogPrintf(" Unable to sign stake %s \n", sAddr.c_str());
 		}
 	}
-	//    ctx.vout[0].sTxOutMessage = sXML;
 	return ctx;
 }
 
@@ -3363,7 +3357,7 @@ UniValue exec(const UniValue& params, bool fHelp)
 		}
 		results.push_back(Pair("txid", block.vtx[0].GetHash().GetHex()));
 		results.push_back(Pair("recipient", PubKeyToAddress(block.vtx[0].vout[0].scriptPubKey)));
-		// 1-23-2018:: Biblepay - R Andrija, add biblehash to tail end of coinbase tx
+		// 1-23-2018: Biblepay - Rob A., add biblehash to tail end of coinbase tx
 		CBlockIndex* pindexPrev = chainActive.Tip();
 		bool f7000;
 		bool f8000;
@@ -4051,6 +4045,67 @@ double GetUserMagnitude(double& nBudget, double& nTotalPaid, int& iLastSuperbloc
 			mnMagnitude = nTotalPaid / nBudget * 1000;
 		}
 		return mnMagnitude;
+}
+
+std::string GetElement(std::string sIn, std::string sDelimiter, int iPos)
+{
+	std::vector<std::string> vInput = Split(sIn.c_str(), sDelimiter);
+	if (iPos < (int)vInput.size())
+	{
+		return vInput[iPos];
+	}
+	return "";
+}
+
+bool VerifyCPIDSignature(std::string sFullSig, bool bRequireEndToEndVerification, std::string& sError)
+{
+	std::string sCPID = GetElement(sFullSig, ";", 0);
+	std::string sMessage = GetElement(sFullSig, ";", 1);
+	std::string sHash = GetElement(sFullSig, ";", 2);
+	std::string sPK = GetElement(sFullSig, ";", 3);
+	std::string sSig = GetElement(sFullSig, ";", 4);
+	std::string sOrig = sCPID + ";" + sHash + ";" + sPK;
+	bool bVerified = CheckStakeSignature(sPK, sSig, sOrig, sError);
+	if (!bVerified)
+	{
+		LogPrintf(" CPID Signature Failed : %s, Addr %s  Sig %s \n", sOrig, sPK, sSig);
+		return false;
+	}
+	if (bRequireEndToEndVerification)
+	{
+		std::string sDCPK = GetDCCPublicKey(sCPID);
+		if (sDCPK != sPK) 
+		{
+			LogPrintf(" End To End CPID Verification Failed, Address does not match advertised public key for CPID %s, Advertised Addr %s, Addr %s ", sCPID.c_str(), sDCPK.c_str(), sPK.c_str());
+			return false;
+		}
+	}
+	return true;
+
+}
+
+
+bool SignCPID(std::string& sError, std::string& out_FullSig)
+{
+	// Sign Researcher CPID - 2/8/2018 - Rob A. - Biblepay
+	std::string sCPID = GetElement(msGlobalCPID, ";", 0);
+	std::string sHash = GetRandHash().GetHex();
+	std::string sDCPK = GetDCCPublicKey(sCPID);
+    std::string sMessage = sCPID + ";" + sHash + ";" + sDCPK;
+	std::string sSignature = "";
+	bool bSigned = SignStake(sDCPK, sMessage, sError, sSignature);
+	if (!bSigned)
+	{
+		LogPrintf(" Failed to Sign CPID Signature for CPID %s, with PubKey %s, Message %s, Error %s ", 
+			sCPID.c_str(), sDCPK.c_str(), sMessage.c_str(), sError.c_str());
+		return false;
+	}
+	else
+	{
+		sMessage += ";" + sSignature;
+	}
+	out_FullSig = sMessage;
+	return true;
 }
 
 

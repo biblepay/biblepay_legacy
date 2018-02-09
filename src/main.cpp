@@ -130,6 +130,7 @@ int GetRequiredQuorumLevel();
 int GetLastDCSuperblockHeight(int nCurrentHeight, int& nNextSuperblock);
 void GetDistributedComputingGovObjByHeight(int nHeight, uint256 uOptFilter, int& out_nVotes, uint256& out_uGovObjHash, std::string& out_PAD, std::string& out_PAM);
 extern std::string GetMyPublicKeys();
+bool VerifyCPIDSignature(std::string sFullSig, bool bRequireEndToEndVerification, std::string& sError);
 
 
 CWaitableCriticalSection csBestBlock;
@@ -4416,7 +4417,18 @@ bool ContextualCheckBlockHeader(const CBlockHeader& block, CValidationState& sta
     if (block.nVersion < 4 && IsSuperMajority(4, pindexPrev, consensusParams.nMajorityRejectBlockOutdated, consensusParams))
         return state.Invalid(error("%s : rejected nVersion=3 block", __func__),
                              REJECT_OBSOLETE, "bad-version");
-
+	// Rob A. - Biblepay - 2/8/2018 - Contextual check CPID signature on each block to prevent botnet from forming
+	if (fDistributedComputingEnabled && false)
+	{
+		std::string sError = "";
+		int64_t nHeaderAge = GetAdjustedTime() - pindexPrev->nTime;
+		bool bEndToEndVerification = nHeaderAge < (60*60*12) ? true : false;
+		bool fCheckCPIDSignature = VerifyCPIDSignature(block.sBlockMessage, bEndToEndVerification, sError);
+		if (!fCheckCPIDSignature)
+		{
+			LogPrintf(" CPID Signature Check Failed.  CPID %s, Error %s \n", block.sBlockMessage.c_str(), sError.c_str());
+		}
+	}
     return true;
 }
 
