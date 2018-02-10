@@ -92,7 +92,8 @@ extern std::vector<std::string> GetListOfDCCS(std::string sSearch);
 extern std::string GetSporkValue(std::string sKey);
 extern std::string GetDCCElement(std::string sData, int iElement);
 std::string FindResearcherCPIDByAddress(std::string sSearch, std::string& out_address, double& nTotalMagnitude);
-extern double GetUserMagnitude(double& nBudget, double& nTotalPaid, int& iLastSuperblock);
+extern double GetUserMagnitude(double& nBudget, double& nTotalPaid, int& iLastSuperblock, std::string& out_Superblocks, int& out_SuperblockCount, int& out_HitCount, double& out_OneDayPaid, double& out_OneWeekPaid, double& out_OneDayBudget, double& out_OneWeekBudget);
+
 extern bool SignCPID(std::string& sError, std::string& out_FullSig);
 extern bool VerifyCPIDSignature(std::string sFullSig, bool bRequireEndToEndVerification, std::string& sError);
 extern int GetCPIDCount(std::string sContract, double& nTotalMagnitude);
@@ -139,6 +140,8 @@ std::string GetMyPublicKeys();
 extern uint256 GetDCPAMHashByContract(std::string sContract, int nHeight);
 bool Contains(std::string data, std::string instring);
 extern bool GetContractPaymentData(std::string sContract, int nBlockHeight, std::string& sPaymentAddresses, std::string& sAmounts);
+extern double GetPaymentByCPID(std::string CPID);
+
 
 
 
@@ -199,10 +202,15 @@ std::string RetrieveDCCWithMaxAge(std::string cpid, int64_t iMaxSeconds)
     const std::string& value = mvApplicationCache[key];
 	const Consensus::Params& consensusParams = Params().GetConsensus();
     int64_t iAge = chainActive.Tip() != NULL ? chainActive.Tip()->nTime - mvApplicationCacheTimestamp[key] : 0;
-	LogPrintf("cpid %s rdwma %s %f  %f ",cpid.c_str(),value.c_str(), iAge, iMaxSeconds);
+	//LogPrintf("cpid %s rdwma %s %f  %f ",cpid.c_str(),value.c_str(), iAge, iMaxSeconds);
     return (iAge > iMaxSeconds) ? "" : value;
 }
 
+int64_t RetrieveCPIDAssociationTime(std::string cpid)
+{
+	std::string key = "DCC;" + cpid;
+	return mvApplicationCacheTimestamp[key];
+}
 
 std::string RetrieveCurrentDCContract(int iCurrentHeight, int iMaximumAgeAllowed)
 {
@@ -3530,6 +3538,17 @@ UniValue exec(const UniValue& params, bool fHelp)
 		results.push_back(Pair("Address", out_address));
 		results.push_back(Pair("CPIDS", msGlobalCPID));
 		
+		int64_t nTime = RetrieveCPIDAssociationTime(sCPID);
+		int64_t nAge = (GetAdjustedTime() - nTime)/(60*60);
+
+		std::string sNarrAge = nAge < 24 ? "** Warning, CPID was associated less than 24 hours ago.  Magnitude may be zero until distributed grid network harvests all credit data.  Please keep crunching. **" : "";
+		results.push_back(Pair("CPID-Age (hours)",nAge));
+		if (!sNarrAge.empty())
+		{
+			results.push_back(Pair("Alert", sNarrAge));
+		}
+
+
 		results.push_back(Pair("NextSuperblockHeight", iNextSuperblock));
 	    int64_t iMaxSeconds = 60 * 24 * 30 * 12 * 60;
     	//double nPaymentsTotal = CSuperblock::GetPaymentsLimit(iLastSuperblock);
@@ -3555,13 +3574,29 @@ UniValue exec(const UniValue& params, bool fHelp)
 		const Consensus::Params& consensusParams = Params().GetConsensus();
 		double nBudget = 0;
 		double nTotalPaid = 0;
-		double nMagnitude = GetUserMagnitude(nBudget, nTotalPaid, iLastSuperblock);
+		std::string out_Superblocks = "";
+		int out_SuperblockCount = 0;
+		int out_HitCount = 0;
+		double out_OneDayPaid = 0;
 
-		results.push_back(Pair("LastSuperblockHeight", iLastSuperblock));
-		results.push_back(Pair("Payments", nTotalPaid));
-		results.push_back(Pair("Budget", nBudget));
+		double out_OneWeekPaid = 0;
+		double out_OneDayBudget = 0;
+		double out_OneWeekBudget = 0;
+		double nMagnitude = GetUserMagnitude(nBudget, nTotalPaid, iLastSuperblock, out_Superblocks, out_SuperblockCount, out_HitCount, out_OneDayPaid, out_OneWeekPaid, out_OneDayBudget, out_OneWeekBudget);
+
+		results.push_back(Pair("Total Payments (One Day)", out_OneDayPaid));
+		results.push_back(Pair("Total Payments (One Week)", out_OneWeekPaid));
+		results.push_back(Pair("Total Budget (One Day)",out_OneDayBudget));
+		results.push_back(Pair("Total Budget (One Week)",out_OneWeekBudget));
+		results.push_back(Pair("Superblock Count (One Week)", out_SuperblockCount));
+		results.push_back(Pair("Superblock Hit Count (One Week)", out_HitCount));
+		results.push_back(Pair("Superblock List", out_Superblocks));
+		results.push_back(Pair("Last Superblock Budget", nBudget));
+		
+		double dLastPayment = GetPaymentByCPID(sCPID);
+		results.push_back(Pair("Last Superblock Height", iLastSuperblock));
+		results.push_back(Pair("Last Superblock Payment", dLastPayment));
 		results.push_back(Pair("Magnitude", nMagnitude));
-	
 	}
 	else if (sItem == "datalist")
 	{
@@ -4006,17 +4041,74 @@ std::string AssociateDCAccount(std::string sProjectId, std::string sBoincEmail, 
 	return sError;
 }
 
-double GetUserMagnitude(double& nBudget, double& nTotalPaid, int& iLastSuperblock)
+std::string ChopLast(std::string sMyChop)
+{
+	if (sMyChop.length() > 1) sMyChop = sMyChop.substr(0,sMyChop.length()-1);
+	return sMyChop;
+}
+
+
+
+
+double GetPaymentByCPID(std::string CPID)
+{
+	// 2-10-2018 - R ANDREW - BIBLEPAY - Provide ability to return last payment amount (in most recent superblock) for a given CPID
+	std::string sDCPK = GetDCCPublicKey(CPID);
+	if (sDCPK.empty()) return -2;
+	if (CPID.empty()) return -3;
+	const Consensus::Params& consensusParams = Params().GetConsensus();
+	int iNextSuperblock = 0;  
+	int iLastSuperblock = GetLastDCSuperblockHeight(chainActive.Tip()->nHeight, iNextSuperblock);
+	CBlockIndex* pindex = FindBlockByHeight(iLastSuperblock);
+	CBlock block;
+	double nTotalBlock = 0;
+	double nBudget = 0;
+	if (pindex==NULL) return -1;
+	double nTotalPaid=0;
+	nTotalBlock=0;
+	if (ReadBlockFromDisk(block, pindex, consensusParams, "GetPaymentByCPID")) 
+	{
+			  nBudget = CSuperblock::GetPaymentsLimit(iLastSuperblock) / COIN;
+			  // int Age = GetAdjustedTime() - block.GetBlockTime();
+			  for (unsigned int i = 1; i < block.vtx[0].vout.size(); i++)
+			  {
+		            std::string sRecipient = PubKeyToAddress(block.vtx[0].vout[i].scriptPubKey);
+					double dAmount = block.vtx[0].vout[i].nValue/COIN;
+					nTotalBlock += dAmount;
+					if (Contains(sDCPK, sRecipient))
+					{
+						nTotalPaid += dAmount;
+					}
+			  }
+	}
+	else
+	{
+		return -1;
+	}
+	if (nBudget == 0 || nTotalBlock == 0) return -1;
+	if (nBudget < 21000 || nTotalBlock < 21000) return -1;
+	bool bSuperblockHit = (nTotalBlock > nBudget-100);
+	if (!bSuperblockHit) return -1;
+	return nTotalPaid;
+}
+
+
+
+
+
+
+double GetUserMagnitude(double& nBudget, double& nTotalPaid, int& out_iLastSuperblock, std::string& out_Superblocks, int& out_SuperblockCount, int& out_HitCount, double& out_OneDayPaid, double& out_OneWeekPaid, double& out_OneDayBudget, double& out_OneWeekBudget)
 {
 	std::string sPK = GetMyPublicKeys();
 	// Query actual magnitude from last superblock
 	const Consensus::Params& consensusParams = Params().GetConsensus();
-	int iNextSuperblock = 0;     
+	int iNextSuperblock = 0;  
 	for (int b = chainActive.Tip()->nHeight; b > 1; b--)
 	{
-		iLastSuperblock = GetLastDCSuperblockHeight(b+1, iNextSuperblock);
+		int iLastSuperblock = GetLastDCSuperblockHeight(b+1, iNextSuperblock);
 		if (iLastSuperblock == b)
 		{
+			out_SuperblockCount++;
 			CBlockIndex* pindex = FindBlockByHeight(b);
 			CBlock block;
 			double nTotalBlock = 0;
@@ -4025,6 +4117,8 @@ double GetUserMagnitude(double& nBudget, double& nTotalPaid, int& iLastSuperbloc
 					  nBudget = CSuperblock::GetPaymentsLimit(iLastSuperblock) / COIN;
 					  nTotalPaid=0;
 					  nTotalBlock=0;
+					  int Age = GetAdjustedTime() - block.GetBlockTime();
+							
 					  for (unsigned int i = 1; i < block.vtx[0].vout.size(); i++)
 					  {
 				            std::string sRecipient = PubKeyToAddress(block.vtx[0].vout[i].scriptPubKey);
@@ -4033,16 +4127,40 @@ double GetUserMagnitude(double& nBudget, double& nTotalPaid, int& iLastSuperbloc
 							if (Contains(sPK, sRecipient))
 							{
 								nTotalPaid += dAmount;
+								if (Age > 0 && Age < 86400)
+								{
+									out_OneDayPaid += dAmount;
+								}
+								if (Age > 0 && Age < (7*86400)) out_OneWeekPaid += dAmount;
 							}
 					  }
-					  if (nTotalBlock > nBudget-100) break;
+					  if (nTotalBlock > nBudget-100) 
+					  {
+						    if (out_iLastSuperblock == 0) out_iLastSuperblock = iLastSuperblock;
+						    out_Superblocks += RoundToString(b,0) + ",";
+							out_HitCount++;
+							if (Age > 0 && Age < 86400)
+							{
+								out_OneDayBudget += nBudget;
+							}
+							if (Age > 0 && Age < (7*86400)) 
+							{
+								out_OneWeekBudget += nBudget;
+							}
+							if (Age > (7*86400)) 
+							{
+								break;
+							}
+					  }
 				}
 			}
 		}
-		if (nBudget > 0)
+		if (out_OneWeekBudget > 0)
 		{
-			mnMagnitude = nTotalPaid / nBudget * 1000;
+			mnMagnitude = out_OneWeekPaid / out_OneWeekBudget * 1000;
 		}
+		out_Superblocks = ChopLast(out_Superblocks);
+			
 		return mnMagnitude;
 }
 
@@ -4102,7 +4220,7 @@ bool SignCPID(std::string& sError, std::string& out_FullSig)
 	{
 		sMessage += ";" + sSignature;
 	}
-	out_FullSig = sMessage;
+	out_FullSig = "<cpidsig>" + sMessage + "</cpidsig>";
 	return true;
 }
 

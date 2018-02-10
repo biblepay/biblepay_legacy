@@ -84,7 +84,13 @@ bool fMiningDiagnostics = false;
 bool fDistributedComputingCycle = false;
 bool fDistributedComputingEnabled = false;
 bool fDistributedComputingCycleDownloading = false;
-double GetUserMagnitude(double& nBudget, double& nTotalPaid, int& iLastSuperblock);
+
+double GetUserMagnitude(double& nBudget, double& nTotalPaid, int& iLastSuperblock, std::string& out_Superblocks, int& out_SuperblockCount, 
+	int& out_HitCount, double& out_OneDayPaid, double& out_OneWeekPaid, double& out_OneDayBudget, double& out_OneWeekBudget);
+double GetPaymentByCPID(std::string CPID);
+
+
+
 std::string GetElement(std::string sIn, std::string sDelimiter, int iPos);
 
 int64_t nGlobalPOLWeight;
@@ -4396,17 +4402,23 @@ bool HasThisCPIDSolvedPriorBlocks(std::string CPID, CBlockIndex* pindexPrev)
 	int64_t headerAge = GetAdjustedTime() - pindexPrev->nTime;
 	if (headerAge > (60*60*4)) return false;
 	if (CPID.empty()) return false;
+	const CChainParams& chainparams = Params();
+  
 	for (int i = 0; i < iCheckWindow; i++)
 	{
 		if (pindex != NULL)
 		{
-			CBlockHeader block = pindex->GetBlockHeader();
-			std::string lastcpid = GetElement(block.sBlockMessage, ";", 0);
-			if (!lastcpid.empty())
+			CBlock block;
+        	if (ReadBlockFromDisk(block, pindex, chainparams.GetConsensus(), "HasThisCPIDSolvedPriorBlocks"))
 			{
-				LogPrintf(" Current CPID %s, LastCPID %s, Height %f --- ", CPID.c_str(), lastcpid.c_str(), (double)pindex->nHeight);
-				if (lastcpid == CPID) return true;
-				pindex = pindexPrev->pprev;
+				std::string sCPIDSig = ExtractXML(block.vtx[0].vout[0].sTxOutMessage, "<cpidsig>","</cpidsig>");
+				std::string lastcpid = GetElement(sCPIDSig, ";", 0);
+				if (!lastcpid.empty())
+				{
+					LogPrintf(" Current CPID %s, LastCPID %s, Height %f --- ", CPID.c_str(), lastcpid.c_str(), (double)pindex->nHeight);
+					if (lastcpid == CPID) return true;
+					pindex = pindexPrev->pprev;
+				}
 			}
 		}
 	}
@@ -4441,31 +4453,7 @@ bool ContextualCheckBlockHeader(const CBlockHeader& block, CValidationState& sta
     if (block.nVersion < 4 && IsSuperMajority(4, pindexPrev, consensusParams.nMajorityRejectBlockOutdated, consensusParams))
         return state.Invalid(error("%s : rejected nVersion=3 block", __func__),
                              REJECT_OBSOLETE, "bad-version");
-	// Rob A. - Biblepay - 2/8/2018 - Contextual check CPID signature on each block to prevent botnet from forming
-	if (fDistributedComputingEnabled)
-	{
-		std::string sError = "";
-		int64_t nHeaderAge = GetAdjustedTime() - pindexPrev->nTime;
-		bool bEndToEndVerification = nHeaderAge < (60*60*12) ? true : false;
-		bool fCheckCPIDSignature = VerifyCPIDSignature(block.sBlockMessage, bEndToEndVerification, sError);
-		if (!fCheckCPIDSignature)
-		{
-			LogPrintf(" CPID Signature Check Failed.  CPID %s, Error %s \n", block.sBlockMessage.c_str(), sError.c_str());
-		}
-		// Ensure this CPID has not solved any of the last N blocks in prod or last block in testnet:
-		std::string sCPID = GetElement(block.sBlockMessage, ";", 0);
-		bool bSolvedPriorBlocks = HasThisCPIDSolvedPriorBlocks(sCPID, pindexPrev);
-	    if (bSolvedPriorBlocks)
-		{
-			LogPrintf(" CPID has solved prior blocks.  Contextual check block failed.  CPID %s ",sCPID.c_str());
-		}
 
-	}
-
-	if (fDistributedComputingEnabled)
-	{
-		LogPrintf(" Contextual check block header - CPID Info %s ",block.sBlockMessage.c_str());
-	}
     return true;
 }
 
@@ -4502,7 +4490,8 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIn
         }
     }
 
-	// Rob Andrija, Biblepay, 01-15-2018, Kick Off BotNet Rules
+	// Rob A., Biblepay, 02/10/2018, Kick Off BotNet Rules
+	/*
 	std::string sBlockVersion = ExtractXML(block.vtx[0].vout[0].sTxOutMessage,"<VER>","</VER>");
 	sBlockVersion = strReplace(sBlockVersion, ".", "");
 	double dBlockVersion = cdbl(sBlockVersion, 0);
@@ -4511,8 +4500,9 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIn
 		 LogPrintf("ContextualCheckBlock::ERROR Rejecting block version %f at height %f \n",(double)dBlockVersion,(double)nHeight);
 		 return false;
     }
+	*/
 
-	// Rob Andrija, Biblepay, 01-18-2018, Check Proof-Of-Loyalty
+	// Rob A., Biblepay, 02-10-2018, Check Proof-Of-Loyalty
 	if (fProofOfLoyaltyEnabled && fCheckPOW)
 	{
 		std::string sError = "";
@@ -4534,6 +4524,42 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIn
 			return false;
 		}
 	}
+
+
+	// Rob A. - Biblepay - 2/8/2018 - Contextual check CPID signature on each block to prevent botnet from forming
+	if (fDistributedComputingEnabled)
+	{
+		int64_t nHeaderAge = GetAdjustedTime() - pindexPrev->nTime;
+		bool bActiveRACCheck = nHeaderAge < (60*60*1) ? true : false;
+		if (bActiveRACCheck)
+		{
+			std::string sError = "";
+			std::string sCPIDSignature = ExtractXML(block.vtx[0].vout[0].sTxOutMessage, "<cpidsig>","</cpidsig>");
+			if (sCPIDSignature.empty())
+			{
+				LogPrintf(" CPID Signature empty.  Contextual Check Block Failed at height %f. \n", (double)pindexPrev->nHeight+1);
+			}
+			bool fCheckCPIDSignature = VerifyCPIDSignature(sCPIDSignature, true, sError);
+			if (!fCheckCPIDSignature)
+			{
+				LogPrintf(" CPID Signature Check Failed.  CPID %s, Error %s \n", block.sBlockMessage.c_str(), sError.c_str());
+			}
+			// Ensure this CPID has not solved any of the last N blocks in prod or last block in testnet if header age is < 1 hour:
+			std::string sCPID = GetElement(sCPIDSignature, ";", 0);
+			bool bSolvedPriorBlocks = HasThisCPIDSolvedPriorBlocks(sCPID, pindexPrev);
+			if (bSolvedPriorBlocks)
+			{
+				LogPrintf(" CPID has solved prior blocks.  Contextual check block failed.  CPID %s ",sCPID.c_str());
+			}
+			// Ensure this block can only be solved if this CPID was in the last superblock with a payment - but only if the header age is recent (this allows the chain to continue rolling if PODC goes down)
+			double nRecentlyPaid = GetPaymentByCPID(sCPID);
+			if (nRecentlyPaid < .50)
+			{
+				LogPrintf(" CPID is not in prior superblock.  Contextual check block failed.  CPID %s, Payments: %f  ", sCPID.c_str(), (double)nRecentlyPaid);
+			}
+		}
+	}
+
 
     return true;
 }
@@ -7308,10 +7334,16 @@ std::string FormatHTML(std::string sInput, int iInsertCount, std::string sString
 
 void UpdateMagnitude()
 {
-	double nTotalPaid = 0;
-	int iLastSuperblock = 0;
-	double nBudget = 0;
-	mnMagnitude = GetUserMagnitude(nBudget, nTotalPaid, iLastSuperblock);
+		double nBudget = 0;
+		double nTotalPaid = 0;
+		int iLastSuperblock = 0;
+		std::string out_Superblocks = "";
+		int out_SuperblockCount = 0;
+		int out_HitCount = 0;
+		double out_OneDayPaid = 0;
+		double out_OneWeekPaid = 0;
+		double d1, d2;
+		mnMagnitude = GetUserMagnitude(nBudget, nTotalPaid, iLastSuperblock, out_Superblocks, out_SuperblockCount, out_HitCount, out_OneDayPaid, out_OneWeekPaid, d1, d2);
 }
 
 void SetOverviewStatus()

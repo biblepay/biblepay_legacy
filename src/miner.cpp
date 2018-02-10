@@ -386,8 +386,8 @@ CBlockTemplate* CreateNewBlock(const CChainParams& chainparams, const CScript& s
 				LogPrintf("\n Failed to Verify Signature of %s with Error %s ",sFullSig.c_str(), sErr2.c_str());
 			}
 
-			pblock->sBlockMessage = sFullSig + ";" + txNew.vout[0].sTxOutMessage;
-			LogPrintf(" CNB-CPIDSIG %s ", sFullSig.c_str());
+			txNew.vout[0].sTxOutMessage += sFullSig;
+			// LogPrintf(" CNB-CPIDSIG %s ", sFullSig.c_str());
 
 		}
     
