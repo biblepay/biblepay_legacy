@@ -58,8 +58,8 @@ DistributedComputingDialog::DistributedComputingDialog(const PlatformStyle *plat
 void DistributedComputingDialog::UpdateMagnitudeDisplay()
 {
 	
-	std::string sInfo = "<br>CPIDS: " + msGlobalCPID 
-		+ "<br>Magnitude: " + RoundToString(mnMagnitude,2);
+	std::string sInfo = "<br> CPIDS: " + msGlobalCPID 
+		+ "<br> Magnitude: " + RoundToString(mnMagnitude,2);
 	ui->txtInfo->setText(ToQstring(sInfo));
 }
 

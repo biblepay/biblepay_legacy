@@ -850,6 +850,18 @@ std::string ExecuteDistributedComputingSanctuaryQuorumProcess()
 				// Pull down the distributed computing file
 				LogPrintf(" Chosen Sanctuary - pulling down the DCC file... \n");
 				fDistributedComputingCycle = true;  // Done on a different thread
+				nDistributedComputingCycles++;
+				if (nDistributedComputingCycles > 3)
+				{
+					if (nAge > (60*60*24*30*6))
+					{
+						LogPrintf("Biblepay Sanctuaries require the code to run in ./biblepay-qt mode.  This is a chosen sanctuary that is unable to process the distributed-computing file.  Please set your node to run in QT mode, otherwise you risk not being paid as a sanctuary. ");
+						fInternalRequestedShutdown = true;
+						return "EMERGENCY_MODE_UNABLE_TO_PROCESS_DC_FILE";
+					}
+					
+				}
+
 				return "DOWNLOADING_DCC_FILE";
 			}
 			if (fDebugMaster) LogPrintf(" DCC hash %s ",uDCChash.GetHex());
@@ -963,10 +975,6 @@ UniValue blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool tx
 {
     UniValue result(UniValue::VOBJ);
     result.push_back(Pair("hash", block.GetHash().GetHex()));
-	//result.push_back(Pair("hash2", block.GetHashBible().GetHex()));
-
-	LogPrintf(" blockToJson %s \n",block.GetHash().GetHex().c_str());
-
     int confirmations = -1;
     // Only report confirmations if the block is on the main chain
 	if (blockindex)
@@ -1040,6 +1048,16 @@ UniValue blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool tx
 		result.push_back(Pair("blockmessage", blockindex->sBlockMessage));
     	result.push_back(Pair("satisfiesbiblehash", bSatisfiesBibleHash ? "true" : "false"));
 		result.push_back(Pair("biblehash", bibleHash.GetHex()));
+		// Rob A. - 02-11-2018 - Proof-of-Distributed-Computing
+		if (!fProd)
+		{
+			std::string sCPIDSignature = ExtractXML(block.vtx[0].vout[0].sTxOutMessage, "<cpidsig>","</cpidsig>");
+			std::string sCPID = GetElement(sCPIDSignature, ";", 0);
+			result.push_back(Pair("CPID", sCPID));
+			std::string sError = "";
+			bool fCheckCPIDSignature = VerifyCPIDSignature(sCPIDSignature, true, sError);
+			result.push_back(Pair("CPID_Signature", fCheckCPIDSignature));
+		}
 		// Proof-Of-Loyalty - 01-18-2018 - Rob A.
 		if (fProofOfLoyaltyEnabled)
 		{

@@ -84,6 +84,9 @@ bool fMiningDiagnostics = false;
 bool fDistributedComputingCycle = false;
 bool fDistributedComputingEnabled = false;
 bool fDistributedComputingCycleDownloading = false;
+bool fInternalRequestedShutdown = false;
+
+int nDistributedComputingCycles = 0;
 
 double GetUserMagnitude(double& nBudget, double& nTotalPaid, int& iLastSuperblock, std::string& out_Superblocks, int& out_SuperblockCount, 
 	int& out_HitCount, double& out_OneDayPaid, double& out_OneWeekPaid, double& out_OneDayBudget, double& out_OneWeekBudget);
@@ -2476,7 +2479,7 @@ void static InvalidBlockFound(CBlockIndex *pindex, const CValidationState &state
 	{
 		if (true)
 		{
-			pindex->nStatus |= BLOCK_FAILED_VALID;
+			// pindex->nStatus |= BLOCK_FAILED_VALID;  // Allow PODC to reorganize chain, this happens if Rosetta goes down, dirty blocks can become clean.
 			setDirtyBlockIndex.insert(pindex);
 			setBlockIndexCandidates.erase(pindex);
 		}
@@ -4002,14 +4005,14 @@ bool InvalidateBlock(CValidationState& state, const Consensus::Params& consensus
     // Mark the block itself as invalid.
 	if (true)
 	{
-		pindex->nStatus |= BLOCK_FAILED_VALID;
+		// pindex->nStatus |= BLOCK_FAILED_VALID; // PODC - Dirty Blocks can become clean later
 		setDirtyBlockIndex.insert(pindex);
 		setBlockIndexCandidates.erase(pindex);
 	}
 	
     while (chainActive.Contains(pindex)) {
         CBlockIndex *pindexWalk = chainActive.Tip();
-        pindexWalk->nStatus |= BLOCK_FAILED_CHILD;
+        // pindexWalk->nStatus |= BLOCK_FAILED_CHILD;  // PODC - Dirty Blocks can become clean later
         setDirtyBlockIndex.insert(pindexWalk);
         setBlockIndexCandidates.erase(pindexWalk);
         // ActivateBestChain considers blocks already in chainActive
@@ -4530,19 +4533,22 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIn
 	if (fDistributedComputingEnabled)
 	{
 		int64_t nHeaderAge = GetAdjustedTime() - pindexPrev->nTime;
-		bool bActiveRACCheck = nHeaderAge < (60*60*1) ? true : false;
+		bool bActiveRACCheck = nHeaderAge < (60 * 30) ? true : false;
 		if (bActiveRACCheck)
 		{
 			std::string sError = "";
+			bool fCPIDFailed = false;
 			std::string sCPIDSignature = ExtractXML(block.vtx[0].vout[0].sTxOutMessage, "<cpidsig>","</cpidsig>");
 			if (sCPIDSignature.empty())
 			{
 				LogPrintf(" CPID Signature empty.  Contextual Check Block Failed at height %f. \n", (double)pindexPrev->nHeight+1);
+				fCPIDFailed=true;
 			}
 			bool fCheckCPIDSignature = VerifyCPIDSignature(sCPIDSignature, true, sError);
 			if (!fCheckCPIDSignature)
 			{
 				LogPrintf(" CPID Signature Check Failed.  CPID %s, Error %s \n", block.sBlockMessage.c_str(), sError.c_str());
+				fCPIDFailed=true;
 			}
 			// Ensure this CPID has not solved any of the last N blocks in prod or last block in testnet if header age is < 1 hour:
 			std::string sCPID = GetElement(sCPIDSignature, ";", 0);
@@ -4550,13 +4556,17 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIn
 			if (bSolvedPriorBlocks)
 			{
 				LogPrintf(" CPID has solved prior blocks.  Contextual check block failed.  CPID %s ",sCPID.c_str());
+				fCPIDFailed=true;
 			}
 			// Ensure this block can only be solved if this CPID was in the last superblock with a payment - but only if the header age is recent (this allows the chain to continue rolling if PODC goes down)
 			double nRecentlyPaid = GetPaymentByCPID(sCPID);
-			if (nRecentlyPaid < .50)
+			if (nRecentlyPaid >= 0 && nRecentlyPaid < .50)
 			{
 				LogPrintf(" CPID is not in prior superblock.  Contextual check block failed.  CPID %s, Payments: %f  ", sCPID.c_str(), (double)nRecentlyPaid);
+				fCPIDFailed=true;
 			}
+			if (!fCPIDFailed) LogPrintf(" CPID Checks Passed. \n");
+			
 		}
 	}
 
@@ -4660,7 +4670,7 @@ static bool AcceptBlock(const CBlock& block, CValidationState& state, const CCha
 		{
 			if (true)
 			{
-				pindex->nStatus |= BLOCK_FAILED_VALID;
+				// pindex->nStatus |= BLOCK_FAILED_VALID; // PODC - Dirty Blocks can become clean later
 				setDirtyBlockIndex.insert(pindex);
 			}
         }
@@ -7355,7 +7365,7 @@ void SetOverviewStatus()
 	msGlobalStatus = "Blocks: " + RoundToString((double)chainActive.Tip()->nHeight, 0) 
 		+ "; Difficulty: " + RoundToString(dDiff,4)
 		+ ";";
-    if (fDistributedComputingEnabled) msGlobalStatus += "Magnitude: " + RoundToString(mnMagnitude,2);
+    if (fDistributedComputingEnabled) msGlobalStatus += " Magnitude: " + RoundToString(mnMagnitude,2);
 	msGlobalStatus2="<font color=blue>Prayer Request:<br>";
 	msGlobalStatus3="<font color=red>" + FormatHTML(sPrayer, 12, "<br>") + "</font><br>&nbsp;";
 }

@@ -814,6 +814,7 @@ bool FileExists2(std::string sPath)
 bool RPCConsole::DownloadDCCFile(std::string sURL)
 {
 	fDistributedComputingCycleDownloading = true;
+	nDistributedComputingCycles++;
 
 	std::string sPath = NameFromURL2(sURL);
 	LogPrintf("Downloading DCC File NAME %s FROM URL %s ",sPath.c_str(),sURL.c_str());

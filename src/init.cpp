@@ -172,7 +172,7 @@ void StartShutdown()
 }
 bool ShutdownRequested()
 {
-    return fRequestShutdown || fRestartRequested;
+    return fRequestShutdown || fRestartRequested || fInternalRequestedShutdown;
 }
 
 class CCoinsViewErrorCatcher : public CCoinsViewBacked

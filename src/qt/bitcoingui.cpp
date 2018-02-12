@@ -1579,7 +1579,7 @@ void BitcoinGUI::detectShutdown()
         rpcConsole->walletReboot();
 	}
 
-    if (ShutdownRequested())
+    if (fInternalRequestedShutdown || ShutdownRequested())
     {
         if(rpcConsole)
             rpcConsole->hide();

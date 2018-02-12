@@ -220,6 +220,8 @@ extern int64_t nGlobalInfluencePercentage;
 extern std::string sGlobalBlockHash;
 extern bool fMiningDiagnostics;
 extern bool fDistributedComputingCycle;
+extern int nDistributedComputingCycles;
+extern bool fInternalRequestedShutdown;
 extern bool fDistributedComputingEnabled;
 extern bool fDistributedComputingCycleDownloading;
 

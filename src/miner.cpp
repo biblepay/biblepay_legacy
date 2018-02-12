@@ -380,7 +380,8 @@ CBlockTemplate* CreateNewBlock(const CChainParams& chainparams, const CScript& s
 			{
 				LogPrintf("\n Failed to Sign CPID Signature.  %s ",sErr2);
 			}
-			bool fSigChecked = VerifyCPIDSignature(sFullSig, true, sErr2);
+			std::string sMySig = ExtractXML(sFullSig,"<cpidsig>","</cpidsig>");
+			bool fSigChecked = VerifyCPIDSignature(sMySig, true, sErr2);
 			if (!fSigChecked)
 			{
 				LogPrintf("\n Failed to Verify Signature of %s with Error %s ",sFullSig.c_str(), sErr2.c_str());
