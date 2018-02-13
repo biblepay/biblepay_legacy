@@ -4533,7 +4533,7 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIn
 	if (fDistributedComputingEnabled)
 	{
 		int64_t nHeaderAge = GetAdjustedTime() - pindexPrev->nTime;
-		bool bActiveRACCheck = nHeaderAge < (60 * 30) ? true : false;
+		bool bActiveRACCheck = nHeaderAge < (60 * 15) ? true : false;
 		if (bActiveRACCheck)
 		{
 			std::string sError = "";
@@ -7373,7 +7373,7 @@ void UpdateMagnitude()
 		double out_OneWeekPaid = 0;
 		double out_d1 = 0;
 		double out_d2 = 0;
-		mnMagnitude = GetUserMagnitude(nBudget, nTotalPaid, iLastSuperblock, out_Superblocks, out_SuperblockCount, out_HitCount, out_OneDayPaid, out_OneWeekPaid, d1, d2);
+		mnMagnitude = GetUserMagnitude(nBudget, nTotalPaid, iLastSuperblock, out_Superblocks, out_SuperblockCount, out_HitCount, out_OneDayPaid, out_OneWeekPaid, out_d1, out_d2);
 }
 
 void SetOverviewStatus()
