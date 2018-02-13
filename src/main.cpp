@@ -7414,6 +7414,7 @@ double cdbl(std::string s, int place)
 	if (s=="") s="0";
 	s = strReplace(s,"\r","");
 	s = strReplace(s,"\n","");
+	/*
 	s = strReplace(s,"a","");
 	s = strReplace(s,"a","");
 	s = strReplace(s,"b","");
@@ -7421,7 +7422,18 @@ double cdbl(std::string s, int place)
 	s = strReplace(s,"d","");
 	s = strReplace(s,"e","");
 	s = strReplace(s,"f","");
-    double r = boost::lexical_cast<double>(s);
+	*/
+	std::string t = "";
+	for (int i = 0; i < (int)s.length(); i++)
+	{
+		std::string u = s.substr(i,1);
+		if (u=="0" || u=="1" || u=="2" || u=="3" || u=="4" || u=="5" || u=="6" || u == "7" || u=="8" || u=="9") 
+		{
+			t += u;
+		}
+	}
+
+    double r = boost::lexical_cast<double>(t);
 	double d = Round(r,place);
 	return d;
 }
