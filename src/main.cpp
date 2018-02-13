@@ -6139,7 +6139,8 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
         }
 
 		// User Agent Test 2-13-2018 - R Andrews - Biblepay
-		std::string sVersion = strReplace(pfrom->cleanSubVer,"Biblepay Core:", "");
+		std::string sVersion = pfrom->cleanSubVer;
+		sVersion = strReplace(sVersion, "Biblepay Core:", "");
 		sVersion = strReplace(sVersion, "/", "");
 		sVersion = strReplace(sVersion, ".", "");
 		double dPeerVersion = cdbl(sVersion, 0);
