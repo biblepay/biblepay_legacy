@@ -37,9 +37,7 @@ public:
     ~RPCConsole();
 
     void setClientModel(ClientModel *model);
-	void DownloadDCC();
-	void DCC();
-
+	
     enum MessageClass {
         MC_ERROR,
         MC_DEBUG,
@@ -80,8 +78,6 @@ private Q_SLOTS:
     void showOrHideBanTableIfRequired();
     /** clear the selected node */
     void clearSelectedNode();
-	void downloadDCCFinished(QNetworkReply *reply);
-	bool DownloadDCCFile(std::string sURL);
 public Q_SLOTS:
     void clear();
     

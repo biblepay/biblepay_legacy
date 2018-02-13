@@ -82,9 +82,15 @@ std::string RoundToString(double d, int place);
 extern std::string SQL(std::string sCommand, std::string sAddress, std::string sArguments, std::string& sError);
 extern std::string PrepareHTTPPost(std::string sPage, std::string sHostHeader, const string& sMsg, const map<string,string>& mapRequestHeaders);
 extern std::string GetDomainFromURL(std::string sURL);
-
-
-
+extern bool DownloadDistributedComputingFile(std::string& sError);
+std::string GetSANDirectory2();
+std::string NameFromURL2(std::string sURL);
+std::string SystemCommand2(const char* cmd);
+bool FilterFile(int iBufferSize, std::string& sError);
+extern bool DownloadDistributedComputingFile(std::string& sError);
+extern std::string NameFromURL2(std::string sURL);
+void TouchDailyMagnitudeFile();
+std::string GetSporkValue(std::string sKey);
 
 
 using namespace std;
@@ -2983,6 +2989,156 @@ std::string BiblepayHttpPost(int iThreadID, std::string sActionName, std::string
 		return "GENERAL_WEB_EXCEPTION";
 	}
 
+}
+
+bool DownloadDistributedComputingFile(std::string& sError)
+{
+	// First delete:
+	if (!fDistributedComputingEnabled) return true;
+	if (fDistributedComputingCycleDownloading) return false;
+	TouchDailyMagnitudeFile();
+	std::string sPath2 = GetSANDirectory2() + "user.gz";
+	std::string sTarget2 = GetSANDirectory2() + "user";
+	boost::filesystem::remove(sTarget2);
+    boost::filesystem::remove(sPath2);
+	int iMaxSize = 900000000;
+    int iTimeoutSecs = 60 * 7;
+	fDistributedComputingCycleDownloading = true;
+	std::string sProjectId = "project1"; // Cancer Research
+	std::string sSrc = GetSporkValue(sProjectId);
+	std::string sBaseURL = "https://" + sSrc;
+	std::string sPage = "/rosetta/stats/user.gz"; // ToDo - Make this a class, add Rosetta as a Spork
+	std::string sFullURL = sBaseURL + sPage;
+	std::string sPath = NameFromURL2(sFullURL);
+	LogPrintf("Downloading DC File NAME %s FROM URL %s ",sPath.c_str(), sFullURL.c_str());
+	int iIterations = 0;
+	try
+	{
+		    map<string, string> mapRequestHeaders;
+			mapRequestHeaders["Agent"] = FormatFullVersion();
+			const CChainParams& chainparams = Params();
+			BIO* bio;
+			SSL_CTX* ctx;
+			SSL_library_init();
+			ctx = SSL_CTX_new(SSLv23_client_method());
+			if (ctx == NULL)
+			{
+				sError = "<ERROR>CTX_IS_NULL</ERROR>";
+				fDistributedComputingCycleDownloading = false;
+				return false;
+			}
+			bio = BIO_new_ssl_connect(ctx);
+			std::string sDomain = GetDomainFromURL(sBaseURL);
+			std::string sDomainWithPort = sDomain + ":" + "443";
+			BIO_set_conn_hostname(bio, sDomainWithPort.c_str());
+			if(BIO_do_connect(bio) <= 0)
+			{
+				sError = "Failed connection to " + sDomainWithPort;
+				fDistributedComputingCycleDownloading = false;
+				return false;
+			}
+	
+			CService addrConnect;
+			if (sDomain.empty()) 
+			{
+					sError = "DOMAIN_MISSING";
+					fDistributedComputingCycleDownloading = false;
+					return false;
+			}
+			CService addrIP(sDomain, 443, true);
+     		if (addrIP.IsValid())
+			{
+				addrConnect = addrIP;
+			}
+			else
+			{
+  				sError = "<ERROR>DNS_ERROR</ERROR>"; 
+				fDistributedComputingCycleDownloading = false;
+				return false;
+			}
+			std::string sPayload = "";
+			std::string sPost = PrepareHTTPPost(sPage, sDomain, sPayload, mapRequestHeaders);
+			const char* write_buf = sPost.c_str();
+			if(BIO_write(bio, write_buf, strlen(write_buf)) <= 0)
+			{
+				sError = "<ERROR>FAILED_HTTPS_POST</ERROR>";
+				fDistributedComputingCycleDownloading = false;
+				return false;
+			}
+			int iSize;
+			char bigbuf[4096];
+			clock_t begin = clock();
+			std::string sData = "";
+			FILE *outUserFile = fopen(sPath.c_str(),"wb");
+			for(;;)
+			{
+				iSize = BIO_read(bio, bigbuf, 4096);
+				if(iSize <= 0)
+				{
+					LogPrintf("DCC download finished \n");
+					break;
+				}
+				size_t bytesWritten=0;
+				if (iIterations==0)
+				{
+					// GZ magic bytes: 31 139
+					int iPos = 0;
+					for (iPos = 0; iPos < 4096; iPos++)
+					{
+						if (bigbuf[(int)iPos] == 31 && bigbuf[(int)(iPos + 1)] == 139)
+						{
+							break;
+						}
+					}
+					int iNewSize = 4096 - iPos;
+					char smallbuf[iNewSize];
+					for (int i=0; i < iNewSize; i++)
+					{
+						smallbuf[i] = bigbuf[i + iPos];
+					}
+					bytesWritten = fwrite(smallbuf, 1, iNewSize, outUserFile);
+				}
+				else
+				{
+					bytesWritten = fwrite(bigbuf, 1, iSize, outUserFile);
+				}
+				iIterations++;
+				if (bytesWritten != 4096) printf(" written %f ", (double)bytesWritten);
+				clock_t end = clock();
+				double elapsed_secs = double(end - begin) / (CLOCKS_PER_SEC + .01);
+				if (elapsed_secs > iTimeoutSecs) 
+				{
+					LogPrintf(" download timed out ... \n");
+					break;
+				}
+				if (false && (int)sData.size() >= iMaxSize) 
+				{
+					LogPrintf(" download oversized .. \n");
+					break;
+				}
+			}
+			// R ANDREW - JAN 4 2018: Free bio resources
+			BIO_free_all(bio);
+			LogPrintf(" download ready to write \n");
+		 	fclose(outUserFile);
+	}
+	catch (std::exception &e)
+	{
+        sError = "<ERROR>WEB_EXCEPTION</ERROR>";
+		return false;
+    }
+	catch (...)
+	{
+		sError = "<ERROR>GENERAL_WEB_EXCEPTION</ERROR>";
+		return false;
+	}
+
+	// Execute Phase 3 of the DC Cycle:
+	std::string sCommand = "gunzip " + sPath;
+    std::string result = SystemCommand2(sCommand.c_str());
+	FilterFile(50, sError);
+	fDistributedComputingCycleDownloading = false;
+	return true;
 }
 
 

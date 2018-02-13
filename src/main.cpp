@@ -4565,6 +4565,10 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIn
 				LogPrintf(" CPID is not in prior superblock.  Contextual check block failed.  CPID %s, Payments: %f  ", sCPID.c_str(), (double)nRecentlyPaid);
 				fCPIDFailed=true;
 			}
+			if (fCPIDFailed)
+			{
+				return false;
+			}
 			if (!fCPIDFailed) LogPrintf(" CPID Checks Passed. \n");
 			
 		}
@@ -6117,6 +6121,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
             return false;
 		}
 
+
         int64_t nTimeDrift = std::abs(GetAdjustedTime() - nTime);
         if (nTimeDrift > (5 * 60))
         {
@@ -6132,6 +6137,18 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
             vRecv >> LIMITED_STRING(pfrom->strSubVer, MAX_SUBVERSION_LENGTH);
             pfrom->cleanSubVer = SanitizeString(pfrom->strSubVer);
         }
+
+		// User Agent Test 2-13-2018 - R Andrews - Biblepay
+		std::string sVersion = strReplace(pfrom->cleanSubVer,"Biblepay Core:", "");
+		sVersion = strReplace(sVersion, "/", "");
+		sVersion = strReplace(sVersion, ".", "");
+		double dPeerVersion = cdbl(sVersion, 0);
+		if (dPeerVersion < 1090 && !fProd)
+		{
+		    LogPrintf("Disconnecting unauthorized peer in TestNet using old version %f\r\n",(double)dPeerVersion);
+			pfrom->fDisconnect = true;
+		}
+		
         if (!vRecv.empty())
             vRecv >> pfrom->nStartingHeight;
         if (!vRecv.empty())

@@ -1586,12 +1586,6 @@ void BitcoinGUI::detectShutdown()
         qApp->quit();
     }
 
-	// 1-28-2018 - R Andrijas - Biblepay - Add support for Rosetta Cancer Computing Grid
-	if (fDistributedComputingCycle)
-	{
-		fDistributedComputingCycle = false;
-		rpcConsole->DCC();
-	}
 }
 
 void BitcoinGUI::showProgress(const QString &title, int nProgress)

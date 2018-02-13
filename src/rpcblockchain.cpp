@@ -90,6 +90,7 @@ extern bool AdvertiseDistributedComputingKey(std::string sProjectId, std::string
 extern std::string AssociateDCAccount(std::string sProjectId, std::string sBoincEmail, std::string sBoincPassword, bool fForce);
 extern std::vector<std::string> GetListOfDCCS(std::string sSearch);
 extern std::string GetSporkValue(std::string sKey);
+
 extern std::string GetDCCElement(std::string sData, int iElement);
 std::string FindResearcherCPIDByAddress(std::string sSearch, std::string& out_address, double& nTotalMagnitude);
 extern double GetUserMagnitude(double& nBudget, double& nTotalPaid, int& iLastSuperblock, std::string& out_Superblocks, int& out_SuperblockCount, int& out_HitCount, double& out_OneDayPaid, double& out_OneWeekPaid, double& out_OneDayBudget, double& out_OneWeekBudget);
@@ -102,6 +103,7 @@ extern double GetMagnitudeInContract(std::string sContract, std::string sCPID);
 extern std::string GetBoincResearcherHexCodeAndCPID(std::string sProjectId, int nUserId, std::string& sCPID);
 extern std::string ExecuteDistributedComputingSanctuaryQuorumProcess();
 extern void TouchDailyMagnitudeFile();
+
 extern int GetRequiredQuorumLevel();
 UniValue GetDataList(std::string sType, int iMaxAgeInDays, int& iSpecificEntry, std::string& outEntry);
 uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight, const CBlockIndex* pindexLast, bool bRequireTxIndex, bool f7000, bool f8000, bool f9000, bool fTitheBlocksActive, unsigned int nNonce);
@@ -118,6 +120,11 @@ std::string GetMessagesFromBlock(const CBlock& block, std::string sMessages);
 std::string GetBibleHashVerses(uint256 hash, uint64_t nBlockTime, uint64_t nPrevBlockTime, int nPrevHeight, CBlockIndex* pindexprev);
 double cdbl(std::string s, int place);
 UniValue createrawtransaction(const UniValue& params, bool fHelp);
+extern std::string NameFromURL2(std::string sURL);
+
+extern std::string SystemCommand2(const char* cmd);
+extern bool FilterFile(int iBufferSize, std::string& sError);
+bool DownloadDistributedComputingFile(std::string& sError);
 
 CBlockIndex* FindBlockByHeight(int nHeight);
 extern double GetDifficulty(const CBlockIndex* blockindex);
@@ -141,8 +148,8 @@ extern uint256 GetDCPAMHashByContract(std::string sContract, int nHeight);
 bool Contains(std::string data, std::string instring);
 extern bool GetContractPaymentData(std::string sContract, int nBlockHeight, std::string& sPaymentAddresses, std::string& sAmounts);
 extern double GetPaymentByCPID(std::string CPID);
-
-
+extern std::string FilterBoincData(std::string sData, std::string sRootElement, std::string sEndElement);
+extern bool FileExists2(std::string sPath);
 
 
 
@@ -593,12 +600,6 @@ void GetDistributedComputingGovObjByHeight(int nHeight, uint256 uOptFilter, int&
             if(strType == "triggers" && pGovObj->GetObjectType() != GOVERNANCE_OBJECT_TRIGGER) continue;
             if(strType == "watchdogs" && pGovObj->GetObjectType() != GOVERNANCE_OBJECT_WATCHDOG) continue;
 
-            //bObj.push_back(Pair("DataHex",  pGovObj->GetDataAsHex()));
-            //bObj.push_back(Pair("DataString",  pGovObj->GetDataAsString()));
-            //bObj.push_back(Pair("Hash",  pGovObj->GetHash().ToString()));
-            //bObj.push_back(Pair("ObjectType", pGovObj->GetObjectType()));
-            //bObj.push_back(Pair("CreationTime", pGovObj->GetCreationTime()));
-
 			UniValue obj = pGovObj->GetJSONObject();
 			int nLocalHeight = obj["event_block_height"].get_int();
 
@@ -610,7 +611,7 @@ void GetDistributedComputingGovObjByHeight(int nHeight, uint256 uOptFilter, int&
 				std::string sPAM = obj["payment_amounts"].get_str();
 				uint256 uHash = GetDCPAMHash(sPAD, sPAM);
 				
-				LogPrintf(" PAD %s, PAM %s, localheight %f , LocalPamHash %s ", sPAD.c_str(), sPAM.c_str(), (double)nLocalHeight, uHash.GetHex().c_str());
+				// LogPrintf(" PAD %s, PAM %s, localheight %f , LocalPamHash %s ", sPAD.c_str(), sPAM.c_str(), (double)nLocalHeight, uHash.GetHex().c_str());
 
 				if (uOptFilter != uint256S("0x0") && uHash != uOptFilter) continue;
 				// This governance-object matches the trigger height and the optional filter
@@ -849,19 +850,13 @@ std::string ExecuteDistributedComputingSanctuaryQuorumProcess()
 			{
 				// Pull down the distributed computing file
 				LogPrintf(" Chosen Sanctuary - pulling down the DCC file... \n");
-				fDistributedComputingCycle = true;  // Done on a different thread
 				nDistributedComputingCycles++;
-				if (nDistributedComputingCycles > 3)
+				bool fSuccess =  DownloadDistributedComputingFile(sError);
+				if (fSuccess)
 				{
-					if (nAge > (60*60*24*30*6))
-					{
-						LogPrintf("Biblepay Sanctuaries require the code to run in ./biblepay-qt mode.  This is a chosen sanctuary that is unable to process the distributed-computing file.  Please set your node to run in QT mode, otherwise you risk not being paid as a sanctuary. ");
-						fInternalRequestedShutdown = true;
-						return "EMERGENCY_MODE_UNABLE_TO_PROCESS_DC_FILE";
-					}
-					
+					LogPrintf("ExecuteDistributedSanctuaryQuorum::Error - Unable to download DC file %f ",sError.c_str());
+					return "DC_DOWNLOAD_ERROR";
 				}
-
 				return "DOWNLOADING_DCC_FILE";
 			}
 			if (fDebugMaster) LogPrintf(" DCC hash %s ",uDCChash.GetHex());
@@ -3410,8 +3405,10 @@ UniValue exec(const UniValue& params, bool fHelp)
 	}
 	else if (sItem == "dcc")
 	{
-		fDistributedComputingCycle = true;
-		results.push_back(Pair("DCC", 1));
+		std::string sError = "";
+		bool fSuccess =  DownloadDistributedComputingFile(sError);
+		results.push_back(Pair("Success", fSuccess));
+		results.push_back(Pair("Error", sError));
 	}
 	else if (sItem == "dcchash")
 	{
@@ -3569,8 +3566,7 @@ UniValue exec(const UniValue& params, bool fHelp)
 
 		results.push_back(Pair("NextSuperblockHeight", iNextSuperblock));
 	    int64_t iMaxSeconds = 60 * 24 * 30 * 12 * 60;
-    	//double nPaymentsTotal = CSuperblock::GetPaymentsLimit(iLastSuperblock);
-		std::vector<std::string> vCPIDS = Split(msGlobalCPID.c_str(),";");
+    	std::vector<std::string> vCPIDS = Split(msGlobalCPID.c_str(),";");
 		double nTotalRAC = 0;
 		for (int i = 0; i < (int)vCPIDS.size(); i++)
 		{
@@ -4066,8 +4062,6 @@ std::string ChopLast(std::string sMyChop)
 }
 
 
-
-
 double GetPaymentByCPID(std::string CPID)
 {
 	// 2-10-2018 - R ANDREW - BIBLEPAY - Provide ability to return last payment amount (in most recent superblock) for a given CPID
@@ -4086,32 +4080,28 @@ double GetPaymentByCPID(std::string CPID)
 	nTotalBlock=0;
 	if (ReadBlockFromDisk(block, pindex, consensusParams, "GetPaymentByCPID")) 
 	{
-			  nBudget = CSuperblock::GetPaymentsLimit(iLastSuperblock) / COIN;
-			  // int Age = GetAdjustedTime() - block.GetBlockTime();
-			  for (unsigned int i = 1; i < block.vtx[0].vout.size(); i++)
-			  {
-		            std::string sRecipient = PubKeyToAddress(block.vtx[0].vout[i].scriptPubKey);
-					double dAmount = block.vtx[0].vout[i].nValue/COIN;
-					nTotalBlock += dAmount;
-					if (Contains(sDCPK, sRecipient))
-					{
-						nTotalPaid += dAmount;
-					}
-			  }
+		nBudget = CSuperblock::GetPaymentsLimit(iLastSuperblock) / COIN;
+		for (unsigned int i = 1; i < block.vtx[0].vout.size(); i++)
+		{
+			std::string sRecipient = PubKeyToAddress(block.vtx[0].vout[i].scriptPubKey);
+			double dAmount = block.vtx[0].vout[i].nValue/COIN;
+			nTotalBlock += dAmount;
+			if (Contains(sDCPK, sRecipient))
+			{
+				nTotalPaid += dAmount;
+			}
+		}
 	}
 	else
 	{
 		return -1;
 	}
 	if (nBudget == 0 || nTotalBlock == 0) return -1;
-	if (nBudget < 21000 || nTotalBlock < 21000) return -1;
+	if (nBudget < 21000 || nTotalBlock < 21000) return -1; 
 	bool bSuperblockHit = (nTotalBlock > nBudget-100);
 	if (!bSuperblockHit) return -1;
 	return nTotalPaid;
 }
-
-
-
 
 
 
@@ -4242,6 +4232,225 @@ bool SignCPID(std::string& sError, std::string& out_FullSig)
 	return true;
 }
 
+
+double GetSumOfXMLColumnFromXMLFile(std::string sFileName, std::string sElementName)
+{
+	boost::filesystem::path pathIn(sFileName);
+    std::ifstream streamIn;
+    streamIn.open(pathIn.string().c_str());
+	if (!streamIn) return 0;
+	double dTotal = 0;
+	std::string sLine = "";
+    while(std::getline(streamIn, sLine))
+    {
+		  std::string sValue = ExtractXML(sLine, "<" + sElementName + ">","</" + sElementName + ">");
+		  double dValue = cdbl(sValue,2);
+		  dTotal += dValue;
+    }
+	streamIn.close();
+    return dTotal;
+}
+
+
+bool FilterFile(int iBufferSize, std::string& sError)
+{
+	std::vector<std::string> vCPIDs = GetListOfDCCS("");
+    std::string buffer;
+    std::string line;
+    std::string sTarget = GetSANDirectory2() + "user";
+	std::string sFiltered = GetSANDirectory2() + "filtered";
+	std::string sDailyMagnitudeFile = GetSANDirectory2() + "magnitude";
+
+    if (!boost::filesystem::exists(sTarget.c_str())) 
+	{
+        sError = "DCC input file does not exist.";
+        return false;
+    }
+
+	FILE *outFile = fopen(sFiltered.c_str(),"w");
+    std::string sBuffer = "";
+	int iBuffer = 0;
+
+	boost::filesystem::path pathIn(sTarget);
+    std::ifstream streamIn;
+    streamIn.open(pathIn.string().c_str());
+	if (!streamIn) return false;
+	std::string sConcatCPIDs = "";
+	for (int i = 0; i < (int)vCPIDs.size(); i++)
+	{
+		sConcatCPIDs += GetDCCElement(vCPIDs[i], 0) + ",";
+	}
+
+	boost::to_upper(sConcatCPIDs);
+	LogPrintf("CPID List concatenated %s ",sConcatCPIDs.c_str());
+
+	// Phase 1: Scan the Combined Researcher file for all Biblepay Researchers (who have associated BiblePay Keys with Research Projects)
+	// Filter the file down to BiblePay researchers:
+	int iLines = 0;
+	std::string sOutData = "";
+    while(std::getline(streamIn, line))
+    {
+		  std::string sCpid = ExtractXML(line,"<cpid>","</cpid>");
+		  sBuffer += line + "<ROW>";
+		  iBuffer++;
+		  iLines++;
+		  if (iLines % 1000000 == 0) LogPrintf(" Processing DCC Line %f ",(double)iLines);
+		  if (!sCpid.empty())
+		  {
+			 boost::to_upper(sCpid);
+			 if (Contains(sConcatCPIDs, sCpid))
+			 {
+				// LogPrintf(" \n mycpid %s \n", sCpid.c_str());
+				for (int i = 0; i < (int)vCPIDs.size(); i++)
+				{
+					std::string sBiblepayResearcher = GetDCCElement(vCPIDs[i], 0);
+					boost::to_upper(sBiblepayResearcher);
+					if (!sBiblepayResearcher.empty() && sBiblepayResearcher == sCpid)
+					{
+						std::string sData = FilterBoincData(sBuffer, "<user>","</user>");
+						sOutData += sData;
+						sBuffer = "";
+					}
+			 	}
+			 }
+			 else
+			 {
+				 sBuffer="";
+			 }
+		  }
+    }
+	fputs(sOutData.c_str(), outFile);
+	streamIn.close();
+    fclose(outFile);
+	//  Phase II : Normalize the file for Biblepay (this process asseses the magnitude of each BiblePay Researcher relative to one another, with 100 being the leader, 0 being a researcher with no activity)
+	//  We measure users by RAC - the BOINC Decay function: expavg_credit.  This is the half-life of the users cobblestone emission over a one month period.
+
+	double dTotalRAC = GetSumOfXMLColumnFromXMLFile(sFiltered, "expavg_credit");
+	if (dTotalRAC < 1)
+	{
+		sError = "Total DCC credit less than one.  Unable to calculate magnitudes.";
+		return false;
+	}
+	// Emit the BiblePay DCC Leaderboard file, and then stamp it with the Biblepay hash
+	// Leaderboard file format:  Biblepay-Public-Key-Compressed, DCC-CPID, DCC-Magnitude <rowdelimiter>
+	boost::filesystem::path pathFiltered(sFiltered);
+    std::ifstream streamFiltered;
+    streamFiltered.open(pathFiltered.string().c_str());
+	if (!streamFiltered) 
+	{
+		sError = "Unable to open filtered file";
+		return false;
+	}
+
+	std::string sUser = "";
+	std::string sDCC = "";
+    while(std::getline(streamFiltered, line))
+    {
+		sUser += line;
+		if (Contains(line, "</user>"))
+		{
+			std::string sCPID = ExtractXML(sUser,"<cpid>","</cpid>");
+			double dAvgCredit = cdbl(ExtractXML(sUser,"<expavg_credit>","</expavg_credit>"),2);
+			std::string BPK = GetDCCPublicKey(sCPID);
+			double dMagnitude = dAvgCredit / dTotalRAC * 1000;
+			std::string sRow = BPK + "," + sCPID + "," + RoundToString(dMagnitude,2) + "<ROW>";
+			sDCC += sRow;
+			sUser = "";
+		}
+    }
+	streamFiltered.close();
+    // Phase 3: Create the Daily Magnitude Contract and hash it
+	FILE *outMagFile = fopen(sDailyMagnitudeFile.c_str(),"w");
+    fputs(sDCC.c_str(), outMagFile);
+	fclose(outMagFile);
+
+	uint256 uhash = GetDCCHash(sDCC);
+	// Persist the contract in memory for verification
+    WriteCache("dcc", "contract", sDCC, GetAdjustedTime());
+	WriteCache("dcc", "contract_hash", uhash.GetHex(), GetAdjustedTime());
+
+    return true;
+}
+
+
+
+bool FileExists2(std::string sPath)
+{
+	if (!sPath.empty())
+	{
+		try
+		{
+			boost::filesystem::path pathImg(sPath);
+			return (boost::filesystem::exists(pathImg));
+		}
+		catch(const boost::filesystem::filesystem_error& e)
+		{
+			return false;
+		}
+		catch (const std::exception& e) 
+		{
+			return false;
+		}
+		catch(...)
+		{
+			return false;
+		}
+
+	}
+	return false;
+}
+
+
+
+std::string FilterBoincData(std::string sData, std::string sRootElement, std::string sEndElement)
+{
+	std::vector<std::string> vRows = Split(sData.c_str(),"<ROW>");
+	std::string sOut = sRootElement + "\r\n";
+	for (int i = vRows.size()-1; i >= 0; i--)
+	{
+		// Filter backwards through the file until we find the root XML element:
+		std::string sLine = vRows[i];
+		if (sLine == sRootElement)
+		{
+			sOut += sEndElement + "\r\n";
+			return sOut;
+		}
+		sOut += sLine + "\r\n";
+	}
+	return "";
+}
+
+
+std::string NameFromURL2(std::string sURL)
+{
+	std::vector<std::string> vURL = Split(sURL.c_str(),"/");
+	std::string sOut = "";
+	if (vURL.size() > 0)
+	{
+		std::string sName = vURL[vURL.size()-1];
+		sName=strReplace(sName,"'","");
+		std::string sDir = GetSANDirectory2();
+		std::string sPath = sDir + sName;
+		return sPath;
+	}
+	return "";
+}
+
+
+std::string SystemCommand2(const char* cmd)
+{
+    FILE* pipe = popen(cmd, "r");
+    if (!pipe) return "ERROR";
+    char buffer[128];
+    std::string result = "";
+    while(!feof(pipe))
+    {
+        if(fgets(buffer, 128, pipe) != NULL)
+            result += buffer;
+    }
+    pclose(pipe);
+    return result;
+}
 
 
 bool AdvertiseDistributedComputingKey(std::string sProjectId, std::string sAuth, std::string sCPID, int nUserId, bool fForce, std::string &sError)
