@@ -4400,11 +4400,11 @@ static bool CheckIndexAgainstCheckpoint(const CBlockIndex* pindexPrev, CValidati
 
 bool HasThisCPIDSolvedPriorBlocks(std::string CPID, CBlockIndex* pindexPrev)
 {
+	if (CPID.empty()) return false;
 	int iCheckWindow = fProd ? 4 : 1;
 	CBlockIndex* pindex = pindexPrev;
 	int64_t headerAge = GetAdjustedTime() - pindexPrev->nTime;
 	if (headerAge > (60*60*4)) return false;
-	if (CPID.empty()) return false;
 	const CChainParams& chainparams = Params();
   
 	for (int i = 0; i < iCheckWindow; i++)
@@ -4416,7 +4416,7 @@ bool HasThisCPIDSolvedPriorBlocks(std::string CPID, CBlockIndex* pindexPrev)
 			{
 				std::string sCPIDSig = ExtractXML(block.vtx[0].vout[0].sTxOutMessage, "<cpidsig>","</cpidsig>");
 				std::string lastcpid = GetElement(sCPIDSig, ";", 0);
-				if (!lastcpid.empty())
+				if (!lastcpid.empty() && !sCPIDSig.empty())
 				{
 					LogPrintf(" Current CPID %s, LastCPID %s, Height %f --- ", CPID.c_str(), lastcpid.c_str(), (double)pindex->nHeight);
 					if (lastcpid == CPID) return true;
@@ -7371,7 +7371,8 @@ void UpdateMagnitude()
 		int out_HitCount = 0;
 		double out_OneDayPaid = 0;
 		double out_OneWeekPaid = 0;
-		double d1, d2;
+		double out_d1 = 0;
+		double out_d2 = 0;
 		mnMagnitude = GetUserMagnitude(nBudget, nTotalPaid, iLastSuperblock, out_Superblocks, out_SuperblockCount, out_HitCount, out_OneDayPaid, out_OneWeekPaid, d1, d2);
 }
 

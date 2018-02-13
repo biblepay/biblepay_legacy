@@ -850,7 +850,6 @@ std::string ExecuteDistributedComputingSanctuaryQuorumProcess()
 			{
 				// Pull down the distributed computing file
 				LogPrintf(" Chosen Sanctuary - pulling down the DCC file... \n");
-				nDistributedComputingCycles++;
 				bool fSuccess =  DownloadDistributedComputingFile(sError);
 				if (fSuccess)
 				{
@@ -4019,6 +4018,7 @@ std::vector<std::string> GetListOfDCCS(std::string sSearch)
 
 std::string GetDCCPublicKey(const std::string& cpid)
 {
+	if (cpid.empty()) return "";
 	int iMonths = 11;
     int64_t iMaxSeconds = 60 * 24 * 30 * iMonths * 60;
     std::string sData = RetrieveDCCWithMaxAge(cpid, iMaxSeconds);
@@ -4174,6 +4174,7 @@ double GetUserMagnitude(double& nBudget, double& nTotalPaid, int& out_iLastSuper
 
 std::string GetElement(std::string sIn, std::string sDelimiter, int iPos)
 {
+	if (sIn.empty()) return "";
 	std::vector<std::string> vInput = Split(sIn.c_str(), sDelimiter);
 	if (iPos < (int)vInput.size())
 	{
@@ -4184,6 +4185,11 @@ std::string GetElement(std::string sIn, std::string sDelimiter, int iPos)
 
 bool VerifyCPIDSignature(std::string sFullSig, bool bRequireEndToEndVerification, std::string& sError)
 {
+	if (sFullSig.empty())
+	{
+		sError = "CPID Empty.";
+		return false;
+	}
 	std::string sCPID = GetElement(sFullSig, ";", 0);
 	std::string sHash = GetElement(sFullSig, ";", 1);
 	std::string sPK = GetElement(sFullSig, ";", 2);
