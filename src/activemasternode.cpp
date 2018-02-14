@@ -95,33 +95,35 @@ std::string CActiveMasternode::GetTypeString() const
 
 bool CActiveMasternode::SendMasternodePing()
 {
-    if(!fPingerEnabled) {
-        if (fDebugMaster) LogPrint("masternode", "CActiveMasternode::SendMasternodePing -- %s: masternode ping service is disabled, skipping...\n", GetStateString());
+    if(!fPingerEnabled) 
+	{
+        LogPrint("masternode", "CActiveMasternode::SendMasternodePing -- %s: masternode ping service is disabled, skipping...\n", GetStateString());
         return false;
     }
 
     if(!mnodeman.Has(vin)) {
         strNotCapableReason = "Masternode not in masternode list";
         nState = ACTIVE_MASTERNODE_NOT_CAPABLE;
-        if (fDebugMaster) LogPrintf("CActiveMasternode::SendMasternodePing -- %s: %s\n", GetStateString(), strNotCapableReason);
+        LogPrint("masternode","CActiveMasternode::SendMasternodePing -- %s: %s\n", GetStateString(), strNotCapableReason);
         return false;
     }
 
     CMasternodePing mnp(vin);
-    if(!mnp.Sign(keyMasternode, pubKeyMasternode)) {
-        if (fDebugMaster) LogPrintf("CActiveMasternode::SendMasternodePing -- ERROR: Couldn't sign Masternode Ping\n");
+    if(!mnp.Sign(keyMasternode, pubKeyMasternode)) 
+	{
+        LogPrint("masternode","CActiveMasternode::SendMasternodePing -- ERROR: Couldn't sign Masternode Ping\n");
         return false;
     }
 
     // Update lastPing for our masternode in Masternode list
     if(mnodeman.IsMasternodePingedWithin(vin, MASTERNODE_MIN_MNP_SECONDS, mnp.sigTime)) {
-        if (fDebugMaster) LogPrintf("CActiveMasternode::SendMasternodePing -- Too early to send Masternode Ping\n");
+        LogPrint("masternode","CActiveMasternode::SendMasternodePing -- Too early to send Masternode Ping\n");
         return false;
     }
 
     mnodeman.SetMasternodeLastPing(vin, mnp);
 
-    if (fDebugMaster) LogPrintf("CActiveMasternode::SendMasternodePing -- Relaying ping, collateral=%s\n", vin.ToString());
+    LogPrint("masternode","CActiveMasternode::SendMasternodePing -- Relaying ping, collateral=%s\n", vin.ToString());
     mnp.Relay();
 
     return true;

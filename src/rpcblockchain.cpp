@@ -355,8 +355,8 @@ double GetBoincRACByUserId(std::string sProjectId, int nUserId)
 		std::string sProjectURL = "http://" + GetSporkValue(sProjectId);
 		std::string sRestfulURL = "show_user.php?userid=" + RoundToString(nUserId,0) + "&format=xml";
 		std::string sResponse = BiblepayHTTPSPost(0, "", "", "", sProjectURL, sRestfulURL, 443, "", 20, 5000, true);
-		double dAvg = cdbl(ExtractXML(sResponse,"<expavg_credit>", "</expavg_credit>"),2);
-		return dAvg;
+		double dRac = cdbl(ExtractXML(sResponse,"<expavg_credit>", "</expavg_credit>"),2);
+		return dRac;
 }
 
 
@@ -3583,7 +3583,8 @@ UniValue exec(const UniValue& params, bool fHelp)
 
 			}
 		}
-
+		if (!msGlobalCPID.empty()) results.push_back(Pair("Total_RAC", nTotalRAC));
+		
 		const Consensus::Params& consensusParams = Params().GetConsensus();
 		double nBudget = 0;
 		double nTotalPaid = 0;
@@ -3876,7 +3877,6 @@ UniValue GetDataList(std::string sType, int iMaxAgeInDays, int& iSpecificEntry, 
 						std::string sLongValue = sPrimaryKey + " - " + sValue;
 						if (iPos==iSpecificEntry) outEntry = sValue;
 						std::string sTimestamp = TimestampToHRDate((double)nTimestamp);
-						LogPrintf(" info %s \n",sKey.c_str());
 					 	ret.push_back(Pair(sPrimaryKey,sValue));
 						iPos++;
 				}

@@ -1325,7 +1325,7 @@ void CMasternodePayments::Sync(CNode* pnode)
         }
     }
 
-    LogPrintf("CMasternodePayments::Sync -- Sent %d votes to peer %d\n", nInvCount, pnode->id);
+    LogPrint("masternode","CMasternodePayments::Sync -- Sent %d votes to peer %d\n", nInvCount, pnode->id);
     pnode->PushMessage(NetMsgType::SYNCSTATUSCOUNT, MASTERNODE_SYNC_MNW, nInvCount);
 }
 
@@ -1347,7 +1347,7 @@ void CMasternodePayments::RequestLowDataPaymentBlocks(CNode* pnode)
             vToFetch.push_back(CInv(MSG_MASTERNODE_PAYMENT_BLOCK, pindex->GetBlockHash()));
             // We should not violate GETDATA rules
             if(vToFetch.size() == MAX_INV_SZ) {
-                if (fDebugMaster) LogPrint("mnpayments","CMasternodePayments::SyncLowDataPaymentBlocks -- asking peer %d for %d blocks\n", pnode->id, MAX_INV_SZ);
+                LogPrint("mnpayments","CMasternodePayments::SyncLowDataPaymentBlocks -- asking peer %d for %d blocks\n", pnode->id, MAX_INV_SZ);
                 pnode->PushMessage(NetMsgType::GETDATA, vToFetch);
                 // Start filling new batch
                 vToFetch.clear();
@@ -1395,7 +1395,7 @@ void CMasternodePayments::RequestLowDataPaymentBlocks(CNode* pnode)
         }
         // We should not violate GETDATA rules
         if(vToFetch.size() == MAX_INV_SZ) {
-            if (fDebugMaster) LogPrint("mnpayments","CMasternodePayments::SyncLowDataPaymentBlocks -- asking peer %d for %d payment blocks\n", pnode->id, MAX_INV_SZ);
+            LogPrint("mnpayments","CMasternodePayments::SyncLowDataPaymentBlocks -- asking peer %d for %d payment blocks\n", pnode->id, MAX_INV_SZ);
             pnode->PushMessage(NetMsgType::GETDATA, vToFetch);
             // Start filling new batch
             vToFetch.clear();
@@ -1405,7 +1405,7 @@ void CMasternodePayments::RequestLowDataPaymentBlocks(CNode* pnode)
     // Ask for the rest of it
     if(!vToFetch.empty()) 
 	{
-        if (fDebugMaster) LogPrint("mnpayments","CMasternodePayments::SyncLowDataPaymentBlocks -- asking peer %d for %d payment blocks\n", pnode->id, vToFetch.size());
+        LogPrint("mnpayments","CMasternodePayments::SyncLowDataPaymentBlocks -- asking peer %d for %d payment blocks\n", pnode->id, vToFetch.size());
         pnode->PushMessage(NetMsgType::GETDATA, vToFetch);
     }
 }

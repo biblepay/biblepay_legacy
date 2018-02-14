@@ -2479,7 +2479,7 @@ void static InvalidBlockFound(CBlockIndex *pindex, const CValidationState &state
 	{
 		if (true)
 		{
-			// pindex->nStatus |= BLOCK_FAILED_VALID;  // Allow PODC to reorganize chain, this happens if Rosetta goes down, dirty blocks can become clean.
+			pindex->nStatus |= BLOCK_FAILED_VALID;  // PODC - Dirty: Allow PODC to reorganize chain, this happens if Rosetta goes down, dirty blocks can become clean.
 			setDirtyBlockIndex.insert(pindex);
 			setBlockIndexCandidates.erase(pindex);
 		}
@@ -4005,14 +4005,14 @@ bool InvalidateBlock(CValidationState& state, const Consensus::Params& consensus
     // Mark the block itself as invalid.
 	if (true)
 	{
-		// pindex->nStatus |= BLOCK_FAILED_VALID; // PODC - Dirty Blocks can become clean later
+		pindex->nStatus |= BLOCK_FAILED_VALID; // PODC - Dirty Blocks can become clean later
 		setDirtyBlockIndex.insert(pindex);
 		setBlockIndexCandidates.erase(pindex);
 	}
 	
     while (chainActive.Contains(pindex)) {
         CBlockIndex *pindexWalk = chainActive.Tip();
-        // pindexWalk->nStatus |= BLOCK_FAILED_CHILD;  // PODC - Dirty Blocks can become clean later
+        pindexWalk->nStatus |= BLOCK_FAILED_CHILD;  // PODC - Dirty Blocks can become clean later
         setDirtyBlockIndex.insert(pindexWalk);
         setBlockIndexCandidates.erase(pindexWalk);
         // ActivateBestChain considers blocks already in chainActive
@@ -4674,7 +4674,7 @@ static bool AcceptBlock(const CBlock& block, CValidationState& state, const CCha
 		{
 			if (true)
 			{
-				// pindex->nStatus |= BLOCK_FAILED_VALID; // PODC - Dirty Blocks can become clean later
+				pindex->nStatus |= BLOCK_FAILED_VALID; // PODC - Dirty Blocks can become clean later
 				setDirtyBlockIndex.insert(pindex);
 			}
         }
@@ -4707,7 +4707,7 @@ static bool AcceptBlock(const CBlock& block, CValidationState& state, const CCha
 	if (IsNodeSynced(block.GetBlockTime()) && fDistributedComputingEnabled)
 	{
 		std::string sResult = ExecuteDistributedComputingSanctuaryQuorumProcess();
-		LogPrintf("\n AcceptBlock::ExecuteDistributedComputingSanctuaryQuorumProcess %s . \n", sResult.c_str());
+		LogPrintf(" AcceptBlock::ExecuteDistributedComputingSanctuaryQuorumProcess %s ", sResult.c_str());
 	}
 
     return true;
@@ -6126,7 +6126,9 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
         if (nTimeDrift > (5 * 60))
         {
             LogPrintf("Disconnecting unauthorized peer with Network Time off by %f seconds!\r\n",(double)nTimeDrift);
+			Misbehaving(pfrom->GetId(), 10);
 			pfrom->fDisconnect = true;
+			return false;
         }
       
         if (pfrom->nVersion == 10300)
@@ -6144,11 +6146,13 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
 		sVersion = strReplace(sVersion, "/", "");
 		sVersion = strReplace(sVersion, ".", "");
 		double dPeerVersion = cdbl(sVersion, 0);
-		if (!fProd && dPeerVersion == 109) dPeerVersion=1090;  // Omg!
-		if (dPeerVersion < 1090 && dPeerVersion > 1 && !fProd)
+		if (!fProd && dPeerVersion == 109) dPeerVersion=1090;
+		if (dPeerVersion < 1091 && dPeerVersion > 1000 && !fProd)
 		{
-		    LogPrintf("Disconnecting unauthorized peer in TestNet using old version %f\r\n",(double)dPeerVersion);
-			pfrom->fDisconnect = true;
+		    LogPrint("net","Disconnecting unauthorized peer in TestNet using old version %f\r\n",(double)dPeerVersion);
+			Misbehaving(pfrom->GetId(), 10);
+        	pfrom->fDisconnect = true;
+			return false;
 		}
 		
         if (!vRecv.empty())
@@ -7414,20 +7418,11 @@ double cdbl(std::string s, int place)
 	if (s=="") s="0";
 	s = strReplace(s,"\r","");
 	s = strReplace(s,"\n","");
-	/*
-	s = strReplace(s,"a","");
-	s = strReplace(s,"a","");
-	s = strReplace(s,"b","");
-	s = strReplace(s,"c","");
-	s = strReplace(s,"d","");
-	s = strReplace(s,"e","");
-	s = strReplace(s,"f","");
-	*/
 	std::string t = "";
 	for (int i = 0; i < (int)s.length(); i++)
 	{
 		std::string u = s.substr(i,1);
-		if (u=="0" || u=="1" || u=="2" || u=="3" || u=="4" || u=="5" || u=="6" || u == "7" || u=="8" || u=="9") 
+		if (u=="0" || u=="1" || u=="2" || u=="3" || u=="4" || u=="5" || u=="6" || u == "7" || u=="8" || u=="9" || u=="." || u==",") 
 		{
 			t += u;
 		}

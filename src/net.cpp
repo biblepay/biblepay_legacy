@@ -256,7 +256,7 @@ void AdvertiseLocal(CNode *pnode)
         }
         if (addrLocal.IsRoutable())
         {
-            if (fDebugMaster) LogPrintf("AdvertiseLocal: advertising address %s\n", addrLocal.ToString());
+            if (fDebugMaster) LogPrint("net","AdvertiseLocal: advertising address %s\n", addrLocal.ToString());
             pnode->PushAddress(addrLocal);
         }
     }
@@ -274,7 +274,7 @@ bool AddLocal(const CService& addr, int nScore)
     if (IsLimited(addr))
         return false;
 
-    LogPrintf("AddLocal(%s,%i)\n", addr.ToString(), nScore);
+    LogPrint("net","AddLocal(%s,%i)\n", addr.ToString(), nScore);
 
     {
         LOCK(cs_mapLocalHost);
@@ -986,13 +986,13 @@ static void AcceptConnection(const ListenSocket& hListenSocket) {
     {
         int nErr = WSAGetLastError();
         if (nErr != WSAEWOULDBLOCK)
-            LogPrintf("socket error accept failed: %s\n", NetworkErrorString(nErr));
+            LogPrint("net","socket error accept failed: %s\n", NetworkErrorString(nErr));
         return;
     }
 
     if (!IsSelectableSocket(hSocket))
     {
-        LogPrintf("connection from %s dropped: non-selectable socket\n", addr.ToString());
+        LogPrint("net","connection from %s dropped: non-selectable socket\n", addr.ToString());
         CloseSocket(hSocket);
         return;
     }
@@ -1008,7 +1008,7 @@ static void AcceptConnection(const ListenSocket& hListenSocket) {
 
     if (CNode::IsBanned(addr) && !whitelisted)
     {
-        if (fDebugMaster) LogPrintf("connection from %s dropped (banned)\n", addr.ToString());
+        LogPrint("net","connection from %s dropped (banned)\n", addr.ToString());
         CloseSocket(hSocket);
         return;
     }
@@ -1058,7 +1058,7 @@ void ThreadSocketHandler()
                 if (pnode->fDisconnect ||
                     (pnode->GetRefCount() <= 0 && pnode->vRecvMsg.empty() && pnode->nSendSize == 0 && pnode->ssSend.empty()))
                 {
-                    if (fDebugMaster) LogPrintf("ThreadSocketHandler -- removing node: peer=%d addr=%s nRefCount=%d fNetworkNode=%d fInbound=%d fMasternode=%d\n",
+                    LogPrint("net","ThreadSocketHandler -- removing node: peer=%d addr=%s nRefCount=%d fNetworkNode=%d fInbound=%d fMasternode=%d\n",
                               pnode->id, pnode->addr.ToString(), pnode->GetRefCount(), pnode->fNetworkNode, pnode->fInbound, pnode->fMasternode);
 
                     // remove from vNodes
@@ -1253,7 +1253,7 @@ void ThreadSocketHandler()
                             {
                                 if (!pnode->fDisconnect)
 								{
-									if (fDebugMaster)  LogPrintf("socket recv error %s\n", NetworkErrorString(nErr));
+									LogPrint("net","socket recv error %s\n", NetworkErrorString(nErr));
 								}
                                 pnode->CloseSocketDisconnect();
                             }
@@ -1287,17 +1287,17 @@ void ThreadSocketHandler()
                 }
                 else if (nTime - pnode->nLastSend > TIMEOUT_INTERVAL)
                 {
-                    LogPrintf("socket sending timeout: %is\n", nTime - pnode->nLastSend);
+                    LogPrint("net","socket sending timeout: %is\n", nTime - pnode->nLastSend);
                     pnode->fDisconnect = true;
                 }
                 else if (nTime - pnode->nLastRecv > (pnode->nVersion > BIP0031_VERSION ? TIMEOUT_INTERVAL : 90*60))
                 {
-                    LogPrintf("socket receive timeout: %is\n", nTime - pnode->nLastRecv);
+                    LogPrint("net","socket receive timeout: %is\n", nTime - pnode->nLastRecv);
                     pnode->fDisconnect = true;
                 }
                 else if (pnode->nPingNonceSent && pnode->nPingUsecStart + TIMEOUT_INTERVAL * 1000000 < GetTimeMicros())
                 {
-                    LogPrintf("ping timeout: %fs\n", 0.000001 * (GetTimeMicros() - pnode->nPingUsecStart));
+                    LogPrint("net","ping timeout: %fs\n", 0.000001 * (GetTimeMicros() - pnode->nPingUsecStart));
                     pnode->fDisconnect = true;
                 }
             }
@@ -3085,7 +3085,7 @@ bool DownloadDistributedComputingFile(std::string& sError)
 					int iPos = 0;
 					for (iPos = 0; iPos < 4096; iPos++)
 					{
-						if (bigbuf[(int)iPos] == 31 && bigbuf[(int)(iPos + 1)] == 139)
+						if (bigbuf[iPos] == 31) if (bigbuf[iPos + 1] == (char)0x8b)
 						{
 							break;
 						}
