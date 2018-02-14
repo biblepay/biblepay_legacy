@@ -170,17 +170,12 @@ CBlockTemplate* CreateNewBlock(const CChainParams& chainparams, const CScript& s
     unsigned int nBlockSigOps = 100;
     int lastFewTxs = 0;
     CAmount nFees = 0;
-	if (iThreadId > 30 && iThreadId != 999) iThreadId = 0;
+	if (iThreadId > 30) iThreadId = 0;
     {
         LOCK2(cs_main, mempool.cs);
         const int nHeight = pindexPrev->nHeight + 1;
         pblock->nTime = GetAdjustedTime() + iThreadId;
-		if (iThreadId==999)
-		{
-			pblock->nTime = 1517009000;
-		}
         const int64_t nMedianTimePast = pindexPrev->GetMedianTimePast();
-
         // Add our coinbase tx as first transaction
         pblock->vtx.push_back(txNew);
         pblocktemplate->vTxFees.push_back(-1); // updated at end
@@ -211,15 +206,18 @@ CBlockTemplate* CreateNewBlock(const CChainParams& chainparams, const CScript& s
 		}
 		else
 		{
-				CTransaction txPOL = CreateCoinStake(pindexPrev, scriptPubKeyIn, .01, BLOCKS_PER_DAY, sXML, sError);
-				if (!sError.empty()) 
+				if (!fDistributedComputingEnabled)
 				{
-					sGlobalPOLError = sError;
-				}
-				if (!sXML.empty())
-				{
-					pblock->vtx.push_back(txPOL);
-					sGlobalPOLError = "";
+					CTransaction txPOL = CreateCoinStake(pindexPrev, scriptPubKeyIn, .01, BLOCKS_PER_DAY, sXML, sError);
+					if (!sError.empty()) 
+					{
+						sGlobalPOLError = sError;
+					}
+					if (!sXML.empty())
+					{
+						pblock->vtx.push_back(txPOL);
+						sGlobalPOLError = "";
+					}
 				}
 		}
 
@@ -411,7 +409,7 @@ CBlockTemplate* CreateNewBlock(const CChainParams& chainparams, const CScript& s
         pblock->vtx[0] = txNew;
         pblocktemplate->vTxFees[0] = -nFees;
 
-		if (fDebugMaster) LogPrintf("CreateNewBlock(): height %f total size %u txs: %u fees: %ld sigops %d, voutSize %f \n", (double)(pindexPrev->nHeight + 1), 
+		LogPrint("miner", "CreateNewBlock(): height %f total size %u txs: %u fees: %ld sigops %d, voutSize %f \n", (double)(pindexPrev->nHeight + 1), 
 			nBlockSize, nBlockTx, nFees, nBlockSigOps, (double)pblock->vtx.size());
 
         // Fill in header
@@ -422,10 +420,9 @@ CBlockTemplate* CreateNewBlock(const CChainParams& chainparams, const CScript& s
         pblocktemplate->vTxSigOps[0] = GetLegacySigOpCount(pblock->vtx[0]);
 
         CValidationState state;
-	    if (!TestBlockValidity(state, chainparams, *pblock, pindexPrev, false, false)) 
+	    if (!TestBlockValidity(state, chainparams, *pblock, pindexPrev, false, false, true)) 
 		{
-	        //throw std::runtime_error(strprintf("%s: TestBlockValidity failed: %s", __func__, FormatStateMessage(state)));
-			LogPrintf("TestBlockValidity failed while creating new block\r\n");
+	    	// LogPrintf("TestBlockValidity failed while creating new block\r\n");
 			return NULL; //This allows the miner to recover by itself
         }
     }
@@ -743,8 +740,8 @@ void static BibleMiner(const CChainParams& chainparams, int iThreadID, int iFeat
 	int64_t nLastClearCache = GetAdjustedTime() - 480;
 	int64_t nLastShareSubmitted = GetAdjustedTime() - 480;
 	int iFailCount = 0;
-	// bool fCompetetiveMining = GetArg("-competetivemining", "true")=="true";
-
+	bool fFullSpeed = fDistributedComputingEnabled ? GetArg("-fullspeed", "false") == "true" : true;  // Default to True when DistributedComputing is Disabled, Default to False when PODC is Enabled (This will let Rosetta use the maximum CPU time)
+			
     CAmount competetiveMiningTithe = 0;
 recover:
 	int iStart = rand() % 1000;
@@ -819,8 +816,13 @@ recover:
 				iThreadID, competetiveMiningTithe, dProofOfLoyaltyPercentage));
             if (!pblocktemplate.get())
             {
-                LogPrintf("BiblepayMiner -- Keypool ran out, please call keypoolrefill before restarting the mining thread\n");
-				MilliSleep(5000);
+				// This happens when there is no CPID, or last block was solved by this CPID
+                // LogPrintf("BiblepayMiner -- Keypool ran out, please call keypoolrefill before restarting the mining thread\n");
+				LogPrint("miner", "Unable to mine... Cant sign block template with CPID %s ",msGlobalCPID.c_str());
+				nHashCounter += 1;
+				MilliSleep(700);
+				dHashesPerSec = 1000.0 * nHashCounter / (GetTimeMillis() - nHPSTimerStart);
+			
 				goto recover;
             }
             CBlock *pblock = &pblocktemplate->block;
@@ -930,6 +932,7 @@ recover:
 					
 					if ((pblock->nNonce & 0xFF) == 0)
 					{
+						if (!fFullSpeed) MilliSleep(100);  // In PODC mode, sleep for 100ms by default every 2 seconds, this yields 99% processing power to Rosetta
 						bool fNonce = CheckNonce(f9000, pblock->nNonce, pindexPrev->nHeight, pindexPrev->nTime, pblock->GetBlockTime());
 						if (fNonce) nHashCounterGood += 0xFF;
 						if (!fNonce)
@@ -937,7 +940,6 @@ recover:
 							pblock->nNonce = 0x9FFF;
 							competetiveMiningTithe += 1; //Add One satoshi
 							caGlobalCompetetiveMiningTithe += 1;
-							// LogPrintf("Resetting mining tithe %f",(double)caGlobalCompetetiveMiningTithe);
 							break;
 						}
 

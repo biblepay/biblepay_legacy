@@ -4418,7 +4418,7 @@ bool HasThisCPIDSolvedPriorBlocks(std::string CPID, CBlockIndex* pindexPrev)
 				std::string lastcpid = GetElement(sCPIDSig, ";", 0);
 				if (!lastcpid.empty() && !sCPIDSig.empty())
 				{
-					LogPrintf(" Current CPID %s, LastCPID %s, Height %f --- ", CPID.c_str(), lastcpid.c_str(), (double)pindex->nHeight);
+					// LogPrintf(" Current CPID %s, LastCPID %s, Height %f --- ", CPID.c_str(), lastcpid.c_str(), (double)pindex->nHeight);
 					if (lastcpid == CPID) return true;
 					pindex = pindexPrev->pprev;
 				}
@@ -4460,7 +4460,7 @@ bool ContextualCheckBlockHeader(const CBlockHeader& block, CValidationState& sta
     return true;
 }
 
-bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIndex * const pindexPrev, bool fCheckPOW)
+bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIndex * const pindexPrev, bool fCheckPOW, bool fMining)
 {
     const int nHeight = pindexPrev == NULL ? 0 : pindexPrev->nHeight + 1;
     const Consensus::Params& consensusParams = Params().GetConsensus();
@@ -4541,13 +4541,13 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIn
 			std::string sCPIDSignature = ExtractXML(block.vtx[0].vout[0].sTxOutMessage, "<cpidsig>","</cpidsig>");
 			if (sCPIDSignature.empty())
 			{
-				LogPrintf(" CPID Signature empty.  Contextual Check Block Failed at height %f. \n", (double)pindexPrev->nHeight+1);
+				if (!fMining) LogPrintf(" CPID Signature empty.  Contextual Check Block Failed at height %f. \n", (double)pindexPrev->nHeight+1);
 				fCPIDFailed=true;
 			}
 			bool fCheckCPIDSignature = VerifyCPIDSignature(sCPIDSignature, true, sError);
 			if (!fCheckCPIDSignature)
 			{
-				LogPrintf(" CPID Signature Check Failed.  CPID %s, Error %s \n", block.sBlockMessage.c_str(), sError.c_str());
+				if (!fMining) LogPrintf(" CPID Signature Check Failed.  CPID %s, Error %s \n", block.sBlockMessage.c_str(), sError.c_str());
 				fCPIDFailed=true;
 			}
 			// Ensure this CPID has not solved any of the last N blocks in prod or last block in testnet if header age is < 1 hour:
@@ -4555,21 +4555,21 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIn
 			bool bSolvedPriorBlocks = HasThisCPIDSolvedPriorBlocks(sCPID, pindexPrev);
 			if (bSolvedPriorBlocks)
 			{
-				LogPrintf(" CPID has solved prior blocks.  Contextual check block failed.  CPID %s ",sCPID.c_str());
+				if (!fMining) LogPrintf(" CPID has solved prior blocks.  Contextual check block failed.  CPID %s ",sCPID.c_str());
 				fCPIDFailed=true;
 			}
 			// Ensure this block can only be solved if this CPID was in the last superblock with a payment - but only if the header age is recent (this allows the chain to continue rolling if PODC goes down)
 			double nRecentlyPaid = GetPaymentByCPID(sCPID);
 			if (nRecentlyPaid >= 0 && nRecentlyPaid < .50)
 			{
-				LogPrintf(" CPID is not in prior superblock.  Contextual check block failed.  CPID %s, Payments: %f  ", sCPID.c_str(), (double)nRecentlyPaid);
+				if (!fMining) LogPrintf(" CPID is not in prior superblock.  Contextual check block failed.  CPID %s, Payments: %f  ", sCPID.c_str(), (double)nRecentlyPaid);
 				fCPIDFailed=true;
 			}
 			if (fCPIDFailed)
 			{
 				return false;
 			}
-			if (!fCPIDFailed) LogPrintf(" CPID Checks Passed. \n");
+			// if (!fCPIDFailed) LogPrintf(" CPID Checks Passed. \n");
 			
 		}
 	}
@@ -4668,7 +4668,7 @@ static bool AcceptBlock(const CBlock& block, CValidationState& state, const CCha
 
 	bool fCheckPOW = true;
     if ((!CheckBlock(block, state, true, true, block.GetBlockTime(), pindex->pprev ? pindex->pprev->nTime : 0, pindex->pprev ? pindex->pprev->nHeight : 0, pindex->pprev)) 
-		|| !ContextualCheckBlock(block, state, pindex->pprev, fCheckPOW)) 
+		|| !ContextualCheckBlock(block, state, pindex->pprev, fCheckPOW, false)) 
 	{
         if (state.IsInvalid() && !state.CorruptionPossible()) 
 		{
@@ -4766,7 +4766,7 @@ bool ProcessNewBlock(CValidationState& state, const CChainParams& chainparams, c
     return true;
 }
 
-bool TestBlockValidity(CValidationState& state, const CChainParams& chainparams, const CBlock& block, CBlockIndex* pindexPrev, bool fCheckPOW, bool fCheckMerkleRoot)
+bool TestBlockValidity(CValidationState& state, const CChainParams& chainparams, const CBlock& block, CBlockIndex* pindexPrev, bool fCheckPOW, bool fCheckMerkleRoot, bool fMining)
 {
     AssertLockHeld(cs_main);
 	if (!(pindexPrev && pindexPrev == chainActive.Tip()))
@@ -4790,7 +4790,7 @@ bool TestBlockValidity(CValidationState& state, const CChainParams& chainparams,
         return false;
     if (!CheckBlock(block, state, fCheckPOW, fCheckMerkleRoot, block.GetBlockTime(), pindexPrev ? pindexPrev->nTime : 0, pindexPrev ? pindexPrev->nHeight : 0, pindexPrev))
         return false;
-    if (!ContextualCheckBlock(block, state, pindexPrev, fCheckPOW))
+    if (!ContextualCheckBlock(block, state, pindexPrev, fCheckPOW, fMining))
         return false;
     if (!ConnectBlock(block, state, &indexDummy, viewNew, true))
         return false;

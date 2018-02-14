@@ -130,7 +130,7 @@ CBlockIndex* FindBlockByHeight(int nHeight);
 extern double GetDifficulty(const CBlockIndex* blockindex);
 extern double GetDifficultyN(const CBlockIndex* blockindex, double N);
 extern std::string SendBlockchainMessage(std::string sType, std::string sPrimaryKey, std::string sValue, double dStorageFee, bool fSign, std::string& sError);
-void SendMoneyToDestinationWithMinimumBalance(const CTxDestination& address, CAmount nValue, CAmount nMinimumBalanceRequired, CWalletTx& wtxNew);
+// void SendMoneyToDestinationWithMinimumBalance(const CTxDestination& address, CAmount nValue, CAmount nMinimumBalanceRequired, CWalletTx& wtxNew);
 std::string SQL(std::string sCommand, std::string sAddress, std::string sArguments, std::string& sError);
 extern void StartTradingThread();
 extern CTradeTx GetOrderByHash(uint256 uHash);
@@ -3823,8 +3823,6 @@ std::string SendBlockchainMessage(std::string sType, std::string sPrimaryKey, st
 	std::string sMessageValue     = "<MV>" + sValue + "</MV>";
 	std::string sNonce            = "<NONCE>" + sNonceValue + "</NONCE>";
 	std::string sMessageSig = "";
-	//MT>spork</MT><MK>2</MK><MV>3</MV><NONCE>1517614881</NONCE><SPORKSIG>IA73/aizlyrKmXIPizN73I6vZOY7FfYnGQut/KmpNPvhfcYZRXsuSZbJ/B6MpatfQelAVGFEk8Cs7FiVUcAQ+P4=</SPORKSIG>
-
 	// 1-29-2018 -- Allow Dev to Sign Blockchain Message with Spork Key
 	if (Sign)
 	{

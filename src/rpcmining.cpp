@@ -297,7 +297,6 @@ UniValue getmininginfo(const UniValue& params, bool fHelp)
 
     LOCK(cs_main);
 	const CChainParams& chainparams = Params();
-	bool fCompetetiveMining = GetArg("-competetivemining", "true")=="true";
 		
     UniValue obj(UniValue::VOBJ);
     obj.push_back(Pair("blocks",           (int)chainActive.Height()));
@@ -312,9 +311,11 @@ UniValue getmininginfo(const UniValue& params, bool fHelp)
 	obj.push_back(Pair("minerstarttime",   TimestampToHRDate(nHPSTimerStart/1000)));
 	if (chainparams.NetworkIDString()=="test")
 	{
+		/*
 		obj.push_back(Pair("ratio", nBibleHashCounter/(nHashCounter+1)));
 		obj.push_back(Pair("hc1", nHashCounter));
 		obj.push_back(Pair("bhc2", nBibleHashCounter));
+		*/
 	}
 	obj.push_back(Pair("hashcounter", nHashCounter));
 	// obj.push_back(Pair("competetive_mining", fCompetetiveMining));
@@ -341,8 +342,6 @@ UniValue getmininginfo(const UniValue& params, bool fHelp)
 		obj.push_back(Pair("proof_of_loyalty_influence_percentage", nGlobalInfluencePercentage));
 		obj.push_back(Pair("proof_of_loyalty_errors", sGlobalPOLError));
 	}
-	obj.push_back(Pair("base_blockhash", sGlobalBlockHash));
-
     return obj;
 }
 
