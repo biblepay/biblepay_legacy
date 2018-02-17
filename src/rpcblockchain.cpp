@@ -59,6 +59,8 @@ bool CheckMessageSignature(std::string sMsg, std::string sSig);
 bool CheckMessageSignature(std::string sMsg, std::string sSig, std::string sPubKey);
 extern uint256 PercentToBigIntBase(int iPercent);
 std::string GetTemplePrivKey();
+extern UniValue GetLeaderboard(int nHeight);
+
 std::string SignMessage(std::string sMsg, std::string sPrivateKey);
 extern double CAmountToRetirementDouble(CAmount Amount);
 void GetMiningParams(int nPrevHeight, bool& f7000, bool& f8000, bool& f9000, bool& fTitheBlocksActive);
@@ -90,7 +92,7 @@ extern bool AdvertiseDistributedComputingKey(std::string sProjectId, std::string
 extern std::string AssociateDCAccount(std::string sProjectId, std::string sBoincEmail, std::string sBoincPassword, bool fForce);
 extern std::vector<std::string> GetListOfDCCS(std::string sSearch);
 extern std::string GetSporkValue(std::string sKey);
-
+extern int GetLastDCSuperblockWithPayment(int nChainHeight);
 extern std::string GetDCCElement(std::string sData, int iElement);
 std::string FindResearcherCPIDByAddress(std::string sSearch, std::string& out_address, double& nTotalMagnitude);
 extern double GetUserMagnitude(double& nBudget, double& nTotalPaid, int& iLastSuperblock, std::string& out_Superblocks, int& out_SuperblockCount, int& out_HitCount, double& out_OneDayPaid, double& out_OneWeekPaid, double& out_OneDayBudget, double& out_OneWeekBudget);
@@ -150,12 +152,20 @@ extern bool GetContractPaymentData(std::string sContract, int nBlockHeight, std:
 extern double GetPaymentByCPID(std::string CPID);
 extern std::string FilterBoincData(std::string sData, std::string sRootElement, std::string sEndElement);
 extern bool FileExists2(std::string sPath);
-
+std::string GetCPIDByAddress(std::string sAddress, int iOffset);
+extern double GetBoincTeamByUserId(std::string sProjectId, int nUserId);
+extern double GetBlockMagnitude(int nChainHeight);
 
 
 
 double GetDifficultyN(const CBlockIndex* blockindex, double N)
 {
+	if (fDistributedComputingEnabled)
+	{
+		double nBlockMagnitude = GetBlockMagnitude(blockindex->nHeight);
+		return nBlockMagnitude;
+	}
+
 	// Returns Difficulty * N (Most likely this will be used to display the Diff in the wallet, since the BibleHash is much harder to solve than an ASIC hash)
 	if ((blockindex && !fProd && blockindex->nHeight >= 1) || (blockindex && fProd && blockindex->nHeight >= 7000))
 	{
@@ -209,8 +219,7 @@ std::string RetrieveDCCWithMaxAge(std::string cpid, int64_t iMaxSeconds)
     const std::string& value = mvApplicationCache[key];
 	const Consensus::Params& consensusParams = Params().GetConsensus();
     int64_t iAge = chainActive.Tip() != NULL ? chainActive.Tip()->nTime - mvApplicationCacheTimestamp[key] : 0;
-	//LogPrintf("cpid %s rdwma %s %f  %f ",cpid.c_str(),value.c_str(), iAge, iMaxSeconds);
-    return (iAge > iMaxSeconds) ? "" : value;
+	return (iAge > iMaxSeconds) ? "" : value;
 }
 
 int64_t RetrieveCPIDAssociationTime(std::string cpid)
@@ -355,10 +364,19 @@ double GetBoincRACByUserId(std::string sProjectId, int nUserId)
 		std::string sProjectURL = "http://" + GetSporkValue(sProjectId);
 		std::string sRestfulURL = "show_user.php?userid=" + RoundToString(nUserId,0) + "&format=xml";
 		std::string sResponse = BiblepayHTTPSPost(0, "", "", "", sProjectURL, sRestfulURL, 443, "", 20, 5000, true);
-		double dRac = cdbl(ExtractXML(sResponse,"<expavg_credit>", "</expavg_credit>"),2);
+		double dRac = cdbl(ExtractXML(sResponse,"<expavg_credit>", "</expavg_credit>"), 2);
 		return dRac;
 }
 
+
+double GetBoincTeamByUserId(std::string sProjectId, int nUserId)
+{
+		std::string sProjectURL = "http://" + GetSporkValue(sProjectId);
+		std::string sRestfulURL = "show_user.php?userid=" + RoundToString(nUserId,0) + "&format=xml";
+		std::string sResponse = BiblepayHTTPSPost(0, "", "", "", sProjectURL, sRestfulURL, 443, "", 20, 5000, true);
+		double dTeam = cdbl(ExtractXML(sResponse,"<teamid>", "</teamid>"), 0);
+		return dTeam;
+}
 
 std::string SetBoincResearcherHexCode(std::string sProjectId, std::string sAuthCode, std::string sHexKey)
 {
@@ -3402,6 +3420,17 @@ UniValue exec(const UniValue& params, bool fHelp)
 		}
 		results.push_back(Pair("mining_diagnostics", fMiningDiagnostics));
 	}
+	else if (sItem == "podcdifficulty")
+	{
+		const Consensus::Params& consensusParams = Params().GetConsensus();
+		int nHeight = chainActive.Tip()->nHeight;
+		if (params.size() == 2) nHeight = cdbl(params[1].get_str(),0);
+		CBlockIndex* pindex = FindBlockByHeight(nHeight);
+		double dPOWDifficulty = GetDifficulty(pindex)*10;
+		double dPODCDifficulty = GetBlockMagnitude(nHeight);
+		results.push_back(Pair("difficulty_podc", dPODCDifficulty));
+		results.push_back(Pair("difficulty_pow", dPOWDifficulty));
+	}
 	else if (sItem == "dcc")
 	{
 		std::string sError = "";
@@ -3562,11 +3591,11 @@ UniValue exec(const UniValue& params, bool fHelp)
 			results.push_back(Pair("Alert", sNarrAge));
 		}
 
-
 		results.push_back(Pair("NextSuperblockHeight", iNextSuperblock));
 	    int64_t iMaxSeconds = 60 * 24 * 30 * 12 * 60;
     	std::vector<std::string> vCPIDS = Split(msGlobalCPID.c_str(),";");
 		double nTotalRAC = 0;
+		double dBiblepayTeam = cdbl(GetSporkValue("team"),0);
 		for (int i = 0; i < (int)vCPIDS.size(); i++)
 		{
 			std::string s1 = vCPIDS[i];
@@ -3579,8 +3608,16 @@ UniValue exec(const UniValue& params, bool fHelp)
 					double RAC = GetBoincRACByUserId("project1", nUserId);
 					nTotalRAC += RAC;
 					results.push_back(Pair(s1 + "_RAC", RAC));
+					double dTeam = GetBoincTeamByUserId("project1", nUserId);
+					results.push_back(Pair(s1 + "_TEAM", dTeam));
+					if (dBiblepayTeam > 0)
+					{
+						if (dBiblepayTeam != dTeam)
+						{
+							results.push_back(Pair("Warning", "CPID " + s1 + " not in team Biblepay.  This CPID is not receiving rewards for cancer research."));
+						}
+					}
 				}
-
 			}
 		}
 		if (!msGlobalCPID.empty()) results.push_back(Pair("Total_RAC", nTotalRAC));
@@ -3626,6 +3663,14 @@ UniValue exec(const UniValue& params, bool fHelp)
 		std::string sEntry = "";
 		UniValue aDataList = GetDataList(sType, (int)dDays, iSpecificEntry, sEntry);
 		return aDataList;
+	}
+	else if (sItem == "leaderboard")
+	{
+		const Consensus::Params& consensusParams = Params().GetConsensus();
+		int nLastDCHeight = GetLastDCSuperblockWithPayment(chainActive.Tip()->nHeight);
+		UniValue aDataList = GetLeaderboard(nLastDCHeight);
+		return aDataList;
+
 	}
 	else if (sItem == "clearcache")
 	{
@@ -4101,6 +4146,118 @@ double GetPaymentByCPID(std::string CPID)
 	return nTotalPaid;
 }
 
+int GetResearcherCount(std::string recipient, std::string RecipList)
+{
+	int nCount = 0;
+	std::vector<std::string> vInput = Split(RecipList.c_str(), ",");
+	for (int i = 0; i < (int)vInput.size(); i++)
+	{
+		std::string R = vInput[i];
+		if (R == recipient) nCount++;
+	}
+	return nCount;
+}
+
+
+double GetBlockMagnitude(int nChainHeight)
+{
+	int nHeight = GetLastDCSuperblockWithPayment(nChainHeight);
+	const Consensus::Params& consensusParams = Params().GetConsensus();
+	CBlockIndex* pindex = FindBlockByHeight(nHeight);
+	CBlock block;
+	double nParticipants = 0;
+	double nTotalBlock = 0;
+	if (ReadBlockFromDisk(block, pindex, consensusParams, "GetBlockMagnitude")) 
+	{
+		  for (unsigned int i = 1; i < block.vtx[0].vout.size(); i++)
+		  {
+				double dAmount = block.vtx[0].vout[i].nValue/COIN;
+				nTotalBlock += dAmount;
+				nParticipants++;
+		  }
+    }
+	if (nTotalBlock <= 20000) return 0;
+	double dPODCDiff = pow(nParticipants, 1.4);
+    return dPODCDiff;
+}
+
+
+
+UniValue GetLeaderboard(int nHeight)
+{
+	const Consensus::Params& consensusParams = Params().GetConsensus();
+	CBlockIndex* pindex = FindBlockByHeight(nHeight);
+	CBlock block;
+	double nTotalBlock = 0;
+	vector<pair<double, std::string> > vLeaderboard;
+    UniValue ret(UniValue::VOBJ);
+   
+	if (ReadBlockFromDisk(block, pindex, consensusParams, "GetLeaderboard")) 
+	{
+		  vLeaderboard.reserve(block.vtx[0].vout.size());
+		  for (unsigned int i = 1; i < block.vtx[0].vout.size(); i++)
+		  {
+				double dAmount = block.vtx[0].vout[i].nValue/COIN;
+				nTotalBlock += dAmount;
+		  }
+		  std::string Recips = "";
+		  for (unsigned int i = 1; i < block.vtx[0].vout.size(); i++)
+		  {
+			    std::string sRecipient = PubKeyToAddress(block.vtx[0].vout[i].scriptPubKey);
+				double dAmount = block.vtx[0].vout[i].nValue/COIN;
+				double nMagnitude = (dAmount / (nTotalBlock+.01)) * 1000;
+				int nResearchCount = GetResearcherCount(sRecipient, Recips);
+				std::string sCPID = GetCPIDByAddress(sRecipient, nResearchCount);
+				Recips += sRecipient + ",";
+				vLeaderboard.push_back(make_pair(nMagnitude, sCPID));
+		  }
+   	
+		  sort(vLeaderboard.begin(), vLeaderboard.end());
+		  ret.push_back(Pair("Leaderboard Report",GetAdjustedTime()));
+		  ret.push_back(Pair("Height", nHeight));
+		  ret.push_back(Pair("Total Block", nTotalBlock));
+
+	   	  BOOST_REVERSE_FOREACH(const PAIRTYPE(double, std::string)& item, vLeaderboard)
+          {
+			  std::string sCPID = item.second;
+			  double nMagnitude = item.first;
+		 	  ret.push_back(Pair(sCPID, nMagnitude));
+		  }
+	}
+    return ret;
+    
+}
+
+
+int GetLastDCSuperblockWithPayment(int nChainHeight)
+{
+	const Consensus::Params& consensusParams = Params().GetConsensus();
+	int iNextSuperblock = 0;  
+	for (int b = nChainHeight; b > 1; b--)
+	{
+		int iLastSuperblock = GetLastDCSuperblockHeight(b+1, iNextSuperblock);
+		if (iLastSuperblock == b)
+		{
+			CBlockIndex* pindex = FindBlockByHeight(b);
+			CBlock block;
+			double nTotalBlock = 0;
+			if (ReadBlockFromDisk(block, pindex, consensusParams, "GetLastDCSuperblockWithPayments")) 
+			{
+				  double nBudget = CSuperblock::GetPaymentsLimit(iLastSuperblock) / COIN;
+				  nTotalBlock=0;
+				  for (unsigned int i = 1; i < block.vtx[0].vout.size(); i++)
+				  {
+						double dAmount = block.vtx[0].vout[i].nValue/COIN;
+						nTotalBlock += dAmount;
+				  }
+   				  if (nTotalBlock > nBudget-100) return b;
+			}
+		}
+	}
+	return 0;
+}
+
+
 
 
 double GetUserMagnitude(double& nBudget, double& nTotalPaid, int& out_iLastSuperblock, std::string& out_Superblocks, int& out_SuperblockCount, int& out_HitCount, double& out_OneDayPaid, double& out_OneWeekPaid, double& out_OneDayBudget, double& out_OneWeekBudget)
@@ -4304,13 +4461,18 @@ bool FilterFile(int iBufferSize, std::string& sError)
 			 boost::to_upper(sCpid);
 			 if (Contains(sConcatCPIDs, sCpid))
 			 {
-				// LogPrintf(" \n mycpid %s \n", sCpid.c_str());
 				for (int i = 0; i < (int)vCPIDs.size(); i++)
 				{
 					std::string sBiblepayResearcher = GetDCCElement(vCPIDs[i], 0);
 					boost::to_upper(sBiblepayResearcher);
 					if (!sBiblepayResearcher.empty() && sBiblepayResearcher == sCpid)
 					{
+						for (int z = 0; z < 2; z++)
+						{
+							// Add in the User URL and Team
+							bool bAddlData = std::getline(streamIn, line);
+							if (bAddlData) sBuffer += line + "<ROW>";
+						}
 						std::string sData = FilterBoincData(sBuffer, "<user>","</user>");
 						sOutData += sData;
 						sBuffer = "";
@@ -4348,18 +4510,26 @@ bool FilterFile(int iBufferSize, std::string& sError)
 
 	std::string sUser = "";
 	std::string sDCC = "";
+	double dTeamRequired = cdbl(GetSporkValue("team"),0);
+
     while(std::getline(streamFiltered, line))
     {
 		sUser += line;
 		if (Contains(line, "</user>"))
 		{
 			std::string sCPID = ExtractXML(sUser,"<cpid>","</cpid>");
-			double dAvgCredit = cdbl(ExtractXML(sUser,"<expavg_credit>","</expavg_credit>"),2);
-			std::string BPK = GetDCCPublicKey(sCPID);
-			double dMagnitude = dAvgCredit / dTotalRAC * 1000;
-			std::string sRow = BPK + "," + sCPID + "," + RoundToString(dMagnitude,2) + "<ROW>";
-			sDCC += sRow;
-			sUser = "";
+			double dAvgCredit = cdbl(ExtractXML(sUser,"<expavg_credit>","</expavg_credit>"), 2);
+			double dTeam = cdbl(ExtractXML(sUser,"<teamid>","</teamid>"), 0);
+			std::string sRosettaID = ExtractXML(sUser,"<id>","</id>");
+			bool bTeamMatch = (dTeamRequired > 0) ? (dTeam == dTeamRequired) : true;
+			if (bTeamMatch)
+			{
+				std::string BPK = GetDCCPublicKey(sCPID);
+				double dMagnitude = dAvgCredit / dTotalRAC * 1000;
+				std::string sRow = BPK + "," + sCPID + "," + RoundToString(dMagnitude,2) + "," + sRosettaID + "," + RoundToString(dTeam,0) + "<ROW>";
+				sDCC += sRow;
+				sUser = "";
+			}
 		}
     }
 	streamFiltered.close();
@@ -4456,6 +4626,28 @@ std::string SystemCommand2(const char* cmd)
     return result;
 }
 
+std::string GenerateNewAddress(std::string& sError, std::string sName)
+{
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+	{
+		if (!pwalletMain->IsLocked(true))
+			pwalletMain->TopUpKeyPool();
+		// Generate a new key that is added to wallet
+		CPubKey newKey;
+		if (!pwalletMain->GetKeyFromPool(newKey))
+		{
+			sError = "Keypool ran out, please call keypoolrefill first";
+			return "";
+		}
+		CKeyID keyID = newKey.GetID();
+		std::string strAccount = "";
+		pwalletMain->SetAddressBook(keyID, strAccount, sName);
+		return CBitcoinAddress(keyID).ToString();
+	}
+
+}
+
+
 
 bool AdvertiseDistributedComputingKey(std::string sProjectId, std::string sAuth, std::string sCPID, int nUserId, bool fForce, std::string &sError)
 {	
@@ -4470,6 +4662,19 @@ bool AdvertiseDistributedComputingKey(std::string sProjectId, std::string sAuth,
                 sError = "ALREADY_IN_CHAIN";
                 return false;
             }
+			
+    		std::string sPubAddress = DefaultRecAddress("Rosetta");
+			std::string sDummyCPID = GetCPIDByAddress(sPubAddress, 0);
+			if (!sDummyCPID.empty())
+			{
+				sPubAddress = GenerateNewAddress(sError, "Rosetta");
+				if (!sError.empty()) return false;
+				if (sPubAddress.empty())
+				{
+					sError = "Unable to create new Biblepay Receiving Address.";
+					return false;
+				}
+			}
 
             static int nLastDCCAdvertised = 0;
 			const Consensus::Params& consensusParams = Params().GetConsensus();
@@ -4487,7 +4692,6 @@ bool AdvertiseDistributedComputingKey(std::string sProjectId, std::string sAuth,
                 return false;
             }
         
-    		std::string sPubAddress = DefaultRecAddress("Rosetta");
 			
             std::string sHexSet = sPubAddress;
 

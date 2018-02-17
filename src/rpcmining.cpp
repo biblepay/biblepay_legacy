@@ -42,6 +42,7 @@ std::string RoundToString(double d, int place);
 std::string ReadCache(std::string section, std::string key);
 double GetDifficultyN(const CBlockIndex* blockindex, double N);
 double cdbl(std::string s, int place);
+double GetBlockMagnitude(int nChainHeight);
 
 /**
  * Return average network hashes per second based on the last 'lookup' blocks,
@@ -302,7 +303,20 @@ UniValue getmininginfo(const UniValue& params, bool fHelp)
     obj.push_back(Pair("blocks",           (int)chainActive.Height()));
     obj.push_back(Pair("currentblocksize", (uint64_t)nLastBlockSize));
     obj.push_back(Pair("currentblocktx",   (uint64_t)nLastBlockTx));
-    obj.push_back(Pair("difficulty",       (double)GetDifficultyN(chainActive.Tip(),10)));
+	if (fDistributedComputingEnabled)
+	{
+		double dPODCDifficulty = GetBlockMagnitude(chainActive.Tip()->nHeight);
+		double dPOWDifficulty = GetDifficulty(chainActive.Tip())*10;
+		double dDifficulty =  GetDifficultyN(chainActive.Tip(),10);
+		obj.push_back(Pair("difficulty_podc", dPODCDifficulty));
+		obj.push_back(Pair("difficulty_pow", dPOWDifficulty));
+		obj.push_back(Pair("difficulty", dDifficulty));
+	}
+	else
+	{
+		obj.push_back(Pair("difficulty", (double)GetDifficultyN(chainActive.Tip(),10)));
+	}
+
     obj.push_back(Pair("errors",           GetWarnings("statusbar")));
     obj.push_back(Pair("genproclimit",     (int)GetArg("-genproclimit", DEFAULT_GENERATE_THREADS)));
     obj.push_back(Pair("networkhashps",  GetNetworkHashPS((BLOCKS_PER_DAY/12), -1))); // Network KHPS over last hour

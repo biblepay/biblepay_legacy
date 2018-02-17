@@ -107,7 +107,7 @@ public:
         base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,25);
         // Biblepay script addresses starts with '7'
         base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1,16);
-        // Biblepay private keys starts with '7' or 'B'
+        // Biblepay private keys starts with '7' or 'U' or 'T'
         base58Prefixes[SECRET_KEY] =     std::vector<unsigned char>(1,182);
         // Biblepay BIP32 pubkeys start with 'xpub' (Bitcoin defaults)
         base58Prefixes[EXT_PUBLIC_KEY] = boost::assign::list_of(0x04)(0x88)(0xB2)(0x1E).convert_to_container<std::vector<unsigned char> >();

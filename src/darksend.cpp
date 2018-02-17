@@ -440,10 +440,16 @@ void CDarksendPool::InitDenominations()
     /* Disabled
     vecPrivateSendDenominations.push_back( (100      * COIN)+100000 );
     */
+	vecPrivateSendDenominations.push_back( (10000    * COIN)+10000000 );
+    vecPrivateSendDenominations.push_back( (1000     * COIN)+1000000 );
+    vecPrivateSendDenominations.push_back( (100      * COIN)+100000 );
     vecPrivateSendDenominations.push_back( (10       * COIN)+10000 );
     vecPrivateSendDenominations.push_back( (1        * COIN)+1000 );
+	/* Disabling .1 & .01 - Rob Andrews - Biblepay - Too small for our use:
     vecPrivateSendDenominations.push_back( (.1       * COIN)+100 );
     vecPrivateSendDenominations.push_back( (.01      * COIN)+10 );
+	*/
+
     /* Disabled till we need them
     vecPrivateSendDenominations.push_back( (.001     * COIN)+1 );
     */

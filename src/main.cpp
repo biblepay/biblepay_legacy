@@ -91,6 +91,8 @@ int nDistributedComputingCycles = 0;
 double GetUserMagnitude(double& nBudget, double& nTotalPaid, int& iLastSuperblock, std::string& out_Superblocks, int& out_SuperblockCount, 
 	int& out_HitCount, double& out_OneDayPaid, double& out_OneWeekPaid, double& out_OneDayBudget, double& out_OneWeekBudget);
 double GetPaymentByCPID(std::string CPID);
+extern std::string GetCPIDByAddress(std::string sAddress, int iOffset);
+
 
 
 
@@ -1285,7 +1287,7 @@ bool CheckTransaction(const CTransaction& tx, CValidationState &state)
 
 bool VerifyDistributedBurnTransaction(std::string sXML)
 {
-	  // R Andrijas - Biblepay - 2-2-2018 - Verify the Ownership of the CPID
+	  // R Andrews - Biblepay - 2-2-2018 - Verify the Ownership of the CPID
 	  // DC BurnTX Format: sCPID + ";" + sHexSetting + ";" + sPubAddress + ";" + String(nUserId);
 		
 	  std::string sMessageType      = ExtractXML(sXML,"<MT>","</MT>");
@@ -2127,7 +2129,7 @@ bool WriteBlockToDisk(const CBlock& block, CDiskBlockPos& pos, const CMessageHea
 bool ReadBlockFromDisk(CBlock& block, const CDiskBlockPos& pos, const Consensus::Params& consensusParams, std::string Context)
 {
 
-	// September 14th, 2017 - Robert Andrija - BiblePay
+	// September 14th, 2017 - Robert A. - BiblePay
 	// Depending on the context of the call, ensure the block is read from the disk without a CheckProofOfWork Error
 
 	boost::to_upper(Context);
@@ -8202,6 +8204,27 @@ std::string GetMyPublicKeys()
 	return sPK;
 }
 
+std::string GetCPIDByAddress(std::string sAddress, int iOffset)
+{
+	std::vector<std::string> vCPIDs = GetListOfDCCS(sAddress);
+	int nFound = 0;
+	if (vCPIDs.size() > 0)
+	{
+		for (int i=0; i < (int)vCPIDs.size(); i++)
+		{
+			std::string sCPID = GetDCCElement(vCPIDs[i], 0);
+			std::string sInternalAddress =  GetDCCElement(vCPIDs[i], 1);
+			if (sAddress == sInternalAddress) 
+			{
+				nFound++;
+				if (nFound > iOffset) return sCPID;
+			}
+		}
+	}
+	return "";
+}
+
+
 std::string FindResearcherCPIDByAddress(std::string sSearch, std::string& out_address, double& nTotalMagnitude)
 {
 	std::string sDefaultRecAddress = "";
@@ -8220,7 +8243,6 @@ std::string FindResearcherCPIDByAddress(std::string sSearch, std::string& out_ad
 			// If we have a valid burn in the chain, prefer it
 			std::vector<std::string> vCPIDs = GetListOfDCCS(sAddress);
 			nTotalMagnitude += GetMagnitudeByAddress(sAddress);
-			
 			if (vCPIDs.size() > 0)
 			{
 				for (int i=0; i < (int)vCPIDs.size(); i++)
@@ -8231,7 +8253,6 @@ std::string FindResearcherCPIDByAddress(std::string sSearch, std::string& out_ad
 						out_address = sAddress;
 						msGlobalCPID += sCPID + ";";
 						sLastCPID = sCPID;
-						//LogPrintf(" cpid %s   magnitude %f ",sCPID.c_str(), (double)nTotalMagnitude);
 					}
 					if (!sSearch.empty())
 					{

@@ -733,7 +733,7 @@ bool CMasternodePayments::HasVerifiedDistributedComputingVote(uint256 hashIn)
 std::string CMasternodePayments::SerializeSanctuaryQuorumSignatures(int nHeight, uint256 hashIn)
 {
 	// This procedure generates a list of Signing Sanctuaries who individually downloaded, hashed, approved and Signed the daily Distributed Computing Magnitude File for a given superblock height and file hash
-	// R Andrijas - 2/3/2018 - Biblepay
+	// Robert A. - 2/3/2018 - Biblepay
     if(!mapDistributedComputingVotes.size()) return "";
 	std::string sSerialize = "<SIGS>";
 	int nSigners = 0;

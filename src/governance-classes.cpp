@@ -731,14 +731,14 @@ CAmount CSuperblock::GetPaymentsLimit(int nBlockHeight)
     // min subsidy for high diff networks and vice versa
     int nBits = consensusParams.fPowAllowMinDifficultyBlocks ? UintToArith256(consensusParams.powLimit).GetCompact() : 1;
     // some part of all blocks issued during the cycle goes to superblock, see GetBlockSubsidy
-	if (fProofOfLoyaltyEnabled) 
+	if (fDistributedComputingEnabled) 
 	{
 		nBits = 486585255;  // Set diff at about 1.42 for Superblocks
 	}
 	int nSuperblockCycle = IsValidBlockHeight(nBlockHeight) ? consensusParams.nSuperblockCycle : consensusParams.nDCCSuperblockCycle;
-
+	double nBudgetAvailable = (fDistributedComputingEnabled && IsValidBlockHeight(nBlockHeight)) ? .20 : 1;
     CAmount nSuperblockPartOfSubsidy = GetBlockSubsidy(pindexBestHeader->pprev, nBits, nBlockHeight, consensusParams, true);
-    CAmount nPaymentsLimit = nSuperblockPartOfSubsidy * nSuperblockCycle;
+    CAmount nPaymentsLimit = nSuperblockPartOfSubsidy * nSuperblockCycle * nBudgetAvailable;
     LogPrint("gobject", "CSuperblock::GetPaymentsLimit -- Valid superblock height %f, payments max %f \n",(double)nBlockHeight, (double)nPaymentsLimit/COIN);
 
     return nPaymentsLimit;
@@ -913,7 +913,7 @@ bool CSuperblock::IsValidSuperblock(const CTransaction& txNew, int nBlockHeight,
 		}
 	}
 
-	// R ANDRIJA - HANDLE BOTH MONTHLY AND DAILY SUPERBLOCKS:
+	// Robert A. - HANDLE BOTH MONTHLY AND DAILY SUPERBLOCKS:
 	int nVoutIndex = 0;
 	for(int i = 0; i < nPayments; i++) 
 	{

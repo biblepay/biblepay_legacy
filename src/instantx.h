@@ -26,7 +26,7 @@ extern CInstantSend instantsend;
 */
 static const int INSTANTSEND_CONFIRMATIONS_REQUIRED = 6;
 static const int DEFAULT_INSTANTSEND_DEPTH          = 5;
-static const int INSTANTSEND_TIMEOUT_SECONDS        = 60;
+static const int INSTANTSEND_TIMEOUT_SECONDS        = 180;
 static const int MIN_INSTANTSEND_PROTO_VERSION      = 70714;
  
 extern bool fEnableInstantSend;
