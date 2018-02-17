@@ -52,6 +52,9 @@ std::string GetTxOutScript(const CTransaction& tx1)
 
 bool IsBlockValueValid(const CBlock& block, int nBlockHeight, CAmount blockReward, std::string &strErrorRet)
 {
+
+	if (!fProd && nBlockHeight < 12100) return true;  // Special case for Testnet superblocks up to block 999
+
     strErrorRet = "";
     bool isBlockRewardValueMet = (block.vtx[0].GetValueOut() <= blockReward);
     if(!isBlockRewardValueMet && fDebugMaster) 
@@ -77,7 +80,7 @@ bool IsBlockValueValid(const CBlock& block, int nBlockHeight, CAmount blockRewar
                 LogPrint("gobject", "IsBlockValueValid -- Client synced but budget spork is disabled, checking block value against block reward\n");
                 if(!isBlockRewardValueMet) 
 				{
-					std::string sNarr = "coinbase pays too much at height " + RoundToString(nBlockHeight,0) 
+					std::string sNarr = "uch at height " + RoundToString(nBlockHeight,0) 
 						+ " (actual=" + RoundToString(block.vtx[0].GetValueOut(),0) + " vs limit=" 
 						+ RoundToString(blockReward,0) + ", exceeded block reward, budgets are disabled";
 					LogPrintf(sNarr.c_str());
@@ -590,7 +593,7 @@ void CMasternodePayments::ProcessMessage(CNode* pfrom, std::string& strCommand, 
             if(nDos) 
 			{
                 LogPrintf("DISTRIBUTEDCOMPUTINGVOTE -- ERROR: invalid signature\n");
-                Misbehaving(pfrom->GetId(), 1);
+                (pfrom->GetId(), );
             } else {
                 // only warn about anything non-critical (i.e. nDos == 0) in debug mode
                 LogPrintf("DISTRIBUTEDCOMPUTINGVOTE -- WARNING: invalid signature\n");

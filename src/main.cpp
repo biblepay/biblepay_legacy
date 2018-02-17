@@ -6128,7 +6128,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
         if (nTimeDrift > (5 * 60))
         {
             LogPrintf("Disconnecting unauthorized peer with Network Time off by %f seconds!\r\n",(double)nTimeDrift);
-			Misbehaving(pfrom->GetId(), 10);
+			Misbehaving(pfrom->GetId(), 12);
 			pfrom->fDisconnect = true;
 			return false;
         }
@@ -6152,7 +6152,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
 		if (dPeerVersion < 1091 && dPeerVersion > 1000 && !fProd)
 		{
 		    LogPrint("net","Disconnecting unauthorized peer in TestNet using old version %f\r\n",(double)dPeerVersion);
-			Misbehaving(pfrom->GetId(), 10);
+			Misbehaving(pfrom->GetId(), 14);
         	pfrom->fDisconnect = true;
 			return false;
 		}
@@ -7060,7 +7060,8 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
                 // This isn't a Misbehaving(100) (immediate ban) because the
                 // peer might be an older or different implementation with
                 // a different signature key, etc.
-                Misbehaving(pfrom->GetId(), 10);
+				LogPrintf("Invalid command %s ",strCommand.c_str());
+                Misbehaving(pfrom->GetId(), 16);
             }
         }
     }
