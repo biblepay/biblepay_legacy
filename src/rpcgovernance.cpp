@@ -982,7 +982,9 @@ UniValue getgovernanceinfo(const UniValue& params, bool fHelp)
     obj.push_back(Pair("superblockcycle", Params().GetConsensus().nSuperblockCycle));
     obj.push_back(Pair("lastsuperblock", nLastSuperblock));
     obj.push_back(Pair("nextsuperblock", nNextSuperblock));
-
+	double nBudget = CSuperblock::GetPaymentsLimit(nNextSuperblock) / COIN;
+	obj.push_back(Pair("nextbudget", nBudget));
+			
     return obj;
 }
 

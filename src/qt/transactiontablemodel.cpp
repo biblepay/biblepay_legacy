@@ -378,7 +378,7 @@ QString TransactionTableModel::formatTxType(const TransactionRecord *wtx) const
     case TransactionRecord::SendToSelf:
         return tr("Payment to yourself");
 	case TransactionRecord::ProofOfLoyalty:
-		return tr("Proof of Loyalty");
+		return fProofOfLoyaltyEnabled ? tr("Proof of Loyalty") : tr("Payment to Self");
     case TransactionRecord::Generated:
         return tr("Mined");
 
@@ -438,7 +438,7 @@ QString TransactionTableModel::formatTxToAddress(const TransactionRecord *wtx, b
     case TransactionRecord::SendToOther:
         return QString::fromStdString(wtx->address) + watchAddress;
 	case TransactionRecord::ProofOfLoyalty:
-		return tr("Proof of Loyalty");
+		return fProofOfLoyaltyEnabled ? tr("Proof of Loyalty") : tr("Payment to Self");
     case TransactionRecord::SendToSelf:
     default:
         return tr("(n/a)") + watchAddress;

@@ -4470,7 +4470,7 @@ bool FilterFile(int iBufferSize, std::string& sError)
 						for (int z = 0; z < 2; z++)
 						{
 							// Add in the User URL and Team
-							bool bAddlData = std::getline(streamIn, line);
+							bool bAddlData = static_cast<bool>(std::getline(streamIn, line));
 							if (bAddlData) sBuffer += line + "<ROW>";
 						}
 						std::string sData = FilterBoincData(sBuffer, "<user>","</user>");
