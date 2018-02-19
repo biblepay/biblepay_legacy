@@ -75,8 +75,7 @@ public:
 	static bool IsDistributedComputingSuperblockTriggered(int nBlockHeight);
 	
     static void CreateSuperblock(CMutableTransaction& txNewRet, int nBlockHeight, std::vector<CTxOut>& voutSuperblockRet);
-	//static void createdcuperblock(CMutableTransaction& txNewRet, int nBlockHeight, std::vector<CTxOut>& voutSuperblockRet);
-
+	
     static std::string GetRequiredPaymentsString(int nBlockHeight);
     static bool IsValidSuperblock(const CTransaction& txNew, int nBlockHeight, CAmount blockReward, int64_t nBlockTime);
 };

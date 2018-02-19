@@ -18,7 +18,7 @@
 
 #include <univalue.h>
 
-int GetRequiredQuorumLevel();
+int GetRequiredQuorumLevel(int iHeight);
 uint256 GetDCCHash(std::string sContract);
 std::vector<std::string> Split(std::string s, std::string delim);
 int GetCPIDCount(std::string sContract, double& nTotalMagnitude);
@@ -302,10 +302,10 @@ bool CSuperblockManager::IsDistributedComputingSuperblockTriggered(int nBlockHei
 	std::string sAmounts = "";
 	GetDistributedComputingGovObjByHeight(nBlockHeight, uint256S("0x0"), iPendingVotes, uGovObjHash, sAddresses, sAmounts);
 
-	bool bPending = iPendingVotes >= GetRequiredQuorumLevel();
+	bool bPending = iPendingVotes >= GetRequiredQuorumLevel(nBlockHeight);
 	if (!bPending)
 	{
-		LogPrintf("\n ** SUPERBLOCK DOES NOT HAVE ENOUGH VOTES : Required %f, Votes %f ", (double)GetRequiredQuorumLevel(), (double)iPendingVotes);
+		LogPrintf("\n ** SUPERBLOCK DOES NOT HAVE ENOUGH VOTES : Required %f, Votes %f ", (double)GetRequiredQuorumLevel(nBlockHeight), (double)iPendingVotes);
 		return false;
 	}
 	if (sAddresses.empty() || sAmounts.empty())
@@ -464,11 +464,11 @@ void CSuperblockManager::uperblock(CMutableTransaction& txNewRet, int nBlockHeig
 	uint256 uGovObjHash;
 	vObjByHeight(nBlockHeight, uint256S("0x0"), iPendingVotes, uGovObjHash);
 
-	bool bPending = iPendingVotes >= GetRequiredQuorumLevel();
+	bool bPending = iPendingVotes >= uorumLevel();
 	LogPrintf(" Checking for Pending DCC - Votes %f ",(double)iPendingVotes);
 	if (!bPending)
 	{
-		LogPrintf("\n ** uperblock::SUPERBLOCK DOES NOT HAVE ENOUGH VOTES : Required %f, Votes %f ", (double)GetRequiredQuorumLevel(), (double)iPendingVotes);
+		LogPrintf("\n ** uperblock::SUPERBLOCK DOES NOT HAVE ENOUGH VOTES : Required %f, Votes %f ", (double)uorumLevel(), (double)iPendingVotes);
 		return;
 	}
 	std::string sContract = upcomingVote.contract;
@@ -546,7 +546,7 @@ void CSuperblockManager::uperblock(CMutableTransaction& txNewRet, int nBlockHeig
 
 	if (dTotalPaid > dDCPaymentsTotal)
 	{
-		LogPrintf("uperblock::DCC Superblock failure: Total Paid exceeds Available Daily Budget.  Creation Failed.  Paid %f - Budget %f\n", dTotalPaid, dDCPaymentsTotal);
+		LogPrintf("uperblock::DCC Superblock failure: Total Paid Available Daily Budget.  Creation Failed.  Paid %f - Budget %f\n", dTotalPaid, dDCPaymentsTotal);
         voutSuperblockRet.clear();
 		return;
 	}
@@ -721,9 +721,11 @@ bool CSuperblock::IsDCCSuperblock(int nHeight)
 
 CAmount CSuperblock::GetPaymentsLimit(int nBlockHeight)
 {
+	if (nBlockHeight < 10) return 0;
+
     const Consensus::Params& consensusParams = Params().GetConsensus();
 
-    if(!IsValidBlockHeight(nBlockHeight) && !IsDCCSuperblock(nBlockHeight)) 
+    if ((!IsValidBlockHeight(nBlockHeight) && !IsDCCSuperblock(nBlockHeight))) 
 	{
         return 0;
     }
@@ -736,9 +738,18 @@ CAmount CSuperblock::GetPaymentsLimit(int nBlockHeight)
 		nBits = 486585255;  // Set diff at about 1.42 for Superblocks
 	}
 	int nSuperblockCycle = IsValidBlockHeight(nBlockHeight) ? consensusParams.nSuperblockCycle : consensusParams.nDCCSuperblockCycle;
-	double nBudgetAvailable = (fDistributedComputingEnabled && IsValidBlockHeight(nBlockHeight)) ? .20 : 1;
+	double nBudgetAvailable = (fDistributedComputingEnabled && IsValidBlockHeight(nBlockHeight) && !IsDCCSuperblock(nBlockHeight)) ? .20 : 1;
+	LogPrintf(" GetBlockSubsidy %f \n",(double)nBlockHeight);
     CAmount nSuperblockPartOfSubsidy = GetBlockSubsidy(pindexBestHeader->pprev, nBits, nBlockHeight, consensusParams, true);
-    CAmount nPaymentsLimit = nSuperblockPartOfSubsidy * nSuperblockCycle * nBudgetAvailable;
+    CAmount nPaymentsLimit = 0;
+	if (nBudgetAvailable == 1)
+	{
+		nPaymentsLimit = nSuperblockPartOfSubsidy * nSuperblockCycle;  // Avoid floating point math problems here
+	}
+	else
+	{
+		nPaymentsLimit = nSuperblockPartOfSubsidy * nSuperblockCycle * nBudgetAvailable;
+	}
     LogPrint("gobject", "CSuperblock::GetPaymentsLimit -- Valid superblock height %f, payments max %f \n",(double)nBlockHeight, (double)nPaymentsLimit/COIN);
 
     return nPaymentsLimit;
@@ -892,13 +903,13 @@ bool CSuperblock::IsValidSuperblock(const CTransaction& txNew, int nBlockHeight,
     }
 
     // payments should not exceed limit 2-5-2018
-
-	
+		
     CAmount nPaymentsTotalAmount = GetPaymentsTotalAmount();
     CAmount nPaymentsLimit = GetPaymentsLimit(nBlockHeight);
     if(nPaymentsTotalAmount > nPaymentsLimit) 
 	{
-        LogPrintf("CSuperblock::IsValid -- ERROR: Block invalid, payments limit exceeded: payments %lld, limit %lld\n", nPaymentsTotalAmount, nPaymentsLimit);
+        LogPrintf("\n\n ** CSuperblock::IsValid -- ERROR: Block invalid, payments limit exceeded: payments %f, limit %f ** \n", 
+			(double)nPaymentsTotalAmount, (double)nPaymentsLimit);
         return false;
     }
 
@@ -1013,13 +1024,13 @@ bool CSuperblock::IsValidSuperblock(const CTransaction& txNew, int nBlockHeight,
 			vObjByHeight(nBlockHeight, uint256S("0x0"), iVotes, uGovObjHash);
 
 
-			bool bPending = iVotes >= GetRequiredQuorumLevel();
+			bool bPending = iVotes >= uorumLevel();
 			LogPrintf(" ** VERIFY DCSUPERBLOCK - VOTES %f \n", (double)iVotes);
 
 			if (!bPending)
 			{
 				LogPrintf("\n ** SUPERBLOCK DOES NOT HAVE ENOUGH VOTES : Required %f, Votes %f, ContractHash %s  ", 
-					(double)GetRequiredQuorumLevel(), (double)iVotes, uHash.GetHex().c_str());
+					(double)uorumLevel(), (double)iVotes, uHash.GetHex().c_str());
 				return false;
 			}
 	

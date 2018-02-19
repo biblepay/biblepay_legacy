@@ -53,7 +53,7 @@ std::string GetTxOutScript(const CTransaction& tx1)
 bool IsBlockValueValid(const CBlock& block, int nBlockHeight, CAmount blockReward, std::string &strErrorRet)
 {
 
-	if (!fProd && nBlockHeight < 12100) return true;  // Special case for Testnet superblocks up to block 999
+	if (!fProd && nBlockHeight < 1999) return true;  // Special case for Testnet superblocks up to block 999 - 2/19/2018
 
     strErrorRet = "";
     bool isBlockRewardValueMet = (block.vtx[0].GetValueOut() <= blockReward);

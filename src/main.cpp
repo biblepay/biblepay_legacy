@@ -138,7 +138,7 @@ std::string GetSporkValue(std::string sKey);
 std::string ExecuteDistributedComputingSanctuaryQuorumProcess();
 extern std::string FindResearcherCPIDByAddress(std::string sSearch, std::string& out_address, double& nTotalMagnitude);
 std::vector<std::string> GetListOfDCCS(std::string sSearch);
-int GetRequiredQuorumLevel();
+int GetRequiredQuorumLevel(int nHeight);
 int GetLastDCSuperblockHeight(int nCurrentHeight, int& nNextSuperblock);
 void GetDistributedComputingGovObjByHeight(int nHeight, uint256 uOptFilter, int& out_nVotes, uint256& out_uGovObjHash, std::string& out_PAD, std::string& out_PAM);
 extern std::string GetMyPublicKeys();
@@ -2238,7 +2238,7 @@ const CBlockIndex* GetLookbackIndex(int64_t iMinimumBackSpacing, int64_t iFirstM
 
 CAmount GetBlockSubsidy(const CBlockIndex* pindexPrev, int nPrevBits, int nPrevHeight, const Consensus::Params& consensusParams, bool fSuperblockPartOnly)
 {
-	double dDiff;
+	double dDiff = 0;
     CAmount nSubsidyBase;
     dDiff = ConvertBitsToDouble(nPrevBits);
 	if ((pindexPrev && !fProd && pindexPrev->nHeight >= 1) || (fProd && pindexPrev && pindexPrev->nHeight >= F7000_CUTOVER_HEIGHT && pindexPrev->nHeight < F7000_CUTOVER_HEIGHT_DIFF_END))
@@ -2260,7 +2260,7 @@ CAmount GetBlockSubsidy(const CBlockIndex* pindexPrev, int nPrevBits, int nPrevH
 	}
 	else if (fProd && pindexPrev && pindexPrev->nHeight >= F7000_CUTOVER_HEIGHT_DIFF_END)
 	{
-		dDiff = dDiff / 14000;
+			dDiff = dDiff / 14000;
 	}
 		
     nSubsidyBase = (20000 / (pow((dDiff+1.0),2.0))) + 1;
@@ -4496,16 +4496,17 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIn
     }
 
 	// Rob A., Biblepay, 02/10/2018, Kick Off BotNet Rules
-	/*
-	std::string sBlockVersion = ExtractXML(block.vtx[0].vout[0].sTxOutMessage,"<VER>","</VER>");
-	sBlockVersion = strReplace(sBlockVersion, ".", "");
-	double dBlockVersion = cdbl(sBlockVersion, 0);
-	if (fProd && nHeight > F10000_CUTOVER_HEIGHT && dBlockVersion < 1081)
+	if (!fProd)
 	{
-		 LogPrintf("ContextualCheckBlock::ERROR Rejecting block version %f at height %f \n",(double)dBlockVersion,(double)nHeight);
-		 return false;
-    }
-	*/
+		std::string sBlockVersion = ExtractXML(block.vtx[0].vout[0].sTxOutMessage,"<VER>","</VER>");
+		sBlockVersion = strReplace(sBlockVersion, ".", "");
+		double dBlockVersion = cdbl(sBlockVersion, 0);
+		if (!fProd && nHeight > 1000 && dBlockVersion < 1093)
+		{
+			 LogPrintf("ContextualCheckBlock::ERROR Rejecting block version %f at height %f \n",(double)dBlockVersion,(double)nHeight);
+			 return false;
+		}
+	}
 
 	// Rob A., Biblepay, 02-10-2018, Check Proof-Of-Loyalty
 	if (fProofOfLoyaltyEnabled && fCheckPOW)
@@ -4532,7 +4533,7 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIn
 
 
 	// Rob A. - Biblepay - 2/8/2018 - Contextual check CPID signature on each block to prevent botnet from forming
-	if (fDistributedComputingEnabled)
+	if (fDistributedComputingEnabled && nHeight > 9999)
 	{
 		int64_t nHeaderAge = GetAdjustedTime() - pindexPrev->nTime;
 		bool bActiveRACCheck = nHeaderAge < (60 * 15) ? true : false;
@@ -6149,7 +6150,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
 		sVersion = strReplace(sVersion, ".", "");
 		double dPeerVersion = cdbl(sVersion, 0);
 		if (!fProd && dPeerVersion == 109) dPeerVersion=1090;
-		if (dPeerVersion < 1091 && dPeerVersion > 1000 && !fProd)
+		if (dPeerVersion < 1093 && dPeerVersion > 1000 && !fProd)
 		{
 		    LogPrint("net","Disconnecting unauthorized peer in TestNet using old version %f\r\n",(double)dPeerVersion);
 			Misbehaving(pfrom->GetId(), 14);

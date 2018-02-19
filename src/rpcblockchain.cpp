@@ -60,6 +60,7 @@ bool CheckMessageSignature(std::string sMsg, std::string sSig, std::string sPubK
 extern uint256 PercentToBigIntBase(int iPercent);
 std::string GetTemplePrivKey();
 extern UniValue GetLeaderboard(int nHeight);
+extern double MyPercentile(int nHeight);
 
 std::string SignMessage(std::string sMsg, std::string sPrivateKey);
 extern double CAmountToRetirementDouble(CAmount Amount);
@@ -106,7 +107,7 @@ extern std::string GetBoincResearcherHexCodeAndCPID(std::string sProjectId, int 
 extern std::string ExecuteDistributedComputingSanctuaryQuorumProcess();
 extern void TouchDailyMagnitudeFile();
 
-extern int GetRequiredQuorumLevel();
+extern int GetRequiredQuorumLevel(int iHeight);
 UniValue GetDataList(std::string sType, int iMaxAgeInDays, int& iSpecificEntry, std::string& outEntry);
 uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight, const CBlockIndex* pindexLast, bool bRequireTxIndex, bool f7000, bool f8000, bool f9000, bool fTitheBlocksActive, unsigned int nNonce);
 void MemorizeBlockChainPrayers(bool fDuringConnectBlock);
@@ -304,7 +305,7 @@ bool AmIMasternode()
 	 return false;
 }
 
-int GetRequiredQuorumLevel()
+int GetRequiredQuorumLevel(int nHeight)
 {
 	// This is an anti-ddos feature that prevents ddossing the distributed computing grid
 
@@ -314,6 +315,7 @@ int GetRequiredQuorumLevel()
 	int iRequiredVotes = GetSanctuaryCount() * iSanctuaryQuorumLevel;
 	if (fProd && iRequiredVotes < 3) iRequiredVotes = 3;
 	if (!fProd && iRequiredVotes < 2) iRequiredVotes = 2;
+	if (!fProd && nHeight < 7000) iRequiredVotes = 1;
 	return iRequiredVotes;
 }
 
@@ -720,7 +722,7 @@ bool SubmitDistributedComputingTrigger(std::string sHex, std::string& gobjecthas
 
 bool GetContractPaymentData(std::string sContract, int nBlockHeight, std::string& sPaymentAddresses, std::string& sAmounts)
 {
-	// 2-6-2018 - Proof-of-distributed-computing
+	// 2-19-2018 - Proof-of-distributed-computing
 	CAmount nDCPaymentsTotal = CSuperblock::GetPaymentsLimit(nBlockHeight);
 	uint256 uHash = GetDCCHash(sContract);
 	double nTotalMagnitude = 0;
@@ -729,6 +731,11 @@ bool GetContractPaymentData(std::string sContract, int nBlockHeight, std::string
 	{
 		LogPrintf(" \n ** GetContractPaymentData::SUPERBLOCK CONTAINS NO MAGNITUDE height %f (cpid count %f ), hash %s %s** \n", (double)nBlockHeight, 
 			(double)iCPIDCount, uHash.GetHex().c_str(), sContract.c_str());
+		return false;
+	}
+	if (nTotalMagnitude > 1000)
+	{
+		LogPrintf("\n ** GetContractPaymentData::SUPERBLOCK MAGNITUDE EXCEEDS LIMIT OF 1000 (cpid count %f )", (double)iCPIDCount);
 		return false;
 	}
 	double dDCPaymentsTotal = nDCPaymentsTotal / COIN;
@@ -758,7 +765,10 @@ bool GetContractPaymentData(std::string sContract, int nBlockHeight, std::string
 			}
 		}
 	}
-	
+	if (dTotalPaid > dDCPaymentsTotal)
+	{
+		LogPrintf(" \n ** GetContractPaymentData::Superblock Payment Budget %f exceeds payment limit %f ** \n",dTotalPaid,dDCPaymentsTotal);
+	}
 	if (sPaymentAddresses.length() > 1) sPaymentAddresses=sPaymentAddresses.substr(0,sPaymentAddresses.length()-1);
 	if (sAmounts.length() > 1) sAmounts=sAmounts.substr(0,sAmounts.length()-1);
 	return true;
@@ -847,7 +857,7 @@ std::string ExecuteDistributedComputingSanctuaryQuorumProcess()
 	GetDistributedComputingGovObjByHeight(iNextSuperblock, uint256S("0x0"), iPendingVotes, uGovObjHash, sAddresses, sAmounts);
 	std::string sError = "";
 		
-	bool bPending = iPendingVotes >= GetRequiredQuorumLevel();
+	bool bPending = iPendingVotes >= GetRequiredQuorumLevel(chainActive.Tip()->nHeight);
 
 	if (bPending) 
 	{
@@ -897,11 +907,10 @@ std::string ExecuteDistributedComputingSanctuaryQuorumProcess()
 				return "CREATING_CONTRACT";
 			}
 
-			int iRequiredVotes = GetRequiredQuorumLevel();
+			int iRequiredVotes = GetRequiredQuorumLevel(iNextSuperblock);
 
 			if (iVotes < iRequiredVotes)
 			{
-				
 				bool bResult = VoteForDistributedComputingContract(iNextSuperblock, sContract, sError);
 				if (bResult) return "VOTED_FOR_DC_CONTRACT";
 				if (!bResult)
@@ -3509,6 +3518,8 @@ UniValue exec(const UniValue& params, bool fHelp)
 		results.push_back(Pair("fileage", nAge));
 		results.push_back(Pair("filehash", uDCChash.GetHex()));
 		results.push_back(Pair("contract", sContract));
+		double nRank = MyPercentile(iNextSuperblock);
+		results.push_back(Pair("sanctuary_rank", nRank));
 		std::string sAddresses="";
 		std::string sAmounts = "";
 		uint256 uPAMHash = GetDCPAMHashByContract(sContract, iNextSuperblock);
@@ -3537,11 +3548,17 @@ UniValue exec(const UniValue& params, bool fHelp)
 		}
 		results.push_back(Pair("votes_for_my_contract", iVotes));
 		results.push_back(Pair("contract1", sContract));
-		int iRequiredVotes = GetRequiredQuorumLevel();
+		int iRequiredVotes = GetRequiredQuorumLevel(iNextSuperblock);
 		results.push_back(Pair("RequiredVotes", iRequiredVotes));
 		results.push_back(Pair("last_superblock", iLastSuperblock));
 		results.push_back(Pair("next_superblock", iNextSuperblock));
 		bool fTriggered = CSuperblockManager::IsSuperblockTriggered(iNextSuperblock);
+		double nTotalMagnitude = 0;
+		int iCPIDCount = GetCPIDCount(sContract, nTotalMagnitude);
+		results.push_back(Pair("cpid_count", iCPIDCount));
+		results.push_back(Pair("total_magnitude", nTotalMagnitude));
+
+
 		results.push_back(Pair("next_superblock_triggered", fTriggered));
 		bool bRes = VoteForDistributedComputingContract(iNextSuperblock, sContract, sError);
 		results.push_back(Pair("vote1",bRes));
@@ -3592,6 +3609,14 @@ UniValue exec(const UniValue& params, bool fHelp)
 		}
 
 		results.push_back(Pair("NextSuperblockHeight", iNextSuperblock));
+
+	    CAmount nBudget10 = CSuperblock::GetPaymentsLimit(iNextSuperblock);
+		double nBudget2 = CSuperblock::GetPaymentsLimit(iNextSuperblock) / COIN;
+		results.push_back(Pair("NextSuperblockBudget", nBudget2));
+		std::string strBudget = FormatMoney(nBudget10);
+		results.push_back(Pair("NextSuperblockBudget2", strBudget));
+    
+
 	    int64_t iMaxSeconds = 60 * 24 * 30 * 12 * 60;
     	std::vector<std::string> vCPIDS = Split(msGlobalCPID.c_str(),";");
 		double nTotalRAC = 0;
@@ -3642,10 +3667,13 @@ UniValue exec(const UniValue& params, bool fHelp)
 		results.push_back(Pair("Superblock Count (One Week)", out_SuperblockCount));
 		results.push_back(Pair("Superblock Hit Count (One Week)", out_HitCount));
 		results.push_back(Pair("Superblock List", out_Superblocks));
-		results.push_back(Pair("Last Superblock Budget", nBudget));
 		
 		double dLastPayment = GetPaymentByCPID(sCPID);
 		results.push_back(Pair("Last Superblock Height", iLastSuperblock));
+		nBudget = CSuperblock::GetPaymentsLimit(iLastSuperblock) / COIN;
+	
+		results.push_back(Pair("Last Superblock Budget", nBudget));
+	
 		results.push_back(Pair("Last Superblock Payment", dLastPayment));
 		results.push_back(Pair("Magnitude", nMagnitude));
 	}
@@ -4402,11 +4430,24 @@ double GetSumOfXMLColumnFromXMLFile(std::string sFileName, std::string sElementN
 	if (!streamIn) return 0;
 	double dTotal = 0;
 	std::string sLine = "";
+	std::string sBuffer = "";
+	double dTeamRequired = cdbl(GetSporkValue("team"),0);
+
     while(std::getline(streamIn, sLine))
     {
-		  std::string sValue = ExtractXML(sLine, "<" + sElementName + ">","</" + sElementName + ">");
-		  double dValue = cdbl(sValue,2);
-		  dTotal += dValue;
+		sBuffer += sLine;
+		if (Contains(sBuffer, sElementName))
+		{
+			double dTeam = cdbl(ExtractXML(sBuffer,"<teamid>","</teamid>"), 0);
+			bool bTeamMatch = (dTeamRequired > 0) ? (dTeam == dTeamRequired) : true;
+			if (bTeamMatch)
+			{
+				std::string sValue = ExtractXML(sLine, "<" + sElementName + ">","</" + sElementName + ">");
+				double dValue = cdbl(sValue,2);
+				dTotal += dValue;
+				sBuffer = "";
+			}
+		}
     }
 	streamIn.close();
     return dTotal;
