@@ -7723,6 +7723,19 @@ bool CheckMessageSignature(std::string sMsg, std::string sSig, std::string sPubK
 void MemorizePrayer(std::string sMessage, int64_t nTime, double dAmount, int iPosition, std::string sTxID)
 {
 	  if (sMessage.empty()) return;
+	  std::string sPODC = ExtractXML(sMessage, "<PODC_TASKS>", "</PODC_TASKS>");
+	  if (!sPODC.empty())
+	  {
+			std::vector<std::string> vPODC = Split(sPODC.c_str(), ",");
+			for (int i=0; i < (int)vPODC.size(); i++)
+			{
+				std::vector<std::string> vTask = Split(vPODC[i].c_str(), "=");
+				if (vTask.size() > 1)
+				{
+					WriteCache("dcc_start_time", vTask[0], vTask[1], cdbl(vTask[1],0));
+				}
+			}
+	  }
       if (Contains(sMessage,"<MT>"))
 	  {
 		  std::string sMessageType      = ExtractXML(sMessage,"<MT>","</MT>");
@@ -7737,7 +7750,6 @@ void MemorizePrayer(std::string sMessage, int64_t nTime, double dAmount, int iPo
 		  if (sMessageType=="NEWS") sMessageValue = sTxID;
 		  if (!sSporkSig.empty())
 		  {
-			  // 1-29-2018 Is Signature Valid?
 			  double dNonce = cdbl(sNonce, 0);
 			  bool bSigInvalid = false;
 			  if (dNonce > (nTime+(60 * 60)) || dNonce < (nTime-(60 * 60))) bSigInvalid = true;

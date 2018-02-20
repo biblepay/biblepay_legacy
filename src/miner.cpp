@@ -70,6 +70,7 @@ int64_t GetStakeTargetModifierPercent(int nHeight, double nWeight);
 bool IsStakeSigned(std::string sXML);
 bool SignCPID(std::string& sError, std::string& out_FullSig);
 bool VerifyCPIDSignature(std::string sFullSig, bool bRequireEndToEndVerification, std::string& sError);
+bool PODCUpdate();
 
 
 class ScoreCompare
@@ -735,6 +736,7 @@ void static BibleMiner(const CChainParams& chainparams, int iThreadID, int iFeat
 	LogPrintf("BibleMiner -- started thread %f \n",(double)iThreadID);
     unsigned int iBibleMinerCount = 0;
 	int64_t nThreadStart = GetTimeMillis();
+	int64_t nLastPODCUpdate = GetAdjustedTime() - (60*60*7.5);
 	int64_t nThreadWork = 0;
 	int64_t nLastReadyToMine = GetAdjustedTime() - 480;
 	int64_t nLastClearCache = GetAdjustedTime() - 480;
@@ -811,7 +813,13 @@ recover:
             if(!pindexPrev) break;
 			double dProofOfLoyaltyPercentage = cdbl(GetArg("-polpercentage", "10"),2) / 100;
 			competetiveMiningTithe = 0;
-			if (fMiningDiagnostics) iThreadID = 99;  // Pool will reject work, but blocktemplate will have a static timestamp
+			// Proof-Of-Distributed-Computing - Once every 8 hours, Prove tasks being worked by all CPIDs - Robert A. - Biblepay - 2-20-2018
+			int64_t nPODCUpdateAge = GetAdjustedTime() - nLastPODCUpdate;
+			if (fDistributedComputingEnabled && iThreadID == 0 && (nPODCUpdateAge > (60*60*8)) && !msGlobalCPID.empty())
+			{
+				PODCUpdate();
+			}
+
 		    auto_ptr<CBlockTemplate> pblocktemplate(CreateNewBlock(chainparams, coinbaseScript->reserveScript, sPoolMiningAddress, sMinerGuid,
 				iThreadID, competetiveMiningTithe, dProofOfLoyaltyPercentage));
             if (!pblocktemplate.get())

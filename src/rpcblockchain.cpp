@@ -162,7 +162,7 @@ extern double GetBlockMagnitude(int nChainHeight);
 extern std::string GetBoincHostsByUser(int iRosettaID, std::string sProjectId);
 extern std::string GetBoincTasksByHost(int iHostID, std::string sProjectId);
 extern std::string GetWorkUnitResultElement(std::string sProjectId, int nWorkUnitID, std::string sElement);
-
+extern bool PODCUpdate();
 
 
 double GetDifficultyN(const CBlockIndex* blockindex, double N)
@@ -4016,7 +4016,7 @@ int MonthToInt(std::string sMonth)
 	return 0;
 }
 
-time_t _mkgmtime(const struct tm *tm) 
+time_t SyntheticUTCTime(const struct tm *tm) 
 {
     // Month-to-day offset for non-leap-years.
     static const int month_day[12] = {0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334};
@@ -4070,7 +4070,7 @@ int64_t StringToUnixTime(std::string sTime)
 	tm.tm_hour = iHour;
 	tm.tm_min = iMinute;
 	tm.tm_sec = iSecond;
-	return _mkgmtime(&tm);
+	return SyntheticUTCTime(&tm);
 }
 
 
@@ -4896,6 +4896,65 @@ std::string GetBoincTasksByHost(int iHostID, std::string sProjectId)
    }
    sOut = ChopLast(sOut);
    return sOut;
+}
+
+bool PODCUpdate()
+{
+
+	return false;
+	std::vector<std::string> vCPIDS = Split(msGlobalCPID.c_str(),";");
+	int64_t iMaxSeconds = 60 * 24 * 30 * 12 * 60;
+	std::string sOutstanding = "";
+	for (int i = 0; i < (int)vCPIDS.size(); i++)
+	{
+		std::string s1 = vCPIDS[i];
+		if (!s1.empty())
+		{
+			std::string sData = RetrieveDCCWithMaxAge(s1, iMaxSeconds);
+			if (!sData.empty())
+			{
+				std::string sUserId = GetDCCElement(sData, 3);
+				int nUserId = cdbl(sUserId, 0);
+				if (nUserId > 0)
+				{
+					std::string sHosts = GetBoincHostsByUser(nUserId, "project1");
+					std::vector<std::string> vH = Split(sHosts.c_str(), ",");
+					for (int j = 0; j < (int)vH.size(); j++)
+					{
+						double dHost = cdbl(vH[j], 0);
+						std::string sTasks = GetBoincTasksByHost((int)dHost, "project1");
+						std::vector<std::string> vT = Split(sTasks.c_str(), ",");
+						for (int k = 0; k < (int)vT.size(); k++)
+						{
+							std::string sTask = vT[k];
+							std::vector<std::string> vEquals = Split(sTask.c_str(), "=");
+							if (vEquals.size() > 1)
+							{
+								std::string sTaskID = vEquals[0];
+								std::string sTimestamp = vEquals[1];
+								std::string sTaskStartTime = ReadCache("dcc_start_time", sTaskID);
+								if (sTaskStartTime.empty())
+								{
+									// Biblepay network does not know this device started this task, add this to the UTXO transaction
+									sOutstanding += sTaskID + "=" + sTimestamp + ",";
+									WriteCache("dcc_start_time", sTaskID, sTimestamp, cdbl(sTimestamp,0));
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	if (!sOutstanding.empty())
+	{
+		sOutstanding = ChopLast(sOutstanding);
+		// Create PODC UTXO Transaction
+		std::string sXML = "<PODC_TASKS>" + sOutstanding + "</PODC_TASKS>";
+		// These tasks will be checked on the Sanctuary side, to ensure they were started at this time.  If so, the UTXO COIN*AGE*RAC will be rewarded for this task.
+		
+	}
+	return true;
 }
 
 
