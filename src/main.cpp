@@ -4609,13 +4609,21 @@ static bool AcceptBlockHeader(const CBlockHeader& block, CValidationState& state
 	    
         if (mi == mapBlockIndex.end())
             return state.DoS(10, error("%s: prev block not found", __func__), 0, "bad-prevblk");
-		// Alex873434:Valgrind (Starting without testnet3 folder causes SIG11 process termination because the following line has no mapBlockIndex iterator)- fixing by reordering the call
-		if (!CheckBlockHeader(block, state, true, block.GetBlockTime(), pindexAncestor ? pindexAncestor->nTime : 0, pindexAncestor ? pindexAncestor->nHeight : 0, pindexAncestor))
+	
+		// R Andrews - Biblepay - 02/20/2018 : Process ended with SIG11 Access not within a mapped region (pindexAncestor->nStatus)
+		if (!pindexAncestor)
+		{
+			LogPrintf("Block has no ancestor. \n");
             return false;
+		}
 
         if (pindexAncestor->nStatus & BLOCK_FAILED_MASK)
             return state.DoS(100, error("%s: prev block invalid", __func__), REJECT_INVALID, "bad-prevblk");
 
+		// Alex873434:Valgrind (Starting without testnet3 folder causes SIG11 process termination because the following line has no mapBlockIndex iterator)- fixing by reordering the call
+		if (!CheckBlockHeader(block, state, true, block.GetBlockTime(), pindexAncestor ? pindexAncestor->nTime : 0, pindexAncestor ? pindexAncestor->nHeight : 0, pindexAncestor))
+            return false;
+	
         assert(pindexAncestor);
         if (fCheckpointsEnabled && !CheckIndexAgainstCheckpoint(pindexAncestor, state, chainparams, hash))
             return error("%s: CheckIndexAgainstCheckpoint(): %s", __func__, state.GetRejectReason().c_str());
@@ -7426,7 +7434,7 @@ double cdbl(std::string s, int place)
 	for (int i = 0; i < (int)s.length(); i++)
 	{
 		std::string u = s.substr(i,1);
-		if (u=="0" || u=="1" || u=="2" || u=="3" || u=="4" || u=="5" || u=="6" || u == "7" || u=="8" || u=="9" || u=="." || u==",") 
+		if (u=="0" || u=="1" || u=="2" || u=="3" || u=="4" || u=="5" || u=="6" || u == "7" || u=="8" || u=="9" || u==".") 
 		{
 			t += u;
 		}

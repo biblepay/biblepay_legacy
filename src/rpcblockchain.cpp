@@ -33,6 +33,9 @@
 #include <boost/lexical_cast.hpp>
 #include <boost/algorithm/string/case_conv.hpp> // for to_lower()
 #include <boost/algorithm/string.hpp> // for trim()
+
+#include <boost/date_time/posix_time/posix_time.hpp> // for StringToUnixTime()
+
 #include <boost/asio.hpp>
 #include <boost/thread.hpp>
 #include <openssl/crypto.h>
@@ -156,6 +159,9 @@ extern bool FileExists2(std::string sPath);
 std::string GetCPIDByAddress(std::string sAddress, int iOffset);
 extern double GetBoincTeamByUserId(std::string sProjectId, int nUserId);
 extern double GetBlockMagnitude(int nChainHeight);
+extern std::string GetBoincHostsByUser(int iRosettaID, std::string sProjectId);
+extern std::string GetBoincTasksByHost(int iHostID, std::string sProjectId);
+extern std::string GetWorkUnitResultElement(std::string sProjectId, int nWorkUnitID, std::string sElement);
 
 
 
@@ -342,7 +348,7 @@ int GetBoincResearcherUserId(std::string sProjectId, std::string sAuthenticator)
 		std::string sProjectURL= "https://" + GetSporkValue(sProjectId);
 		std::string sRestfulURL = "am_get_info.php?account_key=" + sAuthenticator;
 		std::string sResponse = BiblepayHTTPSPost(0, "", "", "", sProjectURL, sRestfulURL, 443, "", 20, 5000, true);
-		LogPrint("boinc","BoincResponse %s \n",sResponse.c_str());
+		if (false) LogPrint("boinc","BoincResponse %s \n",sResponse.c_str());
 		int nId = cdbl(ExtractXML(sResponse, "<id>","</id>"),0);
 		return nId;
 }
@@ -352,7 +358,7 @@ std::string GetBoincResearcherHexCodeAndCPID(std::string sProjectId, int nUserId
 	 	std::string sProjectURL = "http://" + GetSporkValue(sProjectId);
 		std::string sRestfulURL = "show_user.php?userid=" + RoundToString(nUserId,0) + "&format=xml";
 		std::string sResponse = BiblepayHTTPSPost(0, "", "", "", sProjectURL, sRestfulURL, 443, "", 20, 5000, true);
-		LogPrintf("GetBoincResearcherHexCodeAndCPID::url %s, rest %s, User %f , BoincResponse %s \n",sProjectURL.c_str(), sRestfulURL.c_str(), (double)nUserId, sResponse.c_str());
+		if (false) LogPrintf("GetBoincResearcherHexCodeAndCPID::url %s, rest %s, User %f , BoincResponse %s \n",sProjectURL.c_str(), sRestfulURL.c_str(), (double)nUserId, sResponse.c_str());
 		std::string sHexCode = ExtractXML(sResponse, "<url>","</url>");
 		sHexCode = strReplace(sHexCode,"http://","");
 		sHexCode = strReplace(sHexCode,"https://","");
@@ -360,6 +366,14 @@ std::string GetBoincResearcherHexCodeAndCPID(std::string sProjectId, int nUserId
 		return sHexCode;
 }
 
+std::string GetWorkUnitResultElement(std::string sProjectId, int nWorkUnitID, std::string sElement)
+{
+ 	std::string sProjectURL = "http://" + GetSporkValue(sProjectId);
+	std::string sRestfulURL = "rosetta/result_status.php?ids=" + RoundToString(nWorkUnitID, 0);
+	std::string sResponse = BiblepayHTTPSPost(0, "", "", "", sProjectURL, sRestfulURL, 443, "", 20, 35000, true);
+	std::string sResult = ExtractXML(sResponse, "<" + sElement + ">", "</" + sElement + ">");
+	return sResult;
+}
 
 double GetBoincRACByUserId(std::string sProjectId, int nUserId)
 {
@@ -842,6 +856,7 @@ std::string ExecuteDistributedComputingSanctuaryQuorumProcess()
 	// When it expires, we must assemble a new contract as a sanctuary team.
 	// Since the contract is valid for 86400 seconds, we start this process one hour early (IE 82800 seconds after the last valid contract started)
 	if (!AmIMasternode()) return "NOT_A_SANCTUARY";
+	if (!chainActive.Tip()) return "INVALID_CHAIN";
 	std::string sContract = RetrieveCurrentDCContract(chainActive.Tip()->nHeight, 82800);
 	if (!sContract.empty()) return "ACTIVE_CONTRACT";
 
@@ -3584,6 +3599,63 @@ UniValue exec(const UniValue& params, bool fHelp)
 		results.push_back(Pair("Address", out_address));
 		results.push_back(Pair("Magnitude", nMagnitude));
 	}
+	else if (sItem == "getboinctasks")
+	{
+		// returns current tasks for this rosetta user id 
+		std::string out_address = "";
+		double nMagnitude = 0;
+		std::string sAddress="";
+		std::string sCPID = FindResearcherCPIDByAddress(sAddress, out_address, nMagnitude);
+		std::vector<std::string> vCPIDS = Split(msGlobalCPID.c_str(),";");
+		int64_t iMaxSeconds = 60 * 24 * 30 * 12 * 60;
+		for (int i = 0; i < (int)vCPIDS.size(); i++)
+		{
+			std::string s1 = vCPIDS[i];
+			if (!s1.empty())
+			{
+				std::string sData = RetrieveDCCWithMaxAge(s1, iMaxSeconds);
+				if (!sData.empty())
+				{
+					std::string sUserId = GetDCCElement(sData, 3);
+					int nUserId = cdbl(sUserId, 0);
+					if (nUserId > 0)
+					{
+						results.push_back(Pair("CPID", s1));
+						std::string sHosts = GetBoincHostsByUser(nUserId, "project1");
+						std::vector<std::string> vH = Split(sHosts.c_str(), ",");
+						for (int j = 0; j < (int)vH.size(); j++)
+						{
+							double dHost = cdbl(vH[j], 0);
+							results.push_back(Pair("host", dHost));
+							std::string sTasks = GetBoincTasksByHost((int)dHost, "project1");
+							// results.push_back(Pair("Tasks", sTasks));
+							std::vector<std::string> vT = Split(sTasks.c_str(), ",");
+							for (int k = 0; k < (int)vT.size(); k++)
+							{
+								std::string sTask = vT[k];
+								std::vector<std::string> vEquals = Split(sTask.c_str(), "=");
+								if (vEquals.size() > 1)
+								{
+									std::string sTaskID = vEquals[0];
+									std::string sTimestamp = vEquals[1];
+									std::string sHR = TimestampToHRDate(cdbl(sTimestamp,0));
+									results.push_back(Pair(sTaskID, sHR));
+									std::string sStatus = GetWorkUnitResultElement("project1", cdbl(sTaskID,0), "outcome");
+									std::string sSentTime = GetWorkUnitResultElement("project1", cdbl(sTaskID,0), "sent_time");
+									std::string sRAC = GetWorkUnitResultElement("project1", cdbl(sTaskID,0), "granted_credit");
+
+									results.push_back(Pair("Status", sStatus));
+									results.push_back(Pair("SentTime", sSentTime));
+									results.push_back(Pair("RACRewarded", sRAC));
+
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
 	else if (sItem == "getboincinfo")
 	{
 		std::string out_address = "";
@@ -3610,13 +3682,9 @@ UniValue exec(const UniValue& params, bool fHelp)
 
 		results.push_back(Pair("NextSuperblockHeight", iNextSuperblock));
 
-	    CAmount nBudget10 = CSuperblock::GetPaymentsLimit(iNextSuperblock);
-		double nBudget2 = CSuperblock::GetPaymentsLimit(iNextSuperblock) / COIN;
+	   double nBudget2 = CSuperblock::GetPaymentsLimit(iNextSuperblock) / COIN;
 		results.push_back(Pair("NextSuperblockBudget", nBudget2));
-		std::string strBudget = FormatMoney(nBudget10);
-		results.push_back(Pair("NextSuperblockBudget2", strBudget));
-    
-
+	
 	    int64_t iMaxSeconds = 60 * 24 * 30 * 12 * 60;
     	std::vector<std::string> vCPIDS = Split(msGlobalCPID.c_str(),";");
 		double nTotalRAC = 0;
@@ -3919,6 +3987,53 @@ std::string TimestampToHRDate(double dtm)
 	if (dtm > 9888888888) return "1-1-2199 00:00:00";
 	std::string sDt = DateTimeStrFormat("%m-%d-%Y %H:%M:%S",dtm);
 	return sDt;
+}
+
+int MonthToInt(std::string sMonth)
+{
+	boost::to_upper(sMonth);
+	if (sMonth == "JAN") return 1;
+	if (sMonth == "FEB") return 2;
+	if (sMonth == "MAR") return 3;
+	if (sMonth == "APR") return 4;
+	if (sMonth == "MAY") return 5;
+	if (sMonth == "JUN") return 6;
+	if (sMonth == "JUL") return 7;
+	if (sMonth == "AUG") return 8;
+	if (sMonth == "SEP") return 9;
+	if (sMonth == "OCT") return 10;
+	if (sMonth == "NOV") return 11;
+	if (sMonth == "DEC") return 12;
+	return 0;
+}
+	
+int64_t StringToUnixTime(std::string sTime)
+{
+	//Converts a string timestamp DD MMM YYYY HH:MM:SS TZ, such as: "27 Feb 2018, 17:35:55 UTC" to an int64_t UTC UnixTimestamp
+	std::vector<std::string> vT = Split(sTime.c_str()," ");
+	if (vT.size() < 5) 
+	{
+		return 0;
+	}
+	int iDay = cdbl(vT[0],0);
+	int iMonth = MonthToInt(vT[1]);
+	int iYear = cdbl(strReplace(vT[2],",",""),0);
+	std::vector<std::string> vHours = Split(vT[3],":");
+	if (vHours.size() < 3) 
+	{
+		return 0;
+	}
+	int iHour = cdbl(vHours[0], 0);
+	int iMinute = cdbl(vHours[1], 0);
+	int iSecond = cdbl(vHours[2], 0);
+	struct tm tm;
+	tm.tm_year = iYear-1900;
+	tm.tm_mon = iMonth-1;
+	tm.tm_mday = iDay;
+	tm.tm_hour = iHour;
+	tm.tm_min = iMinute;
+	tm.tm_sec = iSecond;
+	return timegm(&tm);
 }
 
 
@@ -4685,9 +4800,66 @@ std::string GenerateNewAddress(std::string& sError, std::string sName)
 		pwalletMain->SetAddressBook(keyID, strAccount, sName);
 		return CBitcoinAddress(keyID).ToString();
 	}
-
 }
 
+
+std::string GetBoincHostsByUser(int iRosettaID, std::string sProjectId)
+{
+    	std::string sProjectURL= "https://" + GetSporkValue(sProjectId);
+		std::string sRestfulURL = "rosetta/hosts_user.php?userid=" + RoundToString(iRosettaID, 0);
+		std::string sResponse = BiblepayHTTPSPost(0, "", "", "", sProjectURL, sRestfulURL, 443, "", 25, 95000, true);
+		std::vector<std::string> vRows = Split(sResponse.c_str(), "<tr");
+		std::string sOut = "";
+        for (int j = 1; j < (int)vRows.size(); j++)
+        {
+			vRows[j] = strReplace(vRows[j], "</td>", "");
+			std::vector<std::string> vCols = Split(vRows[j].c_str(), "<td>");
+            if (vCols.size() > 6)
+            {
+                    double hostid = cdbl(ExtractXML(vCols[1], "hostid=", ">"),0);
+					if (hostid > 0)
+					{
+						sOut += RoundToString(hostid,0) + ",";
+					}
+            }
+        }
+		sOut = ChopLast(sOut);
+		return sOut;
+}
+
+std::string GetBoincTasksByHost(int iHostID, std::string sProjectId)
+{
+	std::string sOut = "";
+    for (int i = 0; i < 120; i = i + 20)
+    {
+		std::string sProjectURL= "https://" + GetSporkValue(sProjectId);
+		std::string sRestfulURL = "rosetta/results.php?hostid=" + RoundToString(iHostID, 0) + "&offset=" + RoundToString(i,0) + "&show_names=0&state=1&appid=";
+		std::string sResponse = BiblepayHTTPSPost(0, "", "", "", sProjectURL, sRestfulURL, 443, "", 25, 95000, true);
+       	std::vector<std::string> vRows = Split(sResponse.c_str(), "<tr");
+	    for (int j = 1; j < (int)vRows.size(); j++)
+        {
+					vRows[j] = strReplace(vRows[j], "</td>", "");
+					vRows[j] = strReplace(vRows[j], "\n", "");
+                    vRows[j] = strReplace(vRows[j], "<td align=right>", "<td>");
+					std::vector<std::string> vCols = Split(vRows[j].c_str(), "<td>");
+					if (vCols.size() > 6)
+					{
+                        std::string sTaskStartTime = vCols[3];
+						double dWorkUnitID = cdbl(ExtractXML(vCols[1], "resultid=", "\""), 0);
+                        std::string sStatus = vCols[5];
+						boost::trim(sTaskStartTime);
+						boost::trim(sStatus);
+						int64_t nStartTime = StringToUnixTime(sTaskStartTime);
+						if (dWorkUnitID > 0 && nStartTime > 0)
+						{
+							sOut += RoundToString(dWorkUnitID, 0) + "=" + RoundToString(nStartTime, 0) + ",";
+						}
+                    }
+        }
+   }
+   sOut = ChopLast(sOut);
+   return sOut;
+}
 
 
 bool AdvertiseDistributedComputingKey(std::string sProjectId, std::string sAuth, std::string sCPID, int nUserId, bool fForce, std::string &sError)
@@ -4732,7 +4904,6 @@ bool AdvertiseDistributedComputingKey(std::string sProjectId, std::string sAuth,
                 sError = "Balance too low to advertise DCC, 1 BBP minimum is required.";
                 return false;
             }
-        
 			
             std::string sHexSet = sPubAddress;
 

@@ -739,7 +739,7 @@ CAmount CSuperblock::GetPaymentsLimit(int nBlockHeight)
 	}
 	int nSuperblockCycle = IsValidBlockHeight(nBlockHeight) ? consensusParams.nSuperblockCycle : consensusParams.nDCCSuperblockCycle;
 	double nBudgetAvailable = (fDistributedComputingEnabled && IsValidBlockHeight(nBlockHeight) && !IsDCCSuperblock(nBlockHeight)) ? .20 : 1;
-	LogPrintf(" GetBlockSubsidy %f \n",(double)nBlockHeight);
+	// LogPrintf(" GetBlockSubsidy %f \n",(double)nBlockHeight);
     CAmount nSuperblockPartOfSubsidy = GetBlockSubsidy(pindexBestHeader->pprev, nBits, nBlockHeight, consensusParams, true);
     CAmount nPaymentsLimit = 0;
 	if (nBudgetAvailable == 1)

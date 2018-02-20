@@ -3227,7 +3227,7 @@ std::string BiblepayHTTPSPost(int iThreadID, std::string sActionName, std::strin
 				if (fBreakOnError) if (sData.find("</user>") != string::npos) break;
 				if (fBreakOnError) if (sData.find("</error>") != string::npos) break;
 				if (fBreakOnError) if (sData.find("</error_msg>") != string::npos) break;
-
+				if (fBreakOnError) if (sData.find("</results>") != string::npos) break;
 				if ((int)sData.size() >= iMaxSize) break;
 			}
 			// R ANDREW - JAN 4 2018: Free bio resources
