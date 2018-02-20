@@ -160,7 +160,7 @@ public:
         consensus.nSubsidyHalvingInterval = 365 * BLOCKS_PER_DAY;
         consensus.nMasternodePaymentsStartBlock = 201; // not true, but it's ok as long as it's less then nMasternodePaymentsIncreaseBlock
         consensus.nMasternodePaymentsIncreaseBlock = 201;
-        consensus.nMasternodePaymentsIncreasePeriod = BLOCKS_PER_DAY*30;
+        consensus.nMasternodePaymentsIncreasePeriod = BLOCKS_PER_DAY * 30;
         consensus.nInstantSendKeepLock = 6;
         consensus.nBudgetPaymentsStartBlock = 200;
 		consensus.nBudgetPaymentsCycleBlocks = 50;

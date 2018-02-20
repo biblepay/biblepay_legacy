@@ -3637,15 +3637,24 @@ UniValue exec(const UniValue& params, bool fHelp)
 								if (vEquals.size() > 1)
 								{
 									std::string sTaskID = vEquals[0];
+									
 									std::string sTimestamp = vEquals[1];
-									std::string sHR = TimestampToHRDate(cdbl(sTimestamp,0));
-									results.push_back(Pair(sTaskID, sHR));
+									std::string sTimestampHR = TimestampToHRDate(cdbl(sTimestamp,0));
+									results.push_back(Pair("SentTime", sTimestamp));
+									results.push_back(Pair("SentTimestamp", sTimestampHR));
+									results.push_back(Pair(sTaskID, sTimestampHR));
+
 									std::string sStatus = GetWorkUnitResultElement("project1", cdbl(sTaskID,0), "outcome");
-									std::string sSentTime = GetWorkUnitResultElement("project1", cdbl(sTaskID,0), "sent_time");
+									results.push_back(Pair("Status", sStatus));
+
+									std::string sSentXMLTime = GetWorkUnitResultElement("project1", cdbl(sTaskID,0), "sent_time");
+									std::string sSentXMLTimestamp = TimestampToHRDate(cdbl(sSentXMLTime,0));
+								
+									results.push_back(Pair("SentXMLTime", sSentXMLTime));
+									results.push_back(Pair("SentXMLTimeHR", sSentXMLTimestamp));
+
 									std::string sRAC = GetWorkUnitResultElement("project1", cdbl(sTaskID,0), "granted_credit");
 
-									results.push_back(Pair("Status", sStatus));
-									results.push_back(Pair("SentTime", sSentTime));
 									results.push_back(Pair("RACRewarded", sRAC));
 
 								}
@@ -4006,6 +4015,34 @@ int MonthToInt(std::string sMonth)
 	if (sMonth == "DEC") return 12;
 	return 0;
 }
+
+time_t _mkgmtime(const struct tm *tm) 
+{
+    // Month-to-day offset for non-leap-years.
+    static const int month_day[12] = {0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334};
+
+    // Most of the calculation is easy; leap years are the main difficulty.
+    int month = tm->tm_mon % 12;
+    int year = tm->tm_year + tm->tm_mon / 12;
+    if (month < 0) 
+	{   // Negative values % 12 are still negative.
+        month += 12;
+        --year;
+    }
+
+    // This is the number of Februaries since 1900.
+    const int year_for_leap = (month > 1) ? year + 1 : year;
+
+    time_t rt = tm->tm_sec                             // Seconds
+        + 60 * (tm->tm_min                          // Minute = 60 seconds
+        + 60 * (tm->tm_hour                         // Hour = 60 minutes
+        + 24 * (month_day[month] + tm->tm_mday - 1  // Day = 24 hours
+        + 365 * (year - 70)                         // Year = 365 days
+        + (year_for_leap - 69) / 4                  // Every 4 years is     leap...
+        - (year_for_leap - 1) / 100                 // Except centuries...
+        + (year_for_leap + 299) / 400)));           // Except 400s.
+    return rt < 0 ? -1 : rt;
+}
 	
 int64_t StringToUnixTime(std::string sTime)
 {
@@ -4033,7 +4070,7 @@ int64_t StringToUnixTime(std::string sTime)
 	tm.tm_hour = iHour;
 	tm.tm_min = iMinute;
 	tm.tm_sec = iSecond;
-	return timegm(&tm);
+	return _mkgmtime(&tm);
 }
 
 
