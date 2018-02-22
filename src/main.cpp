@@ -6825,12 +6825,19 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
             if (!AcceptBlockHeader(header, state, chainparams, &pindexLast)) 
 			{
                 int nDoS;
-                if (state.IsInvalid(nDoS)) {
+                if (state.IsInvalid(nDoS)) 
+				{
                     if (nDoS > 0)
                         Misbehaving(pfrom->GetId(), nDoS);
                     std::string strError = "invalid header received " + header.GetHash().ToString();
                     return error(strError.c_str());
                 }
+				else
+				{
+					LogPrintf("\n Invalid header received %s",header.GetHash().ToString().c_str());
+					Misbehaving(pfrom->GetId(),1);
+					return error("invalid-header-received");
+				}
             }
         }
 
