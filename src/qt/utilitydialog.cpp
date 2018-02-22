@@ -37,7 +37,8 @@ std::string GetBook(int iBookNumber);
 std::string GetBookByName(std::string sName);
 std::string RoundToString(double d, int place);
 void GetBookStartEnd(std::string sBook, int& iStart, int& iEnd);
-std::string AddNews(std::string sPrimaryKey, std::string sHTML, double dStorageFee);
+std::string AddBlockchainMessages(std::string sAddress, std::string sType, std::string sPrimaryKey, std::string sHTML, CAmount nAmount, std::string& sError);
+
 QString FromEscapedToHTML(QString qsp);
 QString FromHTMLToEscaped(QString qsp);
 QString FleeceBoilerPlate(QString qsp);
@@ -441,10 +442,12 @@ void HelpMessageDialog::on_btnPublishClicked()
 		if (ret==QMessageBox::Ok)
 		{
 			// Publish the article
-			LogPrintf("ADDING BLOCKCHAIN ARTICLE");
-			std::string sTXID = AddNews(FromQStringW(qsHeadline), sPreview, dCost);
-			LogPrintf("TXID %s ",sTXID.c_str());
-			std::string sPublished = sTXID.empty() ? "Article not published successfully.  [Unlock wallet]." : "Article published successfully.  TXID: " + sTXID;
+			const Consensus::Params& consensusParams = Params().GetConsensus();
+			std::string sFoundation = consensusParams.FoundationAddress;
+			std::string sError = "";
+			std::string sTXID = AddBlockchainMessages(sFoundation, "NEWS", FromQStringW(qsHeadline), sPreview, dCost * COIN, sError);
+
+			std::string sPublished = sTXID.empty() ? "Article not published successfully. " + sError + " [Unlock wallet]." : "Article published successfully.  TXID: " + sTXID;
 			QMessageBox::warning(this, tr("Publishing Result"), ToQstring(sPublished),QMessageBox::Ok, QMessageBox::Ok);
 		}
 		else

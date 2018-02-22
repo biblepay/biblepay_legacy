@@ -86,14 +86,14 @@ bool fDistributedComputingEnabled = false;
 bool fDistributedComputingCycleDownloading = false;
 bool fInternalRequestedShutdown = false;
 
+
 int nDistributedComputingCycles = 0;
 
 double GetUserMagnitude(double& nBudget, double& nTotalPaid, int& iLastSuperblock, std::string& out_Superblocks, int& out_SuperblockCount, 
 	int& out_HitCount, double& out_OneDayPaid, double& out_OneWeekPaid, double& out_OneDayBudget, double& out_OneWeekBudget);
 double GetPaymentByCPID(std::string CPID);
 extern std::string GetCPIDByAddress(std::string sAddress, int iOffset);
-
-
+std::string VerifyManyWorkUnits(std::string sProjectId, std::string sTaskIds);
 
 
 std::string GetElement(std::string sIn, std::string sDelimiter, int iPos);
@@ -108,6 +108,7 @@ int64_t SANCTUARY_COLLATERAL = 1550001;
 int64_t TEMPLE_COLLATERAL = 10000000;
 int64_t MAX_BLOCK_SUBSIDY = 20000;
 std::string strTemplePubKey = "";
+int64_t MAX_MESSAGE_LENGTH = 3000;
 
 bool fProd = false;
 bool fMineSlow = false;
@@ -143,6 +144,9 @@ int GetLastDCSuperblockHeight(int nCurrentHeight, int& nNextSuperblock);
 void GetDistributedComputingGovObjByHeight(int nHeight, uint256 uOptFilter, int& out_nVotes, uint256& out_uGovObjHash, std::string& out_PAD, std::string& out_PAM);
 extern std::string GetMyPublicKeys();
 bool VerifyCPIDSignature(std::string sFullSig, bool bRequireEndToEndVerification, std::string& sError);
+std::string ChopLast(std::string sMyChop);
+extern std::string ReadCacheWithMaxAge(std::string sSection, std::string sKey, int64_t nMaxAge);
+
 
 CWaitableCriticalSection csBestBlock;
 CConditionVariable cvBlockChange;
@@ -190,6 +194,9 @@ double GetDifficultyN(const CBlockIndex* blockindex, double N);
 uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight, const CBlockIndex* pindexLast, bool bRequireTxIndex, bool f7000, bool f8000, bool f9000, bool fTitheBlocksActive, unsigned int nNonce);
 double GetMagnitudeInContract(std::string sContract, std::string sCPID);
 extern double GetMagnitude(std::string sCPID);
+bool AmIMasternode();
+std::string GetWorkUnitResultElement(std::string sProjectId, int nWorkUnitID, std::string sElement);
+extern double VerifyTasks(std::string sTasks);
 
 
 bool fImporting = false;
@@ -7472,6 +7479,22 @@ std::string ReadCache(std::string sSection, std::string sKey)
 	}
 }
 
+std::string ReadCacheWithMaxAge(std::string sSection, std::string sKey, int64_t nMaxAge)
+{
+	// This allows us to disregard old cache messages
+	std::string sValue = ReadCache(sSection, sKey);
+	std::string sFullKey = sSection + ";" + sKey;
+	boost::to_upper(sFullKey);
+	int64_t nTime = mvApplicationCacheTimestamp[sFullKey];
+	if (nTime==0)
+	{
+		// LogPrintf(" ReadCacheWithMaxAge key %s timestamp 0 \n",sFullKey);
+	}
+	int64_t nAge = GetAdjustedTime() - nTime;
+	if (nAge > nMaxAge) return "";
+	return sValue;
+}
+
 
 void ResetTimerMain(std::string timer_name)
 {
@@ -7616,16 +7639,15 @@ void MemorizeBlockChainPrayers(bool fDuringConnectBlock)
 		{
         	BOOST_FOREACH(const CTransaction &tx, block.vtx)
 			{
-				  double dTotalSent = 0;
-				  for (unsigned int i = 0; i < tx.vout.size(); i++)
-				  {
-					  if (!tx.vout[i].sTxOutMessage.empty())
-					  {
-							dTotalSent += tx.vout[i].nValue / COIN;
-							MemorizePrayer(tx.vout[i].sTxOutMessage,block.GetBlockTime(),dTotalSent,i, tx.GetHash().GetHex());
-					  }
-				  }
-			  }
+				double dTotalSent = 0;
+				std::string sPrayer = "";
+				for (unsigned int i = 0; i < tx.vout.size(); i++)
+				{
+					dTotalSent += tx.vout[i].nValue / COIN;
+					sPrayer += tx.vout[i].sTxOutMessage;
+				}
+			    MemorizePrayer(sPrayer, block.GetBlockTime(), dTotalSent, 0, tx.GetHash().GetHex());
+			}
 	  	}
 	}
 	
@@ -7720,24 +7742,122 @@ bool CheckMessageSignature(std::string sMsg, std::string sSig, std::string sPubK
 }
 
 
+double GetCPIDUTXOWeight(double dAmount)
+{
+	if (dAmount <= 0) return 0;
+	if (dAmount > 00000 && dAmount <= 01000) return 25;
+	if (dAmount > 01000 && dAmount <= 05000) return 50;
+	if (dAmount > 05000 && dAmount <= 10000) return 60;
+	if (dAmount > 10000 && dAmount <= 50000) return 75;
+	if (dAmount > 50000) return 100;
+	return 0;
+}
+
+
+std::string GetListOfData(std::string sSourceData, std::string sDelimiter, std::string sSubDelimiter, int iSubPosition)
+{
+	std::vector<std::string> vPODC = Split(sSourceData.c_str(), sDelimiter);
+	std::string sMyData = "";
+	for (int i = 0; i < (int)vPODC.size(); i++)
+	{
+		std::string sElement = GetElement(vPODC[i], sSubDelimiter, iSubPosition);
+		if (!sElement.empty())
+		{
+			sMyData += sElement + sDelimiter;
+		}
+	}
+	sMyData = ChopLast(sMyData);
+	return sMyData;
+
+}
+
+std::string GetWUElement(std::string sWUdata, std::string sRootElementName, double dTaskID, std::string sPrimaryKeyElement, std::string sOutputElement)
+{
+	// The boinc network forms the XML file hierarchy like this
+	/*
+	<results>
+	<error>ID 976055122</error>
+	<result>
+	<id>975055123</id>
+	<create_time>1519055586</create_time>
+	<workunitid>879197165</workunitid>
+	<server_state>5</server_state>
+	<outcome>1</outcome>
+	<client_state>5</client_state>
+	<hostid>3247080</hostid>
+	<userid>1942555</userid>
+	<report_deadline>1519315255</report_deadline>
+	<sent_time>1519056055</sent_time>
+	<received_time>1519151181</received_time>
+	<name>
+	</result>
+	</results>
+	*/
+	std::vector<std::string> vPODC = Split(sWUdata.c_str(), sRootElementName);
+	for (int i = 0; i < (int)vPODC.size(); i++)
+	{
+		double dTask = cdbl(ExtractXML(vPODC[i], "<" + sPrimaryKeyElement + ">", "</" + sPrimaryKeyElement + ">"), 0);
+		// LogPrintf(" GETWUElement::task %f \n",dTask);
+		if (dTask == dTaskID)
+		{
+			std::string sEleValue = ExtractXML(vPODC[i], "<" + sOutputElement + ">", "</" + sOutputElement + ">");
+			return sEleValue;
+		}	
+	}
+	return "";
+}
+
+double VerifyTasks(std::string sTasks)
+{
+	if (sTasks.empty()) return 0;
+	double dCounted = 0;
+	double dVerified = 0;
+	std::string sTaskIds = GetListOfData(sTasks, ",", "=", 0);
+	std::string sTimestamps = GetListOfData(sTasks, ",", "=", 1);
+	std::string sResults = VerifyManyWorkUnits("project1", sTaskIds);
+	std::vector<std::string> vPODC = Split(sTaskIds.c_str(), ",");
+	std::vector<std::string> vTimes = Split(sTimestamps.c_str(), ",");
+	//LogPrintf("\n VerifyTasks taskids %s, stamps %s, output %s \n", sTaskIds.c_str(), sTimestamps.c_str(), sResults.c_str());
+	for (int i = 0; i < (int)vPODC.size(); i++)
+	{
+		double dTask = cdbl(vPODC[i], 0);
+		double dTime = cdbl(vTimes[i], 0);
+		dCounted++;
+		if (dTask > 0 && dTime > 0)
+		{
+			double dXMLTime = cdbl(GetWUElement(sResults, "<result>", dTask, "id", "sent_time"), 0);
+			if (dXMLTime > 0 && dXMLTime == dTime) dVerified++;
+		}
+	}
+	if (dCounted < 1) return 0;
+	double dSource = (dVerified / dCounted) * 60000;
+	double dSnapped = GetCPIDUTXOWeight(dSource);
+	LogPrintf("\n VerifyTasks::Tasks %f  Verified %f   Source %f  Snapped %f  ", dCounted, dVerified, dSource, dSnapped);
+	return dSnapped;
+}
+
 void MemorizePrayer(std::string sMessage, int64_t nTime, double dAmount, int iPosition, std::string sTxID)
 {
-	  if (sMessage.empty()) return;
-	  std::string sPODC = ExtractXML(sMessage, "<PODC_TASKS>", "</PODC_TASKS>");
-	  if (!sPODC.empty())
-	  {
-			std::vector<std::string> vPODC = Split(sPODC.c_str(), ",");
-			for (int i=0; i < (int)vPODC.size(); i++)
+	if (sMessage.empty()) return;
+	int64_t nAge = GetAdjustedTime() - nTime;
+	if (nAge < (60*60*25))
+	{
+		std::string sPODC = ExtractXML(sMessage, "<PODC_TASKS>", "</PODC_TASKS>");
+		if (!sPODC.empty())
+		{
+			std::string sErr2 = "";
+			std::string sMySig = ExtractXML(sMessage,"<cpidsig>","</cpidsig>");
+			bool fSigChecked = VerifyCPIDSignature(sMySig, true, sErr2);
+			if (fSigChecked)
 			{
-				std::vector<std::string> vTask = Split(vPODC[i].c_str(), "=");
-				if (vTask.size() > 1)
-				{
-					WriteCache("dcc_start_time", vTask[0], vTask[1], cdbl(vTask[1],0));
-				}
+				std::string sCPID = GetElement(sMySig, ";", 0);
+				WriteCache("UTXOWeight", sCPID, RoundToString(GetCPIDUTXOWeight(dAmount), 0), nTime);
+				WriteCache("CPIDTasks", sCPID, sPODC, nTime);
 			}
-	  }
-      if (Contains(sMessage,"<MT>"))
-	  {
+		}
+	}
+    if (Contains(sMessage,"<MT>"))
+	{
 		  std::string sMessageType      = ExtractXML(sMessage,"<MT>","</MT>");
   		  std::string sMessageKey       = ExtractXML(sMessage,"<MK>","</MK>");
 		  std::string sMessageValue     = ExtractXML(sMessage,"<MV>","</MV>");
@@ -7764,29 +7884,28 @@ void MemorizePrayer(std::string sMessage, int64_t nTime, double dAmount, int iPo
 					sMessageValue = "";
 			  }
 			  if (!bValid && bRequiresSignature) sMessageValue = "";
-		  }
-		  else
-		  {
+		}
+		else
+		{
 			  if (bRequiresSignature) sMessageValue = "";
-		  }
+		}
 		  
-    
-  		  if (!sMessageType.empty() && !sMessageKey.empty() && !sMessageValue.empty())
-		  {
-			  std::string sTimestamp = TimestampToHRDate((double)nTime+iPosition);
-			  // Were using the Block time here because tx time returns seconds past epoch, and adjusting the time by the vout position (so the user can see what time the prayer was accepted in the block).
-			  std::string sAdjMessageKey = sMessageKey;
-			  bool bDCC = (sMessageType == "DCC" || sMessageType == "SPORK");
-			  if (!bDCC)
-			  {
+		if (!sMessageType.empty() && !sMessageKey.empty() && !sMessageValue.empty())
+		{
+			std::string sTimestamp = TimestampToHRDate((double)nTime + iPosition);
+			// Were using the Block time here because tx time returns seconds past epoch, and adjusting the time by the vout position (so the user can see what time the prayer was accepted in the block).
+			std::string sAdjMessageKey = sMessageKey;
+			bool bDCC = (sMessageType == "DCC" || sMessageType == "SPORK");
+			if (!bDCC)
+			{
 				if (!(Contains(sMessageKey, "(") && Contains(sMessageKey,")")))
 				{
 			       sAdjMessageKey = sMessageKey + " (" + sTimestamp + ")";
 				}
-			  }
-			  WriteCache(sMessageType, sAdjMessageKey, sMessageValue, nTime);
-		  }
-	  }
+			}
+			WriteCache(sMessageType, sAdjMessageKey, sMessageValue, nTime);
+		}
+	}
 }
 
 

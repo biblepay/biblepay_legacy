@@ -86,7 +86,8 @@ public:
         PrivateSendMakeCollaterals,
         PrivateSendCreateDenominations,
         PrivateSend,
-		ProofOfLoyalty
+		ProofOfLoyalty,
+		PODCUpdate
     };
 
     /** Number of confirmation recommended for accepting a transaction */

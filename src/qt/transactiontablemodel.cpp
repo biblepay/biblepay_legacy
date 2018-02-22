@@ -379,6 +379,8 @@ QString TransactionTableModel::formatTxType(const TransactionRecord *wtx) const
         return tr("Payment to yourself");
 	case TransactionRecord::ProofOfLoyalty:
 		return fProofOfLoyaltyEnabled ? tr("Proof of Loyalty") : tr("Payment to Self");
+	case TransactionRecord::PODCUpdate:
+		return fDistributedComputingEnabled ? tr("PODC Update") : tr("Payment to Self");
     case TransactionRecord::Generated:
         return tr("Mined");
 
@@ -439,6 +441,8 @@ QString TransactionTableModel::formatTxToAddress(const TransactionRecord *wtx, b
         return QString::fromStdString(wtx->address) + watchAddress;
 	case TransactionRecord::ProofOfLoyalty:
 		return fProofOfLoyaltyEnabled ? tr("Proof of Loyalty") : tr("Payment to Self");
+	case TransactionRecord::PODCUpdate:
+		return fDistributedComputingEnabled ? tr("PODC Update") : tr("Payment to Self");
     case TransactionRecord::SendToSelf:
     default:
         return tr("(n/a)") + watchAddress;
@@ -462,6 +466,7 @@ QVariant TransactionTableModel::addressColor(const TransactionRecord *wtx) const
         } break;
     case TransactionRecord::SendToSelf:
 	case TransactionRecord::ProofOfLoyalty:
+	case TransactionRecord::PODCUpdate:
     case TransactionRecord::PrivateSendCreateDenominations:
     case TransactionRecord::PrivateSendDenominate:
     case TransactionRecord::PrivateSendMakeCollaterals:

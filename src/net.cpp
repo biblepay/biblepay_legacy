@@ -76,7 +76,7 @@ bool AddSeedNode(std::string sNode);
 extern std::string BiblepayHttpPost(int iThreadID, std::string sActionName, std::string sDistinctUser, std::string sPayload, std::string sBaseURL, 
 	std::string sPage, int iPort, std::string sSolution);
 extern std::string BiblepayHTTPSPost(int iThreadID, std::string sActionName, std::string sDistinctUser, std::string sPayload, std::string sBaseURL, std::string sPage, int iPort,
-	std::string sSolution, int iTimeoutSecs, int iMaxSize, bool fBreakOnError = false);
+	std::string sSolution, int iTimeoutSecs, int iMaxSize, int iBreakOnError = 0);
 
 std::string RoundToString(double d, int place);
 extern std::string SQL(std::string sCommand, std::string sAddress, std::string sArguments, std::string& sError);
@@ -3143,7 +3143,7 @@ bool DownloadDistributedComputingFile(std::string& sError)
 
 
 std::string BiblepayHTTPSPost(int iThreadID, std::string sActionName, std::string sDistinctUser, std::string sPayload, std::string sBaseURL, 
-	std::string sPage, int iPort, std::string sSolution, int iTimeoutSecs, int iMaxSize, bool fBreakOnError)
+	std::string sPage, int iPort, std::string sSolution, int iTimeoutSecs, int iMaxSize, int iBreakOnError)
 {
 	try
 	{
@@ -3224,11 +3224,16 @@ std::string BiblepayHTTPSPost(int iThreadID, std::string sActionName, std::strin
 				if (sData.find("</account_out>") != string::npos) break;
 				if (sData.find("</am_set_info_reply>") != string::npos) break;
 				if (sData.find("</am_get_info_reply>") != string::npos) break;
-				if (fBreakOnError) if (sData.find("</user>") != string::npos) break;
-				if (fBreakOnError) if (sData.find("</error>") != string::npos) break;
-				if (fBreakOnError) if (sData.find("</error_msg>") != string::npos) break;
-				if (fBreakOnError) if (sData.find("</results>") != string::npos) break;
-				if ((int)sData.size() >= iMaxSize) break;
+				if (iBreakOnError == 1) if (sData.find("</user>") != string::npos) break;
+				if (iBreakOnError == 1) if (sData.find("</error>") != string::npos) break;
+				if (iBreakOnError == 1) if (sData.find("</error_msg>") != string::npos) break;
+				if (iBreakOnError == 2) if (sData.find("</results>") != string::npos) break;
+				if (sData.find("Content-Length:") != string::npos)
+				{
+					double dMaxSize = cdbl(ExtractXML(sData,"Content-Length: ","\n"),0);
+					if (dMaxSize > 0) iMaxSize = dMaxSize;
+				}
+				if ((int)sData.size() >= (iMaxSize-1)) break;
 			}
 			// R ANDREW - JAN 4 2018: Free bio resources
 

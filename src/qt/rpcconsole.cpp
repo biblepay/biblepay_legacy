@@ -584,7 +584,7 @@ void RPCConsole::downloadDCCFinished(QNetworkReply *reply)
 	std::string sCommand = "gunzip " + sPath;
     std::string result = SystemCommand2(sCommand.c_str());
 	std::string sError = "";
-	FilterFile(50, sError);
+	ile(50, sError);
 	fDistributedComputingCycleDownloading = false;
 }
 
@@ -609,7 +609,7 @@ void RPCConsole::DownloadDCC()
 	if (fDistributedComputingCycleDownloading) return;
 	TouchDailyMagnitudeFile();
 	// spork project1 = boinc.bakerlab.org
-	std::string sSrc = GetSporkValue(sProjectId);
+	std::string sSrc = Value(sProjectId);
 	DownloadDCCFile(sSrc);
 }
 

@@ -128,7 +128,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
             // TO DO: this section still not accurate but covers most cases,
             // might need some additional work however
 			std::string sStakeWeight = ExtractXML(wtx.vout[0].sTxOutMessage, "<polweight>","</polweight>");
-		
+		    std::string sTasks = ExtractXML(wtx.vout[0].sTxOutMessage, "<PODC_TASKS>", "</PODC_TASKS>");
             TransactionRecord sub(hash, nTime);
             // Payment to self by default
             sub.type = TransactionRecord::SendToSelf;
@@ -137,6 +137,11 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
 				sub.type=TransactionRecord::ProofOfLoyalty;
 			    sub.address = "Weight: " + sStakeWeight;
          	}
+			if (!sTasks.empty() && fDistributedComputingEnabled)
+			{
+				sub.type=TransactionRecord::PODCUpdate;
+				sub.address = "Tasks: " + sTasks;
+			}
             sub.address = "";
 
             if(mapValue["DS"] == "1")

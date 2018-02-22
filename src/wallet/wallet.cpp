@@ -3035,6 +3035,18 @@ bool CWallet::ConvertList(std::vector<CTxIn> vecTxIn, std::vector<CAmount>& vecA
     return true;
 }
 
+std::string SimpleLimitedString(std::string sMyLimitedString, int MAXLENGTH)
+{
+	if ((int)sMyLimitedString.length() > MAXLENGTH)
+	{
+		return sMyLimitedString.substr(0, MAXLENGTH);
+	}
+	else
+	{
+		return sMyLimitedString;
+	}
+}
+
 bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wtxNew, CReserveKey& reservekey, CAmount& nFeeRet,
                                 int& nChangePosRet, std::string& strFailReason, 
 								const CCoinControl* coinControl, bool sign, AvailableCoinsType nCoinType, bool fUseInstantSend, int iMinConfirms)
@@ -3117,9 +3129,11 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
                     nValueToSelect += nFeeRet;
                 double dPriority = 0;
                 // vouts to the payees
+				int iPos = 0;
                 BOOST_FOREACH (const CRecipient& recipient, vecSend)
                 {
                     CTxOut txout(recipient.nAmount, recipient.scriptPubKey);
+					iPos++;
 
                     if (recipient.fSubtractFeeFromAmount)
                     {
@@ -3145,18 +3159,18 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
                             strFailReason = _("Transaction amount too small");
                         return false;
                     }
-					txout.sTxOutMessage =  wtxNew.sTxMessageConveyed;
+
+					if (iPos == 1) 
+					{	
+						// 2-21-2018 - R ANDREWS - VERIFY MESSAGE BOUNDS
+						txout.sTxOutMessage =  SimpleLimitedString(wtxNew.sTxMessageConveyed, MAX_MESSAGE_LENGTH);
+					}
 					// If Recipient.Message != .empty(), add message (news support)
 					if (!recipient.Message.empty())
 					{
-						txout.sTxOutMessage = recipient.Message;
+						txout.sTxOutMessage = SimpleLimitedString(recipient.Message, MAX_MESSAGE_LENGTH);
 					}
-					/*
-					if (nCoinType==ONLY_RETIREMENT_COINS) 
-					{
-						txout.sTxOutMessage = "[401]";
-					}
-					*/
+
 			        txNew.vout.push_back(txout);
                 }
 

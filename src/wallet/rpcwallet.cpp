@@ -444,9 +444,13 @@ static void SendColoredEscrow(const CTxDestination &address, CAmount nValue, boo
 }
 
 
-static void SendMoneyToDestinationWithMinimumBalance(const CTxDestination& address, CAmount nValue, CAmount nMinimumBalanceRequired, CWalletTx& wtxNew)
+static void SendMoneyToDestinationWithMinimumBalance(const CTxDestination& address, CAmount nValue, CAmount nMinimumBalanceRequired, CWalletTx& wtxNew, std::string& sError)
 {
-    if (pwalletMain->GetBalance() < nMinimumBalanceRequired || nValue > pwalletMain->GetBalance()) throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "Insufficient funds");
+    if (pwalletMain->GetBalance() < nMinimumBalanceRequired || nValue > pwalletMain->GetBalance()) 
+	{
+		sError = "Insufficient funds";
+		return;
+	}
     SendMoney(address, nValue, false, wtxNew, false, false);
 }
 
@@ -1511,6 +1515,7 @@ void ListTransactions(const CWalletTx& wtx, const string& strAccount, int nMinDe
                 if (wtx.IsCoinBase())
                 {
 					std::string sSuffix = (wtx.IsProofOfLoyalty()) ? " proof-of-loyalty" : "";
+					if (wtx.IsPODCUpdate()) sSuffix = " podc-update";
                     if (wtx.GetDepthInMainChain() < 1)
                         entry.push_back(Pair("category", "orphan" + sSuffix));
                     else if (wtx.GetBlocksToMaturity() > 0)

@@ -124,6 +124,10 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionReco
     //
     // From
     //
+	if (wtx.IsPODCUpdate())
+	{
+	     strHTML += "<b>" + tr("Source") + ":</b> " + tr("PODC-Update") + "<br>";
+	}
 	if (wtx.IsProofOfLoyalty())
 	{
 	     strHTML += "<b>" + tr("Source") + ":</b> " + tr("Proof-Of-Loyalty") + "<br>";

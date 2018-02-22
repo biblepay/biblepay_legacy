@@ -72,7 +72,7 @@ std::string strReplace(std::string& str, const std::string& oldStr, const std::s
 std::string PrepareHTTPPost(std::string sPage, std::string sHostHeader, const string& sMsg, const map<string,string>& mapRequestHeaders);
 std::string GetDomainFromURL(std::string sURL);
 std::string BiblepayHTTPSPost(int iThreadID, std::string sActionName, std::string sDistinctUser, std::string sPayload, std::string sBaseURL, std::string sPage, int iPort,
-	std::string sSolution, int iTimeoutSecs, int iMaxSize, bool fBreakOnError = false);
+	std::string sSolution, int iTimeoutSecs, int iMaxSize, int iBreakOnError = 0);
 extern CTransaction CreateCoinStake(CBlockIndex* pindexLast, CScript scriptCoinstakeKey, CAmount nTargetValue, int iMinConfirms, std::string& sXML, std::string& sError);
 extern bool IsStakeSigned(std::string sXML);
 extern std::string GetSANDirectory2();
@@ -86,7 +86,9 @@ void GetBookStartEnd(std::string sBook, int& iStart, int& iEnd);
 extern std::string RetrieveDCCWithMaxAge(std::string cpid, int64_t iMaxSeconds);
 void ClearCache(std::string section);
 void WriteCache(std::string section, std::string key, std::string value, int64_t locktime);
-std::string AddNews(std::string sPrimaryKey, std::string sHTML, double dStorageFee);
+extern std::string AddBlockchainMessages(std::string sAddress, std::string sType, std::string sPrimaryKey, std::string sHTML, CAmount nAmount, std::string& sError);
+
+
 extern bool CheckStakeSignature(std::string sBitcoinAddress, std::string sSignature, std::string strMessage, std::string& strError);
 std::string ReadCache(std::string sSection, std::string sKey);
 extern uint256 GetDCCFileHash();
@@ -100,8 +102,9 @@ extern int GetLastDCSuperblockWithPayment(int nChainHeight);
 extern std::string GetDCCElement(std::string sData, int iElement);
 std::string FindResearcherCPIDByAddress(std::string sSearch, std::string& out_address, double& nTotalMagnitude);
 extern double GetUserMagnitude(double& nBudget, double& nTotalPaid, int& iLastSuperblock, std::string& out_Superblocks, int& out_SuperblockCount, int& out_HitCount, double& out_OneDayPaid, double& out_OneWeekPaid, double& out_OneDayBudget, double& out_OneWeekBudget);
+std::string ReadCacheWithMaxAge(std::string sSection, std::string sKey, int64_t nMaxAge);
 
-extern bool SignCPID(std::string& sError, std::string& out_FullSig);
+extern bool SignCPID(std::string sCPID, std::string& sError, std::string& out_FullSig);
 extern bool VerifyCPIDSignature(std::string sFullSig, bool bRequireEndToEndVerification, std::string& sError);
 extern int GetCPIDCount(std::string sContract, double& nTotalMagnitude);
 extern int VerifySanctuarySignatures(std::string sSignatureData);
@@ -154,7 +157,7 @@ extern uint256 GetDCPAMHashByContract(std::string sContract, int nHeight);
 bool Contains(std::string data, std::string instring);
 extern bool GetContractPaymentData(std::string sContract, int nBlockHeight, std::string& sPaymentAddresses, std::string& sAmounts);
 extern double GetPaymentByCPID(std::string CPID);
-extern std::string FilterBoincData(std::string sData, std::string sRootElement, std::string sEndElement);
+extern std::string FilterBoincData(std::string sData, std::string sRootElement, std::string sEndElement, std::string sExtra);
 extern bool FileExists2(std::string sPath);
 std::string GetCPIDByAddress(std::string sAddress, int iOffset);
 extern double GetBoincTeamByUserId(std::string sProjectId, int nUserId);
@@ -163,7 +166,12 @@ extern std::string GetBoincHostsByUser(int iRosettaID, std::string sProjectId);
 extern std::string GetBoincTasksByHost(int iHostID, std::string sProjectId);
 extern std::string GetWorkUnitResultElement(std::string sProjectId, int nWorkUnitID, std::string sElement);
 extern bool PODCUpdate();
-
+extern std::string SendCPIDMessage(std::string sAddress, CAmount nAmount, std::string sXML, std::string& sError);
+extern bool AmIMasternode();
+double VerifyTasks(std::string sTasks);
+extern std::string VerifyManyWorkUnits(std::string sProjectId, std::string sTaskIds);
+extern std::string ChopLast(std::string sMyChop);
+extern double GetResearcherCredit(double dDRMode, double dAvgCredit, double dUTXOWeight, double dTaskWeight);
 
 double GetDifficultyN(const CBlockIndex* blockindex, double N)
 {
@@ -202,6 +210,29 @@ uint256 PercentToBigIntBase(int iPercent)
 	uint256 uHash = uint256S("0x" + sConcat);
 	return uHash;
 }
+
+/*
+    std::vector<std::pair<int, CMasternode> > vecMasternodeRanks = GetMasternodeRanks(pCurrentBlockIndex->nHeight - 1, MIN_POSE_PROTO_VERSION);
+    LOCK2(cs_main, cs);
+    int nCount = 0;
+    int nMyRank = -1;
+    int nRanksTotal = (int)vecMasternodeRanks.size();
+    std::vector<std::pair<int, CMasternode> >::iterator it = vecMasternodeRanks.begin();
+    while(it != vecMasternodeRanks.end()) {
+        if(it->first > MAX_POSE_RANK) {
+            LogPrint("masternode", "CMasternodeMan::DoFullVerificationStep -- Must be in top %d to send verify request\n",
+                        (int)MAX_POSE_RANK);
+            return;
+        }
+        if(it->second.vin == activeMasternode.vin) {
+            nMyRank = it->first;
+            LogPrint("masternode", "CMasternodeMan::DoFullVerificationStep -- Found self at rank %d/%d, verifying up to %d masternodes\n",
+                        nMyRank, nRanksTotal, (int)MAX_POSE_CONNECTIONS);
+            break;
+        }
+        ++it;
+    }
+	*/
 
 int MyRank(int nHeight)
 {
@@ -294,8 +325,10 @@ double MyPercentile(int nHeight)
 {
 	int iRank = MyRank(nHeight);
 	int iSanctuaryCount = GetSanctuaryCount();
+	//Note: We can also :  return mnodeman.CountEnabled() if we want only Enabled masternodes
 	if (iSanctuaryCount < 1) return 0;
 	double dPercentile = iRank / iSanctuaryCount;
+	LogPrintf(" MyPercentile Rank %f, SancCount %f, Percent %f",(double)iRank,(double)iSanctuaryCount,(double)dPercentile*100);
 	return dPercentile * 100;
 }
 
@@ -337,7 +370,7 @@ std::string GetBoincAuthenticator(std::string sProjectID, std::string sProjectEm
 	std::string sArgs = "?email_addr=" + sProjectEmail + "&passwd_hash=" + sPasswordHash + "&get_opaque_auth=1";
 	std::string sURL = sProjectURL + sRestfulURL + sArgs;
 	std::string sUser = sProjectEmail;
-	std::string sResponse = BiblepayHTTPSPost(0, "", sUser, "", sProjectURL, sRestfulURL + sArgs, 443, "", 20, 5000, true);
+	std::string sResponse = BiblepayHTTPSPost(0, "", sUser, "", sProjectURL, sRestfulURL + sArgs, 443, "", 20, 5000, 1);
 	LogPrint("boinc", "BoincResponse %s \n",sResponse.c_str());
 	std::string sAuthenticator = ExtractXML(sResponse, "<authenticator>","</authenticator>");
 	return sAuthenticator;
@@ -347,7 +380,7 @@ int GetBoincResearcherUserId(std::string sProjectId, std::string sAuthenticator)
 {
 		std::string sProjectURL= "https://" + GetSporkValue(sProjectId);
 		std::string sRestfulURL = "am_get_info.php?account_key=" + sAuthenticator;
-		std::string sResponse = BiblepayHTTPSPost(0, "", "", "", sProjectURL, sRestfulURL, 443, "", 20, 5000, true);
+		std::string sResponse = BiblepayHTTPSPost(0, "", "", "", sProjectURL, sRestfulURL, 443, "", 20, 5000, 1);
 		if (false) LogPrint("boinc","BoincResponse %s \n",sResponse.c_str());
 		int nId = cdbl(ExtractXML(sResponse, "<id>","</id>"),0);
 		return nId;
@@ -357,7 +390,7 @@ std::string GetBoincResearcherHexCodeAndCPID(std::string sProjectId, int nUserId
 {
 	 	std::string sProjectURL = "http://" + GetSporkValue(sProjectId);
 		std::string sRestfulURL = "show_user.php?userid=" + RoundToString(nUserId,0) + "&format=xml";
-		std::string sResponse = BiblepayHTTPSPost(0, "", "", "", sProjectURL, sRestfulURL, 443, "", 20, 5000, true);
+		std::string sResponse = BiblepayHTTPSPost(0, "", "", "", sProjectURL, sRestfulURL, 443, "", 20, 5000, 1);
 		if (false) LogPrintf("GetBoincResearcherHexCodeAndCPID::url %s, rest %s, User %f , BoincResponse %s \n",sProjectURL.c_str(), sRestfulURL.c_str(), (double)nUserId, sResponse.c_str());
 		std::string sHexCode = ExtractXML(sResponse, "<url>","</url>");
 		sHexCode = strReplace(sHexCode,"http://","");
@@ -366,11 +399,21 @@ std::string GetBoincResearcherHexCodeAndCPID(std::string sProjectId, int nUserId
 		return sHexCode;
 }
 
+std::string VerifyManyWorkUnits(std::string sProjectId, std::string sTaskIds)
+{
+ 	std::string sProjectURL = "http://" + GetSporkValue(sProjectId);
+	std::string sRestfulURL = "rosetta/result_status.php?ids=" + sTaskIds;
+	// LogPrintf(" \n Requesting %f ",(double)GetAdjustedTime());
+	std::string sResponse = BiblepayHTTPSPost(0, "", "", "", sProjectURL, sRestfulURL, 443, "", 15, 275000, 2);
+	// LogPrintf(" \n Finished %f ",(double)GetAdjustedTime());
+	return sResponse;
+}
+
 std::string GetWorkUnitResultElement(std::string sProjectId, int nWorkUnitID, std::string sElement)
 {
  	std::string sProjectURL = "http://" + GetSporkValue(sProjectId);
 	std::string sRestfulURL = "rosetta/result_status.php?ids=" + RoundToString(nWorkUnitID, 0);
-	std::string sResponse = BiblepayHTTPSPost(0, "", "", "", sProjectURL, sRestfulURL, 443, "", 20, 35000, true);
+	std::string sResponse = BiblepayHTTPSPost(0, "", "", "", sProjectURL, sRestfulURL, 443, "", 20, 35000, 1);
 	std::string sResult = ExtractXML(sResponse, "<" + sElement + ">", "</" + sElement + ">");
 	return sResult;
 }
@@ -379,7 +422,7 @@ double GetBoincRACByUserId(std::string sProjectId, int nUserId)
 {
 		std::string sProjectURL = "http://" + GetSporkValue(sProjectId);
 		std::string sRestfulURL = "show_user.php?userid=" + RoundToString(nUserId,0) + "&format=xml";
-		std::string sResponse = BiblepayHTTPSPost(0, "", "", "", sProjectURL, sRestfulURL, 443, "", 20, 5000, true);
+		std::string sResponse = BiblepayHTTPSPost(0, "", "", "", sProjectURL, sRestfulURL, 443, "", 20, 5000, 1);
 		double dRac = cdbl(ExtractXML(sResponse,"<expavg_credit>", "</expavg_credit>"), 2);
 		return dRac;
 }
@@ -389,7 +432,7 @@ double GetBoincTeamByUserId(std::string sProjectId, int nUserId)
 {
 		std::string sProjectURL = "http://" + GetSporkValue(sProjectId);
 		std::string sRestfulURL = "show_user.php?userid=" + RoundToString(nUserId,0) + "&format=xml";
-		std::string sResponse = BiblepayHTTPSPost(0, "", "", "", sProjectURL, sRestfulURL, 443, "", 20, 5000, true);
+		std::string sResponse = BiblepayHTTPSPost(0, "", "", "", sProjectURL, sRestfulURL, 443, "", 20, 5000, 1);
 		double dTeam = cdbl(ExtractXML(sResponse,"<teamid>", "</teamid>"), 0);
 		return dTeam;
 }
@@ -398,7 +441,7 @@ std::string SetBoincResearcherHexCode(std::string sProjectId, std::string sAuthC
 {
 	 	std::string sProjectURL = "https://" + GetSporkValue(sProjectId);
 		std::string sRestfulURL = "am_set_info.php?account_key=" + sAuthCode + "&url=" + sHexKey;
-		std::string sResponse = BiblepayHTTPSPost(0, "", "", "", sProjectURL, sRestfulURL, 443, "", 20, 5000, true);
+		std::string sResponse = BiblepayHTTPSPost(0, "", "", "", sProjectURL, sRestfulURL, 443, "", 20, 5000, 1);
 		LogPrint("boinc","SetBoincResearcherHexCode::BoincResponse %s \n",sResponse.c_str());
 		std::string sHexCode = ExtractXML(sResponse, "<url>","</url>");
 		return sHexCode;
@@ -1055,7 +1098,6 @@ UniValue blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool tx
 
 	if (block.vtx.size() > 0)
 	{
-    
 		result.push_back(Pair("subsidy", block.vtx[0].vout[0].nValue/COIN));
 		result.push_back(Pair("blockversion", ExtractXML(block.vtx[0].vout[0].sTxOutMessage,"<VER>","</VER>")));
 	}
@@ -2627,6 +2669,20 @@ bool GetTransactionTimeAndAmount(uint256 txhash, int nVout, int64_t& nTime, CAmo
 	return false;
 }
 
+double GetTaskWeight(std::string sCPID)
+{
+	std::string sTaskList = ReadCacheWithMaxAge("CPIDTasks", sCPID, (60*60*24));
+	return (sTaskList.empty()) ? 0 : 100;
+}
+
+
+double GetUTXOWeight(std::string sCPID)
+{
+	double dUTXOWeight = cdbl(ReadCacheWithMaxAge("UTXOWeight", sCPID, (60*60*24)), 0);
+	return dUTXOWeight;
+}
+
+
 double GetStakeWeight(CTransaction tx, int64_t nTipTime, std::string sXML, bool bVerifySignature, std::string& sMetrics, std::string& sError)
 {
 	// Calculate coin age - Proof Of Loyalty - 01-17-2018
@@ -2752,7 +2808,7 @@ CTransaction CreateCoinStake(CBlockIndex* pindexLast, CScript scriptCoinstakeKey
     // EnsureWalletIsUnlocked();
 	// Ensure they can sign every output
 	std::string sMessage = GetRandHash().GetHex();
-	sXML = "<polmessage>" + sMessage + "</polmessage><polweight>"+RoundToString(dWeight,2) + "</polweight>" + sMetrics;
+	sXML += "<polmessage>" + sMessage + "</polmessage><polweight>"+RoundToString(dWeight,2) + "</polweight>" + sMetrics;
 
 	for (int iIndex = 0; iIndex < (int)ctx.vout.size(); iIndex++) 
 	{
@@ -2767,7 +2823,7 @@ CTransaction CreateCoinStake(CBlockIndex* pindexLast, CScript scriptCoinstakeKey
 		}
 		else
 		{
-			sXML = "";
+			sXML += "<ERR>SIGN_ERROR</ERR>";
 			LogPrintf(" Unable to sign stake %s \n", sAddr.c_str());
 		}
 	}
@@ -2815,8 +2871,12 @@ UniValue exec(const UniValue& params, bool fHelp)
 	}
 	else if (sItem == "testnews")
 	{
-		std::string sTxId = AddNews("primarykey","html",250);
-		results.push_back(Pair("Sent", sTxId));
+		const Consensus::Params& consensusParams = Params().GetConsensus();
+		std::string sAddress = consensusParams.FoundationAddress;
+		std::string sError = "";
+		std::string sTxId = AddBlockchainMessages(sAddress, "NEWS", "primarykey", "html", 250*COIN, sError);
+		results.push_back(Pair("TXID", sTxId));
+		results.push_back(Pair("Error", sError));
 	}
 	else if (sItem == "persistsporkmessage")
 	{
@@ -3239,7 +3299,7 @@ UniValue exec(const UniValue& params, bool fHelp)
 					  rawTx.vout.push_back(out);
 	    			  CComplexTransaction cct("");
 					  std::string sAssetColorScript = cct.GetScriptForAssetColor(sColor); 
-					  rawTx.vout[rawTx.vout.size()-1].sTxOutMessage = sAssetColorScript;
+					  rawTx.vout[rawTx.vout.size()-1]age = sAssetColorScript;
 					  LogPrintf("CreateEscrowTx::Adding Recip %s, amount %f, color %s, dAmount %f ", sRecipient.c_str(),(double)nAmount,sAssetColorScript.c_str(), (double)dAmount);
 				}
 			}
@@ -3455,6 +3515,26 @@ UniValue exec(const UniValue& params, bool fHelp)
 		results.push_back(Pair("difficulty_podc", dPODCDifficulty));
 		results.push_back(Pair("difficulty_pow", dPOWDifficulty));
 	}
+	else if (sItem == "amimasternode")
+	{
+		results.push_back(Pair("AmIMasternode",AmIMasternode()));
+	}
+	else if (sItem == "writecache")
+	{
+		if (params.size() != 4)
+		{
+			results.push_back(Pair("Error","Please specify exec writecache type key value"));
+		}
+		else
+		{
+			WriteCache(params[1].get_str(), params[2].get_str(), params[3].get_str(), GetAdjustedTime());
+		}
+	}
+	else if (sItem == "podcupdate")
+	{
+		bool bCalled = PODCUpdate();
+		results.push_back(Pair("PODCUpdate", bCalled));
+	}
 	else if (sItem == "dcc")
 	{
 		std::string sError = "";
@@ -3523,6 +3603,21 @@ UniValue exec(const UniValue& params, bool fHelp)
 		LogPrintf("\n AcceptBlock::ExecuteDistributedComputingSanctuaryQuorumProcess %s . \n", sResult.c_str());
 		results.push_back(Pair("DC_sanctuary_quorum", sResult));
 	}
+	else if (sItem == "testranks")
+	{
+		int iNextSuperblock = 0;
+		int iLastSuperblock = GetLastDCSuperblockHeight(chainActive.Tip()->nHeight, iNextSuperblock);
+		int iSanctuaryCount = GetSanctuaryCount();
+
+		for (int i = iLastSuperblock-50; i <= iNextSuperblock; i++)
+		{
+			double nRank = MyPercentile(i);
+			int iRank = MyRank(i);
+			results.push_back(Pair("percentrank" + RoundToString(i,0), nRank));
+			results.push_back(Pair("myrank" + RoundToString(i,0), iRank));
+		}
+		results.push_back(Pair("sanccount" , iSanctuaryCount));
+	}
 	else if (sItem == "testvote")
 	{
 		int64_t nAge = GetDCCFileAge();
@@ -3533,7 +3628,8 @@ UniValue exec(const UniValue& params, bool fHelp)
 		results.push_back(Pair("fileage", nAge));
 		results.push_back(Pair("filehash", uDCChash.GetHex()));
 		results.push_back(Pair("contract", sContract));
-		double nRank = MyPercentile(iNextSuperblock);
+		double nRank = MyPercentile(iLastSuperblock);
+
 		results.push_back(Pair("sanctuary_rank", nRank));
 		std::string sAddresses="";
 		std::string sAmounts = "";
@@ -3628,7 +3724,11 @@ UniValue exec(const UniValue& params, bool fHelp)
 							double dHost = cdbl(vH[j], 0);
 							results.push_back(Pair("host", dHost));
 							std::string sTasks = GetBoincTasksByHost((int)dHost, "project1");
-							// results.push_back(Pair("Tasks", sTasks));
+							results.push_back(Pair("Tasks", sTasks));
+							// Pre Verify these using Sanctuary Rules
+							double dPreverificationPercent = VerifyTasks(sTasks);
+							results.push_back(Pair("Preverification", dPreverificationPercent));
+
 							std::vector<std::string> vT = Split(sTasks.c_str(), ",");
 							for (int k = 0; k < (int)vT.size(); k++)
 							{
@@ -3637,25 +3737,19 @@ UniValue exec(const UniValue& params, bool fHelp)
 								if (vEquals.size() > 1)
 								{
 									std::string sTaskID = vEquals[0];
-									
 									std::string sTimestamp = vEquals[1];
 									std::string sTimestampHR = TimestampToHRDate(cdbl(sTimestamp,0));
-									results.push_back(Pair("SentTime", sTimestamp));
-									results.push_back(Pair("SentTimestamp", sTimestampHR));
+									//results.push_back(Pair("SentTime", sTimestamp));
+									//results.push_back(Pair("SentTimestamp", sTimestampHR));
 									results.push_back(Pair(sTaskID, sTimestampHR));
-
 									std::string sStatus = GetWorkUnitResultElement("project1", cdbl(sTaskID,0), "outcome");
 									results.push_back(Pair("Status", sStatus));
-
 									std::string sSentXMLTime = GetWorkUnitResultElement("project1", cdbl(sTaskID,0), "sent_time");
 									std::string sSentXMLTimestamp = TimestampToHRDate(cdbl(sSentXMLTime,0));
-								
-									results.push_back(Pair("SentXMLTime", sSentXMLTime));
+									//results.push_back(Pair("SentXMLTime", sSentXMLTime));
 									results.push_back(Pair("SentXMLTimeHR", sSentXMLTimestamp));
-
-									std::string sRAC = GetWorkUnitResultElement("project1", cdbl(sTaskID,0), "granted_credit");
-
-									results.push_back(Pair("RACRewarded", sRAC));
+									//std::string sRAC = GetWorkUnitResultElement("project1", cdbl(sTaskID,0), "granted_credit");
+									//results.push_back(Pair("RACRewarded", sRAC));
 
 								}
 							}
@@ -3690,8 +3784,7 @@ UniValue exec(const UniValue& params, bool fHelp)
 		}
 
 		results.push_back(Pair("NextSuperblockHeight", iNextSuperblock));
-
-	   double nBudget2 = CSuperblock::GetPaymentsLimit(iNextSuperblock) / COIN;
+		double nBudget2 = CSuperblock::GetPaymentsLimit(iNextSuperblock) / COIN;
 		results.push_back(Pair("NextSuperblockBudget", nBudget2));
 	
 	    int64_t iMaxSeconds = 60 * 24 * 30 * 12 * 60;
@@ -3719,6 +3812,11 @@ UniValue exec(const UniValue& params, bool fHelp)
 							results.push_back(Pair("Warning", "CPID " + s1 + " not in team Biblepay.  This CPID is not receiving rewards for cancer research."));
 						}
 					}
+					// Show the User the estimated Task Weight, and estimated UTXOWeight
+					double dTaskWeight = GetTaskWeight(s1);
+					double dUTXOWeight = GetUTXOWeight(s1);
+					results.push_back(Pair(s1 + "_TaskWeight", dTaskWeight));
+					results.push_back(Pair(s1 + "_UTXOWeight", dUTXOWeight));
 				}
 			}
 		}
@@ -3882,38 +3980,37 @@ UniValue getmempoolinfo(const UniValue& params, bool fHelp)
     return mempoolInfoToJSON();
 }
 
-std::string AddNews(std::string sPrimaryKey, std::string sHTML, double dQuotedFee)
+std::string AddBlockchainMessages(std::string sAddress, std::string sType, std::string sPrimaryKey, 
+	std::string sHTML, CAmount nAmount, std::string& sError)
 {
-	const Consensus::Params& consensusParams = Params().GetConsensus();
-    std::string sAddress = consensusParams.FoundationAddress;
-    CBitcoinAddress address(sAddress);
-    if (!address.IsValid()) 
+	CBitcoinAddress cbAddress(sAddress);
+    if (!cbAddress.IsValid()) 
 	{
-		return "Invalid Foundation Address";
+		sError = "Invalid Destination Address";
+		return "";
 	}
     CWalletTx wtx;
-	std::string sType = "NEWS";
  	std::string sMessageType      = "<MT>" + sType + "</MT>";  
     std::string sMessageKey       = "<MK>" + sPrimaryKey + "</MK>";
-	std::string sMessageValue     = "<MV></MV><NEWS>";
-	std::string s1 = sMessageType + sMessageKey + sMessageValue;
-	
+	std::string s1 = "<BCM>" + sMessageType + sMessageKey;
 	CAmount curBalance = pwalletMain->GetBalance();
-    CScript scriptPubKey = GetScriptForDestination(address.Get());
+	if (curBalance < nAmount)
+	{
+		sError = "Insufficient funds (Unlock Wallet).";
+		return "";
+	}
+
+    CScript scriptPubKey = GetScriptForDestination(cbAddress.Get());
     CReserveKey reservekey(pwalletMain);
     CAmount nFeeRequired;
-    std::string strError;
     vector<CRecipient> vecSend;
     int nChangePosRet = -1;
 	bool fSubtractFeeFromAmount = false;
-	
-	// Each 1k block becomes an individual vOut so we can charge a storage fee for each vOut 
-	int iStepLength = 990 - s1.length();
+	int iStepLength = (MAX_MESSAGE_LENGTH - 100) - s1.length();
+	if (iStepLength < 1) return "";
 	bool bLastStep = false;
-	double dStorageFee = 500 * (sHTML.length() / 1000);
-	int iParts = cdbl(RoundToString(sHTML.length()/iStepLength,2),0);
+	int iParts = cdbl(RoundToString(sHTML.length() / iStepLength, 2), 0);
 	if (iParts < 1) iParts = 1;
-	CAmount nAmount = AmountFromValue(dStorageFee);
 	for (int i = 0; i <= (int)sHTML.length(); i += iStepLength)
 	{
 		int iChunkLength = sHTML.length() - i;
@@ -3923,30 +4020,37 @@ std::string AddNews(std::string sPrimaryKey, std::string sHTML, double dQuotedFe
 			iChunkLength = iStepLength;
 		} 
 		std::string sChunk = sHTML.substr(i, iChunkLength);
-		if (bLastStep) sChunk += "</NEWS>";
+		if (bLastStep) sChunk += "</BCM>";
 	    CRecipient recipient = {scriptPubKey, nAmount / iParts, fSubtractFeeFromAmount, false, false, false, "", "", ""};
 		s1 += sChunk;
 		recipient.Message = s1;
 		LogPrintf("\r\n Creating TXID #%f, ChunkLen %f, with Chunk %s \r\n",(double)i,(double)iChunkLength,s1.c_str());
-		s1="";
+		s1 = "";
 		vecSend.push_back(recipient);
 	}
 	
-    if (curBalance < dStorageFee) return "Insufficient funds (Unlock Wallet).";
-
+    
 	bool fUseInstantSend = false;
 	bool fUsePrivateSend = false;
 
     if (!pwalletMain->CreateTransaction(vecSend, wtx, reservekey, nFeeRequired, nChangePosRet,
-                                         strError, NULL, true, fUsePrivateSend ? ONLY_DENOMINATED : ALL_COINS, fUseInstantSend)) 
+                                         sError, NULL, true, fUsePrivateSend ? ONLY_DENOMINATED : ALL_COINS, fUseInstantSend)) 
 	{
+		if (!sError.empty())
+		{
+			return "";
+		}
+
         if (!fSubtractFeeFromAmount && nAmount + nFeeRequired > pwalletMain->GetBalance())
-            strError = strprintf("Error: This transaction requires a transaction fee of at least %s because of its amount, complexity, or use of recently received funds!", FormatMoney(nFeeRequired));
-        throw JSONRPCError(RPC_WALLET_ERROR, strError);
+		{
+            sError = strprintf("Error: This transaction requires a transaction fee of at least %s because of its amount, complexity, or use of recently received funds!", FormatMoney(nFeeRequired));
+			return "";
+		}
     }
     if (!pwalletMain->CommitTransaction(wtx, reservekey, fUseInstantSend ? NetMsgType::TXLOCKREQUEST : NetMsgType::TX))
     {
-		throw JSONRPCError(RPC_WALLET_ERROR, "Error: The transaction was rejected! This might happen if some of the coins in your wallet were already spent, such as if you used a copy of wallet.dat and coins were spent in the copy but not marked as spent here.");
+		sError = "Error: The transaction was rejected! This might happen if some of the coins in your wallet were already spent, such as if you used a copy of wallet.dat and coins were spent in the copy but not marked as spent here.";
+		return "";
 	}
 
 	std::string sTxId = wtx.GetHash().GetHex();
@@ -3955,19 +4059,44 @@ std::string AddNews(std::string sPrimaryKey, std::string sHTML, double dQuotedFe
 
 
 
+std::string SendCPIDMessage(std::string sAddress, CAmount nAmount, std::string sXML, std::string& sError)
+{
+	// 2-20-2018 - R. ANDREWS - BIBLEPAY
+	const Consensus::Params& consensusParams = Params().GetConsensus();
+    CBitcoinAddress address(sAddress);
+    if (!address.IsValid())
+	{
+		sError = "Invalid Destination Address";
+		return sError;
+	}
+    CWalletTx wtx;
+	wtx.sTxMessageConveyed = sXML;
+    SendMoneyToDestinationWithMinimumBalance(address.Get(), nAmount, nAmount, wtx, sError);
+	if (!sError.empty())
+	{
+		return "";
+	}
+    return wtx.GetHash().GetHex().c_str();
+}
+
+
 std::string SendBlockchainMessage(std::string sType, std::string sPrimaryKey, std::string sValue, double dStorageFee, bool Sign, std::string& sError)
 {
 	const Consensus::Params& consensusParams = Params().GetConsensus();
     std::string sAddress = consensusParams.FoundationAddress;
     CBitcoinAddress address(sAddress);
-    if (!address.IsValid()) throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Address");
+    if (!address.IsValid())
+	{
+		sError = "Invalid Destination Address";
+		return sError;
+	}
     CAmount nAmount = AmountFromValue(dStorageFee);
 	CAmount nMinimumBalance = AmountFromValue(dStorageFee);
     CWalletTx wtx;
 	boost::to_upper(sPrimaryKey); // DC Message can't be found if not uppercase
 	boost::to_upper(sType);
 	std::string sNonceValue = RoundToString(GetAdjustedTime(), 0);
-	// Add imunity to replay attacks (Add message nonce)
+	// Add immunity to replay attacks (Add message nonce)
  	std::string sMessageType      = "<MT>" + sType  + "</MT>";  
     std::string sMessageKey       = "<MK>" + sPrimaryKey   + "</MK>";
 	std::string sMessageValue     = "<MV>" + sValue + "</MV>";
@@ -3981,12 +4110,12 @@ std::string SendBlockchainMessage(std::string sType, std::string sPrimaryKey, st
 		if (bSigned) sMessageSig = "<SPORKSIG>" + sSignature + "</SPORKSIG>";
 		LogPrintf(" Signing Nonce%f , With spork Sig %s on message %s  \n", (double)GetAdjustedTime(), 
 			 sMessageSig.c_str(), sValue.c_str());
-				
 	}
 
 	std::string s1 = sMessageType + sMessageKey + sMessageValue + sNonce + sMessageSig;
 	wtx.sTxMessageConveyed = s1;
-    SendMoneyToDestinationWithMinimumBalance(address.Get(), nAmount, nMinimumBalance, wtx);
+    SendMoneyToDestinationWithMinimumBalance(address.Get(), nAmount, nMinimumBalance, wtx, sError);
+	if (!sError.empty()) return "";
     return wtx.GetHash().GetHex().c_str();
 }
 
@@ -4550,10 +4679,10 @@ bool VerifyCPIDSignature(std::string sFullSig, bool bRequireEndToEndVerification
 }
 
 
-bool SignCPID(std::string& sError, std::string& out_FullSig)
+bool SignCPID(std::string sCPID, std::string& sError, std::string& out_FullSig)
 {
 	// Sign Researcher CPID - 2/8/2018 - Rob A. - Biblepay
-	std::string sCPID = GetElement(msGlobalCPID, ";", 0);
+	if (sCPID.empty()) sCPID = GetElement(msGlobalCPID, ";", 0);
 	std::string sHash = GetRandHash().GetHex();
 	std::string sDCPK = GetDCCPublicKey(sCPID);
     std::string sMessage = sCPID + ";" + sHash + ";" + sDCPK;
@@ -4574,7 +4703,7 @@ bool SignCPID(std::string& sError, std::string& out_FullSig)
 }
 
 
-double GetSumOfXMLColumnFromXMLFile(std::string sFileName, std::string sElementName)
+double GetSumOfXMLColumnFromXMLFile(std::string sFileName, std::string sObjectName, std::string sElementName)
 {
 	boost::filesystem::path pathIn(sFileName);
     std::ifstream streamIn;
@@ -4583,28 +4712,66 @@ double GetSumOfXMLColumnFromXMLFile(std::string sFileName, std::string sElementN
 	double dTotal = 0;
 	std::string sLine = "";
 	std::string sBuffer = "";
-	double dTeamRequired = cdbl(GetSporkValue("team"),0);
-
+	double dTeamRequired = cdbl(GetSporkValue("team"), 0);
+	double dDRMode = cdbl(GetSporkValue("dr"), 0);
     while(std::getline(streamIn, sLine))
     {
 		sBuffer += sLine;
-		if (Contains(sBuffer, sElementName))
+	}
+	streamIn.close();
+   	std::vector<std::string> vRows = Split(sBuffer.c_str(), sObjectName);
+	for (int i = 0; i < (int)vRows.size(); i++)
+	{
+		std::string sData = vRows[i];
+		double dTeam = cdbl(ExtractXML(sData,"<teamid>","</teamid>"), 0);
+		double dUTXOWeight = cdbl(ExtractXML(sData,"<utxoweight>","</utxoweight>"), 0);
+		double dTaskWeight = cdbl(ExtractXML(sData,"<taskweight>","</taskweight>"), 0);
+		bool bTeamMatch = (dTeamRequired > 0) ? (dTeam == dTeamRequired) : true;
+		if (bTeamMatch)
 		{
-			double dTeam = cdbl(ExtractXML(sBuffer,"<teamid>","</teamid>"), 0);
-			bool bTeamMatch = (dTeamRequired > 0) ? (dTeam == dTeamRequired) : true;
-			if (bTeamMatch)
-			{
-				std::string sValue = ExtractXML(sLine, "<" + sElementName + ">","</" + sElementName + ">");
-				double dValue = cdbl(sValue,2);
-				dTotal += dValue;
-				sBuffer = "";
-			}
+			std::string sValue = ExtractXML(sData, "<" + sElementName + ">","</" + sElementName + ">");
+			double dAvgCredit = cdbl(sValue,2);
+			double dModifiedCredit = GetResearcherCredit(dDRMode, dAvgCredit, dUTXOWeight, dTaskWeight);
+			dTotal += dModifiedCredit;
+			//LogPrintf(" Adding %f from RAC of %f Grand Total %f \n", dModifiedCredit, dAvgCredit, dTotal);
 		}
     }
-	streamIn.close();
-    return dTotal;
+	return dTotal;
 }
 
+double GetResearcherCredit(double dDRMode, double dAvgCredit, double dUTXOWeight, double dTaskWeight)
+{
+
+	// Rob Andrews - BiblePay - 02-21-2018 - Add ability to run in distinct modes (via sporks):
+	// 0) Heavenly               = UTXOWeight * TaskWeight * RAC = Magnitude
+	// 1) Possessed by Tasks     = TaskWeight * RAC = Magnitude  
+	// 2) Possessed by UTXO      = UTXOWeight * RAC = Magnitude
+	// 3) The-Law                = RAC = Magnitude
+	// 4) DR (Disaster-Recovery) = Proof-Of-BibleHash Only (Heat Mining only)
+	double dModifiedCredit = 0;
+	if (dDRMode == 0)
+	{
+		dModifiedCredit = dAvgCredit * (dUTXOWeight/100) * (dTaskWeight/100);
+	}
+	else if (dDRMode == 1)
+	{
+		dModifiedCredit = dAvgCredit * (dUTXOWeight/100);
+	}
+	else if (dDRMode == 2)
+	{
+		dModifiedCredit = dAvgCredit * (dTaskWeight/100);
+	}
+	else if (dDRMode == 3)
+	{
+		dModifiedCredit = dAvgCredit;
+	}
+	else if (dDRMode == 4)
+	{
+		dModifiedCredit = 0;
+	}
+	return dModifiedCredit;
+}
+	
 
 bool FilterFile(int iBufferSize, std::string& sError)
 {
@@ -4624,6 +4791,7 @@ bool FilterFile(int iBufferSize, std::string& sError)
 	FILE *outFile = fopen(sFiltered.c_str(),"w");
     std::string sBuffer = "";
 	int iBuffer = 0;
+	int64_t nMaxAge = (60*60*24);
 
 	boost::filesystem::path pathIn(sTarget);
     std::ifstream streamIn;
@@ -4632,7 +4800,15 @@ bool FilterFile(int iBufferSize, std::string& sError)
 	std::string sConcatCPIDs = "";
 	for (int i = 0; i < (int)vCPIDs.size(); i++)
 	{
-		sConcatCPIDs += GetDCCElement(vCPIDs[i], 0) + ",";
+		std::string sCPID1 = GetDCCElement(vCPIDs[i], 0);
+		if (!sCPID1.empty())
+		{
+			sConcatCPIDs += sCPID1 + ",";
+			std::string sTaskList = ReadCacheWithMaxAge("CPIDTasks", sCPID1, nMaxAge);
+			double dVerifyTasks = VerifyTasks(sTaskList);
+			LogPrintf(" Verifying tasks %s for %s = %f ", sTaskList.c_str(), sCPID1.c_str(), dVerifyTasks);
+			WriteCache("TaskWeight", sCPID1, RoundToString(dVerifyTasks, 0), GetAdjustedTime());
+		}
 	}
 
 	boost::to_upper(sConcatCPIDs);
@@ -4666,7 +4842,13 @@ bool FilterFile(int iBufferSize, std::string& sError)
 							bool bAddlData = static_cast<bool>(std::getline(streamIn, line));
 							if (bAddlData) sBuffer += line + "<ROW>";
 						}
-						std::string sData = FilterBoincData(sBuffer, "<user>","</user>");
+
+						double dUTXOWeight = cdbl(ReadCacheWithMaxAge("UTXOWeight", sCpid, nMaxAge),0);
+						double dTaskWeight = cdbl(ReadCacheWithMaxAge("TaskWeight", sCpid, nMaxAge),0);
+						std::string sExtra = "<utxoweight>" + RoundToString(dUTXOWeight, 0) 
+							+ "</utxoweight>\r\n<taskweight>" 
+							+ RoundToString(dTaskWeight, 0) + "</taskweight>\r\n";
+						std::string sData = FilterBoincData(sBuffer, "<user>","</user>", sExtra);
 						sOutData += sData;
 						sBuffer = "";
 					}
@@ -4684,12 +4866,15 @@ bool FilterFile(int iBufferSize, std::string& sError)
 	//  Phase II : Normalize the file for Biblepay (this process asseses the magnitude of each BiblePay Researcher relative to one another, with 100 being the leader, 0 being a researcher with no activity)
 	//  We measure users by RAC - the BOINC Decay function: expavg_credit.  This is the half-life of the users cobblestone emission over a one month period.
 
-	double dTotalRAC = GetSumOfXMLColumnFromXMLFile(sFiltered, "expavg_credit");
-	if (dTotalRAC < 1)
+	double dTotalRAC = GetSumOfXMLColumnFromXMLFile(sFiltered, "<user>", "expavg_credit");
+	if (dTotalRAC < 10)
 	{
-		sError = "Total DCC credit less than one.  Unable to calculate magnitudes.";
+		sError = "Total DCC credit less than the project minimum.  Unable to calculate magnitudes.";
 		return false;
 	}
+
+	dTotalRAC += 100; // Ensure magnitude never exceeds 1000 due to rounding errors.
+
 	// Emit the BiblePay DCC Leaderboard file, and then stamp it with the Biblepay hash
 	// Leaderboard file format:  Biblepay-Public-Key-Compressed, DCC-CPID, DCC-Magnitude <rowdelimiter>
 	boost::filesystem::path pathFiltered(sFiltered);
@@ -4703,7 +4888,8 @@ bool FilterFile(int iBufferSize, std::string& sError)
 
 	std::string sUser = "";
 	std::string sDCC = "";
-	double dTeamRequired = cdbl(GetSporkValue("team"),0);
+	double dTeamRequired = cdbl(GetSporkValue("team"), 0);
+	double dDRMode = cdbl(GetSporkValue("dr"), 0);
 
     while(std::getline(streamFiltered, line))
     {
@@ -4711,15 +4897,19 @@ bool FilterFile(int iBufferSize, std::string& sError)
 		if (Contains(line, "</user>"))
 		{
 			std::string sCPID = ExtractXML(sUser,"<cpid>","</cpid>");
-			double dAvgCredit = cdbl(ExtractXML(sUser,"<expavg_credit>","</expavg_credit>"), 2);
+			double dAvgCredit = cdbl(ExtractXML(sUser,"<expavg_credit>","</expavg_credit>"), 4);
 			double dTeam = cdbl(ExtractXML(sUser,"<teamid>","</teamid>"), 0);
 			std::string sRosettaID = ExtractXML(sUser,"<id>","</id>");
+			double dUTXOWeight = cdbl(ReadCacheWithMaxAge("UTXOWeight", sCPID, nMaxAge),0);
+			double dTaskWeight = cdbl(ReadCacheWithMaxAge("TaskWeight", sCPID, nMaxAge),0);
+			double dModifiedCredit = GetResearcherCredit(dDRMode, dAvgCredit, dUTXOWeight, dTaskWeight);
 			bool bTeamMatch = (dTeamRequired > 0) ? (dTeam == dTeamRequired) : true;
 			if (bTeamMatch)
 			{
 				std::string BPK = GetDCCPublicKey(sCPID);
-				double dMagnitude = dAvgCredit / dTotalRAC * 1000;
-				std::string sRow = BPK + "," + sCPID + "," + RoundToString(dMagnitude,2) + "," + sRosettaID + "," + RoundToString(dTeam,0) + "<ROW>";
+				double dMagnitude = (dModifiedCredit / dTotalRAC) * 1000;
+				std::string sRow = BPK + "," + sCPID + "," + RoundToString(dMagnitude, 3) + "," + sRosettaID + "," + RoundToString(dTeam,0) 
+					+ "," + RoundToString(dUTXOWeight,0) + "," + RoundToString(dTaskWeight,0) + "," + RoundToString(dTotalRAC,0) + "\n<ROW>";
 				sDCC += sRow;
 				sUser = "";
 			}
@@ -4768,8 +4958,7 @@ bool FileExists2(std::string sPath)
 }
 
 
-
-std::string FilterBoincData(std::string sData, std::string sRootElement, std::string sEndElement)
+std::string FilterBoincData(std::string sData, std::string sRootElement, std::string sEndElement, std::string sExtra)
 {
 	std::vector<std::string> vRows = Split(sData.c_str(),"<ROW>");
 	std::string sOut = sRootElement + "\r\n";
@@ -4779,7 +4968,7 @@ std::string FilterBoincData(std::string sData, std::string sRootElement, std::st
 		std::string sLine = vRows[i];
 		if (sLine == sRootElement)
 		{
-			sOut += sEndElement + "\r\n";
+			sOut += sExtra + "\r\n" + sEndElement + "\r\n";
 			return sOut;
 		}
 		sOut += sLine + "\r\n";
@@ -4844,7 +5033,7 @@ std::string GetBoincHostsByUser(int iRosettaID, std::string sProjectId)
 {
     	std::string sProjectURL= "https://" + GetSporkValue(sProjectId);
 		std::string sRestfulURL = "rosetta/hosts_user.php?userid=" + RoundToString(iRosettaID, 0);
-		std::string sResponse = BiblepayHTTPSPost(0, "", "", "", sProjectURL, sRestfulURL, 443, "", 25, 95000, true);
+		std::string sResponse = BiblepayHTTPSPost(0, "", "", "", sProjectURL, sRestfulURL, 443, "", 25, 95000, 1);
 		std::vector<std::string> vRows = Split(sResponse.c_str(), "<tr");
 		std::string sOut = "";
         for (int j = 1; j < (int)vRows.size(); j++)
@@ -4871,7 +5060,7 @@ std::string GetBoincTasksByHost(int iHostID, std::string sProjectId)
     {
 		std::string sProjectURL= "https://" + GetSporkValue(sProjectId);
 		std::string sRestfulURL = "rosetta/results.php?hostid=" + RoundToString(iHostID, 0) + "&offset=" + RoundToString(i,0) + "&show_names=0&state=1&appid=";
-		std::string sResponse = BiblepayHTTPSPost(0, "", "", "", sProjectURL, sRestfulURL, 443, "", 25, 95000, true);
+		std::string sResponse = BiblepayHTTPSPost(0, "", "", "", sProjectURL, sRestfulURL, 443, "", 25, 95000, 1);
        	std::vector<std::string> vRows = Split(sResponse.c_str(), "<tr");
 	    for (int j = 1; j < (int)vRows.size(); j++)
         {
@@ -4898,20 +5087,30 @@ std::string GetBoincTasksByHost(int iHostID, std::string sProjectId)
    return sOut;
 }
 
+double GetSporkDouble(std::string sName, double nDefault)
+{
+	double dSetting = cdbl(GetSporkValue(sName), 2);
+	if (dSetting == 0) return nDefault;
+	return dSetting;
+}
+			
 bool PODCUpdate()
 {
+	if (!fDistributedComputingEnabled) return false;
 
-	return false;
 	std::vector<std::string> vCPIDS = Split(msGlobalCPID.c_str(),";");
 	int64_t iMaxSeconds = 60 * 24 * 30 * 12 * 60;
-	std::string sOutstanding = "";
 	for (int i = 0; i < (int)vCPIDS.size(); i++)
 	{
 		std::string s1 = vCPIDS[i];
+
 		if (!s1.empty())
 		{
 			std::string sData = RetrieveDCCWithMaxAge(s1, iMaxSeconds);
-			if (!sData.empty())
+			std::string sAddress = GetDCCElement(sData, 1);
+			std::string sOutstanding = "";
+
+			if (!sData.empty() && !sAddress.empty())
 			{
 				std::string sUserId = GetDCCElement(sData, 3);
 				int nUserId = cdbl(sUserId, 0);
@@ -4932,27 +5131,61 @@ bool PODCUpdate()
 							{
 								std::string sTaskID = vEquals[0];
 								std::string sTimestamp = vEquals[1];
-								std::string sTaskStartTime = ReadCache("dcc_start_time", sTaskID);
-								if (sTaskStartTime.empty())
+								// std::string sTaskStartTime = ReadCache("podc_start_time", sTaskID);
+								if (cdbl(sTimestamp,0) > 0 && cdbl(sTaskID,0) > 0)
 								{
 									// Biblepay network does not know this device started this task, add this to the UTXO transaction
 									sOutstanding += sTaskID + "=" + sTimestamp + ",";
-									WriteCache("dcc_start_time", sTaskID, sTimestamp, cdbl(sTimestamp,0));
+									// WriteCache("podc_start_time", sTaskID, sTimestamp, cdbl(sTimestamp,0));
 								}
 							}
 						}
 					}
 				}
 			}
+
+			if (!sOutstanding.empty())
+			{
+				sOutstanding = ChopLast(sOutstanding);
+				// Create PODC UTXO Transaction - R Andrews - 02-20-2018 - These tasks will be checked on the Sanctuary side, to ensure they were started at this time.  
+				// If so, the UTXO COINAMOUNT * AGE * RAC will be rewarded for this task.
+				double nMinimumChatterAge = GetSporkDouble("podcminimumchatterage", (60 * 60 *4));
+				std::string sCurrentState = ReadCacheWithMaxAge("CPIDTasks", s1, nMinimumChatterAge);
+				double nMaximumChatterAge = GetSporkDouble("podmaximumchatterage", (60 * 60 * 24));
+				std::string sOldState = ReadCacheWithMaxAge("CPIDTasks", s1, nMaximumChatterAge);
+				
+				bool bFresh = (sOldState == sOutstanding || sOutstanding == sCurrentState || (!sCurrentState.empty()));
+				if (!bFresh)
+				{
+					double dProofOfLoyaltyPercentage = cdbl(GetArg("-polpercentage", "5"), 2) / 100;
+					CAmount curBalance = pwalletMain->GetUnlockedBalance();
+					CAmount nTargetValue = curBalance * dProofOfLoyaltyPercentage;
+					if (nTargetValue < 1)
+					{
+						LogPrintf("\n PODCUpdate::Unable to create PODC UTXO::Balance too low. \n");
+						return false;
+					}
+					std::string sError = "";
+					std::string sFullSig = "";
+					// Sign
+					bool fSigned = SignCPID(s1, sError, sFullSig);
+					if (!fSigned)
+					{
+						LogPrintf("\n PODCUpdate::Failed to Sign CPID Signature.  %s ",sError.c_str());
+						return false;
+					}
+					std::string sXML = "<PODC_TASKS>" + sOutstanding + "</PODC_TASKS>" + sFullSig;
+					AddBlockchainMessages(sAddress, "PODC_UPDATE", s1, sXML, nTargetValue, sError);
+					if (!sError.empty())
+					{
+						LogPrintf("\n PODCUpdate::Error: %s \n", sError.c_str());
+						return false;
+					}
+					LogPrintf("\n PODCUpdate::Signed UTXO: %s ", sXML.c_str());
+					WriteCache("CPIDTasks", s1, sOutstanding, GetAdjustedTime());
+				}
+			}
 		}
-	}
-	if (!sOutstanding.empty())
-	{
-		sOutstanding = ChopLast(sOutstanding);
-		// Create PODC UTXO Transaction
-		std::string sXML = "<PODC_TASKS>" + sOutstanding + "</PODC_TASKS>";
-		// These tasks will be checked on the Sanctuary side, to ensure they were started at this time.  If so, the UTXO COIN*AGE*RAC will be rewarded for this task.
-		
 	}
 	return true;
 }

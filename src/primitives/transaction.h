@@ -13,6 +13,7 @@
 
 
 std::string ExtractXML(std::string XMLdata, std::string key, std::string key_end);
+bool Contains(std::string data, std::string instring);
 
 /** An outpoint - a combination of a transaction hash and an index n into its vout */
 class COutPoint
@@ -154,7 +155,8 @@ public:
     inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
         READWRITE(nValue);
         READWRITE(*(CScriptBase*)(&scriptPubKey));
-		READWRITE(LIMITED_STRING(sTxOutMessage,1000));
+		// R Andrews - Biblepay - Reserve space for Researcher Tasks
+		READWRITE(LIMITED_STRING(sTxOutMessage, 3000));
     }
 
     void SetNull()
@@ -295,6 +297,16 @@ public:
 		{
 			std::string sWeight = ExtractXML(vout[1].sTxOutMessage,"<polweight>","</polweight>");
 			if (!sWeight.empty()) return true;
+		}
+		return false;
+	}
+
+	bool IsPODCUpdate() const
+	{
+		if (vout.size() > 1)
+		{
+			// if (vout[0].sTxOutMessage.find("<PODC_TASKS>" != std::string::npos) return true;
+			if (Contains(vout[0].sTxOutMessage,"<PODC_TASKS>")) return true;
 		}
 		return false;
 	}

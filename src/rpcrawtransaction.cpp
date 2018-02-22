@@ -108,6 +108,9 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
 		    in.push_back(Pair("coinbase", HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
 			if (tx.IsProofOfLoyalty())
 		        in.push_back(Pair("proof-of-loyalty", HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
+			if (tx.IsPODCUpdate())
+				in.push_back(Pair("podc-update", HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
+
 		}
 		else
 		{

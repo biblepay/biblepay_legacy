@@ -231,6 +231,8 @@ extern int64_t nBibleMinerPulse;
 extern int64_t SANCTUARY_COLLATERAL;
 extern int64_t TEMPLE_COLLATERAL;
 extern int64_t MAX_BLOCK_SUBSIDY;
+extern int64_t MAX_MESSAGE_LENGTH;
+
 extern bool fProd;
 extern bool fMineSlow;
 

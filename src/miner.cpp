@@ -62,15 +62,16 @@ std::string TimestampToHRDate(double dtm);
 void GetMiningParams(int nPrevHeight, bool& f7000, bool& f8000, bool& f9000, bool& fTitheBlocksActive);
 bool CheckNonce(bool f9000, unsigned int nNonce, int nPrevHeight, int64_t nPrevBlockTime, int64_t nBlockTime);
 std::string BiblepayHTTPSPost(int iThreadID, std::string sActionName, std::string sDistinctUser, std::string sPayload, std::string sBaseURL, std::string sPage, int iPort,
-	std::string sSolution, int iTimeoutSecs, int iMaxSize, bool fBreakOnError = false);
+	std::string sSolution, int iTimeoutSecs, int iMaxSize, int iBreakOnError = 0);
 CTransaction CreateCoinStake(CBlockIndex* pindexLast, CScript scriptCoinstakeKey, double dPercent, int iMinConfirms, std::string& sXML, std::string& sError);
 double GetStakeWeight(CTransaction tx, int64_t nTipTime, std::string sXML, bool bVerifySignature, std::string& sMetrics, std::string& sError);
 uint256 PercentToBigIntBase(int iPercent);
 int64_t GetStakeTargetModifierPercent(int nHeight, double nWeight);
 bool IsStakeSigned(std::string sXML);
-bool SignCPID(std::string& sError, std::string& out_FullSig);
+bool SignCPID(std::string sCPID, std::string& sError, std::string& out_FullSig);
 bool VerifyCPIDSignature(std::string sFullSig, bool bRequireEndToEndVerification, std::string& sError);
 bool PODCUpdate();
+std::string GetSporkValue(std::string sKey);
 
 
 class ScoreCompare
@@ -374,7 +375,7 @@ CBlockTemplate* CreateNewBlock(const CChainParams& chainparams, const CScript& s
 			// 2-8-2018 Rob A. - Biblepay
 			std::string sErr2 = "";
 			std::string sFullSig = "";
-			bool fSigned = SignCPID(sErr2, sFullSig);
+			bool fSigned = SignCPID("", sErr2, sFullSig);
 			if (!fSigned)
 			{
 				LogPrintf("\n Failed to Sign CPID Signature.  %s ",sErr2);
@@ -731,16 +732,19 @@ std::string GetPoolMiningNarr(std::string sPoolAddress)
 
 void static BibleMiner(const CChainParams& chainparams, int iThreadID, int iFeatureSet)
 {
-	// September 17, 2017 - Robert Andrew (BiblePay)
+	// 2-21-2018 - Robert A. (BiblePay)
 
 	LogPrintf("BibleMiner -- started thread %f \n",(double)iThreadID);
     unsigned int iBibleMinerCount = 0;
 	int64_t nThreadStart = GetTimeMillis();
-	int64_t nLastPODCUpdate = GetAdjustedTime() - (60*60*7.5);
+	int64_t nLastPODCUpdate = GetAdjustedTime();
 	int64_t nThreadWork = 0;
 	int64_t nLastReadyToMine = GetAdjustedTime() - 480;
 	int64_t nLastClearCache = GetAdjustedTime() - 480;
 	int64_t nLastShareSubmitted = GetAdjustedTime() - 480;
+	int64_t nPODCUpdateFrequency = cdbl(GetSporkValue("podcupdatefrequency"),0);
+	if (nPODCUpdateFrequency < (60 * 30)) nPODCUpdateFrequency = (60 * 30);
+
 	int iFailCount = 0;
 	bool fFullSpeed = fDistributedComputingEnabled ? GetArg("-fullspeed", "false") == "true" : true;  // Default to True when DistributedComputing is Disabled, Default to False when PODC is Enabled (This will let Rosetta use the maximum CPU time)
 			
@@ -815,8 +819,10 @@ recover:
 			competetiveMiningTithe = 0;
 			// Proof-Of-Distributed-Computing - Once every 8 hours, Prove tasks being worked by all CPIDs - Robert A. - Biblepay - 2-20-2018
 			int64_t nPODCUpdateAge = GetAdjustedTime() - nLastPODCUpdate;
-			if (fDistributedComputingEnabled && iThreadID == 0 && (nPODCUpdateAge > (60*60*8)) && !msGlobalCPID.empty())
+
+			if (fDistributedComputingEnabled && iThreadID == 0 && (nPODCUpdateAge > (nPODCUpdateFrequency)) && !msGlobalCPID.empty())
 			{
+				nLastPODCUpdate = GetAdjustedTime();
 				PODCUpdate();
 			}
 
@@ -940,7 +946,7 @@ recover:
 					
 					if ((pblock->nNonce & 0xFF) == 0)
 					{
-						if (!fFullSpeed) MilliSleep(100);  // In PODC mode, sleep for 100ms by default every 2 seconds, this yields 99% processing power to Rosetta
+						if (!fFullSpeed) MilliSleep(200);  // In PODC mode, sleep for 100ms by default every 2 seconds, this yields 99% processing power to Rosetta
 						bool fNonce = CheckNonce(f9000, pblock->nNonce, pindexPrev->nHeight, pindexPrev->nTime, pblock->GetBlockTime());
 						if (fNonce) nHashCounterGood += 0xFF;
 						if (!fNonce)
