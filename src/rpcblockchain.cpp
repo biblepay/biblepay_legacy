@@ -349,9 +349,7 @@ bool AmIMasternode()
 int GetRequiredQuorumLevel(int nHeight)
 {
 	// This is an anti-ddos feature that prevents ddossing the distributed computing grid
-
-	// REQUIREDQUORUM = X
-
+	// REQUIREDQUORUM = X - Testnet Phase 3 change
 	int iSanctuaryQuorumLevel = fProd ? .10 : .02;
 	int iRequiredVotes = GetSanctuaryCount() * iSanctuaryQuorumLevel;
 	if (fProd && iRequiredVotes < 3) iRequiredVotes = 3;
@@ -372,8 +370,8 @@ std::string GetBoincAuthenticator(std::string sProjectID, std::string sProjectEm
 	std::string sArgs = "?email_addr=" + sProjectEmail + "&passwd_hash=" + sPasswordHash + "&get_opaque_auth=1";
 	std::string sURL = sProjectURL + sRestfulURL + sArgs;
 	std::string sUser = sProjectEmail;
-	std::string sResponse = BiblepayHTTPSPost(0, "", sUser, "", sProjectURL, sRestfulURL + sArgs, 443, "", 20, 5000, 1);
-	LogPrint("boinc", "BoincResponse %s \n",sResponse.c_str());
+	std::string sResponse = BiblepayHTTPSPost(0, "", sUser, "", sProjectURL, sRestfulURL + sArgs, 443, "", 20, 25000, 1);
+	if (false) LogPrintf("BoincResponse %s %s \n", sProjectURL + sRestfulURL, sResponse.c_str());
 	std::string sAuthenticator = ExtractXML(sResponse, "<authenticator>","</authenticator>");
 	return sAuthenticator;
 }
@@ -393,8 +391,8 @@ int GetBoincResearcherUserId(std::string sProjectId, std::string sAuthenticator)
 {
 		std::string sProjectURL= "https://" + GetSporkValue(sProjectId);
 		std::string sRestfulURL = "am_get_info.php?account_key=" + sAuthenticator;
-		std::string sResponse = BiblepayHTTPSPost(0, "", "", "", sProjectURL, sRestfulURL, 443, "", 20, 5000, 1);
-		if (false) LogPrint("boinc","BoincResponse %s \n",sResponse.c_str());
+		std::string sResponse = BiblepayHTTPSPost(0, "", "", "", sProjectURL, sRestfulURL, 443, "", 20, 25000, 1);
+		if (false) LogPrintf("BoincResponse %s %s \n",sProjectURL + sRestfulURL, sResponse.c_str());
 		int nId = cdbl(ExtractXML(sResponse, "<id>","</id>"),0);
 		return nId;
 }
@@ -404,7 +402,7 @@ std::string GetBoincResearcherHexCodeAndCPID(std::string sProjectId, int nUserId
 	 	std::string sProjectURL = "http://" + GetSporkValue(sProjectId);
 		std::string sRestfulURL = "show_user.php?userid=" + RoundToString(nUserId,0) + "&format=xml";
 		std::string sResponse = BiblepayHTTPSPost(0, "", "", "", sProjectURL, sRestfulURL, 443, "", 20, 5000, 1);
-		if (false) LogPrintf("GetBoincResearcherHexCodeAndCPID::url %s, rest %s, User %f , BoincResponse %s \n",sProjectURL.c_str(), sRestfulURL.c_str(), (double)nUserId, sResponse.c_str());
+		if (false) LogPrintf("GetBoincResearcherHexCodeAndCPID::url     %s%s       , User %f , BoincResponse %s \n",sProjectURL.c_str(), sRestfulURL.c_str(), (double)nUserId, sResponse.c_str());
 		std::string sHexCode = ExtractXML(sResponse, "<url>","</url>");
 		sHexCode = strReplace(sHexCode,"http://","");
 		sHexCode = strReplace(sHexCode,"https://","");
@@ -416,9 +414,7 @@ std::string VerifyManyWorkUnits(std::string sProjectId, std::string sTaskIds)
 {
  	std::string sProjectURL = "http://" + GetSporkValue(sProjectId);
 	std::string sRestfulURL = "rosetta/result_status.php?ids=" + sTaskIds;
-	// LogPrintf(" \n Requesting %f ",(double)GetAdjustedTime());
 	std::string sResponse = BiblepayHTTPSPost(0, "", "", "", sProjectURL, sRestfulURL, 443, "", 15, 275000, 2);
-	// LogPrintf(" \n Finished %f ",(double)GetAdjustedTime());
 	return sResponse;
 }
 
@@ -455,7 +451,7 @@ std::string SetBoincResearcherHexCode(std::string sProjectId, std::string sAuthC
 	 	std::string sProjectURL = "https://" + GetSporkValue(sProjectId);
 		std::string sRestfulURL = "am_set_info.php?account_key=" + sAuthCode + "&url=" + sHexKey;
 		std::string sResponse = BiblepayHTTPSPost(0, "", "", "", sProjectURL, sRestfulURL, 443, "", 20, 5000, 1);
-		LogPrint("boinc","SetBoincResearcherHexCode::BoincResponse %s \n",sResponse.c_str());
+		if (fDebugMaster) LogPrint("boinc","SetBoincResearcherHexCode::BoincResponse %s \n",sResponse.c_str());
 		std::string sHexCode = ExtractXML(sResponse, "<url>","</url>");
 		return sHexCode;
 }

@@ -3231,7 +3231,11 @@ std::string BiblepayHTTPSPost(int iThreadID, std::string sActionName, std::strin
 				if (sData.find("Content-Length:") != string::npos)
 				{
 					double dMaxSize = cdbl(ExtractXML(sData,"Content-Length: ","\n"),0);
-					if (dMaxSize > 0) iMaxSize = dMaxSize;
+					std::size_t foundPos = sData.find("Content-Length:");
+					if (dMaxSize > 0)
+					{
+						iMaxSize = dMaxSize + (int)foundPos + 16;
+					}
 				}
 				if ((int)sData.size() >= (iMaxSize-1)) break;
 			}
