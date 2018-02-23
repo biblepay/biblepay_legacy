@@ -4539,7 +4539,7 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIn
 	}
 
 
-	// Rob A. - Biblepay - 2/8/2018 - Contextual check CPID signature on each block to prevent botnet from forming
+	// Rob A. - Biblepay - 2/8/2018 - Contextual check CPID signature on each block to prevent botnet from forming - Testnet level 2
 	if (fDistributedComputingEnabled && nHeight > 9999)
 	{
 		int64_t nHeaderAge = GetAdjustedTime() - pindexPrev->nTime;
@@ -4618,7 +4618,7 @@ static bool AcceptBlockHeader(const CBlockHeader& block, CValidationState& state
         if (mi != mapBlockIndex.end()) pindexAncestor = (*mi).second;
 	    
         if (mi == mapBlockIndex.end())
-            return state.DoS(10, error("%s: prev block not found", __func__), 0, "bad-prevblk");
+            return state.DoS(21, error("%s: prev block not found", __func__), 0, "bad-prevblk");
 	
 		// R Andrews - Biblepay - 02/20/2018 : Process ended with SIG11 Access not within a mapped region (pindexAncestor->nStatus)
 		if (!pindexAncestor)
@@ -4634,7 +4634,11 @@ static bool AcceptBlockHeader(const CBlockHeader& block, CValidationState& state
 		if (!CheckBlockHeader(block, state, true, block.GetBlockTime(), pindexAncestor ? pindexAncestor->nTime : 0, pindexAncestor ? pindexAncestor->nHeight : 0, pindexAncestor))
             return false;
 	
-        assert(pindexAncestor);
+		// assert(pindexAncestor);  Rob A. Why crash the node here?
+		if (pindexAncestor==NULL)
+		{
+			LogPrintf(" PindexAncestor = NULL \n" );
+		}
         if (fCheckpointsEnabled && !CheckIndexAgainstCheckpoint(pindexAncestor, state, chainparams, hash))
             return error("%s: CheckIndexAgainstCheckpoint(): %s", __func__, state.GetRejectReason().c_str());
 

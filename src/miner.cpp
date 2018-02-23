@@ -388,10 +388,7 @@ CBlockTemplate* CreateNewBlock(const CChainParams& chainparams, const CScript& s
 			}
 
 			txNew.vout[0].sTxOutMessage += sFullSig;
-			// LogPrintf(" CNB-CPIDSIG %s ", sFullSig.c_str());
-
 		}
-    
 		if (!sMinerGuid.empty())
 		{
 			txNew.vout[0].sTxOutMessage += "<MINERGUID>" + sMinerGuid + "</MINERGUID>";
@@ -729,10 +726,22 @@ std::string GetPoolMiningNarr(std::string sPoolAddress)
 	}
 }
 
+void SetMinerThreadPriority(double dMinerSleepLevel)
+{
+	if (dMinerSleepLevel == 0)
+	{
+		SetThreadPriority(THREAD_PRIORITY_ABOVE_NORMAL);
+	}
+	else
+	{
+		SetThreadPriority(THREAD_PRIORITY_LOWEST);
+	}
+     		
+}
 
 void static BibleMiner(const CChainParams& chainparams, int iThreadID, int iFeatureSet)
 {
-	// 2-21-2018 - Robert A. (BiblePay)
+	// 2-23-2018 - Robert A. (BiblePay)
 
 	LogPrintf("BibleMiner -- started thread %f \n",(double)iThreadID);
     unsigned int iBibleMinerCount = 0;
@@ -746,8 +755,11 @@ void static BibleMiner(const CChainParams& chainparams, int iThreadID, int iFeat
 	if (nPODCUpdateFrequency < (60 * 30)) nPODCUpdateFrequency = (60 * 30);
 
 	int iFailCount = 0;
-	bool fFullSpeed = fDistributedComputingEnabled ? GetArg("-fullspeed", "false") == "true" : true;  // Default to True when DistributedComputing is Disabled, Default to False when PODC is Enabled (This will let Rosetta use the maximum CPU time)
-			
+	// This allows the miner to dictate how much sleep will occur when distributed computing is enabled.  This will let Rosetta use the maximum CPU time.  NOTE: The default is 200ms per 256 hashes.
+	double dMinerSleep = cdbl(GetArg("-minersleep", fDistributedComputingEnabled ? "150" : "0"),0);
+	unsigned int nNonceBreak = (dMinerSleep > 0) ? 0xD1 : 0xFF;
+	unsigned int nNonceBreakLarge = (dMinerSleep > 0) ? 0xFFF : 0x4FFF;
+	
     CAmount competetiveMiningTithe = 0;
 recover:
 	int iStart = rand() % 1000;
@@ -815,7 +827,7 @@ recover:
             unsigned int nTransactionsUpdatedLast = mempool.GetTransactionsUpdated();
             CBlockIndex* pindexPrev = chainActive.Tip();
             if(!pindexPrev) break;
-			double dProofOfLoyaltyPercentage = cdbl(GetArg("-polpercentage", "10"),2) / 100;
+			double dProofOfLoyaltyPercentage = cdbl(GetArg("-polpercentage", "10"), 2) / 100;
 			competetiveMiningTithe = 0;
 			// Proof-Of-Distributed-Computing - Once every 8 hours, Prove tasks being worked by all CPIDs - Robert A. - Biblepay - 2-20-2018
 			int64_t nPODCUpdateAge = GetAdjustedTime() - nLastPODCUpdate;
@@ -836,7 +848,6 @@ recover:
 				nHashCounter += 1;
 				MilliSleep(700);
 				dHashesPerSec = 1000.0 * nHashCounter / (GetTimeMillis() - nHPSTimerStart);
-			
 				goto recover;
             }
             CBlock *pblock = &pblocktemplate->block;
@@ -881,9 +892,8 @@ recover:
 			bool f9000;
 			bool fTitheBlocksActive;
 			GetMiningParams(pindexPrev->nHeight, f7000, f8000, f9000, fTitheBlocksActive);
+			SetMinerThreadPriority(dMinerSleep);
 
-			SetThreadPriority(THREAD_PRIORITY_ABOVE_NORMAL);
-     		
 		    while (true)
             {
 			    while (true)
@@ -913,7 +923,7 @@ recover:
 									hashTargetPool = UintToArith256(uint256S("0x0"));
 									nThreadStart = GetTimeMillis();
 									nThreadWork = 0;
-									SetThreadPriority(THREAD_PRIORITY_ABOVE_NORMAL);
+									SetMinerThreadPriority(dMinerSleep);
 									break;
      							}
 							}
@@ -928,7 +938,6 @@ recover:
 							// Found a solution
 							SetThreadPriority(THREAD_PRIORITY_NORMAL);
 							ProcessBlockFound(pblock, chainparams);
-							SetThreadPriority(THREAD_PRIORITY_LOWEST);
 							coinbaseScript->KeepScript();
 							// In regression test mode, stop mining after a block is found. This
 							// allows developers to controllably generate a block on demand.
@@ -940,13 +949,8 @@ recover:
 						
 					pblock->nNonce += 1;
 			
-					// 0x4FFF is approximately 20 seconds, then we update hashmeter
-					if ((pblock->nNonce & 0x4FFF) == 0)
-						break;
-					
-					if ((pblock->nNonce & 0xFF) == 0)
+					if ((pblock->nNonce & nNonceBreak) == 0)
 					{
-						if (!fFullSpeed) MilliSleep(200);  // In PODC mode, sleep for 100ms by default every 2 seconds, this yields 99% processing power to Rosetta
 						bool fNonce = CheckNonce(f9000, pblock->nNonce, pindexPrev->nHeight, pindexPrev->nTime, pblock->GetBlockTime());
 						if (fNonce) nHashCounterGood += 0xFF;
 						if (!fNonce)
@@ -956,8 +960,17 @@ recover:
 							caGlobalCompetetiveMiningTithe += 1;
 							break;
 						}
-
+						if (dMinerSleep > 0) 
+						{
+							MilliSleep(dMinerSleep);  // In PODC mode, sleep for 200ms by default every few seconds, this yields 99% processing power to Rosetta
+							break;
+						}
 					}
+				
+					// 0x4FFF is approximately 20 seconds, then we update hashmeter
+					if ((pblock->nNonce & nNonceBreakLarge) == 0)
+						break;
+				
                 }
 				//
 				if (competetiveMiningTithe > (5 * COIN)) competetiveMiningTithe = 0;

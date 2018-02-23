@@ -172,6 +172,8 @@ double VerifyTasks(std::string sTasks);
 extern std::string VerifyManyWorkUnits(std::string sProjectId, std::string sTaskIds);
 extern std::string ChopLast(std::string sMyChop);
 extern double GetResearcherCredit(double dDRMode, double dAvgCredit, double dUTXOWeight, double dTaskWeight);
+extern std::string GetBoincUnbankedReport(std::string sProjectID);
+
 
 double GetDifficultyN(const CBlockIndex* blockindex, double N)
 {
@@ -354,7 +356,7 @@ int GetRequiredQuorumLevel(int nHeight)
 	int iRequiredVotes = GetSanctuaryCount() * iSanctuaryQuorumLevel;
 	if (fProd && iRequiredVotes < 3) iRequiredVotes = 3;
 	if (!fProd && iRequiredVotes < 2) iRequiredVotes = 2;
-	if (!fProd && nHeight < 7000) iRequiredVotes = 1;
+	if (!fProd && nHeight < 7000) iRequiredVotes = 1; // Testnet Level 1
 	return iRequiredVotes;
 }
 
@@ -374,6 +376,17 @@ std::string GetBoincAuthenticator(std::string sProjectID, std::string sProjectEm
 	LogPrint("boinc", "BoincResponse %s \n",sResponse.c_str());
 	std::string sAuthenticator = ExtractXML(sResponse, "<authenticator>","</authenticator>");
 	return sAuthenticator;
+}
+
+std::string GetBoincUnbankedReport(std::string sProjectID)
+{
+	std::string sProjectURL = "https://" + GetSporkValue(sProjectID);
+	std::string sRestfulURL = "Action.aspx";
+	std::string sArgs = "?action=unbanked";
+	std::string sURL = sProjectURL + sRestfulURL + sArgs;
+	std::string sResponse = BiblepayHTTPSPost(0, "", sProjectID, "", sProjectURL, sRestfulURL + sArgs, 443, "", 20, 25000, 1);
+	std::string sUnbanked = ExtractXML(sResponse, "<UNBANKED>","</UNBANKED>");
+	return sUnbanked;
 }
 
 int GetBoincResearcherUserId(std::string sProjectId, std::string sAuthenticator)
@@ -3867,13 +3880,17 @@ UniValue exec(const UniValue& params, bool fHelp)
 		UniValue aDataList = GetDataList(sType, (int)dDays, iSpecificEntry, sEntry);
 		return aDataList;
 	}
+	else if (sItem == "unbanked")
+	{
+		std::string sUnbanked = GetBoincUnbankedReport("pool");
+		results.push_back(Pair("Unbanked", sUnbanked));
+	}
 	else if (sItem == "leaderboard")
 	{
 		const Consensus::Params& consensusParams = Params().GetConsensus();
 		int nLastDCHeight = GetLastDCSuperblockWithPayment(chainActive.Tip()->nHeight);
 		UniValue aDataList = GetLeaderboard(nLastDCHeight);
 		return aDataList;
-
 	}
 	else if (sItem == "clearcache")
 	{
@@ -5137,6 +5154,7 @@ bool PODCUpdate()
 									// Biblepay network does not know this device started this task, add this to the UTXO transaction
 									sOutstanding += sTaskID + "=" + sTimestamp + ",";
 									// WriteCache("podc_start_time", sTaskID, sTimestamp, cdbl(sTimestamp,0));
+									if (sOutstanding.length() > 35000) break; // Don't let them blow up the blocksize
 								}
 							}
 						}
