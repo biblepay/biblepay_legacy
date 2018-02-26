@@ -177,6 +177,7 @@ void PurgeCacheAsOfExpiration(std::string sSection, int64_t nExpiration);
 extern void ClearSanctuaryMemories();
 extern double GetTaskWeight(std::string sCPID);
 extern double GetUTXOWeight(std::string sCPID);
+extern double BoincDecayFunction(double AgeInDays, double TotalRAC);
 
 
 
@@ -198,6 +199,17 @@ double GetDifficultyN(const CBlockIndex* blockindex, double N)
 		return GetDifficulty(blockindex)*N;
 	}
 }
+
+double BoincDecayFunction(double AgeInDays, double TotalRAC)
+{
+	// Rob Andrews - 2/26/2018 - The Boinc Decay function decays a researchers total credit by the Linear Regression constant (.69314) (divided by 7 (half of its half life) * One Exponent (^2.71) 
+	// Meaning that each fortnight of non activity, the dormant RAC will half.
+	// Decay Function Algorithm:  Decay = 2.71 ^ (-1 * AgeInDays * (LinearRegressionConstant(.69314) / 7))  * TotalRAC
+	double LN2 = 0.69314; // Used in BOINC
+	double Decay = (pow(2.71, (-1 * AgeInDays * (LN2 / 7)))) * TotalRAC;
+	return Decay;
+}
+
 
 uint256 PercentToBigIntBase(int iPercent)
 {
@@ -3887,6 +3899,22 @@ UniValue exec(const UniValue& params, bool fHelp)
 		results.push_back(Pair("Last Superblock Payment", dLastPayment));
 		results.push_back(Pair("Magnitude (One-Day)", mnMagnitudeOneDay));
 		results.push_back(Pair("Magnitude (One-Week)", nMagnitude));
+	}
+	else if (sItem == "racdecay")
+	{
+		double Credit[100];
+		double MachineCredit = 110;
+		if (params.size() == 2) MachineCredit = cdbl(params[1].get_str(), 0);
+		for (int iDay = 1; iDay <= 31; iDay++)
+		{
+			Credit[iDay] = MachineCredit;
+			double TotalCredit = 0;
+			for (int iDayNumber = 1; iDayNumber <= iDay; iDayNumber++)
+			{
+				TotalCredit += BoincDecayFunction(iDayNumber, Credit[iDayNumber]);
+			}
+			results.push_back(Pair("Day " + RoundToString(iDay,0) + "(" + RoundToString(Credit[iDay],0) + ")", TotalCredit));
+		}
 	}
 	else if (sItem == "datalist")
 	{
