@@ -197,6 +197,8 @@ extern double GetMagnitude(std::string sCPID);
 bool AmIMasternode();
 std::string GetWorkUnitResultElement(std::string sProjectId, int nWorkUnitID, std::string sElement);
 extern double VerifyTasks(std::string sTasks);
+extern void PurgeCacheAsOfExpiration(std::string sSection, int64_t nExpiration);
+
 
 
 bool fImporting = false;
@@ -217,11 +219,10 @@ std::string msGlobalStatus = "";
 std::string msGlobalStatus2 = "";
 std::string msGlobalStatus3 = "";
 double mnMagnitude = 0;
+double mnMagnitudeOneDay = 0;
 std::string msGlobalCPID = "";
 
-
 CBlock cblockGenesis;
-
 uint64_t nPruneTarget = 0;
 bool fAlerts = DEFAULT_ALERTS;
 bool fEnableReplacement = DEFAULT_ENABLE_REPLACEMENT;
@@ -4508,7 +4509,7 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIn
 		std::string sBlockVersion = ExtractXML(block.vtx[0].vout[0].sTxOutMessage,"<VER>","</VER>");
 		sBlockVersion = strReplace(sBlockVersion, ".", "");
 		double dBlockVersion = cdbl(sBlockVersion, 0);
-		if (!fProd && nHeight > 1000 && dBlockVersion < 1093)
+		if (!fProd && nHeight > 1000 && dBlockVersion < 1095)
 		{
 			 LogPrintf("ContextualCheckBlock::ERROR Rejecting block version %f at height %f \n",(double)dBlockVersion,(double)nHeight);
 			 return false;
@@ -4621,11 +4622,10 @@ static bool AcceptBlockHeader(const CBlockHeader& block, CValidationState& state
             return state.DoS(21, error("%s: prev block not found", __func__), 0, "bad-prevblk");
 	
 		// R Andrews - Biblepay - 02/20/2018 : Process ended with SIG11 Access not within a mapped region (pindexAncestor->nStatus)
-		if (!pindexAncestor)
+		if (!pindexAncestor || pindexAncestor==NULL)
 		{
-			LogPrintf("Block has no ancestor. \n");
-            return false;
-		}
+			return state.Invalid(error("Block has no ancestor. \n"));
+        }
 
         if (pindexAncestor->nStatus & BLOCK_FAILED_MASK)
             return state.DoS(100, error("%s: prev block invalid", __func__), REJECT_INVALID, "bad-prevblk");
@@ -4634,16 +4634,11 @@ static bool AcceptBlockHeader(const CBlockHeader& block, CValidationState& state
 		if (!CheckBlockHeader(block, state, true, block.GetBlockTime(), pindexAncestor ? pindexAncestor->nTime : 0, pindexAncestor ? pindexAncestor->nHeight : 0, pindexAncestor))
             return false;
 	
-		// assert(pindexAncestor);  Rob A. Why crash the node here?
-		if (pindexAncestor==NULL)
-		{
-			LogPrintf(" PindexAncestor = NULL \n" );
-		}
-        if (fCheckpointsEnabled && !CheckIndexAgainstCheckpoint(pindexAncestor, state, chainparams, hash))
+		if (fCheckpointsEnabled && !CheckIndexAgainstCheckpoint(pindexAncestor, state, chainparams, hash))
             return error("%s: CheckIndexAgainstCheckpoint(): %s", __func__, state.GetRejectReason().c_str());
 
         if (!ContextualCheckBlockHeader(block, state, pindexAncestor))
-            return false;
+            return error("Contextual CheckBlockHeader Failed");
     }
 	
     if (pindex == NULL)
@@ -6803,6 +6798,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
         // Bypass the normal CBlock deserialization, as we don't want to risk deserializing 2000 full blocks.
         unsigned int nCount = ReadCompactSize(vRecv);
         if (nCount > MAX_HEADERS_RESULTS) {
+		    LOCK(cs_main);
             Misbehaving(pfrom->GetId(), 19);
             return error("headers message size = %u", nCount);
         }
@@ -6812,38 +6808,33 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
             ReadCompactSize(vRecv); // ignore tx count; assume it is 0.
         }
 
-        LOCK(cs_main);
-
-        if (nCount == 0) {
-            // Nothing interesting. Stop asking this peers for more headers.
-            return true;
-        }
-
         CBlockIndex *pindexLast = NULL;
-        BOOST_FOREACH(const CBlockHeader& header, headers) {
-            CValidationState state;
-            if (pindexLast != NULL && header.hashPrevBlock != pindexLast->GetBlockHash()) {
-                Misbehaving(pfrom->GetId(), 18);
-                return error("non-continuous headers sequence");
-            }
-            if (!AcceptBlockHeader(header, state, chainparams, &pindexLast)) 
+		{
+			LOCK(cs_main);
+			BOOST_FOREACH(const CBlockHeader& header, headers) 
 			{
-                int nDoS;
-                if (state.IsInvalid(nDoS)) 
-				{
-                    if (nDoS > 0)
-                        Misbehaving(pfrom->GetId(), nDoS);
-                    std::string strError = "invalid header received " + header.GetHash().ToString();
-                    return error(strError.c_str());
-                }
-				else
-				{
-					LogPrintf("\n Invalid header received %s",header.GetHash().ToString().c_str());
-					Misbehaving(pfrom->GetId(),1);
-					return error("invalid-header-received");
+				if (pindexLast != NULL && header.hashPrevBlock != pindexLast->GetBlockHash()) {
+					Misbehaving(pfrom->GetId(), 18);
+					return error("non-continuous headers sequence");
 				}
-            }
-        }
+			}
+
+			BOOST_FOREACH(const CBlockHeader& header, headers) 
+			{
+				CValidationState state;
+				if (!AcceptBlockHeader(header, state, chainparams, &pindexLast)) 
+				{
+					int nDoS;
+					if (state.IsInvalid(nDoS)) 
+					{
+						if (nDoS > 0)
+							Misbehaving(pfrom->GetId(), nDoS);
+						std::string strError = "invalid header received " + header.GetHash().ToString();
+						return error(strError.c_str());
+					}
+				}
+			}
+		}
 
         if (pindexLast)
             UpdateBlockAvailability(pfrom->GetId(), pindexLast->GetBlockHash());
@@ -6853,6 +6844,15 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
             LogPrint("net", "more getheaders (%d) to end to peer=%d (startheight:%d)\n", pindexLast->nHeight, pfrom->id, pfrom->nStartingHeight);
             pfrom->PushMessage(NetMsgType::GETHEADERS, chainActive.GetLocator(pindexLast), uint256());
         }
+		else
+		{
+	        if (nCount == 0) 
+			{
+                // Nothing interesting. Stop asking this peers for more headers.
+                return true;
+            }
+    
+		}
 
         bool fCanDirectFetch = CanDirectFetch(chainparams.GetConsensus());
         CNodeState *nodestate = State(pfrom->GetId());
@@ -7423,10 +7423,11 @@ void SetOverviewStatus()
 		+ "; Difficulty: " + RoundToString(dDiff,4)
 		+ ";";
     if (fDistributedComputingEnabled) msGlobalStatus += " Magnitude: " + RoundToString(mnMagnitude,2);
-	msGlobalStatus2="<font color=blue>Prayer Request:<br>";
-	msGlobalStatus3="<font color=red>" + FormatHTML(sPrayer, 12, "<br>") + "</font><br>&nbsp;";
+	// msGlobalStatus2="<font color=blue>Prayer Request:<br>";
+	std::string sPrayers = FormatHTML(sPrayer, 12, "<br>");
+	msGlobalStatus2 = "<font color=red>" + sPrayers + "</font><br>&nbsp;";
+	// LogPrintf(" Prayers %s \n", sPrayers.c_str());
 }
-
 
 std::string strReplace(std::string& str, const std::string& oldStr, const std::string& newStr)
 {
@@ -7549,25 +7550,26 @@ void WriteCache(std::string sSection, std::string sKey, std::string sValue, int6
 
 
 
-void PurgeCacheAsOfExpiration(std::string section, int64_t expiration)
+void PurgeCacheAsOfExpiration(std::string sSection, int64_t nExpiration)
 {
-	   for(map<string,string>::iterator ii=mvApplicationCache.begin(); ii!=mvApplicationCache.end(); ++ii)
-	   {
-				std::string key_section = mvApplicationCache[(*ii).first];
-				if (key_section.length() > section.length())
+	boost::to_upper(sSection);
+	for(map<string,string>::iterator ii=mvApplicationCache.begin(); ii!=mvApplicationCache.end(); ++ii)
+	{
+		std::string sKey = (*ii).first;
+		boost::to_upper(sKey);
+		if (sKey.length() > sSection.length())
+		{
+			if (sKey.substr(0,sSection.length())==sSection)
+			{
+				int64_t nTimestamp = mvApplicationCacheTimestamp[sKey];
+				if (nTimestamp < nExpiration)
 				{
-					if (key_section.substr(0,section.length())==section)
-					{
-						if (mvApplicationCacheTimestamp[key_section] < expiration)
-						{
-							printf("purging %s",key_section.c_str());
-							mvApplicationCache[key_section]="";
-							mvApplicationCacheTimestamp[key_section]=1;
-						}
-					}
+					mvApplicationCache[sKey]="";
+					mvApplicationCacheTimestamp[sKey]=0;
 				}
-	   }
-
+			}
+		}
+	}
 }
 
 
@@ -7583,12 +7585,12 @@ void ClearCache(std::string sSection)
 			if (sKey.substr(0,sSection.length())==sSection)
 			{
 				mvApplicationCache[sKey]="";
-				mvApplicationCacheTimestamp[sKey]=1;
+				mvApplicationCacheTimestamp[sKey]=0;
 			}
 		}
 	}
-
 }
+
 
 bool IsTimeWithinMins(int64_t nTime, int mins)
 {
@@ -7851,10 +7853,10 @@ void MemorizePrayer(std::string sMessage, int64_t nTime, double dAmount, int iPo
 {
 	if (sMessage.empty()) return;
 	int64_t nAge = GetAdjustedTime() - nTime;
-	if (nAge < (60*60*25))
+	std::string sPODC = ExtractXML(sMessage, "<PODC_TASKS>", "</PODC_TASKS>");
+	if (!sPODC.empty())
 	{
-		std::string sPODC = ExtractXML(sMessage, "<PODC_TASKS>", "</PODC_TASKS>");
-		if (!sPODC.empty())
+		if (nAge < (60*60*25))
 		{
 			std::string sErr2 = "";
 			std::string sMySig = ExtractXML(sMessage,"<cpidsig>","</cpidsig>");
@@ -7866,6 +7868,7 @@ void MemorizePrayer(std::string sMessage, int64_t nTime, double dAmount, int iPo
 				WriteCache("CPIDTasks", sCPID, sPODC, nTime);
 			}
 		}
+		return;
 	}
     if (Contains(sMessage,"<MT>"))
 	{

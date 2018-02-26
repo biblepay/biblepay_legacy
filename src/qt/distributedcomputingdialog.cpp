@@ -26,6 +26,9 @@ QString ToQstring(std::string s);
 std::string FromQStringW(QString qs);
 std::string AssociateDCAccount(std::string sProjectId, std::string sBoincEmail, std::string sBoincPassword, bool fForce);
 std::string RoundToString(double d, int place);
+std::string GetElement(std::string sIn, std::string sDelimiter, int iPos);
+double GetTaskWeight(std::string sCPID);
+double GetUTXOWeight(std::string sCPID);
 
 DistributedComputingDialog::DistributedComputingDialog(const PlatformStyle *platformStyle, QWidget *parent) :
     QDialog(parent),
@@ -57,9 +60,12 @@ DistributedComputingDialog::DistributedComputingDialog(const PlatformStyle *plat
 
 void DistributedComputingDialog::UpdateMagnitudeDisplay()
 {
-	
+	std::string sPrimaryCPID = GetElement(msGlobalCPID, ";", 0);
+	double dTaskWeight = GetTaskWeight(sPrimaryCPID);
+	double dUTXOWeight = GetUTXOWeight(sPrimaryCPID);
 	std::string sInfo = "<br> CPIDS: " + msGlobalCPID 
-		+ "<br> Magnitude: " + RoundToString(mnMagnitude,2);
+		+ "<br> Magnitude: " + RoundToString(mnMagnitude,2)
+		+ "<br> Task Weight: " + RoundToString(dTaskWeight, 0) + "; UTXO Weight: " + RoundToString(dUTXOWeight, 0);
 	ui->txtInfo->setText(ToQstring(sInfo));
 }
 
