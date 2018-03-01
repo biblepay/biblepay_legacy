@@ -1127,21 +1127,22 @@ bool CMasternodePayments::ProcessBlock(int nBlockHeight)
 
     int nRank = mnodeman.GetMasternodeRank(activeMasternode.vin, nBlockHeight - 101, GetMinMasternodePaymentsProto(), false);
 
-    if (nRank == -1) {
-        if (fDebugMaster) LogPrint("mnpayments", "CMasternodePayments::ProcessBlock -- Unknown Masternode\n");
+    if (nRank == -1) 
+	{
+        LogPrint("mnpayments", "CMasternodePayments::ProcessBlock -- Unknown Masternode\n");
         return false;
     }
 
     if (nRank > MNPAYMENTS_SIGNATURES_TOTAL) 
 	{
-        if (fDebugMaster) LogPrint("mnpayments", "CMasternodePayments::ProcessBlock -- Masternode not in the top %d (%d)\n", MNPAYMENTS_SIGNATURES_TOTAL, nRank);
+        LogPrint("mnpayments", "CMasternodePayments::ProcessBlock -- Masternode not in the top %d (%d)\n", MNPAYMENTS_SIGNATURES_TOTAL, nRank);
         return false;
     }
 
 
     // LOCATE THE NEXT MASTERNODE WHICH SHOULD BE PAID
 
-    if (fDebugMaster) LogPrintf("CMasternodePayments::ProcessBlock -- Start: nBlockHeight=%d, masternode=%s\n", nBlockHeight, activeMasternode.vin.prevout.ToStringShort());
+    if (fDebugMaster) LogPrint("mnpayments","CMasternodePayments::ProcessBlock -- Start: nBlockHeight=%d, masternode=%s\n", nBlockHeight, activeMasternode.vin.prevout.ToStringShort());
 
     // pay to the oldest MN that still had no payment but its input is old enough and it was active long enough
     int nCount = 0;
@@ -1149,11 +1150,11 @@ bool CMasternodePayments::ProcessBlock(int nBlockHeight)
 
     if (pmn == NULL) 
 	{
-        if (fDebugMaster) LogPrintf("CMasternodePayments::ProcessBlock -- ERROR: Failed to find masternode to pay\n");
+        if (fDebugMaster) LogPrint("mnpayments","CMasternodePayments::ProcessBlock -- ERROR: Failed to find masternode to pay\n");
         return false;
     }
 
-    if (fDebugMaster) LogPrintf("CMasternodePayments::ProcessBlock -- Masternode found by GetNextMasternodeInQueueForPayment(): %s\n", pmn->vin.prevout.ToStringShort());
+    if (fDebugMaster) LogPrint("mnpayments","CMasternodePayments::ProcessBlock -- Masternode found by GetNextMasternodeInQueueForPayment(): %s\n", pmn->vin.prevout.ToStringShort());
 
 
     CScript payee = GetScriptForDestination(pmn->pubKeyCollateralAddress.GetID());
@@ -1164,14 +1165,14 @@ bool CMasternodePayments::ProcessBlock(int nBlockHeight)
     ExtractDestination(payee, address1);
     CBitcoinAddress address2(address1);
 
-    if (fDebugMaster) LogPrintf("CMasternodePayments::ProcessBlock -- vote: payee=%s, nBlockHeight=%d\n", address2.ToString(), nBlockHeight);
+    if (fDebugMaster) LogPrint("mnpayments","CMasternodePayments::ProcessBlock -- vote: payee=%s, nBlockHeight=%d\n", address2.ToString(), nBlockHeight);
 
     // SIGN MESSAGE TO NETWORK WITH OUR MASTERNODE KEYS
 
-	if (fDebugMaster) LogPrintf("CMasternodePayments::ProcessBlock -- Signing vote\n");
+	if (fDebugMaster) LogPrint("mnpayments","CMasternodePayments::ProcessBlock -- Signing vote\n");
     if (voteNew.Sign()) 
 	{
-        if (fDebugMaster) LogPrintf("CMasternodePayments::ProcessBlock -- AddPaymentVote()\n");
+        if (fDebugMaster) LogPrint("mnpayments","CMasternodePayments::ProcessBlock -- AddPaymentVote()\n");
 
         if (AddPaymentVote(voteNew)) 
 		{

@@ -178,6 +178,7 @@ extern void ClearSanctuaryMemories();
 extern double GetTaskWeight(std::string sCPID);
 extern double GetUTXOWeight(std::string sCPID);
 extern double BoincDecayFunction(double AgeInDays, double TotalRAC);
+std::string GetCPIDByRosettaID(double dRosettaID);
 
 
 
@@ -200,13 +201,13 @@ double GetDifficultyN(const CBlockIndex* blockindex, double N)
 	}
 }
 
-double BoincDecayFunction(double AgeInDays, double TotalRAC)
+double BoincDecayFunction(double dAgeInSecs)
 {
 	// Rob Andrews - 2/26/2018 - The Boinc Decay function decays a researchers total credit by the Linear Regression constant (.69314) (divided by 7 (half of its half life) * One Exponent (^2.71) 
 	// Meaning that each fortnight of non activity, the dormant RAC will half.
 	// Decay Function Algorithm:  Decay = 2.71 ^ (-1 * AgeInDays * (LinearRegressionConstant(.69314) / 7))  * TotalRAC
 	double LN2 = 0.69314; // Used in BOINC
-	double Decay = (pow(2.71, (-1 * AgeInDays * (LN2 / 7)))) * TotalRAC;
+	double Decay = pow(2.71, (-1 * LN2 * (dAgeInSecs) / 604800));
 	return Decay;
 }
 
@@ -949,7 +950,7 @@ std::string ExecuteDistributedComputingSanctuaryQuorumProcess()
 
 	if (bPending) 
 	{
-		LogPrintf("We have a pending superblock at height %f ",(double)iNextSuperblock);
+		if (fDebugMaster) LogPrintf("We have a pending superblock at height %f \n",(double)iNextSuperblock);
 		return "PENDING_SUPERBLOCK";
 	}
 
@@ -3902,18 +3903,18 @@ UniValue exec(const UniValue& params, bool fHelp)
 	}
 	else if (sItem == "racdecay")
 	{
-		double Credit[100];
-		double MachineCredit = 110;
-		if (params.size() == 2) MachineCredit = cdbl(params[1].get_str(), 0);
-		for (int iDay = 1; iDay <= 31; iDay++)
+		double dMachineCredit = 110;
+		if (params.size() == 2) dMachineCredit = cdbl(params[1].get_str(), 0);
+		double dOldRAC = 0;
+		double dAdditiveRAC = 0;
+		double dNewRAC = 0;
+		for (int iDay = 1; iDay <= 50; iDay++)
 		{
-			Credit[iDay] = MachineCredit;
-			double TotalCredit = 0;
-			for (int iDayNumber = 1; iDayNumber <= iDay; iDayNumber++)
-			{
-				TotalCredit += BoincDecayFunction(iDayNumber, Credit[iDayNumber]);
-			}
-			results.push_back(Pair("Day " + RoundToString(iDay,0) + "(" + RoundToString(Credit[iDay],0) + ")", TotalCredit));
+		    dOldRAC = BoincDecayFunction(86400) * dNewRAC;
+			dAdditiveRAC = (1 - BoincDecayFunction(86400)) * dMachineCredit;
+			// RAC(new) = RAC(old)*d(t) + (1-d(t))*credit(new)
+			dNewRAC = dOldRAC + dAdditiveRAC;
+			results.push_back(Pair("Day " + RoundToString(iDay,0) + "(" + RoundToString(dAdditiveRAC, 0) + ")", dNewRAC));
 		}
 	}
 	else if (sItem == "datalist")
@@ -3934,7 +3935,17 @@ UniValue exec(const UniValue& params, bool fHelp)
 	else if (sItem == "unbanked")
 	{
 		std::string sUnbanked = GetBoincUnbankedReport("pool");
-		results.push_back(Pair("Unbanked", sUnbanked));
+		std::vector<std::string> vInput = Split(sUnbanked.c_str(),"<ROW>");
+		for (int i = 0; i < (int)vInput.size(); i++)
+		{
+			double dRosettaID = cdbl(GetElement(vInput[i], ",", 0),0);
+			if (dRosettaID > 0)
+			{
+				std::string sCPID = GetCPIDByRosettaID(dRosettaID);
+				if (sCPID.empty()) sCPID = "CPID_NOT_ON_FILE";
+				results.push_back(Pair(sCPID, dRosettaID));
+			}
+		}
 	}
 	else if (sItem == "leaderboard")
 	{

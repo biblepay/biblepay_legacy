@@ -94,6 +94,8 @@ double GetUserMagnitude(double& nBudget, double& nTotalPaid, int& iLastSuperbloc
 double GetPaymentByCPID(std::string CPID);
 extern std::string GetCPIDByAddress(std::string sAddress, int iOffset);
 std::string VerifyManyWorkUnits(std::string sProjectId, std::string sTaskIds);
+extern std::string GetCPIDByRosettaID(double dRosettaID);
+
 
 
 std::string GetElement(std::string sIn, std::string sDelimiter, int iPos);
@@ -1301,7 +1303,6 @@ bool VerifyDistributedBurnTransaction(std::string sXML)
 	  std::string sMessageType      = ExtractXML(sXML,"<MT>","</MT>");
 	  std::string sMessageKey       = ExtractXML(sXML,"<MK>","</MK>");
 	  std::string sMessageValue     = ExtractXML(sXML,"<MV>","</MV>");
-	  LogPrintf(" xml %s \n",sXML.c_str());
 	  boost::to_upper(sMessageType);
 	  boost::to_upper(sMessageKey);
 	  if (!Contains(sMessageType,"DCC")) return true;
@@ -4727,7 +4728,10 @@ static bool AcceptBlock(const CBlock& block, CValidationState& state, const CCha
 	if (IsNodeSynced(block.GetBlockTime()) && fDistributedComputingEnabled)
 	{
 		std::string sResult = ExecuteDistributedComputingSanctuaryQuorumProcess();
-		LogPrintf(" AcceptBlock::ExecuteDistributedComputingSanctuaryQuorumProcess %s ", sResult.c_str());
+		if (sResult != "NOT_A_SANCTUARY")
+		{
+			if (fDebugMaster) LogPrintf(" AcceptBlock::ExecuteDistributedComputingSanctuaryQuorumProcess %s \n", sResult.c_str());
+		}
 	}
 
     return true;
@@ -7845,7 +7849,7 @@ double VerifyTasks(std::string sTasks)
 	if (dCounted < 1) return 0;
 	double dSource = (dVerified / dCounted) * 60000;
 	double dSnapped = GetCPIDUTXOWeight(dSource);
-	LogPrintf("\n VerifyTasks::Tasks %f  Verified %f   Source %f  Snapped %f  ", dCounted, dVerified, dSource, dSnapped);
+	if (fDebugMaster) LogPrint("podc", "\n VerifyTasks::Tasks %f  Verified %f   Source %f  Snapped %f  ", dCounted, dVerified, dSource, dSnapped);
 	return dSnapped;
 }
 
@@ -8377,6 +8381,21 @@ std::string GetCPIDByAddress(std::string sAddress, int iOffset)
 				nFound++;
 				if (nFound > iOffset) return sCPID;
 			}
+		}
+	}
+	return "";
+}
+
+std::string GetCPIDByRosettaID(double dRosettaID)
+{
+	std::vector<std::string> vCPIDs = GetListOfDCCS("");
+	if (vCPIDs.size() > 0)
+	{
+		for (int i=0; i < (int)vCPIDs.size(); i++)
+		{
+			std::string sCPID = GetDCCElement(vCPIDs[i], 0);
+			double dInternalRosettaId = cdbl(GetDCCElement(vCPIDs[i], 3),0);
+			if (dInternalRosettaId == dRosettaID)  return sCPID;
 		}
 	}
 	return "";
