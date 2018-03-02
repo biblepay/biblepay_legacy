@@ -94,8 +94,8 @@ std::string ReadCache(std::string sSection, std::string sKey);
 extern uint256 GetDCCFileHash();
 extern std::string GetDCCFileContract();
 extern uint256 GetDCCHash(std::string sContract);
-extern bool AdvertiseDistributedComputingKey(std::string sProjectId, std::string sAuth, std::string sCPID, int nUserId, bool fForce, std::string &sError);
-extern std::string AssociateDCAccount(std::string sProjectId, std::string sBoincEmail, std::string sBoincPassword, bool fForce);
+extern bool AdvertiseDistributedComputingKey(std::string sProjectId, std::string sAuth, std::string sCPID, int nUserId, bool fForce, std::string sUnbankedPublicKey, std::string &sError);
+extern std::string AssociateDCAccount(std::string sProjectId, std::string sBoincEmail, std::string sBoincPassword, std::string sUnbankedPublicKey, bool fForce);
 extern std::vector<std::string> GetListOfDCCS(std::string sSearch);
 extern std::string GetSporkValue(std::string sKey);
 extern int GetLastDCSuperblockWithPayment(int nChainHeight);
@@ -3608,9 +3608,11 @@ UniValue exec(const UniValue& params, bool fHelp)
 		std::string sEmail = params[1].get_str();
 		std::string sPW = params[2].get_str();
 		std::string sForce = "";
+		std::string sUnbanked = "";
 		if (params.size() > 3) sForce = params[3].get_str();
+		if (params.size() > 4) sUnbanked = params[4].get_str();
 		bool fForce = sForce=="true" ? true : false;
-		std::string sError = AssociateDCAccount("project1", sEmail, sPW, fForce);
+		std::string sError = AssociateDCAccount("project1", sEmail, sPW, sUnbanked, fForce);
 		std::string sNarr = (sError.empty()) ? "Successfully advertised DC-Key.  Type exec getboincinfo to find more researcher information.  Welcome Aboard!  Thank you for donating your clock-cycles to help cure cancer!" : sError;
 		results.push_back(Pair("E-Mail", sEmail));
 		results.push_back(Pair("Results", sNarr));
@@ -4471,7 +4473,7 @@ void TouchDailyMagnitudeFile()
 	fclose(outMagFile);
 }
 
-std::string AssociateDCAccount(std::string sProjectId, std::string sBoincEmail, std::string sBoincPassword, bool fForce)
+std::string AssociateDCAccount(std::string sProjectId, std::string sBoincEmail, std::string sBoincPassword, std::string sUnbankedPublicKey, bool fForce)
 {
 	if (sBoincEmail.empty()) return "E-MAIL_EMPTY";
 	if (sBoincPassword.empty()) return "BOINC_PASSWORD_EMPTY";
@@ -4482,7 +4484,7 @@ std::string AssociateDCAccount(std::string sProjectId, std::string sBoincEmail, 
 	std::string sCode = GetBoincResearcherHexCodeAndCPID(sProjectId, nUserId, sCPID);
 	if (sCPID.empty()) return "INVALID_CREDENTIALS";
 	std::string sError = "";
-	AdvertiseDistributedComputingKey(sProjectId, sAuth, sCPID, nUserId, fForce, sError);
+	AdvertiseDistributedComputingKey(sProjectId, sAuth, sCPID, nUserId, fForce, sUnbankedPublicKey, sError);
 	return sError;
 }
 
@@ -5310,12 +5312,29 @@ bool PODCUpdate()
 }
 
 
-bool AdvertiseDistributedComputingKey(std::string sProjectId, std::string sAuth, std::string sCPID, int nUserId, bool fForce, std::string &sError)
+bool AdvertiseDistributedComputingKey(std::string sProjectId, std::string sAuth, std::string sCPID, int nUserId, bool fForce, std::string sUnbankedPublicKey, std::string &sError)
 {	
      LOCK(cs_main);
      {
 		 try
 		 {
+			
+			/*
+			if (!sUnbankedPublicKey.empty() && fForce)
+			{
+				sError = "Force is not allowed with an unbanked public key.";
+				return false;
+			}
+			*/
+			if (!sUnbankedPublicKey.empty())
+			{
+				CBitcoinAddress address(sUnbankedPublicKey);
+				if (!address.IsValid())
+				{
+					sError = "Unbanked public key invalid.";
+					return false;
+				}
+			}
             std::string sDCC = GetDCCPublicKey(sCPID);
             if (!sDCC.empty() && !fForce) 
             {
@@ -5325,9 +5344,17 @@ bool AdvertiseDistributedComputingKey(std::string sProjectId, std::string sAuth,
             }
 			
     		std::string sPubAddress = DefaultRecAddress("Rosetta");
+			if (!sUnbankedPublicKey.empty()) sPubAddress = sUnbankedPublicKey;
+
 			std::string sDummyCPID = GetCPIDByAddress(sPubAddress, 0);
+			
 			if (!sDummyCPID.empty())
 			{
+				if (!sUnbankedPublicKey.empty())
+				{
+					sError = "Unbanked public key already in use.";
+					return false;
+				}
 				sPubAddress = GenerateNewAddress(sError, "Rosetta");
 				if (!sError.empty()) return false;
 				if (sPubAddress.empty())
@@ -5339,12 +5366,12 @@ bool AdvertiseDistributedComputingKey(std::string sProjectId, std::string sAuth,
 
             static int nLastDCCAdvertised = 0;
 			const Consensus::Params& consensusParams = Params().GetConsensus();
-	        if ((chainActive.Tip()->nHeight - nLastDCCAdvertised) < 5)
+	        if ((chainActive.Tip()->nHeight - nLastDCCAdvertised) < 5 && sUnbankedPublicKey.empty())
             {
                 sError = _("A DCBTX was advertised less then 5 blocks ago. Please wait a full 5 blocks for your DCBTX to enter the chain.");
                 return false;
             }
-            // uint256 hashRand = GetRandHash();
+
             CAmount nStakeBalance = pwalletMain->GetBalance();
 
             if (nStakeBalance < (1*COIN))
@@ -5362,6 +5389,7 @@ bool AdvertiseDistributedComputingKey(std::string sProjectId, std::string sAuth,
 			// Construct the DC-Burn Tx:
 			// Note that we only expose the public CPID, nonce, public project userid and the researcher's payment address, but we dispose of the boinc password and e-mail address to protect the identity of the researcher.
 			// The payment address is required so the Sanctuaries can airdrop payments for a given research magnitude level
+			int iUnbanked = sUnbankedPublicKey.empty() ? 0 : 1;
 			std::string sData = sCPID + ";" + sHexSet + ";" + sPubAddress + ";" + RoundToString(nUserId,0);
 			std::string sSignature = "";
 			bool bSigned = SignStake(sPubAddress, sData, sError, sSignature);
@@ -5372,9 +5400,18 @@ bool AdvertiseDistributedComputingKey(std::string sProjectId, std::string sAuth,
 			}
 			else
 			{
-				sError = "Unable to sign CPID " + sCPID;
-				return false;
+				if (sUnbankedPublicKey.empty())
+				{
+					sError = "Unable to sign CPID " + sCPID;
+					return false;
+				}
+				else
+				{
+					sData += ";" + sSignature;
+				}
 			}
+			// Append the Unbanked flag
+			sData += ";" + RoundToString(iUnbanked, 0);
 
 		    // This prevents repeated DCC advertisements
             nLastDCCAdvertised = chainActive.Tip()->nHeight;

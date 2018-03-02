@@ -63,6 +63,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                 sub.idx = parts.size(); // sequence number
                 sub.credit = txout.nValue;
                 sub.involvesWatchAddress = mine & ISMINE_WATCH_ONLY;
+				sub.IsPODCPayment = wtx.IsPODCPayment();
                 if (ExtractDestination(txout.scriptPubKey, address) && IsMine(*wallet, address))
                 {
                     // Received by Biblepay Address

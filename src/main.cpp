@@ -45,6 +45,8 @@
 #include "masternodeman.h"
 #include "governance-classes.h"
 
+#include "support/allocators/secure.h"
+
 #include <sstream>
 
 #include <boost/algorithm/string/replace.hpp>
@@ -223,6 +225,8 @@ std::string msGlobalStatus3 = "";
 double mnMagnitude = 0;
 double mnMagnitudeOneDay = 0;
 std::string msGlobalCPID = "";
+std::string msGUIResponse = "";
+SecureString msEncryptedString = "";
 
 CBlock cblockGenesis;
 uint64_t nPruneTarget = 0;

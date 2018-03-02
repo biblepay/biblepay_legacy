@@ -945,12 +945,7 @@ void BitcoinGUI::ReadNewsClicked()
 	QString qstxid = QInputDialog::getText(this, tr("Enter TXID"), tr("Enter News Article TXID:"), QLineEdit::Normal,"", &ok);
     if (ok && !qstxid.isEmpty())
 	{
-
-     	//HelpMessageDialog dlg(this, HelpMessageDialog::readnews, 0, uint256S("0x" + FromQStringW(qstxid)), "");
-		
 		NewsPreviewWindow::showNewsWindow(this,FromQStringW(qstxid));
-
-	
 	}
 }
 
@@ -1618,6 +1613,17 @@ static bool ThreadSafeMessageBox(BitcoinGUI *gui, const std::string& message, co
     // bool secure = (style & CClientUIInterface::SECURE);
     style &= ~CClientUIInterface::SECURE;
     bool ret = false;
+
+	if (style==10)
+	{
+		bool ok;
+		QString	sUserResponse = QInputDialog::getText(gui, QString::fromStdString(caption),
+			QString::fromStdString(message), QLineEdit::Password,"", &ok);
+		msGUIResponse = FromQStringW(sUserResponse);
+		sUserResponse="";
+		return ok;
+	}
+
     // In case of modal message, use blocking connection to wait for user to click a button
     QMetaObject::invokeMethod(gui, "message",
                                modal ? GUIUtil::blockingGUIThreadConnection() : Qt::QueuedConnection,

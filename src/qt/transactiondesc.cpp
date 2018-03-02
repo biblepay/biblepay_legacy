@@ -134,7 +134,8 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionReco
 	}
 	else if (wtx.IsCoinBase())
     {
-        strHTML += "<b>" + tr("Source") + ":</b> " + tr("Generated") + "<br>";
+		std::string sNarr = wtx.IsPODCPayment() ? "PODC Research" : "Generated";
+        strHTML += "<b>" + tr("Source") + ":</b> " + tr(sNarr.c_str()) + "<br>";
     }
     else if (wtx.mapValue.count("from") && !wtx.mapValue["from"].empty())
     {

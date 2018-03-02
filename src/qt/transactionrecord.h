@@ -136,6 +136,9 @@ public:
     /** Whether the transaction was sent/received with a watch-only address */
     bool involvesWatchAddress;
 
+	/** If this is a PODC Research Payment */
+	bool IsPODCPayment;
+
     /** Return the unique identifier for this transaction (part) */
     QString getTxID() const;
 

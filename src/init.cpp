@@ -2129,9 +2129,20 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
 	// Memorize Prayers
 
 	uiInterface.InitMessage(_("Memorizing Prayers..."));
-	//
 	MemorizeBlockChainPrayers(false);
-	
+	// If Wallet is locked and PODC is enabled...
+	bool fWalletLocked = false;
+	if (fDistributedComputingEnabled && fWalletLocked)
+	{
+		bool bFeatureEnabled = GetArg("-disablepodcunlock", "false") == "true" ? false : true;
+		if (bFeatureEnabled)
+		{
+			bool fResult = uiInterface.ThreadSafeMessageBox("Enter your wallet password for PODC updates (if you desire) >", "PODC Update Auto-Unlock Feature", 10);
+			msEncryptedString.reserve(200);
+			msEncryptedString = msGUIResponse.c_str();
+			msGUIResponse = ""; // Erase from memory, leaving only securestring in memory
+		}
+	}
 
     //// debug print
     LogPrintf("mapBlockIndex.size() = %u\n",   mapBlockIndex.size());
@@ -2161,7 +2172,14 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     // --- end disabled ---
 
     // Generate coins in the background
-    GenerateBiblecoins(GetBoolArg("-gen", DEFAULT_GENERATE), GetArg("-genproclimit", DEFAULT_GENERATE_THREADS), chainparams);
+	if (fDistributedComputingEnabled)
+	{
+		GenerateBiblecoins(GetBoolArg("-gen", true), GetArg("-genproclimit", 1), chainparams);
+	}
+	else
+	{
+		GenerateBiblecoins(GetBoolArg("-gen", DEFAULT_GENERATE), GetArg("-genproclimit", DEFAULT_GENERATE_THREADS), chainparams);
+	}
 
     // ********************************************************* Step 13: finished
 	// Print the genesis hash for sanity

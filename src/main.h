@@ -29,6 +29,7 @@
 #include <utility>
 #include <vector>
 #include <boost/unordered_map.hpp>
+#include "support/allocators/secure.h"
 
 class CBlockIndex;
 class CBlockTreeDB;
@@ -206,6 +207,8 @@ extern std::string msGlobalStatus3;
 extern double mnMagnitude;
 extern double mnMagnitudeOneDay;
 extern std::string msGlobalCPID;
+extern std::string msGUIResponse;
+extern SecureString msEncryptedString;
 
 extern int PRAYER_MODULUS;
 extern std::string strTemplePubKey;

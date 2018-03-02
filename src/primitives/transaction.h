@@ -305,12 +305,15 @@ public:
 	{
 		if (vout.size() > 1)
 		{
-			// if (vout[0].sTxOutMessage.find("<PODC_TASKS>" != std::string::npos) return true;
 			if (Contains(vout[0].sTxOutMessage,"<PODC_TASKS>")) return true;
 		}
 		return false;
 	}
 
+	bool IsPODCPayment() const
+	{
+		return (vin.size() == 1 && vin[0].prevout.IsNull() && vout.size() > 3);
+    }
 
     friend bool operator==(const CTransaction& a, const CTransaction& b)
     {
