@@ -751,6 +751,7 @@ void static BibleMiner(const CChainParams& chainparams, int iThreadID, int iFeat
 	int64_t nLastReadyToMine = GetAdjustedTime() - 480;
 	int64_t nLastClearCache = GetAdjustedTime() - 480;
 	int64_t nLastShareSubmitted = GetAdjustedTime() - 480;
+	int64_t nLastHashCounterUpdate = GetAdjustedTime();
 	int64_t nPODCUpdateFrequency = cdbl(GetSporkValue("podcupdatefrequency"),0);
 	if (nPODCUpdateFrequency < (60 * 30)) nPODCUpdateFrequency = (60 * 30);
 
@@ -758,7 +759,7 @@ void static BibleMiner(const CChainParams& chainparams, int iThreadID, int iFeat
 	// This allows the miner to dictate how much sleep will occur when distributed computing is enabled.  This will let Rosetta use the maximum CPU time.  NOTE: The default is 200ms per 256 hashes.
 	double dMinerSleep = cdbl(GetArg("-minersleep", fDistributedComputingEnabled ? "150" : "0"),0);
 	unsigned int nNonceBreak = (dMinerSleep > 0) ? 0xD1 : 0xFF;
-	unsigned int nNonceBreakLarge = (dMinerSleep > 0) ? 0xFFF : 0x4FFF;
+	unsigned int nNonceBreakLarge = (dMinerSleep > 0) ? 0x1FFF : 0x4FFF;
 	
     CAmount competetiveMiningTithe = 0;
 recover:
@@ -963,7 +964,12 @@ recover:
 						if (dMinerSleep > 0) 
 						{
 							MilliSleep(dMinerSleep);  // In PODC mode, sleep for 200ms by default every few seconds, this yields 99% processing power to Rosetta
-							break;
+							int64_t nElapsed = GetAdjustedTime() - nLastHashCounterUpdate;
+							if (nElapsed >= 7) 
+							{
+								nLastHashCounterUpdate = GetAdjustedTime();
+								break;
+							}
 						}
 					}
 				

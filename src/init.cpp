@@ -2131,8 +2131,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
 	uiInterface.InitMessage(_("Memorizing Prayers..."));
 	MemorizeBlockChainPrayers(false);
 	// If Wallet is locked and PODC is enabled...
-	bool fWalletLocked = false;
-	if (fDistributedComputingEnabled && fWalletLocked)
+	if (fDistributedComputingEnabled && pwalletMain->IsLocked())
 	{
 		bool bFeatureEnabled = GetArg("-disablepodcunlock", "false") == "true" ? false : true;
 		if (bFeatureEnabled)

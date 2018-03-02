@@ -7901,7 +7901,7 @@ void MemorizePrayer(std::string sMessage, int64_t nTime, double dAmount, int iPo
     		  bool bValid = (fSigValid && !bSigInvalid);
 			  if (!bValid)
 			  {
-					LogPrintf(" nonce %f, time %f , Bad spork Sig %s on message %s on TXID %s \n", (double)dNonce, (double)nTime, sSporkSig.c_str(),
+					if (fDebugMaster) LogPrintf(" MemorizePrayers::CPIDSignatureFailed - Nonce %f, Time %f , Bad spork Sig %s on message %s on TXID %s \n", (double)dNonce, (double)nTime, sSporkSig.c_str(),
 						sMessageValue.c_str(), sTxID.c_str());
 					sMessageValue = "";
 			  }

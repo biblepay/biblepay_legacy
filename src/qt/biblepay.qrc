@@ -51,7 +51,6 @@
         <file alias="about">res/icons/drkblue/about.png</file>
         <file alias="about_qt">res/icons/drkblue/about_qt.png</file>
         <file alias="verify">res/icons/drkblue/verify.png</file>
-        <file alias="cancer32">res/icons/drkblue/cancer32.png</file>
     </qresource>
     <qresource prefix="/icons/gradient">
         <file alias="address-book">res/icons/gradient/address-book.png</file>
