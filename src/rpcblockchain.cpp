@@ -179,7 +179,7 @@ extern double GetTaskWeight(std::string sCPID);
 extern double GetUTXOWeight(std::string sCPID);
 extern double BoincDecayFunction(double AgeInDays, double TotalRAC);
 std::string GetCPIDByRosettaID(double dRosettaID);
-
+extern double GetSporkDouble(std::string sName, double nDefault);
 
 
 double GetDifficultyN(const CBlockIndex* blockindex, double N)
@@ -921,9 +921,6 @@ int64_t GetDCCFileAge()
 
 std::string ExecuteDistributedComputingSanctuaryQuorumProcess()
 {
-	// Whether a Sanctuary or not, Clear out old memories:
-	ClearSanctuaryMemories();
-
 	// If not a sanctuary, exit
 	if (!fDistributedComputingEnabled) return "";
 	// This happens on sanctuaries only.  The node will check to see if the contract duration expired.
@@ -2621,7 +2618,10 @@ bool SignStake(std::string sBitcoinAddress, std::string strMessage, std::string&
 		bTriedToUnlock = true;
 		if (!pwalletMain->Unlock(msEncryptedString, false))
 		{
-			LogPrintf("Unable to unlock wallet with SecureString. \n");
+			static int nNotifiedOfUnlockIssue = 0;
+			if (nNotifiedOfUnlockIssue == 0)
+				LogPrintf("\nUnable to unlock wallet with SecureString.\n");
+			nNotifiedOfUnlockIssue++;
 		}
 	}
 
@@ -2717,14 +2717,16 @@ bool GetTransactionTimeAndAmount(uint256 txhash, int nVout, int64_t& nTime, CAmo
 
 double GetTaskWeight(std::string sCPID)
 {
-	std::string sTaskList = ReadCacheWithMaxAge("CPIDTasks", sCPID, (60*60*24));
+	double nMaximumChatterAge = GetSporkDouble("podmaximumchatterage", (60 * 60 * 24));
+	std::string sTaskList = ReadCacheWithMaxAge("CPIDTasks", sCPID, nMaximumChatterAge);
 	return (sTaskList.empty()) ? 0 : 100;
 }
 
 
 double GetUTXOWeight(std::string sCPID)
 {
-	double dUTXOWeight = cdbl(ReadCacheWithMaxAge("UTXOWeight", sCPID, (60*60*24)), 0);
+	double nMaximumChatterAge = GetSporkDouble("podmaximumchatterage", (60 * 60 * 24));
+	double dUTXOWeight = cdbl(ReadCacheWithMaxAge("UTXOWeight", sCPID, nMaximumChatterAge), 0);
 	return dUTXOWeight;
 }
 
@@ -4789,7 +4791,7 @@ bool SignCPID(std::string sCPID, std::string& sError, std::string& out_FullSig)
 	bool bSigned = SignStake(sDCPK, sMessage, sError, sSignature);
 	if (!bSigned)
 	{
-		LogPrintf(" Failed to Sign CPID Signature for CPID %s, with PubKey %s, Message %s, Error %s ", 
+		if (fDebugMaster) LogPrint("podc"," Failed to Sign CPID Signature for CPID %s, with PubKey %s, Message %s, Error %s ", 
 			sCPID.c_str(), sDCPK.c_str(), sMessage.c_str(), sError.c_str());
 		return false;
 	}
@@ -4892,7 +4894,8 @@ bool IsInList(std::string sData, std::string sDelimiter, std::string sValue)
 
 void ClearSanctuaryMemories()
 {
-	int64_t nMinimumMemory = GetAdjustedTime() - (60*60*24*3);
+	double nMaximumChatterAge = GetSporkDouble("podcmaximumchatterage", (60 * 60 * 24));
+	int64_t nMinimumMemory = GetAdjustedTime() - (nMaximumChatterAge * 7);
 	PurgeCacheAsOfExpiration("UTXOWeight", nMinimumMemory);
 	PurgeCacheAsOfExpiration("CPIDTasks", nMinimumMemory);
 	PurgeCacheAsOfExpiration("Unbanked", nMinimumMemory);
@@ -4916,8 +4919,8 @@ bool FilterFile(int iBufferSize, std::string& sError)
 	FILE *outFile = fopen(sFiltered.c_str(),"w");
     std::string sBuffer = "";
 	int iBuffer = 0;
-	int64_t nMaxAge = (60*60*24);
-
+	int64_t nMaxAge = (int64_t)GetSporkDouble("podmaximumchatterage", (60 * 60 * 24));
+		
 	boost::filesystem::path pathIn(sTarget);
     std::ifstream streamIn;
     streamIn.open(pathIn.string().c_str());
@@ -5293,7 +5296,7 @@ bool PODCUpdate()
 				bool bFresh = (sOldState == sOutstanding || sOutstanding == sCurrentState || (!sCurrentState.empty()));
 				if (!bFresh)
 				{
-					double dProofOfLoyaltyPercentage = cdbl(GetArg("-polpercentage", "5"), 2) / 100;
+					double dProofOfLoyaltyPercentage = cdbl(GetArg("-polpercentage", "10"), 2) / 100;
 					CAmount curBalance = pwalletMain->GetUnlockedBalance();
 					CAmount nTargetValue = curBalance * dProofOfLoyaltyPercentage;
 					if (nTargetValue < 1)
@@ -5303,6 +5306,22 @@ bool PODCUpdate()
 					}
 					std::string sError = "";
 					std::string sFullSig = "";
+					bool bTriedToUnlock = false;
+					if (!msEncryptedString.empty() && pwalletMain->IsLocked())
+					{
+						bTriedToUnlock = true;
+						if (!pwalletMain->Unlock(msEncryptedString, false))
+						{
+							static int nNotifiedOfUnlockIssue = 0;
+							if (nNotifiedOfUnlockIssue == 0)
+							{
+								LogPrintf("Unable to unlock wallet with SecureString. \n");
+								WriteCache("poolthread0", "poolinfo2", "Unable to unlock wallet with password provided.", GetAdjustedTime());
+							}
+							nNotifiedOfUnlockIssue++;
+						}
+					}
+
 					// Sign
 					bool fSigned = SignCPID(s1, sError, sFullSig);
 					if (!fSigned)
@@ -5312,16 +5331,7 @@ bool PODCUpdate()
 					}
 					std::string sXML = "<PODC_TASKS>" + sOutstanding + "</PODC_TASKS>" + sFullSig;
 
-					bool bTriedToUnlock = false;
-					if (!msEncryptedString.empty() && pwalletMain->IsLocked())
-					{
-						bTriedToUnlock = true;
-						if (!pwalletMain->Unlock(msEncryptedString, false))
-						{
-							LogPrintf("Unable to unlock wallet with SecureString. \n");
-						}
-					}
-
+			
 					AddBlockchainMessages(sAddress, "PODC_UPDATE", s1, sXML, nTargetValue, sError);
 					if (bTriedToUnlock) pwalletMain->Lock();
 

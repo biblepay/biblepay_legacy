@@ -382,6 +382,10 @@ CBlockTemplate* CreateNewBlock(const CChainParams& chainparams, const CScript& s
 				// Lets tell the user about this also:
 				WriteCache("poolthread" + RoundToString(iThreadId,0), "poolinfo1", "Failed to sign CPID signature (unlock wallet)?" ,GetAdjustedTime());
 			}
+			else
+			{
+				WriteCache("poolthread" + RoundToString(iThreadId,0), "poolinfo1", msGlobalCPID, GetAdjustedTime());
+			}
 			std::string sMySig = ExtractXML(sFullSig,"<cpidsig>","</cpidsig>");
 			bool fSigChecked = VerifyCPIDSignature(sMySig, true, sErr2);
 			if (!fSigChecked)

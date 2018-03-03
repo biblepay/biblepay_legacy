@@ -150,8 +150,7 @@ extern std::string GetMyPublicKeys();
 bool VerifyCPIDSignature(std::string sFullSig, bool bRequireEndToEndVerification, std::string& sError);
 std::string ChopLast(std::string sMyChop);
 extern std::string ReadCacheWithMaxAge(std::string sSection, std::string sKey, int64_t nMaxAge);
-
-
+double GetSporkDouble(std::string sName, double nDefault);
 CWaitableCriticalSection csBestBlock;
 CConditionVariable cvBlockChange;
 int nScriptCheckThreads = 0;
@@ -5004,8 +5003,11 @@ CBlockIndex * InsertBlockIndex(uint256 hash)
 bool static LoadBlockIndexDB()
 {
     const CChainParams& chainparams = Params();
+	LogPrintf(" LoadBlockIndexGuts %f ",(double)GetAdjustedTime());
+
     if (!pblocktree->LoadBlockIndexGuts())
         return false;
+	LogPrintf(" Finished %f ",(double)GetAdjustedTime());
 
     boost::this_thread::interruption_point();
 
@@ -5120,6 +5122,7 @@ bool static LoadBlockIndexDB()
 	}
 
     PruneBlockIndexCandidates();
+	LogPrintf(" Finished Loading Block Index %f ",(double)GetAdjustedTime());
 
     LogPrintf("%s: hashBestChain=%s height=%d date=%s progress=%f\n", __func__,
         chainActive.Tip()->GetBlockHash().ToString(), chainActive.Height(),
@@ -7673,7 +7676,6 @@ void MemorizeBlockChainPrayers(bool fDuringConnectBlock)
 			}
 	  	}
 	}
-	
 }
 
 
@@ -7866,7 +7868,8 @@ void MemorizePrayer(std::string sMessage, int64_t nTime, double dAmount, int iPo
 	std::string sPODC = ExtractXML(sMessage, "<PODC_TASKS>", "</PODC_TASKS>");
 	if (!sPODC.empty())
 	{
-		if (nAge < (60*60*25))
+		double nMaximumChatterAge = GetSporkDouble("podmaximumchatterage", (60 * 60 * 24));
+		if (nAge < nMaximumChatterAge)
 		{
 			std::string sErr2 = "";
 			std::string sMySig = ExtractXML(sMessage,"<cpidsig>","</cpidsig>");

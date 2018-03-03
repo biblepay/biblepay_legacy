@@ -14,6 +14,7 @@
 #include <stdint.h>
 #include <boost/thread.hpp>
 #include "kjv.h"
+#include "util.h"
 
 using namespace std;
 
@@ -311,12 +312,19 @@ bool CBlockTreeDB::ReadFlag(const std::string &name, bool &fValue) {
 bool CBlockTreeDB::LoadBlockIndexGuts()
 {
     boost::scoped_ptr<CDBIterator> pcursor(NewIterator());
-
+	
     pcursor->Seek(make_pair(DB_BLOCK_INDEX, uint256()));
 	fLoadingIndex=true;
+	int iBlock = 0;
     // Load mapBlockIndex
-    while (pcursor->Valid()) {
-        boost::this_thread::interruption_point();
+    while (pcursor->Valid()) 
+	{
+		iBlock++;
+		if (iBlock % 1000 == 0)
+		{
+			boost::this_thread::interruption_point();
+			LogPrintf(" block %f @ %f ",(double)iBlock, (double)GetTime());
+		}
         std::pair<char, uint256> key;
         if (pcursor->GetKey(key) && key.first == DB_BLOCK_INDEX) {
             CDiskBlockIndex diskindex;
@@ -335,7 +343,7 @@ bool CBlockTreeDB::LoadBlockIndexGuts()
                 pindexNew->nNonce         = diskindex.nNonce;
                 pindexNew->nStatus        = diskindex.nStatus;
                 pindexNew->nTx            = diskindex.nTx;
-				pindexNew->sBlockMessage  = diskindex.sBlockMessage;
+				// pindexNew->sBlockMessage  = diskindex.sBlockMessage;
 				pindexNew->hashBibleHash  = diskindex.hashBibleHash;
 
                 if (!CheckProofOfWork(pindexNew->GetBlockHash(), pindexNew->nBits, Params().GetConsensus(), 
@@ -354,5 +362,6 @@ bool CBlockTreeDB::LoadBlockIndexGuts()
         }
     }
 	fLoadingIndex=false;
+	
     return true;
 }

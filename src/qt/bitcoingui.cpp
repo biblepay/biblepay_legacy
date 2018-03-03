@@ -1590,7 +1590,7 @@ void BitcoinGUI::detectShutdown()
                                           "", &bOK));
 				if (!sPassword.empty())
 				{
-					msEncryptedString.reserve(800);
+					msEncryptedString.reserve(400);
 					msEncryptedString = sPassword.c_str();
 				}
 				sPassword = "                                                                                                                                                                "; // Erase from memory
