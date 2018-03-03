@@ -378,13 +378,15 @@ CBlockTemplate* CreateNewBlock(const CChainParams& chainparams, const CScript& s
 			bool fSigned = SignCPID("", sErr2, sFullSig);
 			if (!fSigned)
 			{
-				LogPrintf("\n Failed to Sign CPID Signature.  %s ",sErr2);
+				if (fDebugMaster) LogPrint("podc","\n Failed to Sign CPID Signature.  %s ",sErr2);
+				// Lets tell the user about this also:
+				WriteCache("poolthread" + RoundToString(iThreadId,0), "poolinfo1", "Failed to sign CPID signature (unlock wallet)?" ,GetAdjustedTime());
 			}
 			std::string sMySig = ExtractXML(sFullSig,"<cpidsig>","</cpidsig>");
 			bool fSigChecked = VerifyCPIDSignature(sMySig, true, sErr2);
 			if (!fSigChecked)
 			{
-				LogPrintf("\n Failed to Verify Signature of %s with Error %s ",sFullSig.c_str(), sErr2.c_str());
+				if (fDebugMaster) LogPrint("podc", "\n Failed to Verify Signature of %s with Error %s ",sFullSig.c_str(), sErr2.c_str());
 			}
 
 			txNew.vout[0].sTxOutMessage += sFullSig;

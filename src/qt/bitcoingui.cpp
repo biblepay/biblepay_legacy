@@ -1574,6 +1574,31 @@ void BitcoinGUI::detectShutdown()
         rpcConsole->walletReboot();
 	}
 
+	// PODC - Check to see if user prefers to use Auto Unlock feature - R Andrews - Biblepay - 3/3/2018
+	if (!fCheckedPODCUnlock && fWalletLoaded)
+	{
+		fCheckedPODCUnlock = true;
+		bool bFeatureEnabled = GetArg("-disablepodcunlock", "false") == "true" ? false : true;
+		// If Wallet is locked and PODC is enabled and feature is enabled...
+		if (bFeatureEnabled && fDistributedComputingEnabled && pwalletMain->IsLocked())
+		{
+			{
+				bool bOK;
+				std::string sPassword = FromQStringW(QInputDialog::getText(this, tr("PODC Update Auto-Unlock Feature"),
+                                          tr("Please enter your wallet password for PODC updates, or click <Cancel> to skip:"),
+										  QLineEdit::Password,
+                                          "", &bOK));
+				if (!sPassword.empty())
+				{
+					msEncryptedString.reserve(800);
+					msEncryptedString = sPassword.c_str();
+				}
+				sPassword = "                                                                                                                                                                "; // Erase from memory
+			}
+		}
+	}
+
+
     if (fInternalRequestedShutdown || ShutdownRequested())
     {
         if(rpcConsole)

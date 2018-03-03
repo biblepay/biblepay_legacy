@@ -2130,18 +2130,6 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
 
 	uiInterface.InitMessage(_("Memorizing Prayers..."));
 	MemorizeBlockChainPrayers(false);
-	// If Wallet is locked and PODC is enabled...
-	if (fDistributedComputingEnabled && pwalletMain->IsLocked())
-	{
-		bool bFeatureEnabled = GetArg("-disablepodcunlock", "false") == "true" ? false : true;
-		if (bFeatureEnabled)
-		{
-			bool fResult = uiInterface.ThreadSafeMessageBox("Enter your wallet password for PODC updates (if you desire) >", "PODC Update Auto-Unlock Feature", 10);
-			msEncryptedString.reserve(200);
-			msEncryptedString = msGUIResponse.c_str();
-			msGUIResponse = ""; // Erase from memory, leaving only securestring in memory
-		}
-	}
 
     //// debug print
     LogPrintf("mapBlockIndex.size() = %u\n",   mapBlockIndex.size());
@@ -2191,6 +2179,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
 	mnMagnitude=nMagnitude;
 
     SetRPCWarmupFinished();
+	fWalletLoaded = true;
     uiInterface.InitMessage(_("Done loading"));
 
 #ifdef ENABLE_WALLET

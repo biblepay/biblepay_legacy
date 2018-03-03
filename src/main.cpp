@@ -227,6 +227,8 @@ double mnMagnitudeOneDay = 0;
 std::string msGlobalCPID = "";
 std::string msGUIResponse = "";
 SecureString msEncryptedString = "";
+bool fCheckedPODCUnlock = false;
+bool fWalletLoaded = false;
 
 CBlock cblockGenesis;
 uint64_t nPruneTarget = 0;
