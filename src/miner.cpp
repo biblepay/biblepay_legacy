@@ -384,7 +384,7 @@ CBlockTemplate* CreateNewBlock(const CChainParams& chainparams, const CScript& s
 			}
 			else
 			{
-				WriteCache("poolthread" + RoundToString(iThreadId,0), "poolinfo1", msGlobalCPID, GetAdjustedTime());
+				WriteCache("poolthread" + RoundToString(iThreadId,0), "poolinfo1", "", GetAdjustedTime());
 			}
 			std::string sMySig = ExtractXML(sFullSig,"<cpidsig>","</cpidsig>");
 			bool fSigChecked = VerifyCPIDSignature(sMySig, true, sErr2);
