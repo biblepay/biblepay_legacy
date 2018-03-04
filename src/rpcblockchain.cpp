@@ -923,6 +923,7 @@ std::string ExecuteDistributedComputingSanctuaryQuorumProcess()
 {
 	// If not a sanctuary, exit
 	if (!fDistributedComputingEnabled) return "";
+	if (fProd && chainActive.Tip()->nHeight < F11000_CUTOVER_HEIGHT_PROD) return "";
 	// This happens on sanctuaries only.  The node will check to see if the contract duration expired.
 	// When it expires, we must assemble a new contract as a sanctuary team.
 	// Since the contract is valid for 86400 seconds, we start this process one hour early (IE 82800 seconds after the last valid contract started)
@@ -4616,6 +4617,7 @@ UniValue GetLeaderboard(int nHeight)
 				int nResearchCount = GetResearcherCount(sRecipient, Recips);
 				std::string sCPID = GetCPIDByAddress(sRecipient, nResearchCount);
 				Recips += sRecipient + ",";
+				if (sCPID.empty()) sCPID = sRecipient;
 				vLeaderboard.push_back(make_pair(nMagnitude, sCPID));
 		  }
    	

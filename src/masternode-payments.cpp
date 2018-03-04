@@ -113,7 +113,6 @@ bool IsBlockValueValid(const CBlock& block, int nBlockHeight, CAmount blockRewar
 	
     if(!masternodeSync.IsSynced()) 
 	{
-		//2-3-2018
         // not enough data but at least it must NOT exceed superblock max value
         if(CSuperblock::IsValidBlockHeight(nBlockHeight) || (fDistributedComputingEnabled && CSuperblock::IsDCCSuperblock(nBlockHeight)))
 		{
@@ -293,9 +292,6 @@ void FillBlockPayments(CMutableTransaction& txNew, int nBlockHeight, CAmount blo
 	{
 		   // This means we have a Sanctuary Quorum Agreement in place 
 		   LogPrintf("Triggering DCC \n");
-	       //if (fDebugMaster) LogPrintf("FillBlockPayments -- triggered DCC superblock creation at height %d\n", nBlockHeight);
-           //CSuperblockManager::CreateDcuperblock(txNew, nBlockHeight, voutSuperblockRet);
-           //return;
 	}
 
 	// Do this if this is a governance superblock (once per month):

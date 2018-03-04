@@ -162,10 +162,15 @@ unsigned int static DarkGravityWave(const CBlockIndex* pindexLast, const Consens
     arith_uint256 bnNew(PastDifficultyAverage);
 
     int64_t _nTargetTimespan = CountBlocks * params.nPowTargetSpacing; 
-	// 1-17-2018 Biblepay:  Change params.nPowTargetSpacing to 7*60*.75 during next mandatory
-	if ((fProdChain && pindexLast->nHeight > 100000))
+	// 3-4-2018 Biblepay:  Change params.nPowTargetSpacing to equal 7 minute blocks during next mandatory, the default calculation calls for 7*60=420 nPowTargetSpacing
+	// Approaching this mathematically, with POBH, we have historically emitted 159 blocks per day out of 202, a rate of 20% below normal - a rate that is too slow.
+	// The dev team believes this is attributed entirely to the late block threshhold parameter.  After the F11000 cutover block, this late threshhold is being reduced
+	// from 30 minutes to 16 minutes, with 16 minutes bringing the blocks from 9 minute spacing to 8.1 minute spacing (meaning we are still going to be slow by 60.1 seconds)
+	// Therefore we must reduce the nPowTargetSpacing by 10% more to compensate for the difference.  Shooting for 7 minute blocks, we now adjust nPowTargetSpacing to 390
+	// In summary we are making the assumption that the gained 30 seconds per block target will equalize the effect our late blocks per day lag the chain.
+	if ((fProdChain && pindexLast->nHeight > F11000_CUTOVER_HEIGHT_PROD))
 	{
-		_nTargetTimespan = CountBlocks * 350;
+		_nTargetTimespan = CountBlocks * 390;
 	}
 
 	if (!fProdChain && pindexLast->nHeight < 250)
@@ -307,7 +312,6 @@ bool CheckProofOfLoyalty(double dWeight, uint256 hash, unsigned int nBits, const
     bool fNegative;
     bool fOverflow;
     arith_uint256 bnTarget;
-	// bool fProdChain = Params().NetworkIDString() == "main" ? true : false;
 	
 	bool f_7000;
 	bool f_8000;

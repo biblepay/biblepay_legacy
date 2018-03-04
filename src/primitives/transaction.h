@@ -312,7 +312,28 @@ public:
 
 	bool IsPODCPayment() const
 	{
-		return (vin.size() == 1 && vin[0].prevout.IsNull() && vout.size() > 3);
+		// Determine if this is a superblock payment or PODC (Research) payment
+		bool IsSuperblock = (vin.size() == 1 && vin[0].prevout.IsNull() && vout.size() > 3);
+		if (IsSuperblock)
+		{
+			CAmount nValueOut = GetValueOut();
+			bool bPODCPayment = nValueOut < (4000000 * COIN);
+			return bPODCPayment;
+		}
+		return false;
+    }
+
+	bool IsSuperblockPayment() const
+	{
+		// Determine if this is a superblock payment or PODC (Research) payment
+		bool IsSuperblock = (vin.size() == 1 && vin[0].prevout.IsNull() && vout.size() > 3);
+		if (IsSuperblock)
+		{
+			CAmount nValueOut = GetValueOut();
+			bool bSuperblockPayment = nValueOut > (4000000 * COIN);
+			return bSuperblockPayment;
+		}
+		return false;
     }
 
     friend bool operator==(const CTransaction& a, const CTransaction& b)

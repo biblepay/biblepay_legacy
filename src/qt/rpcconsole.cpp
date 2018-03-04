@@ -585,12 +585,12 @@ void RPCConsole::downloadDCCFinished(QNetworkReply *reply)
     std::string result = SystemCommand2(sCommand.c_str());
 	std::string sError = "";
 	ile(50, sError);
-	fDistributedComputingCycleDownloading = false;
+	CycleDownloading = false;
 }
 
 bool RPCConsole::DownloadDCCFile(std::string sURL)
 {
-	fDistributedComputingCycleDownloading = true;
+	CycleDownloading = true;
 	std::string sPath = NameFromURL2(sURL);
 	LogPrintf("Downloading DCC File NAME %s FROM URL %s ",sPath.c_str(),sURL.c_str());
 	bool fExists = FileExists2(sPath);
@@ -606,7 +606,7 @@ void RPCConsole::DownloadDCC()
 	// Proof-of-concept - R Andrija - Biblepay - 01-28-2018 - POC for integration with Rosetta/BakerLabs Distributed Computing Cancer Project
 	// Download the GZ file from reference site
 	// First Touch the daily magnitude to prevent duplicate downloads:
-	if (fDistributedComputingCycleDownloading) return;
+	if (CycleDownloading) return;
 	TouchDailyMagnitudeFile();
 	// spork project1 = boinc.bakerlab.org
 	std::string sSrc = Value(sProjectId);

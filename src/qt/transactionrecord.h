@@ -139,6 +139,9 @@ public:
 	/** If this is a PODC Research Payment */
 	bool IsPODCPayment;
 
+	/** If this is a Superblock Payment */
+	bool IsSuperblockPayment;
+
     /** Return the unique identifier for this transaction (part) */
     QString getTxID() const;
 

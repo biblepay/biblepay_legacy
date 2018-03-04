@@ -382,7 +382,18 @@ QString TransactionTableModel::formatTxType(const TransactionRecord *wtx) const
 	case TransactionRecord::PODCUpdate:
 		return fDistributedComputingEnabled ? tr("PODC Update") : tr("Payment to Self");
     case TransactionRecord::Generated:
-		return (wtx->IsPODCPayment) ? tr("PODC Payment") : tr("Mined");
+		if (wtx->IsPODCPayment) 
+		{
+			return tr("PODC Payment");
+		}
+		else if (wtx->IsSuperblockPayment)
+		{
+			return tr("Superblock Payment");
+		}
+		else
+		{
+			return tr("Mined");
+		}
     case TransactionRecord::PrivateSendDenominate:
         return tr("PrivateSend Denominate");
     case TransactionRecord::PrivateSendCollateralPayment:
@@ -405,7 +416,19 @@ QVariant TransactionTableModel::txAddressDecoration(const TransactionRecord *wtx
     switch(wtx->type)
     {
     case TransactionRecord::Generated:
-		return wtx->IsPODCPayment ? QIcon(":/icons/drkblue/key") : QIcon(":/icons/" + theme + "/tx_mined");
+		if (wtx->IsPODCPayment)
+		{
+			return QIcon(":/icons/drkblue/key");
+		
+		}
+		else if (wtx->IsSuperblockPayment)
+		{
+			return QIcon(":/icons/drkblue/eye_minus");
+		}
+		else
+		{
+			return QIcon(":/icons/" + theme + "/tx_mined");
+		}
 	case TransactionRecord::PODCUpdate:
 	    return QIcon(":/icons/drkblue/key");
 	case TransactionRecord::RecvWithPrivateSend:

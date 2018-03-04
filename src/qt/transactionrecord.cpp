@@ -55,8 +55,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
         {
             isminetype mine = wallet->IsMine(txout);
 			CComplexTransaction cct(txout);
-			// bool b401k = (cct.Color=="401" && false);
-            if(mine)
+	        if(mine)
             {
                 TransactionRecord sub(hash, nTime);
                 CTxDestination address;
@@ -64,6 +63,8 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                 sub.credit = txout.nValue;
                 sub.involvesWatchAddress = mine & ISMINE_WATCH_ONLY;
 				sub.IsPODCPayment = wtx.IsPODCPayment();
+				sub.IsSuperblockPayment = wtx.IsSuperblockPayment();
+
                 if (ExtractDestination(txout.scriptPubKey, address) && IsMine(*wallet, address))
                 {
                     // Received by Biblepay Address
@@ -123,7 +124,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
         else if (fAllFromMe && fAllToMe)
         {
 
-			// Biblepay - R Andrija - 01/18/2018 - Ensure Proof-Of-Loyalty payments appear properly in transaction list
+			// Biblepay - R Andrews - 03-04-2018 - Show PODC Update in Transaction Record
 
             // Payment to self
             // TO DO: this section still not accurate but covers most cases,

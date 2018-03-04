@@ -128,6 +128,14 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionReco
 	{
 	     strHTML += "<b>" + tr("Source") + ":</b> " + tr("PODC-Update") + "<br>";
 	}
+	if (wtx.IsSuperblockPayment())
+	{
+	     strHTML += "<b>" + tr("Source") + ":</b> " + tr("Superblock-Payment") + "<br>";
+	}
+	if (wtx.IsPODCPayment())
+	{
+	     strHTML += "<b>" + tr("Source") + ":</b> " + tr("PODC-Payment") + "<br>";
+	}
 	if (wtx.IsProofOfLoyalty())
 	{
 	     strHTML += "<b>" + tr("Source") + ":</b> " + tr("Proof-Of-Loyalty") + "<br>";

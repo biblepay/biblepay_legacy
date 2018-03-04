@@ -1519,6 +1519,7 @@ void ListTransactions(const CWalletTx& wtx, const string& strAccount, int nMinDe
 					std::string sSuffix = (wtx.IsProofOfLoyalty()) ? " proof-of-loyalty" : "";
 					if (wtx.IsPODCUpdate()) sSuffix = " podc-update";
 					if (wtx.IsPODCPayment()) sSuffix = " podc-payment";
+					if (wtx.IsSuperblockPayment()) sSuffix = " superblock-payment";
                     if (wtx.GetDepthInMainChain() < 1)
                         entry.push_back(Pair("category", "orphan" + sSuffix));
                     else if (wtx.GetBlocksToMaturity() > 0)

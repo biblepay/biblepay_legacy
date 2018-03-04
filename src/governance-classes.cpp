@@ -451,7 +451,7 @@ bool CSuperblockManager::GetBestSuperblock(CSuperblock_sptr& pSuperblockRet, int
 void CSuperblockManager::uperblock(CMutableTransaction& txNewRet, int nBlockHeight, std::vector<CTxOut>& voutSuperblockRet)
 {
 
-	if (!fDistributedComputingEnabled) return;
+	if (!putingEnabled) return;
     LOCK(governance.cs);
 
     // Create the Distributed Computing Superblock For This Height - This happens Daily
@@ -629,7 +629,7 @@ bool CSuperblockManager::IsValidSuperblock(const CTransaction& txNew, int nBlock
     LOCK(governance.cs);
 	// If this is a DistributedComputing Superblock, handle this block type:
 	/*
-	if (fDistributedComputingEnabled && CSuperblockCCSuperblock(nBlockHeight))
+	if (Enabled && CSuperblockCCSuperblock(nBlockHeight))
 	{
 		CSuperblock_sptr pSuperblock;
 		uint256 nHash = uint256S("0x1");
@@ -732,14 +732,16 @@ CAmount CSuperblock::GetPaymentsLimit(int nBlockHeight)
 
     // min subsidy for high diff networks and vice versa
     int nBits = consensusParams.fPowAllowMinDifficultyBlocks ? UintToArith256(consensusParams.powLimit).GetCompact() : 1;
+
+	bool fDCLive = (fProd && fDistributedComputingEnabled && nBlockHeight > F11000_CUTOVER_HEIGHT_PROD) || (!fProd && fDistributedComputingEnabled);
+
     // some part of all blocks issued during the cycle goes to superblock, see GetBlockSubsidy
-	if (fDistributedComputingEnabled) 
+	if (fDCLive) 
 	{
 		nBits = 486585255;  // Set diff at about 1.42 for Superblocks
 	}
 	int nSuperblockCycle = IsValidBlockHeight(nBlockHeight) ? consensusParams.nSuperblockCycle : consensusParams.nDCCSuperblockCycle;
-	double nBudgetAvailable = (fDistributedComputingEnabled && IsValidBlockHeight(nBlockHeight) && !IsDCCSuperblock(nBlockHeight)) ? .20 : 1;
-	// LogPrintf(" GetBlockSubsidy %f \n",(double)nBlockHeight);
+	double nBudgetAvailable = (fDCLive && IsValidBlockHeight(nBlockHeight) && !IsDCCSuperblock(nBlockHeight)) ? .20 : 1;
     CAmount nSuperblockPartOfSubsidy = GetBlockSubsidy(pindexBestHeader->pprev, nBits, nBlockHeight, consensusParams, true);
     CAmount nPaymentsLimit = 0;
 	if (nBudgetAvailable == 1)

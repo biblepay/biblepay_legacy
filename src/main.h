@@ -68,8 +68,8 @@ static const int SPORK8_HEIGHT_TESTNET = 23000;
 static const int LAST_TITHE_BLOCK = 21565;
 static const int LAST_TITHE_BLOCK_TESTNET = 1000;
 static const int F10000_CUTOVER_HEIGHT = 25910;
-static const int F11000_CUTOVER_HEIGHT_PROD = 100000;
-static const int F11000_CUTOVER_HEIGHT_TESTNET = 23000;
+static const int F11000_CUTOVER_HEIGHT_PROD = 33440;
+static const int F11000_CUTOVER_HEIGHT_TESTNET = 1;
 
 /** Default for -maxorphantx, maximum number of orphan transactions kept in memory */
 static const unsigned int DEFAULT_MAX_ORPHAN_TRANSACTIONS = 100;

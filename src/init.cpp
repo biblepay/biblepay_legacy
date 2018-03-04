@@ -906,7 +906,7 @@ void InitParameterInteraction()
 {
 	bool fTestNet = GetBoolArg("-testnet", false);
 	fProd = fTestNet ? false : true;
-    if (!fProd) fDistributedComputingEnabled = true;
+    if (!fProd || fProd) fDistributedComputingEnabled = true;
 
     // when specifying an explicit binding address, you want to listen on it
     // even when -connect or -proxy is specified
@@ -1094,7 +1094,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
 		SANCTUARY_COLLATERAL = 1550001;
 		fRetirementAccountsEnabled = false;
 		fProofOfLoyaltyEnabled = false;
-		fDistributedComputingEnabled = false;
+		fDistributedComputingEnabled = true;
 		strTemplePubKey = "0";
 	}
 	else if (chainparams.NetworkIDString()=="test")

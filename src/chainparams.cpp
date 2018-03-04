@@ -53,9 +53,11 @@ public:
         consensus.nBudgetProposalEstablishingTime = 60*60*24;  // One Day
 
         consensus.nSuperblockStartBlock = 21710; // The first superblock
-		consensus.nDCCSuperblockStartBlock = 30001;
-		consensus.nDCCSuperblockCycle = BLOCKS_PER_DAY * 1; // Daily
-        consensus.nSuperblockCycle = BLOCKS_PER_DAY * 30; // Monthly
+		consensus.nSuperblockCycle = BLOCKS_PER_DAY * 30; // Monthly
+		// Proof-Of-Distributed Computing - Superblock Cycle:
+		consensus.nDCCSuperblockStartBlock = 33451; //F11000 CUTOVER HEIGHT + 11
+		consensus.nDCCSuperblockCycle = BLOCKS_PER_DAY; // Daily
+        
         consensus.nGovernanceMinQuorum = 10;
         
 		consensus.nGovernanceFilterElements = 20000;
@@ -125,7 +127,7 @@ public:
         fTestnetToBeDeprecatedFieldRPC = false;
 
         nPoolMaxTransactions = 3;
-        nFulfilledRequestExpireTime = 60*60; // fulfilled requests expire in 1 hour
+        nFulfilledRequestExpireTime = 60 * 60; // fulfilled requests expire in 1 hour
         strSporkPubKey = "029ce47108ee0ac9212becfad36f6fd519f1264d1c274b2da0c452d959140fe8a6";        
         strMasternodePaymentsPubKey = "029ce47108ee0ac9212becfad36f6fd519f1264d1c274b2da0c452d959140fe8a6";
 	    checkpointData = (CCheckpointData) 
@@ -138,11 +140,12 @@ public:
 			(20900,uint256S("0x23d0b5887ca89fc2dddb2f34810675cb1826371172a91b1211be4677fd260490"))
 			(21650,uint256S("0x756e18f6a20d02d7af0a32c5705960d58adc4daba24c6a7dd9a8b80776bcca73"))
 			(21960,uint256S("0xdd7e0acd7b9569b6fbf84a8262bb5fe3ea28af259f12d060acbcd62d4241fb51"))
+			(32500, uint256S("0xacb4534f70da9624fee2b9032d2fe47fe6d7d3e8cffdbfbca4d0a3a63394045a"))
 			,
-            1513776131,     // * UNIX timestamp of last checkpoint block
-            37662,          // * total number of transactions between genesis and last checkpoint
+            1519902767,     // * UNIX timestamp of last checkpoint block
+            119639,          // * total number of transactions between genesis and last checkpoint
                             //   (the tx=... number in the SetBestChain debug.log lines)
-            100             // * estimated number of transactions per day after checkpoint
+            150             // * estimated number of transactions per day after checkpoint
         };
 		
     }
@@ -167,7 +170,7 @@ public:
         consensus.nBudgetPaymentsWindowBlocks = 10;
     	consensus.nRuleChangeActivationThreshold = 1201; // 75% for testchains
 	    consensus.nSuperblockStartBlock = 201; // NOTE: Should satisfy nSuperblockStartBlock > nBudgetPaymentsStartBlock
-        consensus.nBudgetProposalEstablishingTime = 60*20; //Possibly 8 in the future
+        consensus.nBudgetProposalEstablishingTime = 60 * 20; //Possibly 8 in the future
 		consensus.FoundationAddress = "yadZnJ3hD3FRC8CiLZEVNqejvQFgNtu5ci";
         consensus.nSuperblockCycle = BLOCKS_PER_DAY * 7; // Superblocks can be issued weekly on testnet
 		consensus.nDCCSuperblockStartBlock = 470;

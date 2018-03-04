@@ -2305,7 +2305,8 @@ CAmount GetBlockSubsidy(const CBlockIndex* pindexPrev, int nPrevBits, int nPrevH
 
 	// Distributed Computing - Give 10% to charity, 5% to IT, 5% to P2P+PR, 50% to Distributed-Computing, (leaving 27% for Sanctuary and 3% for POW mining)
 	double dSuperblockMultiplier = fSuperblocksEnabled ? (!fProd ? .15 : .20) : .10;
-	if (fDistributedComputingEnabled) dSuperblockMultiplier = .70;
+	bool fDCLive = (fProd && fDistributedComputingEnabled && pindexPrev->nHeight > F11000_CUTOVER_HEIGHT_PROD) || (!fProd && fDistributedComputingEnabled);
+	if (fDCLive) dSuperblockMultiplier = .70;
     CAmount nSuperblockPart = (nPrevHeight > consensusParams.nBudgetPaymentsStartBlock) ? nSubsidy * dSuperblockMultiplier : 0;
     return fSuperblockPartOnly ? nSuperblockPart : nSubsidy - nSuperblockPart;
 }
@@ -2329,7 +2330,10 @@ CAmount GetMasternodePayment(int nHeight, CAmount blockValue, CAmount nSanctuary
 	{
 		ret = fSuperblocksEnabled ? blockValue * (!fProd ? .50 : .40) : blockValue * .10;
     }
-	if (fDistributedComputingEnabled)
+
+	bool fDCLive = (fProd && fDistributedComputingEnabled && nHeight > F11000_CUTOVER_HEIGHT_PROD) || (!fProd && fDistributedComputingEnabled);
+
+	if (fDCLive)
 	{
 		double dRevertedToDCMiners = .50;
 		double dMasternodePortion = .40;
@@ -4546,8 +4550,8 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIn
 	}
 
 
-	// Rob A. - Biblepay - 2/8/2018 - Contextual check CPID signature on each block to prevent botnet from forming - Testnet level 2
-	if (fDistributedComputingEnabled && nHeight > 9999)
+	// Rob A. - Biblepay - 2/8/2018 - Contextual check CPID signature on each block to prevent botnet from forming - level 2
+	if (fDistributedComputingEnabled && nHeight > F11000_CUTOVER_HEIGHT_PROD)
 	{
 		int64_t nHeaderAge = GetAdjustedTime() - pindexPrev->nTime;
 		bool bActiveRACCheck = nHeaderAge < (60 * 15) ? true : false;
@@ -4586,7 +4590,6 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIn
 			{
 				return false;
 			}
-			// if (!fCPIDFailed) LogPrintf(" CPID Checks Passed. \n");
 			
 		}
 	}
