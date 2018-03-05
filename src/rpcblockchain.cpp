@@ -5052,8 +5052,8 @@ bool FilterFile(int iBufferSize, std::string& sError)
 				std::string sRow = BPK + "," + sCPID + "," + RoundToString(dMagnitude, 3) + "," + sRosettaID + "," + RoundToString(dTeam,0) 
 					+ "," + RoundToString(dUTXOWeight,0) + "," + RoundToString(dTaskWeight,0) + "," + RoundToString(dTotalRAC,0) + "\n<ROW>";
 				sDCC += sRow;
-				sUser = "";
 			}
+			sUser = "";
 		}
     }
 	streamFiltered.close();
