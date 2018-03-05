@@ -3869,10 +3869,12 @@ UniValue exec(const UniValue& params, bool fHelp)
 			{
 				std::string sData = RetrieveDCCWithMaxAge(s1, iMaxSeconds);
 				int nUserId = cdbl(GetDCCElement(sData, 3),0);
+				std::string sAddress = GetDCCElement(sData, 1);
 				if (nUserId > 0)
 				{
 					double RAC = GetBoincRACByUserId("project1", nUserId);
 					nTotalRAC += RAC;
+					results.push_back(Pair(s1 + "_ADDRESS", sAddress));
 					results.push_back(Pair(s1 + "_RAC", RAC));
 					double dTeam = GetBoincTeamByUserId("project1", nUserId);
 					results.push_back(Pair(s1 + "_TEAM", dTeam));
@@ -5299,7 +5301,8 @@ bool PODCUpdate()
 				if (!bFresh)
 				{
 					double dProofOfLoyaltyPercentage = cdbl(GetArg("-polpercentage", "10"), 2) / 100;
-					CAmount curBalance = pwalletMain->GetUnlockedBalance();
+					CAmount curBalance = pwalletMain->GetBalance(); // 3-5-2018, R Andrews
+					
 					CAmount nTargetValue = curBalance * dProofOfLoyaltyPercentage;
 					if (nTargetValue < 1)
 					{

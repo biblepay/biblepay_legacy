@@ -50,7 +50,7 @@ public:
       
         consensus.nBudgetPaymentsCycleBlocks = BLOCKS_PER_DAY * 30; // Monthly
         consensus.nBudgetPaymentsWindowBlocks = 100;
-        consensus.nBudgetProposalEstablishingTime = 60*60*24;  // One Day
+        consensus.nBudgetProposalEstablishingTime = 60 * 60 * 24;  // One Day
 
         consensus.nSuperblockStartBlock = 21710; // The first superblock
 		consensus.nSuperblockCycle = BLOCKS_PER_DAY * 30; // Monthly
