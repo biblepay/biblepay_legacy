@@ -1884,7 +1884,7 @@ CAmount CWallet::GetUnlockedBalance() const
 				if (!fLocked)
 				{
 					int64_t nAge = GetAdjustedTime() - pcoin->nTimeReceived;
-					if (nAge > 86400 && nCoinDepth > BLOCKS_PER_DAY) 
+					if (nCoinDepth > 5) 
 					{
 						nTotal += nAmount;
 					}

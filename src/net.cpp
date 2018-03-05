@@ -3103,7 +3103,6 @@ bool DownloadDistributedComputingFile(std::string& sError)
 					bytesWritten = fwrite(bigbuf, 1, iSize, outUserFile);
 				}
 				iIterations++;
-				if (bytesWritten != 4096) printf(" written %f ", (double)bytesWritten);
 				clock_t end = clock();
 				double elapsed_secs = double(end - begin) / (CLOCKS_PER_SEC + .01);
 				if (elapsed_secs > iTimeoutSecs) 

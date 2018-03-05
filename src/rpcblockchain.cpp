@@ -5301,7 +5301,7 @@ bool PODCUpdate()
 				if (!bFresh)
 				{
 					double dProofOfLoyaltyPercentage = cdbl(GetArg("-polpercentage", "10"), 2) / 100;
-					CAmount curBalance = pwalletMain->GetBalance(); // 3-5-2018, R Andrews
+					CAmount curBalance = pwalletMain->GetUnlockedBalance(); // 3-5-2018, R Andrews
 					
 					CAmount nTargetValue = curBalance * dProofOfLoyaltyPercentage;
 					if (nTargetValue < 1)
