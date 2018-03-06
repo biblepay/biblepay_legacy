@@ -752,6 +752,11 @@ CAmount CSuperblock::GetPaymentsLimit(int nBlockHeight)
 	{
 		nPaymentsLimit = nSuperblockPartOfSubsidy * nSuperblockCycle * nBudgetAvailable;
 	}
+
+	CAmount nAbsoluteMaxMonthlyBudget = 12500 * BLOCKS_PER_DAY * 30 * .20 * COIN; // Ensure monthly budget is never > 20% of avg monthly total block emission regardless of low difficulty in PODC
+
+	if (nPaymentsLimit > nAbsoluteMaxMonthlyBudget) nPaymentsLimit = nAbsoluteMaxMonthlyBudget;
+
     LogPrint("gobject", "CSuperblock::GetPaymentsLimit -- Valid superblock height %f, payments max %f \n",(double)nBlockHeight, (double)nPaymentsLimit/COIN);
 
     return nPaymentsLimit;
