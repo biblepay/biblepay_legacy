@@ -380,7 +380,7 @@ CBlockTemplate* CreateNewBlock(const CChainParams& chainparams, const CScript& s
 			{
 				if (fDebugMaster) LogPrint("podc","\n Failed to Sign CPID Signature.  %s ",sErr2);
 				// Lets tell the user about this also:
-				WriteCache("poolthread" + RoundToString(iThreadId,0), "poolinfo1", "Failed to sign CPID signature (unlock wallet)?" ,GetAdjustedTime());
+				WriteCache("poolthread" + RoundToString(iThreadId,0), "poolinfo1", "Failed to sign CPID signature (" + sErr2 + ")?" ,GetAdjustedTime());
 			}
 			else
 			{

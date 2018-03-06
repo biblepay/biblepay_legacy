@@ -186,7 +186,9 @@ double GetDifficultyN(const CBlockIndex* blockindex, double N)
 {
 	if (fDistributedComputingEnabled)
 	{
-		double nBlockMagnitude = GetBlockMagnitude(blockindex->nHeight);
+		if (chainActive.Tip() == NULL) return 1;
+		int nHeight = (blockindex == NULL) ? chainActive.Tip()->nHeight : blockindex->nHeight;
+		double nBlockMagnitude = GetBlockMagnitude(nHeight);
 		return nBlockMagnitude;
 	}
 
@@ -3556,9 +3558,11 @@ UniValue exec(const UniValue& params, bool fHelp)
 	else if (sItem == "podcdifficulty")
 	{
 		const Consensus::Params& consensusParams = Params().GetConsensus();
-		int nHeight = chainActive.Tip()->nHeight;
+		int nHeight = 0;
+		if (chainActive.Tip() != NULL) nHeight = chainActive.Tip()->nHeight;
 		if (params.size() == 2) nHeight = cdbl(params[1].get_str(),0);
-		CBlockIndex* pindex = FindBlockByHeight(nHeight);
+		CBlockIndex* pindex = NULL;
+		if (chainActive.Tip() != NULL && nHeight <= chainActive.Tip()->nHeight) FindBlockByHeight(nHeight);
 		double dPOWDifficulty = GetDifficulty(pindex)*10;
 		double dPODCDifficulty = GetBlockMagnitude(nHeight);
 		results.push_back(Pair("difficulty_podc", dPODCDifficulty));
@@ -4571,8 +4575,11 @@ int GetResearcherCount(std::string recipient, std::string RecipList)
 
 double GetBlockMagnitude(int nChainHeight)
 {
-	int nHeight = GetLastDCSuperblockWithPayment(nChainHeight);
 	const Consensus::Params& consensusParams = Params().GetConsensus();
+	if (chainActive.Tip() == NULL) return 0;
+	if (nChainHeight < 1) return 0;
+	if (nChainHeight > chainActive.Tip()->nHeight) return 0;
+	int nHeight = GetLastDCSuperblockWithPayment(nChainHeight);
 	CBlockIndex* pindex = FindBlockByHeight(nHeight);
 	CBlock block;
 	double nParticipants = 0;
