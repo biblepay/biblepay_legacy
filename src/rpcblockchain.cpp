@@ -165,7 +165,7 @@ extern double GetBlockMagnitude(int nChainHeight);
 extern std::string GetBoincHostsByUser(int iRosettaID, std::string sProjectId);
 extern std::string GetBoincTasksByHost(int iHostID, std::string sProjectId);
 extern std::string GetWorkUnitResultElement(std::string sProjectId, int nWorkUnitID, std::string sElement);
-extern bool PODCUpdate();
+extern bool PODCUpdate(std::string& sError);
 extern std::string SendCPIDMessage(std::string sAddress, CAmount nAmount, std::string sXML, std::string& sError);
 extern bool AmIMasternode();
 double VerifyTasks(std::string sTasks);
@@ -3585,8 +3585,9 @@ UniValue exec(const UniValue& params, bool fHelp)
 	}
 	else if (sItem == "podcupdate")
 	{
-		bool bCalled = PODCUpdate();
-		results.push_back(Pair("PODCUpdate", bCalled));
+		std::string sError = "";
+		PODCUpdate(sError);
+		results.push_back(Pair("PODCUpdate", sError));
 	}
 	else if (sItem == "dcc")
 	{
@@ -5244,7 +5245,7 @@ double GetSporkDouble(std::string sName, double nDefault)
 	return dSetting;
 }
 			
-bool PODCUpdate()
+bool PODCUpdate(std::string& sError)
 {
 	if (!fDistributedComputingEnabled) return false;
 
@@ -5313,10 +5314,9 @@ bool PODCUpdate()
 					CAmount nTargetValue = curBalance * dProofOfLoyaltyPercentage;
 					if (nTargetValue < 1)
 					{
-						LogPrintf("\n PODCUpdate::Unable to create PODC UTXO::Balance too low. \n");
+						sError = "Unable to create PODC UTXO::Balance too low.";
 						return false;
 					}
-					std::string sError = "";
 					std::string sFullSig = "";
 					bool bTriedToUnlock = false;
 					if (!msEncryptedString.empty() && pwalletMain->IsLocked())
@@ -5327,7 +5327,7 @@ bool PODCUpdate()
 							static int nNotifiedOfUnlockIssue = 0;
 							if (nNotifiedOfUnlockIssue == 0)
 							{
-								LogPrintf("Unable to unlock wallet with SecureString. \n");
+								sError = "Unable to unlock wallet with SecureString.";
 								WriteCache("poolthread0", "poolinfo2", "Unable to unlock wallet with password provided.", GetAdjustedTime());
 							}
 							nNotifiedOfUnlockIssue++;
@@ -5335,24 +5335,25 @@ bool PODCUpdate()
 					}
 
 					// Sign
-					bool fSigned = SignCPID(s1, sError, sFullSig);
+					std::string sErrorInternal = "";
+		
+					bool fSigned = SignCPID(s1, sErrorInternal, sFullSig);
 					if (!fSigned)
 					{
-						LogPrintf("\n PODCUpdate::Failed to Sign CPID Signature.  %s ",sError.c_str());
+						sError = "Failed to Sign CPID Signature. [" + sErrorInternal + "]";
 						return false;
 					}
 					std::string sXML = "<PODC_TASKS>" + sOutstanding + "</PODC_TASKS>" + sFullSig;
 
-			
-					AddBlockchainMessages(sAddress, "PODC_UPDATE", s1, sXML, nTargetValue, sError);
+					AddBlockchainMessages(sAddress, "PODC_UPDATE", s1, sXML, nTargetValue, sErrorInternal);
 					if (bTriedToUnlock) pwalletMain->Lock();
 
-					if (!sError.empty())
+					if (!sErrorInternal.empty())
 					{
-						LogPrintf("\n PODCUpdate::Error: %s \n", sError.c_str());
+						sError = sErrorInternal;
 						return false;
 					}
-					LogPrintf("\n PODCUpdate::Signed UTXO: %s ", sXML.c_str());
+					if (fDebugMaster) LogPrint("podc","\n PODCUpdate::Signed UTXO: %s ", sXML.c_str());
 					WriteCache("CPIDTasks", s1, sOutstanding, GetAdjustedTime());
 				}
 			}

@@ -70,7 +70,7 @@ int64_t GetStakeTargetModifierPercent(int nHeight, double nWeight);
 bool IsStakeSigned(std::string sXML);
 bool SignCPID(std::string sCPID, std::string& sError, std::string& out_FullSig);
 bool VerifyCPIDSignature(std::string sFullSig, bool bRequireEndToEndVerification, std::string& sError);
-bool PODCUpdate();
+bool PODCUpdate(std::string& sError);
 std::string GetSporkValue(std::string sKey);
 
 
@@ -842,7 +842,9 @@ recover:
 			if (fDistributedComputingEnabled && iThreadID == 0 && (nPODCUpdateAge > (nPODCUpdateFrequency)) && !msGlobalCPID.empty())
 			{
 				nLastPODCUpdate = GetAdjustedTime();
-				PODCUpdate();
+				std::string sError = "";
+				PODCUpdate(sError);
+				if (!sError.empty()) LogPrintf("\n PODCUpdate %s \n",sError.c_str());
 			}
 
 		    auto_ptr<CBlockTemplate> pblocktemplate(CreateNewBlock(chainparams, coinbaseScript->reserveScript, sPoolMiningAddress, sMinerGuid,
