@@ -1118,9 +1118,18 @@ UniValue blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool tx
 	{
 		result.push_back(Pair("height", blockindex->nHeight));
 		result.push_back(Pair("mediantime", (int64_t)blockindex->GetMedianTimePast()));
-	    result.push_back(Pair("difficulty", GetDifficultyN(blockindex,10)));
+		if ((blockindex->nHeight < F11000_CUTOVER_HEIGHT_PROD && fProd) || (blockindex->nHeight < F11000_CUTOVER_HEIGHT_TESTNET && !fProd))
+		{
+			result.push_back(Pair("difficulty", GetDifficultyN(blockindex,10)));
+		}
+		else
+		{
+			double dPOWDifficulty = GetDifficulty(blockindex)*10;
+			result.push_back(Pair("pow_difficulty", dPOWDifficulty));
+			double dPODCDifficulty = GetBlockMagnitude(blockindex->nHeight);
+			result.push_back(Pair("difficulty", dPODCDifficulty));
+		}
 		result.push_back(Pair("chainwork", blockindex->nChainWork.GetHex()));
-		
 	}
 
 	result.push_back(Pair("hrtime",   TimestampToHRDate(block.GetBlockTime())));
@@ -1158,7 +1167,7 @@ UniValue blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool tx
     	result.push_back(Pair("satisfiesbiblehash", bSatisfiesBibleHash ? "true" : "false"));
 		result.push_back(Pair("biblehash", bibleHash.GetHex()));
 		// Rob A. - 02-11-2018 - Proof-of-Distributed-Computing
-		if (!fProd)
+		if (fDistributedComputingEnabled)
 		{
 			std::string sCPIDSignature = ExtractXML(block.vtx[0].vout[0].sTxOutMessage, "<cpidsig>","</cpidsig>");
 			std::string sCPID = GetElement(sCPIDSignature, ";", 0);
@@ -3565,6 +3574,7 @@ UniValue exec(const UniValue& params, bool fHelp)
 		if (chainActive.Tip() != NULL && nHeight <= chainActive.Tip()->nHeight) FindBlockByHeight(nHeight);
 		double dPOWDifficulty = GetDifficulty(pindex)*10;
 		double dPODCDifficulty = GetBlockMagnitude(nHeight);
+		results.push_back(Pair("height", nHeight));
 		results.push_back(Pair("difficulty_podc", dPODCDifficulty));
 		results.push_back(Pair("difficulty_pow", dPOWDifficulty));
 	}
