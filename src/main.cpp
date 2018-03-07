@@ -4513,17 +4513,14 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIn
         }
     }
 
-	// Rob A., Biblepay, 02/10/2018, Kick Off BotNet Rules
-	if (!fProd)
+	// Rob A., Biblepay, 3/7/2018, Kick Off BotNet Rules
+	std::string sBlockVersion = ExtractXML(block.vtx[0].vout[0].sTxOutMessage,"<VER>","</VER>");
+	sBlockVersion = strReplace(sBlockVersion, ".", "");
+	double dBlockVersion = cdbl(sBlockVersion, 0);
+	if (fProd && nHeight > F11000_CUTOVER_HEIGHT_PROD && dBlockVersion < 1104)
 	{
-		std::string sBlockVersion = ExtractXML(block.vtx[0].vout[0].sTxOutMessage,"<VER>","</VER>");
-		sBlockVersion = strReplace(sBlockVersion, ".", "");
-		double dBlockVersion = cdbl(sBlockVersion, 0);
-		if (!fProd && nHeight > 10000 && dBlockVersion < 1095)
-		{
-			 LogPrintf("ContextualCheckBlock::ERROR Rejecting block version %f at height %f \n",(double)dBlockVersion,(double)nHeight);
-			 return false;
-		}
+		 LogPrintf("ContextualCheckBlock::ERROR Rejecting block version %f at height %f \n",(double)dBlockVersion,(double)nHeight);
+		 // return false;
 	}
 
 	// Rob A., Biblepay, 02-10-2018, Check Proof-Of-Loyalty
