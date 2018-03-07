@@ -165,7 +165,7 @@ extern double GetBlockMagnitude(int nChainHeight);
 extern std::string GetBoincHostsByUser(int iRosettaID, std::string sProjectId);
 extern std::string GetBoincTasksByHost(int iHostID, std::string sProjectId);
 extern std::string GetWorkUnitResultElement(std::string sProjectId, int nWorkUnitID, std::string sElement);
-extern bool PODCUpdate(std::string& sError);
+extern bool PODCUpdate(std::string& sError, bool bForce);
 extern std::string SendCPIDMessage(std::string sAddress, CAmount nAmount, std::string sXML, std::string& sError);
 extern bool AmIMasternode();
 double VerifyTasks(std::string sTasks);
@@ -3596,7 +3596,9 @@ UniValue exec(const UniValue& params, bool fHelp)
 	else if (sItem == "podcupdate")
 	{
 		std::string sError = "";
-		PODCUpdate(sError);
+		bool bForce = false;
+		if (params.size() > 1) bForce = params[1].get_str() == "true" ? true : false;
+		PODCUpdate(sError, bForce);
 		results.push_back(Pair("PODCUpdate", sError));
 	}
 	else if (sItem == "dcc")
@@ -5255,7 +5257,7 @@ double GetSporkDouble(std::string sName, double nDefault)
 	return dSetting;
 }
 			
-bool PODCUpdate(std::string& sError)
+bool PODCUpdate(std::string& sError, bool bForce)
 {
 	if (!fDistributedComputingEnabled) return false;
 
@@ -5314,8 +5316,8 @@ bool PODCUpdate(std::string& sError)
 				std::string sCurrentState = ReadCacheWithMaxAge("CPIDTasks", s1, nMinimumChatterAge);
 				double nMaximumChatterAge = GetSporkDouble("podmaximumchatterage", (60 * 60 * 24));
 				std::string sOldState = ReadCacheWithMaxAge("CPIDTasks", s1, nMaximumChatterAge);
-				
 				bool bFresh = (sOldState == sOutstanding || sOutstanding == sCurrentState || (!sCurrentState.empty()));
+				if (bForce) bFresh = false;
 				if (!bFresh)
 				{
 					double dProofOfLoyaltyPercentage = cdbl(GetArg("-polpercentage", "10"), 2) / 100;
