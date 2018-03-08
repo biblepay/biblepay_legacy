@@ -5322,13 +5322,18 @@ bool PODCUpdate(std::string& sError, bool bForce)
 				if (bForce) bFresh = false;
 				if (!bFresh)
 				{
-					double dProofOfLoyaltyPercentage = cdbl(GetArg("-polpercentage", "10"), 2) / 100;
+					double dUTXOAmount = cdbl(GetArg("-utxoamount", "50000"), 2);
 					CAmount curBalance = pwalletMain->GetUnlockedBalance(); // 3-5-2018, R Andrews
 					
-					CAmount nTargetValue = curBalance * dProofOfLoyaltyPercentage;
+					CAmount nTargetValue = dUTXOAmount * COIN;
 					if (nTargetValue < 1)
 					{
-						sError = "Unable to create PODC UTXO::Balance too low.";
+						sError = "Unable to create PODC UTXO::Target UTXO too low.";
+						return false;
+					}
+					if (curBalance < nTargetValue)
+					{
+						sError = "Unable to create PODC UTXO::Balance (" + RoundToString(curBalance/COIN, 2) + ") less than target UTXO (" + RoundToString(nTargetValue/COIN,2) + ").";
 						return false;
 					}
 					std::string sFullSig = "";
