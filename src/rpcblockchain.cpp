@@ -3599,6 +3599,7 @@ UniValue exec(const UniValue& params, bool fHelp)
 		bool bForce = false;
 		if (params.size() > 1) bForce = params[1].get_str() == "true" ? true : false;
 		PODCUpdate(sError, bForce);
+		if (sError.empty()) sError = "true";
 		results.push_back(Pair("PODCUpdate", sError));
 	}
 	else if (sItem == "dcc")
