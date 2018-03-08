@@ -199,7 +199,7 @@ double GetMagnitudeInContract(std::string sContract, std::string sCPID);
 extern double GetMagnitude(std::string sCPID);
 bool AmIMasternode();
 std::string GetWorkUnitResultElement(std::string sProjectId, int nWorkUnitID, std::string sElement);
-extern double VerifyTasks(std::string sTasks);
+extern double VerifyTasks(std::string sCPID, std::string sTasks);
 extern void PurgeCacheAsOfExpiration(std::string sSection, int64_t nExpiration);
 
 
@@ -4517,10 +4517,10 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIn
 	std::string sBlockVersion = ExtractXML(block.vtx[0].vout[0].sTxOutMessage,"<VER>","</VER>");
 	sBlockVersion = strReplace(sBlockVersion, ".", "");
 	double dBlockVersion = cdbl(sBlockVersion, 0);
-	if (fProd && nHeight > F11000_CUTOVER_HEIGHT_PROD && dBlockVersion < 1104)
+	if (fProd && nHeight > F11000_CUTOVER_HEIGHT_PROD && dBlockVersion < 1101)
 	{
 		 LogPrintf("ContextualCheckBlock::ERROR Rejecting block version %f at height %f \n",(double)dBlockVersion,(double)nHeight);
-		 // return false;
+		 return false;
 	}
 
 	// Rob A., Biblepay, 02-10-2018, Check Proof-Of-Loyalty
@@ -7779,17 +7779,20 @@ double GetCPIDUTXOWeight(double dAmount)
 }
 
 
-std::string GetListOfData(std::string sSourceData, std::string sDelimiter, std::string sSubDelimiter, int iSubPosition)
+std::string GetListOfData(std::string sSourceData, std::string sDelimiter, std::string sSubDelimiter, int iSubPosition, int iMaxCount)
 {
 	std::vector<std::string> vPODC = Split(sSourceData.c_str(), sDelimiter);
 	std::string sMyData = "";
+	int iInserted = 0;
 	for (int i = 0; i < (int)vPODC.size(); i++)
 	{
 		std::string sElement = GetElement(vPODC[i], sSubDelimiter, iSubPosition);
 		if (!sElement.empty())
 		{
 			sMyData += sElement + sDelimiter;
+			iInserted++;
 		}
+		if (iInserted >= iMaxCount) break;
 	}
 	sMyData = ChopLast(sMyData);
 	return sMyData;
@@ -7832,18 +7835,20 @@ std::string GetWUElement(std::string sWUdata, std::string sRootElementName, doub
 	return "";
 }
 
-double VerifyTasks(std::string sTasks)
+double VerifyTasks(std::string sCPID, std::string sTasks)
 {
 	if (sTasks.empty()) return 0;
 	double dCounted = 0;
 	double dVerified = 0;
-	std::string sTaskIds = GetListOfData(sTasks, ",", "=", 0);
-	std::string sTimestamps = GetListOfData(sTasks, ",", "=", 1);
+	std::string sTaskIds = GetListOfData(sTasks, ",", "=", 0, 255);
+	std::string sTimestamps = GetListOfData(sTasks, ",", "=", 1, 255);
 	std::string sResults = VerifyManyWorkUnits("project1", sTaskIds);
 	std::vector<std::string> vPODC = Split(sTaskIds.c_str(), ",");
 	std::vector<std::string> vTimes = Split(sTimestamps.c_str(), ",");
-	//LogPrintf("\n VerifyTasks taskids %s, stamps %s, output %s \n", sTaskIds.c_str(), sTimestamps.c_str(), sResults.c_str());
-	for (int i = 0; i < (int)vPODC.size(); i++)
+	std::string sDebug = sResults;
+	if (sDebug.length() > 2500) sDebug = sDebug.substr(0,2499);
+	if (fDebugMaster) LogPrintf("\n\n VerifyTasks CPID %s, taskids %s, stamps %s, output %s \n\n\n", sCPID.c_str(), sTaskIds.c_str(), sTimestamps.c_str(), sDebug.c_str());
+	for (int i = 0; i < (int)vPODC.size() && i < (int)vTimes.size(); i++)
 	{
 		double dTask = cdbl(vPODC[i], 0);
 		double dTime = cdbl(vTimes[i], 0);
@@ -7853,11 +7858,12 @@ double VerifyTasks(std::string sTasks)
 			double dXMLTime = cdbl(GetWUElement(sResults, "<result>", dTask, "id", "sent_time"), 0);
 			if (dXMLTime > 0 && dXMLTime == dTime) dVerified++;
 		}
+		if (dCounted > 255) break;
 	}
 	if (dCounted < 1) return 0;
 	double dSource = (dVerified / dCounted) * 60000;
 	double dSnapped = GetCPIDUTXOWeight(dSource);
-	if (fDebugMaster) LogPrint("podc", "\n VerifyTasks::Tasks %f  Verified %f   Source %f  Snapped %f  ", dCounted, dVerified, dSource, dSnapped);
+	if (fDebugMaster) LogPrintf("\n VerifyTasks::Tasks %f  Verified %f   Source %f  Snapped %f  ", dCounted, dVerified, dSource, dSnapped);
 	return dSnapped;
 }
 

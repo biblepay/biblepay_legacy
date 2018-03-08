@@ -168,7 +168,7 @@ extern std::string GetWorkUnitResultElement(std::string sProjectId, int nWorkUni
 extern bool PODCUpdate(std::string& sError, bool bForce);
 extern std::string SendCPIDMessage(std::string sAddress, CAmount nAmount, std::string sXML, std::string& sError);
 extern bool AmIMasternode();
-double VerifyTasks(std::string sTasks);
+double VerifyTasks(std::string sCPID, std::string sTasks);
 extern std::string VerifyManyWorkUnits(std::string sProjectId, std::string sTaskIds);
 extern std::string ChopLast(std::string sMyChop);
 extern double GetResearcherCredit(double dDRMode, double dAvgCredit, double dUTXOWeight, double dTaskWeight, double dUnbanked);
@@ -3815,7 +3815,7 @@ UniValue exec(const UniValue& params, bool fHelp)
 							std::string sTasks = GetBoincTasksByHost((int)dHost, "project1");
 							results.push_back(Pair("Tasks", sTasks));
 							// Pre Verify these using Sanctuary Rules
-							double dPreverificationPercent = VerifyTasks(sTasks);
+							double dPreverificationPercent = VerifyTasks(sUserId, sTasks);
 							results.push_back(Pair("Preverification", dPreverificationPercent));
 
 							std::vector<std::string> vT = Split(sTasks.c_str(), ",");
@@ -4963,7 +4963,7 @@ bool FilterFile(int iBufferSize, std::string& sError)
 		{
 			sConcatCPIDs += sCPID1 + ",";
 			std::string sTaskList = ReadCacheWithMaxAge("CPIDTasks", sCPID1, nMaxAge);
-			double dVerifyTasks = VerifyTasks(sTaskList);
+			double dVerifyTasks = VerifyTasks(sCPID1, sTaskList);
 			// LogPrintf(" Verifying tasks %s for %s = %f ", sTaskList.c_str(), sCPID1.c_str(), dVerifyTasks);
 			WriteCache("TaskWeight", sCPID1, RoundToString(dVerifyTasks, 0), GetAdjustedTime());
 			if (dRosettaID > 0 && IsInList(sUnbankedList, ",", RoundToString(dRosettaID,0)))
@@ -5273,7 +5273,7 @@ bool PODCUpdate(std::string& sError, bool bForce)
 			std::string sData = RetrieveDCCWithMaxAge(s1, iMaxSeconds);
 			std::string sAddress = GetDCCElement(sData, 1);
 			std::string sOutstanding = "";
-
+			int iInserted = 0;
 			if (!sData.empty() && !sAddress.empty())
 			{
 				std::string sUserId = GetDCCElement(sData, 3);
@@ -5299,8 +5299,9 @@ bool PODCUpdate(std::string& sError, bool bForce)
 								{
 									// Biblepay network does not know this device started this task, add this to the UTXO transaction
 									sOutstanding += sTaskID + "=" + sTimestamp + ",";
+									iInserted++;
 									// WriteCache("podc_start_time", sTaskID, sTimestamp, cdbl(sTimestamp,0));
-									if (sOutstanding.length() > 35000) break; // Don't let them blow up the blocksize
+									if (iInserted > 255 || sOutstanding.length() > 35000) break; // Don't let them blow up the blocksize
 								}
 							}
 						}
