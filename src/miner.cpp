@@ -70,7 +70,7 @@ int64_t GetStakeTargetModifierPercent(int nHeight, double nWeight);
 bool IsStakeSigned(std::string sXML);
 bool SignCPID(std::string sCPID, std::string& sError, std::string& out_FullSig);
 bool VerifyCPIDSignature(std::string sFullSig, bool bRequireEndToEndVerification, std::string& sError);
-bool PODCUpdate(std::string& sError, bool bForce);
+bool PODCUpdate(std::string& sError, bool bForce, std::string sDebugInfo);
 std::string GetSporkValue(std::string sKey);
 
 
@@ -843,7 +843,7 @@ recover:
 			{
 				nLastPODCUpdate = GetAdjustedTime();
 				std::string sError = "";
-				PODCUpdate(sError, false);
+				PODCUpdate(sError, false, "");
 				if (!sError.empty()) LogPrintf("\n PODCUpdate %s \n",sError.c_str());
 			}
 
@@ -864,7 +864,7 @@ recover:
 			// Take a snapshot of the base block hash here, with nonce 0, custom transaction, and if in debug mode, a common timestamp
 			sGlobalBlockHash = pblock->GetHash().GetHex();
 			std::string sPoolNarr = GetPoolMiningNarr(sPoolMiningAddress);
-			if (fDebugMaster && fDebug10) LogPrintf("BiblepayMiner -- Running miner %s with %u transactions in block (%u bytes)\n", sPoolNarr.c_str(),
+			if (fDebugMaster) LogPrint("miner", "BiblepayMiner -- Running miner %s with %u transactions in block (%u bytes)\n", sPoolNarr.c_str(),
 				pblock->vtx.size(), ::GetSerializeSize(*pblock, SER_NETWORK, PROTOCOL_VERSION));
 
             //

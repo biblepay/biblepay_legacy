@@ -87,8 +87,6 @@ extern std::string RetrieveDCCWithMaxAge(std::string cpid, int64_t iMaxSeconds);
 void ClearCache(std::string section);
 void WriteCache(std::string section, std::string key, std::string value, int64_t locktime);
 extern std::string AddBlockchainMessages(std::string sAddress, std::string sType, std::string sPrimaryKey, std::string sHTML, CAmount nAmount, std::string& sError);
-
-
 extern bool CheckStakeSignature(std::string sBitcoinAddress, std::string sSignature, std::string strMessage, std::string& strError);
 std::string ReadCache(std::string sSection, std::string sKey);
 extern uint256 GetDCCFileHash();
@@ -165,7 +163,7 @@ extern double GetBlockMagnitude(int nChainHeight);
 extern std::string GetBoincHostsByUser(int iRosettaID, std::string sProjectId);
 extern std::string GetBoincTasksByHost(int iHostID, std::string sProjectId);
 extern std::string GetWorkUnitResultElement(std::string sProjectId, int nWorkUnitID, std::string sElement);
-extern bool PODCUpdate(std::string& sError, bool bForce);
+extern bool PODCUpdate(std::string& sError, bool bForce, std::string sDebugInfo);
 extern std::string SendCPIDMessage(std::string sAddress, CAmount nAmount, std::string sXML, std::string& sError);
 extern bool AmIMasternode();
 double VerifyTasks(std::string sCPID, std::string sTasks);
@@ -3596,9 +3594,11 @@ UniValue exec(const UniValue& params, bool fHelp)
 	else if (sItem == "podcupdate")
 	{
 		std::string sError = "";
+		std::string sDebugInfo = "";
 		bool bForce = false;
 		if (params.size() > 1) bForce = params[1].get_str() == "true" ? true : false;
-		PODCUpdate(sError, bForce);
+		if (params.size() > 2) sDebugInfo = params[2].get_str();
+		PODCUpdate(sError, bForce, sDebugInfo);
 		if (sError.empty()) sError = "true";
 		results.push_back(Pair("PODCUpdate", sError));
 	}
@@ -4112,7 +4112,7 @@ std::string AddBlockchainMessages(std::string sAddress, std::string sType, std::
  	std::string sMessageType      = "<MT>" + sType + "</MT>";  
     std::string sMessageKey       = "<MK>" + sPrimaryKey + "</MK>";
 	std::string s1 = "<BCM>" + sMessageType + sMessageKey;
-	CAmount curBalance = pwalletMain->GetBalance();
+	CAmount curBalance = pwalletMain->GetUnlockedBalance();
 	if (curBalance < nAmount)
 	{
 		sError = "Insufficient funds (Unlock Wallet).";
@@ -4126,10 +4126,18 @@ std::string AddBlockchainMessages(std::string sAddress, std::string sType, std::
     int nChangePosRet = -1;
 	bool fSubtractFeeFromAmount = false;
 	int iStepLength = (MAX_MESSAGE_LENGTH - 100) - s1.length();
-	if (iStepLength < 1) return "";
+	if (iStepLength < 1) 
+	{
+		sError = "Message length error.";
+		return "";
+	}
 	bool bLastStep = false;
-	int iParts = cdbl(RoundToString(sHTML.length() / iStepLength, 2), 0);
+	// 3-8-2018 R ANDREWS - Ensure each UTXO charge is rounded up
+	double dBasicParts = ((double)sHTML.length() / (double)iStepLength);
+	int iParts = std::ceil(dBasicParts);
 	if (iParts < 1) iParts = 1;
+	int iPosition = 0;
+	double dUTXOAmount = nAmount / COIN;
 	for (int i = 0; i <= (int)sHTML.length(); i += iStepLength)
 	{
 		int iChunkLength = sHTML.length() - i;
@@ -4140,11 +4148,15 @@ std::string AddBlockchainMessages(std::string sAddress, std::string sType, std::
 		} 
 		std::string sChunk = sHTML.substr(i, iChunkLength);
 		if (bLastStep) sChunk += "</BCM>";
-	    CRecipient recipient = {scriptPubKey, nAmount / iParts, fSubtractFeeFromAmount, false, false, false, "", "", ""};
+		double dLegAmount = dUTXOAmount / ((double)iParts);
+		CAmount caLegAmount = dLegAmount * COIN;
+	    CRecipient recipient = {scriptPubKey, caLegAmount, fSubtractFeeFromAmount, false, false, false, "", "", ""};
 		s1 += sChunk;
 		recipient.Message = s1;
-		LogPrintf("\r\n Creating TXID #%f, ChunkLen %f, with Chunk %s \r\n",(double)i,(double)iChunkLength,s1.c_str());
+		LogPrintf("\r\n AddBlockChainMessage::Creating TXID Amount %f, MsgLength %f, StepLen %f, BasicParts %f, Parts %f, vout %f, ResumePos %f, ChunkLen %f, with Chunk %s \r\n", 
+			dLegAmount, (double)sHTML.length(), (double)iStepLength, (double)dBasicParts, (double)iParts, (double)iPosition, (double)i, (double)iChunkLength, s1.c_str());
 		s1 = "";
+		iPosition++;
 		vecSend.push_back(recipient);
 	}
 	
@@ -5258,28 +5270,34 @@ double GetSporkDouble(std::string sName, double nDefault)
 	return dSetting;
 }
 			
-bool PODCUpdate(std::string& sError, bool bForce)
+bool PODCUpdate(std::string& sError, bool bForce, std::string sDebugInfo)
 {
 	if (!fDistributedComputingEnabled) return false;
-
-	std::vector<std::string> vCPIDS = Split(msGlobalCPID.c_str(),";");
+	std::vector<std::string> vCPIDS = Split(msGlobalCPID.c_str(), ";");
+	std::string sPrimaryCPID = GetElement(msGlobalCPID, ";", 0);
+	if (sPrimaryCPID.empty())
+	{
+		sError = "Unable to find any CPIDS.  Please try exec getboincinfo.";
+		return false;
+	}
 	int64_t iMaxSeconds = 60 * 24 * 30 * 12 * 60;
+	int iInserted = 0;
+	int iCPIDSProcessed = 0;	
 	for (int i = 0; i < (int)vCPIDS.size(); i++)
 	{
 		std::string s1 = vCPIDS[i];
-
 		if (!s1.empty())
 		{
 			std::string sData = RetrieveDCCWithMaxAge(s1, iMaxSeconds);
 			std::string sAddress = GetDCCElement(sData, 1);
 			std::string sOutstanding = "";
-			int iInserted = 0;
 			if (!sData.empty() && !sAddress.empty())
 			{
 				std::string sUserId = GetDCCElement(sData, 3);
 				int nUserId = cdbl(sUserId, 0);
 				if (nUserId > 0)
 				{
+					iCPIDSProcessed++;
 					std::string sHosts = GetBoincHostsByUser(nUserId, "project1");
 					std::vector<std::string> vH = Split(sHosts.c_str(), ",");
 					for (int j = 0; j < (int)vH.size(); j++)
@@ -5300,7 +5318,6 @@ bool PODCUpdate(std::string& sError, bool bForce)
 									// Biblepay network does not know this device started this task, add this to the UTXO transaction
 									sOutstanding += sTaskID + "=" + sTimestamp + ",";
 									iInserted++;
-									// WriteCache("podc_start_time", sTaskID, sTimestamp, cdbl(sTimestamp,0));
 									if (iInserted > 255 || sOutstanding.length() > 35000) break; // Don't let them blow up the blocksize
 								}
 							}
@@ -5308,7 +5325,11 @@ bool PODCUpdate(std::string& sError, bool bForce)
 					}
 				}
 			}
-
+			if (!sDebugInfo.empty())
+			{
+				sOutstanding += sDebugInfo + "=" + RoundToString(GetAdjustedTime(), 0) + ",";
+				iInserted++;
+			}
 			if (!sOutstanding.empty())
 			{
 				sOutstanding = ChopLast(sOutstanding);
@@ -5346,9 +5367,9 @@ bool PODCUpdate(std::string& sError, bool bForce)
 							static int nNotifiedOfUnlockIssue = 0;
 							if (nNotifiedOfUnlockIssue == 0)
 							{
-								sError = "Unable to unlock wallet with SecureString.";
 								WriteCache("poolthread0", "poolinfo2", "Unable to unlock wallet with password provided.", GetAdjustedTime());
 							}
+							sError = "Unable to unlock wallet with SecureString.";
 							nNotifiedOfUnlockIssue++;
 						}
 					}
@@ -5372,12 +5393,19 @@ bool PODCUpdate(std::string& sError, bool bForce)
 						sError = sErrorInternal;
 						return false;
 					}
-					if (fDebugMaster) LogPrint("podc","\n PODCUpdate::Signed UTXO: %s ", sXML.c_str());
+					if (fDebugMaster) LogPrint("podc", "\n PODCUpdate::Signed UTXO: %s ", sXML.c_str());
 					WriteCache("CPIDTasks", s1, sOutstanding, GetAdjustedTime());
 				}
 			}
 		}
 	}
+	if (iInserted == 0)
+	{
+		sError = "Processed 0 tasks for CPID " + GetElement(msGlobalCPID, ";", 0);
+		return false;
+	}
+	sError = "Processed (" + RoundToString((double)iInserted, 0) + ") over " + RoundToString((double)iCPIDSProcessed, 0) + " CPID(s) successfully.";
+	LogPrintf(" UTXOUpdate %s ", sError.c_str());
 	return true;
 }
 
