@@ -137,12 +137,12 @@ extern bool Contains(std::string data, std::string instring);
 extern std::string GetTemplePrivKey();
 extern std::string SignMessage(std::string sMsg, std::string sPrivateKey);
 extern void GetMiningParams(int nPrevHeight, bool& f7000, bool& f8000, bool& f9000, bool& fTitheBlocksActive);
-std::string GetDCCElement(std::string sData, int iElement);
+std::string GetDCCElement(std::string sData, int iElement, bool fCheckSignature);
 std::string GetBoincResearcherHexCodeAndCPID(std::string sProjectId, int nUserId, std::string& sCPID);
 std::string GetSporkValue(std::string sKey);
 std::string ExecuteDistributedComputingSanctuaryQuorumProcess();
 extern std::string FindResearcherCPIDByAddress(std::string sSearch, std::string& out_address, double& nTotalMagnitude);
-std::vector<std::string> GetListOfDCCS(std::string sSearch);
+std::vector<std::string> GetListOfDCCS(std::string sSearch, bool fRequireSig);
 int GetRequiredQuorumLevel(int nHeight);
 int GetLastDCSuperblockHeight(int nCurrentHeight, int& nNextSuperblock);
 void GetDistributedComputingGovObjByHeight(int nHeight, uint256 uOptFilter, int& out_nVotes, uint256& out_uGovObjHash, std::string& out_PAD, std::string& out_PAM);
@@ -182,7 +182,7 @@ extern int32_t ComputeBlockVersion(const CBlockIndex* pindexPrev, const Consensu
 extern void ClearCache(std::string section);
 extern std::string RetrieveTxOutInfo(const CBlockIndex* pindex, int iLookback, int iTxOffset, int ivOutOffset, int iDataType);
 std::string ExtractXML(std::string XMLdata, std::string key, std::string key_end);
-UniValue GetDataList(std::string sType, int iMaxAgeInDays, int& iSpecificEntry, std::string& outEntry);
+UniValue GetDataList(std::string sType, int iMaxAgeInDays, int& iSpecificEntry, std::string sSearch, std::string& outEntry);
 double GetDifficulty(const CBlockIndex* blockindex);
 void MemorizePrayer(std::string sMessage, int64_t nTime, double dAmount, int iPos, std::string sTxID);
 extern double cdbl(std::string s, int place);
@@ -1312,9 +1312,9 @@ bool VerifyDistributedBurnTransaction(std::string sXML)
 	  boost::to_upper(sMessageKey);
 	  if (!Contains(sMessageType,"DCC")) return true;
 	  // Check Biblepay signature first:
-	  std::string sCPID = GetDCCElement(sMessageValue, 0);
-	  std::string sHexCode = GetDCCElement(sMessageValue, 1);
-	  int nUserId = cdbl(GetDCCElement(sMessageValue, 3),0);
+	  std::string sCPID = GetDCCElement(sMessageValue, 0, false);
+	  std::string sHexCode = GetDCCElement(sMessageValue, 1, false);
+	  int nUserId = cdbl(GetDCCElement(sMessageValue, 3, false), 0);
 	  // Now check the Distributed Computing Grid to ensure the Owner of this CPID actually transmitted the Biblepay uint256 Hex TXID into the DC Account they own:
 	  std::string sDCCPID = "";
 	  std::string sDCCode = GetBoincResearcherHexCodeAndCPID("project1", nUserId, sDCCPID);
@@ -7431,7 +7431,7 @@ void SetOverviewStatus()
 	double dDiff = GetDifficultyN(chainActive.Tip(), 10);
 	if (fDistributedComputingEnabled) UpdateMagnitude();
 	std::string sPrayer = "NA";
-	GetDataList("PRAYER", 7, iPrayerIndex, sPrayer);
+	GetDataList("PRAYER", 7, iPrayerIndex, "", sPrayer);
 	msGlobalStatus = "Blocks: " + RoundToString((double)chainActive.Tip()->nHeight, 0) 
 		+ "; Difficulty: " + RoundToString(dDiff,4)
 		+ ";";
@@ -7462,7 +7462,8 @@ double Round(double d, int place)
 
 double cdbl(std::string s, int place)
 {
-	if (s=="") s="0";
+	if (s=="") s = "0";
+	if (s.length() > 255) return 0;
 	s = strReplace(s,"\r","");
 	s = strReplace(s,"\n","");
 	std::string t = "";
@@ -7846,8 +7847,8 @@ double VerifyTasks(std::string sCPID, std::string sTasks)
 	std::vector<std::string> vPODC = Split(sTaskIds.c_str(), ",");
 	std::vector<std::string> vTimes = Split(sTimestamps.c_str(), ",");
 	std::string sDebug = sResults;
-	if (sDebug.length() > 2500) sDebug = sDebug.substr(0,2499);
-	if (fDebugMaster) LogPrintf("\n\n VerifyTasks CPID %s, taskids %s, stamps %s, output %s \n\n\n", sCPID.c_str(), sTaskIds.c_str(), sTimestamps.c_str(), sDebug.c_str());
+	if (sDebug.length() > 2500) sDebug = sDebug.substr(0, 2499);
+	if (fDebugMaster) LogPrint("podc", "\n\n VerifyTasks CPID %s, taskids %s, stamps %s, output %s \n\n\n", sCPID.c_str(), sTaskIds.c_str(), sTimestamps.c_str(), sDebug.c_str());
 	for (int i = 0; i < (int)vPODC.size() && i < (int)vTimes.size(); i++)
 	{
 		double dTask = cdbl(vPODC[i], 0);
@@ -8383,14 +8384,14 @@ std::string GetMyPublicKeys()
 
 std::string GetCPIDByAddress(std::string sAddress, int iOffset)
 {
-	std::vector<std::string> vCPIDs = GetListOfDCCS(sAddress);
+	std::vector<std::string> vCPIDs = GetListOfDCCS(sAddress, true);
 	int nFound = 0;
 	if (vCPIDs.size() > 0)
 	{
 		for (int i=0; i < (int)vCPIDs.size(); i++)
 		{
-			std::string sCPID = GetDCCElement(vCPIDs[i], 0);
-			std::string sInternalAddress =  GetDCCElement(vCPIDs[i], 1);
+			std::string sCPID = GetDCCElement(vCPIDs[i], 0, false);
+			std::string sInternalAddress = GetDCCElement(vCPIDs[i], 1, false);
 			if (sAddress == sInternalAddress) 
 			{
 				nFound++;
@@ -8403,14 +8404,14 @@ std::string GetCPIDByAddress(std::string sAddress, int iOffset)
 
 std::string GetCPIDByRosettaID(double dRosettaID)
 {
-	std::vector<std::string> vCPIDs = GetListOfDCCS("");
+	std::vector<std::string> vCPIDs = GetListOfDCCS("", false);
 	if (vCPIDs.size() > 0)
 	{
 		for (int i=0; i < (int)vCPIDs.size(); i++)
 		{
-			std::string sCPID = GetDCCElement(vCPIDs[i], 0);
-			double dInternalRosettaId = cdbl(GetDCCElement(vCPIDs[i], 3),0);
-			if (dInternalRosettaId == dRosettaID)  return sCPID;
+			std::string sCPID = GetDCCElement(vCPIDs[i], 0, false);
+			double dInternalRosettaId = cdbl(GetDCCElement(vCPIDs[i], 3, false),0);
+			if (dInternalRosettaId == dRosettaID) return sCPID;
 		}
 	}
 	return "";
@@ -8433,13 +8434,13 @@ std::string FindResearcherCPIDByAddress(std::string sSearch, std::string& out_ad
 		    std::string sAddress = CBitcoinAddress(address).ToString();
 			boost::to_upper(strName);
 			// If we have a valid burn in the chain, prefer it
-			std::vector<std::string> vCPIDs = GetListOfDCCS(sAddress);
+			std::vector<std::string> vCPIDs = GetListOfDCCS(sAddress, true);
 			nTotalMagnitude += GetMagnitudeByAddress(sAddress);
 			if (vCPIDs.size() > 0)
 			{
 				for (int i=0; i < (int)vCPIDs.size(); i++)
 				{
-					std::string sCPID = GetDCCElement(vCPIDs[i], 0);
+					std::string sCPID = GetDCCElement(vCPIDs[i], 0, false);
 					if (sSearch.empty() && !sCPID.empty()) 
 					{
 						out_address = sAddress;

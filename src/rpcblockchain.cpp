@@ -94,10 +94,10 @@ extern std::string GetDCCFileContract();
 extern uint256 GetDCCHash(std::string sContract);
 extern bool AdvertiseDistributedComputingKey(std::string sProjectId, std::string sAuth, std::string sCPID, int nUserId, bool fForce, std::string sUnbankedPublicKey, std::string &sError);
 extern std::string AssociateDCAccount(std::string sProjectId, std::string sBoincEmail, std::string sBoincPassword, std::string sUnbankedPublicKey, bool fForce);
-extern std::vector<std::string> GetListOfDCCS(std::string sSearch);
+extern std::vector<std::string> GetListOfDCCS(std::string sSearch, bool fRequireSig);
 extern std::string GetSporkValue(std::string sKey);
 extern int GetLastDCSuperblockWithPayment(int nChainHeight);
-extern std::string GetDCCElement(std::string sData, int iElement);
+extern std::string GetDCCElement(std::string sData, int iElement, bool bCheckSignature);
 std::string FindResearcherCPIDByAddress(std::string sSearch, std::string& out_address, double& nTotalMagnitude);
 extern double GetUserMagnitude(double& nBudget, double& nTotalPaid, int& iLastSuperblock, std::string& out_Superblocks, int& out_SuperblockCount, int& out_HitCount, double& out_OneDayPaid, double& out_OneWeekPaid, double& out_OneDayBudget, double& out_OneWeekBudget);
 std::string ReadCacheWithMaxAge(std::string sSection, std::string sKey, int64_t nMaxAge);
@@ -112,7 +112,7 @@ extern std::string ExecuteDistributedComputingSanctuaryQuorumProcess();
 extern void TouchDailyMagnitudeFile();
 
 extern int GetRequiredQuorumLevel(int iHeight);
-UniValue GetDataList(std::string sType, int iMaxAgeInDays, int& iSpecificEntry, std::string& outEntry);
+UniValue GetDataList(std::string sType, int iMaxAgeInDays, int& iSpecificEntry, std::string sSearch, std::string& outEntry);
 uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight, const CBlockIndex* pindexLast, bool bRequireTxIndex, bool f7000, bool f8000, bool f9000, bool fTitheBlocksActive, unsigned int nNonce);
 void MemorizeBlockChainPrayers(bool fDuringConnectBlock);
 std::string GetVerse(std::string sBook, int iChapter, int iVerse, int iStart, int iEnd);
@@ -141,7 +141,7 @@ extern std::string SendBlockchainMessage(std::string sType, std::string sPrimary
 std::string SQL(std::string sCommand, std::string sAddress, std::string sArguments, std::string& sError);
 extern void StartTradingThread();
 extern CTradeTx GetOrderByHash(uint256 uHash);
-extern std::string GetDCCPublicKey(const std::string& cpid);
+extern std::string GetDCCPublicKey(const std::string& cpid, bool fRequireSig);
 extern std::string RelayTrade(CTradeTx& t, std::string Type);
 extern std::string GetTrades();
 static bool bEngineActive = false;
@@ -2632,6 +2632,8 @@ bool SignStake(std::string sBitcoinAddress, std::string strMessage, std::string&
 			if (nNotifiedOfUnlockIssue == 0)
 				LogPrintf("\nUnable to unlock wallet with SecureString.\n");
 			nNotifiedOfUnlockIssue++;
+			sError = "Unable to unlock wallet with PODC password provided";
+			return false;
 		}
 	}
 
@@ -3625,7 +3627,7 @@ UniValue exec(const UniValue& params, bool fHelp)
 		for (int y = 0; y < 64; y++)
 		{
 			std::string sPrayer = "";
-			GetDataList("PRAYER", 7, iPrayerIndex, sPrayer);
+			GetDataList("PRAYER", 7, iPrayerIndex, "", sPrayer);
 			results.push_back(Pair("Prayer", sPrayer));
 		}
 
@@ -3681,7 +3683,7 @@ UniValue exec(const UniValue& params, bool fHelp)
 	}
 	else if (sItem == "listdccs")
 	{
-		std::vector<std::string> sCPIDs = GetListOfDCCS("");
+		std::vector<std::string> sCPIDs = GetListOfDCCS("", false);
 		for (int i=0; i < (int)sCPIDs.size(); i++)
 		{
 			results.push_back(Pair("cpid",sCPIDs[i]));
@@ -3801,7 +3803,7 @@ UniValue exec(const UniValue& params, bool fHelp)
 				std::string sData = RetrieveDCCWithMaxAge(s1, iMaxSeconds);
 				if (!sData.empty())
 				{
-					std::string sUserId = GetDCCElement(sData, 3);
+					std::string sUserId = GetDCCElement(sData, 3, true);
 					int nUserId = cdbl(sUserId, 0);
 					if (nUserId > 0)
 					{
@@ -3886,8 +3888,8 @@ UniValue exec(const UniValue& params, bool fHelp)
 			if (!s1.empty())
 			{
 				std::string sData = RetrieveDCCWithMaxAge(s1, iMaxSeconds);
-				int nUserId = cdbl(GetDCCElement(sData, 3),0);
-				std::string sAddress = GetDCCElement(sData, 1);
+				int nUserId = cdbl(GetDCCElement(sData, 3, true), 0);
+				std::string sAddress = GetDCCElement(sData, 1, true);
 				if (nUserId > 0)
 				{
 					double RAC = GetBoincRACByUserId("project1", nUserId);
@@ -3957,10 +3959,23 @@ UniValue exec(const UniValue& params, bool fHelp)
 			results.push_back(Pair("Day " + RoundToString(iDay,0) + "(" + RoundToString(dAdditiveRAC, 0) + ")", dNewRAC));
 		}
 	}
+	else if (sItem == "search")
+	{
+		if (params.size() != 2 && params.size() != 3)
+			throw runtime_error("You must specify type: IE 'exec search PRAYER'.  Optionally you may enter a search phrase: IE 'exec search PRAYER MOTHER'.");
+		std::string sType = params[1].get_str();
+		std::string sSearch = "";
+		if (params.size() == 3) sSearch = params[2].get_str();
+		int iSpecificEntry = 0;
+		std::string sEntry = "";
+		int iDays = 30;
+		UniValue aDataList = GetDataList(sType, iDays, iSpecificEntry, sSearch, sEntry);
+		return aDataList;
+	}
 	else if (sItem == "datalist")
 	{
 		if (params.size() != 2 && params.size() != 3)
-			throw runtime_error("You must specify type: IE 'exec datalist PRAYER'.  Optionally you may enter a lookback period in days: IE 'run datalist PRAYER 30'.");
+			throw runtime_error("You must specify type: IE 'exec datalist PRAYER'.  Optionally you may enter a lookback period in days: IE 'exec datalist PRAYER 30'.");
 		std::string sType = params[1].get_str();
 		double dDays = 30;
 		if (params.size() == 3)
@@ -3969,7 +3984,7 @@ UniValue exec(const UniValue& params, bool fHelp)
 		}
 		int iSpecificEntry = 0;
 		std::string sEntry = "";
-		UniValue aDataList = GetDataList(sType, (int)dDays, iSpecificEntry, sEntry);
+		UniValue aDataList = GetDataList(sType, (int)dDays, iSpecificEntry, "", sEntry);
 		return aDataList;
 	}
 	else if (sItem == "unbanked")
@@ -3978,7 +3993,7 @@ UniValue exec(const UniValue& params, bool fHelp)
 		std::vector<std::string> vInput = Split(sUnbanked.c_str(),"<ROW>");
 		for (int i = 0; i < (int)vInput.size(); i++)
 		{
-			double dRosettaID = cdbl(GetElement(vInput[i], ",", 0),0);
+			double dRosettaID = cdbl(GetElement(vInput[i], ",", 0), 0);
 			if (dRosettaID > 0)
 			{
 				std::string sCPID = GetCPIDByRosettaID(dRosettaID);
@@ -4016,7 +4031,7 @@ UniValue exec(const UniValue& params, bool fHelp)
 	{
 		std::string sEntry = "";
 		int iSpecificEntry = 0;
-		UniValue aDataList = GetDataList("SIN", 7, iSpecificEntry, sEntry);
+		UniValue aDataList = GetDataList("SIN", 7, iSpecificEntry, "", sEntry);
 		return aDataList;
 	}
 	else if (sItem == "memorizeprayers")
@@ -4334,7 +4349,7 @@ int64_t StringToUnixTime(std::string sTime)
 }
 
 
-UniValue GetDataList(std::string sType, int iMaxAgeInDays, int& iSpecificEntry, std::string& outEntry)
+UniValue GetDataList(std::string sType, int iMaxAgeInDays, int& iSpecificEntry, std::string sSearch, std::string& outEntry)
 {
 	int64_t nEpoch = GetAdjustedTime() - (iMaxAgeInDays * 86400);
 	if (nEpoch < 0) nEpoch = 0;
@@ -4356,13 +4371,28 @@ UniValue GetDataList(std::string sType, int iMaxAgeInDays, int& iSpecificEntry, 
 			
 				if (nTimestamp > nEpoch || nTimestamp == 0)
 				{
-						iTotalRecords++;
-						std::string sValue = mvApplicationCache[(*ii).first];
-						std::string sLongValue = sPrimaryKey + " - " + sValue;
-						if (iPos==iSpecificEntry) outEntry = sValue;
-						std::string sTimestamp = TimestampToHRDate((double)nTimestamp);
-					 	ret.push_back(Pair(sPrimaryKey + " (" + sTimestamp + ")", sValue));
-						iPos++;
+					iTotalRecords++;
+					std::string sValue = mvApplicationCache[(*ii).first];
+					std::string sLongValue = sPrimaryKey + " - " + sValue;
+					if (iPos==iSpecificEntry) outEntry = sValue;
+					std::string sTimestamp = TimestampToHRDate((double)nTimestamp);
+					if (!sSearch.empty())
+					{
+						std::string sPK1 = sPrimaryKey;
+						std::string sPK2 = sValue;
+						boost::to_upper(sPK1);
+						boost::to_upper(sPK2);
+						boost::to_upper(sSearch);
+						if (Contains(sPK1, sSearch) || Contains(sPK2, sSearch))
+						{
+							ret.push_back(Pair(sPrimaryKey + " (" + sTimestamp + ")", sValue));
+						}
+					}
+					else
+					{
+						ret.push_back(Pair(sPrimaryKey + " (" + sTimestamp + ")", sValue));
+					}
+					iPos++;
 				}
 			}
 		}
@@ -4451,25 +4481,26 @@ UniValue reconsiderblock(const UniValue& params, bool fHelp)
     return NullUniValue;
 }
 
-std::string GetDCCElement(std::string sData, int iElement)
+std::string GetDCCElement(std::string sData, int iElement, bool fCheckSignature)
 {
     std::vector<std::string> vDecoded = Split(sData.c_str(),";");
-	if (vDecoded.size() < 5) return "";
+	if (vDecoded.size() < 5 || (vDecoded.size() < (unsigned int)iElement)) return "";
 	std::string sCPID = vDecoded[0];
 	std::string sPubKey = vDecoded[2];
 	std::string sUserId = vDecoded[3];
 	std::string sMessage = sCPID + ";" + vDecoded[1] + ";" + sPubKey + ";" + sUserId;
 	std::string sSig = vDecoded[4];
 	std::string sError = "";
-	bool fSigned = CheckStakeSignature(sPubKey, sSig, sMessage, sError);
-	if (fSigned) return vDecoded[iElement];
+	bool fSigned = false;
+	if (fCheckSignature) fSigned = CheckStakeSignature(sPubKey, sSig, sMessage, sError);
+	if (fSigned || !fCheckSignature) return vDecoded[iElement];
 	return "";
 }
 
 
-std::vector<std::string> GetListOfDCCS(std::string sSearch)
+std::vector<std::string> GetListOfDCCS(std::string sSearch, bool fRequireSig)
 {
-	// Return a list of Distributed Computing Participants - R Andrijas - Biblepay - 1-29-2018
+	// Return a list of Distributed Computing Participants - Rob A. - Biblepay - 1-29-2018
 	std::string sType = "DCC";
 	std::string sOut = "";
 	boost::to_upper(sSearch);
@@ -4482,11 +4513,11 @@ std::vector<std::string> GetListOfDCCS(std::string sSearch)
 			{
 				std::string sPrimaryKey = sKey.substr(sType.length() + 1, sKey.length() - sType.length());
 				std::string sValue = mvApplicationCache[(*ii).first];
-				std::string sCPID = GetDCCElement(sValue, 0);
-				std::string sAddress = GetDCCElement(sValue, 2);
+				std::string sCPID = GetDCCElement(sValue, 0, fRequireSig);
+				std::string sAddress = GetDCCElement(sValue, 2, fRequireSig);
 				boost::to_upper(sAddress);
 				boost::to_upper(sCPID);
-				if (!sSearch.empty()) if (sSearch==sCPID || sSearch == sAddress)
+				if (!sSearch.empty()) if (sSearch == sCPID || sSearch == sAddress)
 				{
 					sOut += sValue + "<ROW>";
 				}
@@ -4494,12 +4525,12 @@ std::vector<std::string> GetListOfDCCS(std::string sSearch)
 			}
 		}
 	}
-	std::vector<std::string> vCPID = Split(sOut.c_str(),"<ROW>");
+	std::vector<std::string> vCPID = Split(sOut.c_str(), "<ROW>");
 	return vCPID;
 }
 
 
-std::string GetDCCPublicKey(const std::string& cpid)
+std::string GetDCCPublicKey(const std::string& cpid, bool fRequireSig)
 {
 	if (cpid.empty()) return "";
 	int iMonths = 11;
@@ -4510,7 +4541,7 @@ std::string GetDCCPublicKey(const std::string& cpid)
 		return "";
 	}
     // DCC data structure: CPID,hashRand,PubKey,ResearcherID,Sig(base64Enc)
-	std::string sElement = GetDCCElement(sData, 2); // Public Key
+	std::string sElement = GetDCCElement(sData, 2, fRequireSig); // Public Key
 	return sElement;
 }
 
@@ -4548,7 +4579,7 @@ std::string ChopLast(std::string sMyChop)
 double GetPaymentByCPID(std::string CPID)
 {
 	// 2-10-2018 - R ANDREW - BIBLEPAY - Provide ability to return last payment amount (in most recent superblock) for a given CPID
-	std::string sDCPK = GetDCCPublicKey(CPID);
+	std::string sDCPK = GetDCCPublicKey(CPID, true);
 	if (sDCPK.empty()) return -2;
 	if (CPID.empty()) return -3;
 	const Consensus::Params& consensusParams = Params().GetConsensus();
@@ -4805,7 +4836,7 @@ bool VerifyCPIDSignature(std::string sFullSig, bool bRequireEndToEndVerification
 	}
 	if (bRequireEndToEndVerification)
 	{
-		std::string sDCPK = GetDCCPublicKey(sCPID);
+		std::string sDCPK = GetDCCPublicKey(sCPID, true);
 		if (sDCPK != sPK) 
 		{
 			LogPrintf(" End To End CPID Verification Failed, Address does not match advertised public key for CPID %s, Advertised Addr %s, Addr %s ", sCPID.c_str(), sDCPK.c_str(), sPK.c_str());
@@ -4822,7 +4853,7 @@ bool SignCPID(std::string sCPID, std::string& sError, std::string& out_FullSig)
 	// Sign Researcher CPID - 2/8/2018 - Rob A. - Biblepay
 	if (sCPID.empty()) sCPID = GetElement(msGlobalCPID, ";", 0);
 	std::string sHash = GetRandHash().GetHex();
-	std::string sDCPK = GetDCCPublicKey(sCPID);
+	std::string sDCPK = GetDCCPublicKey(sCPID, true);
     std::string sMessage = sCPID + ";" + sHash + ";" + sDCPK;
 	std::string sSignature = "";
 	bool bSigned = SignStake(sDCPK, sMessage, sError, sSignature);
@@ -4938,9 +4969,25 @@ void ClearSanctuaryMemories()
 	PurgeCacheAsOfExpiration("Unbanked", nMinimumMemory);
 }
 
+std::string MutateToList(std::string sData)
+{
+	std::vector<std::string> vInput = Split(sData.c_str(),"<ROW>");
+	std::string sList = "";
+	for (int i = 0; i < (int)vInput.size(); i++)
+	{
+		double dRosettaID = cdbl(GetElement(vInput[i], ",", 0),0);
+		if (dRosettaID > 0)
+		{
+			sList += RoundToString(dRosettaID,0) + ",";
+		}
+	}
+	ChopLast(sList);
+	return sList;
+}
+
 bool FilterFile(int iBufferSize, std::string& sError)
 {
-	std::vector<std::string> vCPIDs = GetListOfDCCS("");
+	std::vector<std::string> vCPIDs = GetListOfDCCS("", false);
     std::string buffer;
     std::string line;
     std::string sTarget = GetSANDirectory2() + "user";
@@ -4963,14 +5010,17 @@ bool FilterFile(int iBufferSize, std::string& sError)
     streamIn.open(pathIn.string().c_str());
 	if (!streamIn) return false;
 	std::string sConcatCPIDs = "";
-	std::string sUnbankedList = GetBoincUnbankedReport("pool");
+	std::string sUnbankedList = MutateToList(GetBoincUnbankedReport("pool"));
 	ClearSanctuaryMemories();
 	ClearCache("Unbanked");
+	LogPrintf(" Filtering file, unbanked contents %s \n", sUnbankedList.c_str());
 	
 	for (int i = 0; i < (int)vCPIDs.size(); i++)
 	{
-		std::string sCPID1 = GetDCCElement(vCPIDs[i], 0);
-		double dRosettaID = cdbl(GetDCCElement(vCPIDs[i], 3), 0);
+		std::string sCPID1 = GetDCCElement(vCPIDs[i], 0, true);
+		double dRosettaID = cdbl(GetDCCElement(vCPIDs[i], 3, false), 0);
+		double dUnbankedIndicator = cdbl(GetDCCElement(vCPIDs[i], 5, false), 0);
+		if (dUnbankedIndicator==1) sCPID1 = GetDCCElement(vCPIDs[i], 0, false);
 		if (!sCPID1.empty())
 		{
 			sConcatCPIDs += sCPID1 + ",";
@@ -4981,6 +5031,13 @@ bool FilterFile(int iBufferSize, std::string& sError)
 			if (dRosettaID > 0 && IsInList(sUnbankedList, ",", RoundToString(dRosettaID,0)))
 			{
 				WriteCache("Unbanked", sCPID1, "1", GetAdjustedTime());
+			}
+			else
+			{
+				if (dUnbankedIndicator == 1)
+				{
+					WriteCache("Unbanked", sCPID1, "0", GetAdjustedTime());
+				}
 			}
 		}
 	}
@@ -4998,7 +5055,7 @@ bool FilterFile(int iBufferSize, std::string& sError)
 		  sBuffer += line + "<ROW>";
 		  iBuffer++;
 		  iLines++;
-		  if (iLines % 1000000 == 0) LogPrintf(" Processing DCC Line %f ",(double)iLines);
+		  if (iLines % 2000000 == 0) LogPrintf(" Processing DCC Line %f ",(double)iLines);
 		  if (!sCpid.empty())
 		  {
 			 boost::to_upper(sCpid);
@@ -5006,7 +5063,7 @@ bool FilterFile(int iBufferSize, std::string& sError)
 			 {
 				for (int i = 0; i < (int)vCPIDs.size(); i++)
 				{
-					std::string sBiblepayResearcher = GetDCCElement(vCPIDs[i], 0);
+					std::string sBiblepayResearcher = GetDCCElement(vCPIDs[i], 0, false);
 					boost::to_upper(sBiblepayResearcher);
 					if (!sBiblepayResearcher.empty() && sBiblepayResearcher == sCpid)
 					{
@@ -5082,10 +5139,12 @@ bool FilterFile(int iBufferSize, std::string& sError)
 			bool bTeamMatch = (dTeamRequired > 0) ? (dTeam == dTeamRequired) : true;
 			if (bTeamMatch)
 			{
-				std::string BPK = GetDCCPublicKey(sCPID);
+				bool fRequireSig = dUnbanked == 1 ? false : true;
+				std::string BPK = GetDCCPublicKey(sCPID, fRequireSig);
 				double dMagnitude = (dModifiedCredit / dTotalRAC) * 1000;
 				std::string sRow = BPK + "," + sCPID + "," + RoundToString(dMagnitude, 3) + "," + sRosettaID + "," + RoundToString(dTeam,0) 
-					+ "," + RoundToString(dUTXOWeight,0) + "," + RoundToString(dTaskWeight,0) + "," + RoundToString(dTotalRAC,0) + "\n<ROW>";
+					+ "," + RoundToString(dUTXOWeight,0) + "," + RoundToString(dTaskWeight,0) 
+					+ "," + RoundToString(dTotalRAC,0) + "," + RoundToString(dUnbanked, 0) + "\n<ROW>";
 				sDCC += sRow;
 			}
 			sUser = "";
@@ -5289,11 +5348,11 @@ bool PODCUpdate(std::string& sError, bool bForce, std::string sDebugInfo)
 		if (!s1.empty())
 		{
 			std::string sData = RetrieveDCCWithMaxAge(s1, iMaxSeconds);
-			std::string sAddress = GetDCCElement(sData, 1);
+			std::string sAddress = GetDCCElement(sData, 1, true);
 			std::string sOutstanding = "";
 			if (!sData.empty() && !sAddress.empty())
 			{
-				std::string sUserId = GetDCCElement(sData, 3);
+				std::string sUserId = GetDCCElement(sData, 3, true);
 				int nUserId = cdbl(sUserId, 0);
 				if (nUserId > 0)
 				{
@@ -5343,7 +5402,7 @@ bool PODCUpdate(std::string& sError, bool bForce, std::string sDebugInfo)
 				if (bForce) bFresh = false;
 				if (!bFresh)
 				{
-					double dUTXOAmount = cdbl(GetArg("-utxoamount", "50000"), 2);
+					double dUTXOAmount = cdbl(GetArg("-utxoamount", "50001"), 2);
 					CAmount curBalance = pwalletMain->GetUnlockedBalance(); // 3-5-2018, R Andrews
 					
 					CAmount nTargetValue = dUTXOAmount * COIN;
@@ -5381,6 +5440,7 @@ bool PODCUpdate(std::string& sError, bool bForce, std::string sDebugInfo)
 					if (!fSigned)
 					{
 						sError = "Failed to Sign CPID Signature. [" + sErrorInternal + "]";
+						if (bTriedToUnlock) pwalletMain->Lock();
 						return false;
 					}
 					std::string sXML = "<PODC_TASKS>" + sOutstanding + "</PODC_TASKS>" + sFullSig;
@@ -5433,7 +5493,7 @@ bool AdvertiseDistributedComputingKey(std::string sProjectId, std::string sAuth,
 					return false;
 				}
 			}
-            std::string sDCC = GetDCCPublicKey(sCPID);
+            std::string sDCC = GetDCCPublicKey(sCPID, false);
             if (!sDCC.empty() && !fForce) 
             {
 				// The fForce flag allows the researcher to re-associate the CPID to another BBP address - for example when they lose their wallet.
@@ -5453,7 +5513,7 @@ bool AdvertiseDistributedComputingKey(std::string sProjectId, std::string sAuth,
 					sError = "Unbanked public key already in use.";
 					return false;
 				}
-				sPubAddress = GenerateNewAddress(sError, "Rosetta");
+				sPubAddress = GenerateNewAddress(sError, "Rosetta_" + sDummyCPID);
 				if (!sError.empty()) return false;
 				if (sPubAddress.empty())
 				{
@@ -5464,9 +5524,9 @@ bool AdvertiseDistributedComputingKey(std::string sProjectId, std::string sAuth,
 
             static int nLastDCCAdvertised = 0;
 			const Consensus::Params& consensusParams = Params().GetConsensus();
-	        if ((chainActive.Tip()->nHeight - nLastDCCAdvertised) < 5 && sUnbankedPublicKey.empty())
+	        if ((chainActive.Tip()->nHeight - nLastDCCAdvertised) < 3 && sUnbankedPublicKey.empty())
             {
-                sError = _("A DCBTX was advertised less then 5 blocks ago. Please wait a full 5 blocks for your DCBTX to enter the chain.");
+                sError = _("A DCBTX was advertised less then 3 blocks ago. Please wait a full 3 blocks for your DCBTX to enter the chain.");
                 return false;
             }
 
@@ -5490,7 +5550,12 @@ bool AdvertiseDistributedComputingKey(std::string sProjectId, std::string sAuth,
 			int iUnbanked = sUnbankedPublicKey.empty() ? 0 : 1;
 			std::string sData = sCPID + ";" + sHexSet + ";" + sPubAddress + ";" + RoundToString(nUserId,0);
 			std::string sSignature = "";
-			bool bSigned = SignStake(sPubAddress, sData, sError, sSignature);
+			// This is where we must create two sets of business logic, one for unbanked and one for banked - R Andrews - 3/8/2018 - Biblepay
+			bool bSigned = false;
+			if (!sUnbankedPublicKey.empty())
+			{
+				bSigned = SignStake(sPubAddress, sData, sError, sSignature);
+			}
 			// Only append the signature after we prove they can sign...
 			if (bSigned)
 			{

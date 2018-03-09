@@ -1592,6 +1592,19 @@ void BitcoinGUI::detectShutdown()
 				{
 					msEncryptedString.reserve(400);
 					msEncryptedString = sPassword.c_str();
+					// Test the password
+					if (!pwalletMain->Unlock(msEncryptedString, false))
+					{
+						LogPrintf(" Unable to unlock wallet with password provided. \n");
+						QMessageBox::warning(this, tr("PODC Unlock Failed"), tr("Failed to unlock wallet with password provided."), 
+							QMessageBox::Ok, QMessageBox::Ok);
+					}
+					else
+					{
+						pwalletMain->Lock();
+						LogPrintf(" PODC Password tested successfully. \n");
+					}
+					
 				}
 				sPassword = "                                                                                                                                                                "; // Erase from memory
 			}
