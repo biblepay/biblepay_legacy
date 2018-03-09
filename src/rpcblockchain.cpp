@@ -169,7 +169,7 @@ extern bool AmIMasternode();
 double VerifyTasks(std::string sCPID, std::string sTasks);
 extern std::string VerifyManyWorkUnits(std::string sProjectId, std::string sTaskIds);
 extern std::string ChopLast(std::string sMyChop);
-extern double GetResearcherCredit(double dDRMode, double dAvgCredit, double dUTXOWeight, double dTaskWeight, double dUnbanked);
+extern double GetResearcherCredit(double dDRMode, double dAvgCredit, double dUTXOWeight, double dTaskWeight, double dUnbanked, double dTotalRAC, double dReqSPM);
 extern std::string GetBoincUnbankedReport(std::string sProjectID);
 void PurgeCacheAsOfExpiration(std::string sSection, int64_t nExpiration);
 extern void ClearSanctuaryMemories();
@@ -3720,13 +3720,11 @@ UniValue exec(const UniValue& params, bool fHelp)
 		results.push_back(Pair("filehash", uDCChash.GetHex()));
 		results.push_back(Pair("contract", sContract));
 		double nRank = MyPercentile(iLastSuperblock);
-
 		results.push_back(Pair("sanctuary_rank", nRank));
 		std::string sAddresses="";
 		std::string sAmounts = "";
 		uint256 uPAMHash = GetDCPAMHashByContract(sContract, iNextSuperblock);
 		results.push_back(Pair("pam_hash", uPAMHash.GetHex()));
-		LogPrintf(" ********* fileage %f  contract %s \n ",(double)nAge, sContract.c_str());
 		int iVotes = 0;
 		uint256 uGovObjHash = uint256S("0x0");
 		GetDistributedComputingGovObjByHeight(iNextSuperblock, uPAMHash, iVotes, uGovObjHash, sAddresses, sAmounts);
@@ -3759,12 +3757,10 @@ UniValue exec(const UniValue& params, bool fHelp)
 		int iCPIDCount = GetCPIDCount(sContract, nTotalMagnitude);
 		results.push_back(Pair("cpid_count", iCPIDCount));
 		results.push_back(Pair("total_magnitude", nTotalMagnitude));
-
-
 		results.push_back(Pair("next_superblock_triggered", fTriggered));
 		bool bRes = VoteForDistributedComputingContract(iNextSuperblock, sContract, sError);
-		results.push_back(Pair("vote1",bRes));
-		results.push_back(Pair("vote1error",sError));
+		results.push_back(Pair("vote1", bRes));
+		results.push_back(Pair("vote1error", sError));
 
 		// Verify the Vote serialization:
 		std::string sSerialize = mnpayments.SerializeSanctuaryQuorumSignatures(iNextSuperblock, uDCChash);
@@ -4872,7 +4868,7 @@ bool SignCPID(std::string sCPID, std::string& sError, std::string& out_FullSig)
 }
 
 
-double GetSumOfXMLColumnFromXMLFile(std::string sFileName, std::string sObjectName, std::string sElementName)
+double GetSumOfXMLColumnFromXMLFile(std::string sFileName, std::string sObjectName, std::string sElementName, double dReqSPM)
 {
 	boost::filesystem::path pathIn(sFileName);
     std::ifstream streamIn;
@@ -4901,15 +4897,86 @@ double GetSumOfXMLColumnFromXMLFile(std::string sFileName, std::string sObjectNa
 		{
 			std::string sValue = ExtractXML(sData, "<" + sElementName + ">","</" + sElementName + ">");
 			double dAvgCredit = cdbl(sValue,2);
-			double dModifiedCredit = GetResearcherCredit(dDRMode, dAvgCredit, dUTXOWeight, dTaskWeight, dUnbanked);
+			double dModifiedCredit = GetResearcherCredit(dDRMode, dAvgCredit, dUTXOWeight, dTaskWeight, dUnbanked, 0, dReqSPM);
 			dTotal += dModifiedCredit;
-			//LogPrintf(" Adding %f from RAC of %f Grand Total %f \n", dModifiedCredit, dAvgCredit, dTotal);
+			LogPrintf(" Adding %f from RAC of %f Grand Total %f \n", dModifiedCredit, dAvgCredit, dTotal);
 		}
     }
 	return dTotal;
 }
 
-double GetResearcherCredit(double dDRMode, double dAvgCredit, double dUTXOWeight, double dTaskWeight, double dUnbanked)
+
+double SnapToGrid(double dPercent)
+{
+	double dOut = 0;
+	if (dPercent >= 4 && dPercent <= 10) 
+	{
+		dOut = 10;
+	}
+	else if (dPercent > 10 && dPercent <= 20)
+	{
+		dOut = 20;
+	}
+	else if (dPercent > 20 && dPercent <= 30)
+	{
+		dOut = 30;
+	}
+	else if (dPercent > 30 && dPercent <= 40)
+	{
+		dOut = 40;
+	}
+	else if (dPercent > 40 && dPercent <= 50)
+	{
+		dOut = 50;
+	}
+	else if (dPercent > 50 && dPercent <= 60)
+	{
+		dOut = 60;
+	}
+	else if (dPercent > 60 && dPercent <= 70)
+	{
+		dOut = 70;
+	}
+	else if (dPercent > 70 && dPercent <= 80)
+	{
+		dOut = 80;
+	}
+	else if (dPercent > 80 && dPercent <= 90)
+	{
+		dOut = 90;
+	}
+	else if (dPercent > 90)
+	{
+		dOut = 100;
+	}
+	else
+	{
+		dOut = 0;
+	}
+	return dOut;
+}
+
+double EnforceLimits(double dValue)
+{
+	if (dValue < 0) dValue = 0;
+	if (dValue > 1) dValue = 1;
+	return dValue;
+}
+
+double GetUTXOLevel(double dUTXOWeight, double dTotalRAC, double dAvgCredit, double dRequiredSPM)
+{
+	double dEstimatedMagnitude = (dAvgCredit / (dTotalRAC + .01)) * 1000;
+	if (dTotalRAC == 0) return 100; //This happens in Phase 1 of the Magnitude Calculation
+	if (dEstimatedMagnitude > 1000) dEstimatedMagnitude = 1000;
+	double dRequirement = dEstimatedMagnitude * dRequiredSPM;
+	double dAchievementPercent = (dUTXOWeight / (dRequirement + .01)) * 100;
+	double dSnappedAchievement = SnapToGrid(dAchievementPercent);
+	LogPrintf(" EstimatedMag %f, UTXORequirement %f, AchievementPecent %f, SnappedAchivement %f \n", dEstimatedMagnitude,
+		dRequirement, dAchievementPercent, dSnappedAchievement);
+	return dSnappedAchievement;
+}
+
+double GetResearcherCredit(double dDRMode, double dAvgCredit, double dUTXOWeight, double dTaskWeight, double dUnbanked, double dTotalRAC, double dReqSPM)
 {
 
 	// Rob Andrews - BiblePay - 02-21-2018 - Add ability to run in distinct modes (via sporks):
@@ -4919,21 +4986,21 @@ double GetResearcherCredit(double dDRMode, double dAvgCredit, double dUTXOWeight
 	// 3) The-Law                = RAC = Magnitude
 	// 4) DR (Disaster-Recovery) = Proof-Of-BibleHash Only (Heat Mining only)
 	double dModifiedCredit = 0;
-	
+				
 	if (dDRMode == 0)
 	{
-		dModifiedCredit = dAvgCredit * (dUTXOWeight/100) * (dTaskWeight/100);
-		if (dUnbanked==1) dModifiedCredit = dAvgCredit * 1 * 1;
+		dModifiedCredit = dAvgCredit * EnforceLimits(GetUTXOLevel(dUTXOWeight, dTotalRAC, dAvgCredit, dReqSPM) / 100) * EnforceLimits(dTaskWeight / 100);
+		if (dUnbanked == 1) dModifiedCredit = dAvgCredit * 1 * 1;
 	}
 	else if (dDRMode == 1)
 	{
-		dModifiedCredit = dAvgCredit * (dUTXOWeight/100);
+		dModifiedCredit = dAvgCredit * EnforceLimits(GetUTXOLevel(dUTXOWeight, dTotalRAC, dAvgCredit, dReqSPM) / 100);
 		if (dUnbanked==1) dModifiedCredit = dAvgCredit * 1 * 1;
 	}
 	else if (dDRMode == 2)
 	{
-		dModifiedCredit = dAvgCredit * (dTaskWeight/100);
-		if (dUnbanked==1) dModifiedCredit = dAvgCredit * 1 * 1;
+		dModifiedCredit = dAvgCredit * EnforceLimits(dTaskWeight/100);
+		if (dUnbanked == 1) dModifiedCredit = dAvgCredit * 1 * 1;
 	}
 	else if (dDRMode == 3)
 	{
@@ -5004,7 +5071,8 @@ bool FilterFile(int iBufferSize, std::string& sError)
     std::string sBuffer = "";
 	int iBuffer = 0;
 	int64_t nMaxAge = (int64_t)GetSporkDouble("podmaximumchatterage", (60 * 60 * 24));
-		
+	double dReqSPM = GetSporkDouble("requiredspm", 500);
+
 	boost::filesystem::path pathIn(sTarget);
     std::ifstream streamIn;
     streamIn.open(pathIn.string().c_str());
@@ -5098,7 +5166,7 @@ bool FilterFile(int iBufferSize, std::string& sError)
 	//  Phase II : Normalize the file for Biblepay (this process asseses the magnitude of each BiblePay Researcher relative to one another, with 100 being the leader, 0 being a researcher with no activity)
 	//  We measure users by RAC - the BOINC Decay function: expavg_credit.  This is the half-life of the users cobblestone emission over a one month period.
 
-	double dTotalRAC = GetSumOfXMLColumnFromXMLFile(sFiltered, "<user>", "expavg_credit");
+	double dTotalRAC = GetSumOfXMLColumnFromXMLFile(sFiltered, "<user>", "expavg_credit", dReqSPM);
 	if (dTotalRAC < 10)
 	{
 		sError = "Total DCC credit less than the project minimum.  Unable to calculate magnitudes.";
@@ -5128,23 +5196,27 @@ bool FilterFile(int iBufferSize, std::string& sError)
 		sUser += line;
 		if (Contains(line, "</user>"))
 		{
-			std::string sCPID = ExtractXML(sUser,"<cpid>","</cpid>");
-			double dAvgCredit = cdbl(ExtractXML(sUser,"<expavg_credit>","</expavg_credit>"), 4);
-			double dTeam = cdbl(ExtractXML(sUser,"<teamid>","</teamid>"), 0);
-			std::string sRosettaID = ExtractXML(sUser,"<id>","</id>");
-			double dUTXOWeight = cdbl(ReadCacheWithMaxAge("UTXOWeight", sCPID, nMaxAge),0);
-			double dTaskWeight = cdbl(ReadCacheWithMaxAge("TaskWeight", sCPID, nMaxAge),0);
+			std::string sCPID = ExtractXML(sUser, "<cpid>", "</cpid>");
+			double dAvgCredit = cdbl(ExtractXML(sUser, "<expavg_credit>", "</expavg_credit>"), 4);
+			double dTeam = cdbl(ExtractXML(sUser, "<teamid>", "</teamid>"), 0);
+			std::string sRosettaID = ExtractXML(sUser, "<id>", "</id>");
+			double dUTXOWeight = cdbl(ReadCacheWithMaxAge("UTXOWeight", sCPID, nMaxAge), 0);
+			double dTaskWeight = cdbl(ReadCacheWithMaxAge("TaskWeight", sCPID, nMaxAge), 0);
 			double dUnbanked = cdbl(ReadCacheWithMaxAge("Unbanked", sCPID, nMaxAge), 0);
-			double dModifiedCredit = GetResearcherCredit(dDRMode, dAvgCredit, dUTXOWeight, dTaskWeight, dUnbanked);
+			double dModifiedCredit = GetResearcherCredit(dDRMode, dAvgCredit, dUTXOWeight, dTaskWeight, dUnbanked, dTotalRAC, dReqSPM);
 			bool bTeamMatch = (dTeamRequired > 0) ? (dTeam == dTeamRequired) : true;
 			if (bTeamMatch)
 			{
 				bool fRequireSig = dUnbanked == 1 ? false : true;
 				std::string BPK = GetDCCPublicKey(sCPID, fRequireSig);
 				double dMagnitude = (dModifiedCredit / dTotalRAC) * 1000;
-				std::string sRow = BPK + "," + sCPID + "," + RoundToString(dMagnitude, 3) + "," + sRosettaID + "," + RoundToString(dTeam,0) 
-					+ "," + RoundToString(dUTXOWeight,0) + "," + RoundToString(dTaskWeight,0) 
-					+ "," + RoundToString(dTotalRAC,0) + "," + RoundToString(dUnbanked, 0) + "\n<ROW>";
+				double dUTXO = GetUTXOLevel(dUTXOWeight, dTotalRAC, dAvgCredit, dReqSPM);
+				std::string sRow = BPK + "," + sCPID + "," + RoundToString(dMagnitude, 3) + "," + sRosettaID + "," + RoundToString(dTeam, 0) 
+					+ "," + RoundToString(dUTXOWeight, 0) + "," + RoundToString(dTaskWeight, 0) 
+					+ "," + RoundToString(dTotalRAC, 0) + "," 
+					+ RoundToString(dUnbanked, 0) + "," + RoundToString(dUTXO, 2) + "," + RoundToString(dAvgCredit,0) + "," 
+					+ RoundToString(dModifiedCredit, 0)
+					+ "\n<ROW>";
 				sDCC += sRow;
 			}
 			sUser = "";

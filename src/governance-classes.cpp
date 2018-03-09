@@ -754,6 +754,12 @@ CAmount CSuperblock::GetPaymentsLimit(int nBlockHeight)
 	}
 
 	CAmount nAbsoluteMaxMonthlyBudget = 12500 * BLOCKS_PER_DAY * 30 * .20 * COIN; // Ensure monthly budget is never > 20% of avg monthly total block emission regardless of low difficulty in PODC
+	// If this is a DC Superblock, and we exceed F12000 Cutover Height, due to cascading superblocks, the DC superblock budget should be 70% of the budget:
+	if (IsDCCSuperblock(nBlockHeight) && nBlockHeight > F12000_CUTOVER_HEIGHT_PROD)
+	{
+		double nDCSuperblockBudget = .45;
+		nPaymentsLimit = nPaymentsLimit * nDCSuperblockBudget;
+	}
 
 	if (nPaymentsLimit > nAbsoluteMaxMonthlyBudget) nPaymentsLimit = nAbsoluteMaxMonthlyBudget;
 

@@ -168,10 +168,16 @@ unsigned int static DarkGravityWave(const CBlockIndex* pindexLast, const Consens
 	// from 30 minutes to 16 minutes, with 16 minutes bringing the blocks from 9 minute spacing to 8.1 minute spacing (meaning we are still going to be slow by 60.1 seconds)
 	// Therefore we must reduce the nPowTargetSpacing by 10% more to compensate for the difference.  Shooting for 7 minute blocks, we now adjust nPowTargetSpacing to 390
 	// In summary we are making the assumption that the gained 30 seconds per block target will equalize the effect our late blocks per day lag the chain.
-	if ((fProdChain && pindexLast->nHeight > F11000_CUTOVER_HEIGHT_PROD))
+	// As of March 9th 2018, we are still emitting blocks 19% too slow, decreasing time interval to 315 
+	if ((fProdChain && pindexLast->nHeight > F11000_CUTOVER_HEIGHT_PROD && pindexLast->nHeight < F12000_CUTOVER_HEIGHT_PROD))
 	{
 		_nTargetTimespan = CountBlocks * 390;
 	}
+	else if (fProdChain && pindexLast->nHeight >= F12000_CUTOVER_HEIGHT_PROD)
+	{
+		_nTargetTimespan = CountBlocks * 315;
+	}
+	
 
 	if (!fProdChain && pindexLast->nHeight < 250)
 	{
@@ -182,12 +188,13 @@ unsigned int static DarkGravityWave(const CBlockIndex* pindexLast, const Consens
 		_nTargetTimespan = 30;
 	}
 
+	// if (fDebugMaster) LogPrintf(" Height: %f, targettimespan %f  nActualTimespan %f ",(double)pindexLast->nHeight, (double)_nTargetTimespan, (double)nActualTimespan);
 
-    if (nActualTimespan < _nTargetTimespan/2)
-        nActualTimespan = _nTargetTimespan/2;
+    if (nActualTimespan < _nTargetTimespan / 2)
+        nActualTimespan = _nTargetTimespan / 2;
 
-    if (nActualTimespan > _nTargetTimespan*2)
-        nActualTimespan = _nTargetTimespan*2;
+    if (nActualTimespan > _nTargetTimespan * 2)
+        nActualTimespan = _nTargetTimespan * 2;
 
     // Retarget
     bnNew *= nActualTimespan;

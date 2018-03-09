@@ -7884,7 +7884,7 @@ void MemorizePrayer(std::string sMessage, int64_t nTime, double dAmount, int iPo
 			if (fSigChecked)
 			{
 				std::string sCPID = GetElement(sMySig, ";", 0);
-				WriteCache("UTXOWeight", sCPID, RoundToString(GetCPIDUTXOWeight(dAmount), 0), nTime);
+				WriteCache("UTXOWeight", sCPID, RoundToString(dAmount, 0), nTime);
 				WriteCache("CPIDTasks", sCPID, sPODC, nTime);
 			}
 		}
