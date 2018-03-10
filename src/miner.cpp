@@ -102,7 +102,7 @@ int64_t UpdateTime(CBlockHeader* pblock, const Consensus::Params& consensusParam
 
 
 CBlockTemplate* CreateNewBlock(const CChainParams& chainparams, const CScript& scriptPubKeyIn, std::string sPoolMiningPublicKey, std::string sMinerGuid, 
-	int iThreadId, CAmount retired_MiningTithe, double dProofOfLoyaltyPercentage, std::string& out_Error)
+	int iThreadId, CAmount retired_MiningTithe, double dProofOfLoyaltyPercentage, std::string sCPIDSignature, std::string& out_Error)
 {
     // Create new block
     auto_ptr<CBlockTemplate> pblocktemplate(new CBlockTemplate());
@@ -189,6 +189,9 @@ CBlockTemplate* CreateNewBlock(const CChainParams& chainparams, const CScript& s
             pblock->nVersion = GetArg("-blockversion", pblock->nVersion);
 
 		// *****************************************  BIBLEPAY - Proof-Of-Loyalty - 01/19/2018 ***************************************************
+
+		/*
+
 		std::string sXML = "";
 		std::string sError = "";
 		
@@ -222,6 +225,8 @@ CBlockTemplate* CreateNewBlock(const CChainParams& chainparams, const CScript& s
 					}
 				}
 		}
+
+		*/
 
 		// **************************************** End of Biblepay - Proof-Of-Loyalty ***********************************************************
 
@@ -372,40 +377,14 @@ CBlockTemplate* CreateNewBlock(const CChainParams& chainparams, const CScript& s
 		txNew.vout[0].sTxOutMessage += "<VER>" + sVersion + "</VER>";
 		if (fDistributedComputingEnabled)
 		{
-			// 2-8-2018 Rob A. - Biblepay
-			std::string sErr2 = "";
-			std::string sFullSig = "";
-			bool fSigned = SignCPID("", sErr2, sFullSig);
-			if (!fSigned)
-			{
-				if (fDebugMaster) LogPrint("podc","\n Failed to Sign CPID Signature.  %s ",sErr2);
-				// Lets tell the user about this also:
-				// Slow down the miner while the error is propagataed to prevent a crash (mining without a CPID is invalid)
-				out_Error = "Failed to sign CPID Signature (" + sErr2 + ")";
-				WriteCache("poolthread" + RoundToString(iThreadId,0), "poolinfo1", out_Error, GetAdjustedTime());
-			}
-			else
-			{
-				WriteCache("poolthread" + RoundToString(iThreadId,0), "poolinfo1", "", GetAdjustedTime());
-			}
-			std::string sMySig = ExtractXML(sFullSig,"<cpidsig>","</cpidsig>");
-			bool fSigChecked = VerifyCPIDSignature(sMySig, true, sErr2);
-			if (!fSigChecked)
-			{
-				if (fDebugMaster) LogPrint("podc", "\n Failed to Verify Signature of %s with Error %s ",sFullSig.c_str(), sErr2.c_str());
-			}
-
-			txNew.vout[0].sTxOutMessage += sFullSig;
+			txNew.vout[0].sTxOutMessage += sCPIDSignature;
 		}
+
 		if (!sMinerGuid.empty())
 		{
 			txNew.vout[0].sTxOutMessage += "<MINERGUID>" + sMinerGuid + "</MINERGUID>";
 		}
-		if (fProofOfLoyaltyEnabled && !sXML.empty())
-		{
-			txNew.vout[0].sTxOutMessage += sXML;
-		}
-		
+
         // Update coinbase transaction with additional info about masternode and governance payments,
         // get some info back to pass to getblocktemplate
         FillBlockPayments(txNew, nHeight, blockReward, 0, pblock->txoutMasternode, pblock->voutSuperblock);
@@ -747,6 +726,11 @@ void SetMinerThreadPriority(double dMinerSleepLevel)
      		
 }
 
+void RelayMiningMessage(std::string sMessage)
+{
+	WriteCache("poolthread0", "poolinfo3", sMessage, GetAdjustedTime());
+}
+
 void UpdateHashesPerSec(unsigned int& nHashesDone)
 {
 	// Update HashesPerSec
@@ -754,6 +738,29 @@ void UpdateHashesPerSec(unsigned int& nHashesDone)
 	nHashesDone = 0;
 	dHashesPerSec = 1000.0 * nHashCounter / (GetTimeMillis() - nHPSTimerStart);
 	nBibleMinerPulse++;
+}
+
+std::string GetCPIDSignature(int iThreadID)
+{
+		/* Ascertain CPID Signature */
+		std::string sFullSignature = "";
+
+		std::string sCPIDError = "";
+		bool fSigned = SignCPID("", sCPIDError, sFullSignature);
+		if (!fSigned)
+		{
+			if (fDebugMaster) LogPrint("podc", "\n Failed to Sign CPID Signature.  %s ", sCPIDError);
+			// Lets tell the user about this also
+			std::string sCPIDFullError = "Failed to sign CPID Signature (" + sCPIDError + ")";
+			WriteCache("poolthread" + RoundToString(iThreadID,0), "poolinfo2", sCPIDFullError, GetAdjustedTime());
+		}
+		else
+		{
+			WriteCache("poolthread" + RoundToString(iThreadID,0), "poolinfo2", "", GetAdjustedTime());
+		}
+		return sFullSignature;
+	
+		/* End of Ascertain CPID Signature */
 }
 
 void static BibleMiner(const CChainParams& chainparams, int iThreadID, int iFeatureSet)
@@ -767,17 +774,20 @@ void static BibleMiner(const CChainParams& chainparams, int iThreadID, int iFeat
 	int64_t nLastReadyToMine = GetAdjustedTime() - 480;
 	int64_t nLastClearCache = GetAdjustedTime() - 480;
 	int64_t nLastShareSubmitted = GetAdjustedTime() - 480;
+	int64_t nLastGUI = GetAdjustedTime() - 30;
 	int64_t nPODCUpdateFrequency = cdbl(GetSporkValue("podcupdatefrequency"),0);
 	if (nPODCUpdateFrequency < (60 * 30)) nPODCUpdateFrequency = (60 * 30);
 
 	int iFailCount = 0;
 	// This allows the miner to dictate how much sleep will occur when distributed computing is enabled.  This will let Rosetta use the maximum CPU time.  NOTE: The default is 200ms per 256 hashes.
-	double dMinerSleep = cdbl(GetArg("-minersleep", fDistributedComputingEnabled ? "150" : "0"),0);
-	unsigned int nNonceBreak = (dMinerSleep > 0) ? 0xF1 : 0xFF;
-	unsigned int nNonceBreakLarge = (dMinerSleep > 0) ? 0x2FFF : 0x4FFF;
+	double dMinerSleep = cdbl(GetArg("-minersleep", "325"), 0);
+	LogPrintf(" MinerSleep %f \n",(double)dMinerSleep);
+	// unsigned int nNonceBreak = (dMinerSleep > 0) ? 0xFF : 0xFF;
+	// unsigned int nNonceBreakLarge = (dMinerSleep > 0) ? 0x4FFF : 0x4FFF;
 	unsigned int nExtraNonce = 0;
 	unsigned int nHashesDone = 0;
-	
+	int iOuterLoop = 0;
+
 recover:
 	int iStart = rand() % 1000;
 	MilliSleep(iStart);
@@ -785,7 +795,6 @@ recover:
 	SetThreadPriority(THREAD_PRIORITY_LOWEST);
     RenameThread("biblepay-miner");
 
-    
     boost::shared_ptr<CReserveScript> coinbaseScript;
     GetMainSignals().ScriptForMining(coinbaseScript);
 	std::string sPoolMiningAddress = "";
@@ -799,6 +808,8 @@ recover:
         // In the latter case, already the pointer is NULL.
         if (!coinbaseScript || coinbaseScript->reserveScript.empty())
             throw std::runtime_error("No coinbase script available (mining requires a wallet)");
+
+
 
 		arith_uint256 hashTargetPool = UintToArith256(uint256S("0x0"));
 
@@ -843,7 +854,6 @@ recover:
             unsigned int nTransactionsUpdatedLast = mempool.GetTransactionsUpdated();
             CBlockIndex* pindexPrev = chainActive.Tip();
             if(!pindexPrev) break;
-			double dProofOfLoyaltyPercentage = cdbl(GetArg("-polpercentage", "10"), 2) / 100;
 			// Proof-Of-Distributed-Computing - Once every 8 hours, Prove tasks being worked by all CPIDs - Robert A. - Biblepay - 2-20-2018
 			int64_t nPODCUpdateAge = GetAdjustedTime() - nLastPODCUpdate;
 
@@ -855,27 +865,38 @@ recover:
 				if (!sError.empty()) LogPrintf("\n PODCUpdate %s \n",sError.c_str());
 			}
 			std::string sErr = "";
+			std::string sFullSignature = GetCPIDSignature(iThreadID);
 
 		    auto_ptr<CBlockTemplate> pblocktemplate(CreateNewBlock(chainparams, coinbaseScript->reserveScript, sPoolMiningAddress, sMinerGuid,
-				iThreadID, 0, dProofOfLoyaltyPercentage, sErr));
-            if (!pblocktemplate.get() || !sErr.empty())
+				iThreadID, 0, 0, sFullSignature, sErr));
+            if (!pblocktemplate.get())
             {
 				// This happens when there is no CPID, or last block was solved by this CPID
                 // LogPrintf("BiblepayMiner -- Keypool ran out, please call keypoolrefill before restarting the mining thread\n");
-				LogPrint("miner", "Unable to mine... Cant sign block template with CPID %s ", msGlobalCPID.c_str());
-				nHashesDone++;
-				MilliSleep(500);
-				UpdateHashesPerSec(nHashesDone);
+				MilliSleep(10);
+				// UpdateHashesPerSec(nHashesDone);
 				goto recover;
             }
+			if (!sErr.empty())
+			{
+				std::string sMsg = "Unable to mine... Cant sign block template with CPID " + msGlobalCPID + " - Error " + sErr;
+				LogPrintf("Unable to mine... %s ", sMsg.c_str());
+				nHashesDone++;
+				WriteCache("poolthread" + RoundToString(iThreadID,0), "poolinfo1", sMsg, GetAdjustedTime());
+			}
             CBlock *pblock = &pblocktemplate->block;
             IncrementExtraNonce(pblock, pindexPrev, nExtraNonce);
+			nHashesDone++;
+			UpdateHashesPerSec(nHashesDone);
 			// Take a snapshot of the base block hash here, with nonce 0, custom transaction, and if in debug mode, a common timestamp
 			sGlobalBlockHash = pblock->GetHash().GetHex();
 			std::string sPoolNarr = GetPoolMiningNarr(sPoolMiningAddress);
 			if (fDebugMaster) LogPrint("miner", "BiblepayMiner -- Running miner %s with %u transactions in block (%u bytes)\n", sPoolNarr.c_str(),
 				pblock->vtx.size(), ::GetSerializeSize(*pblock, SER_NETWORK, PROTOCOL_VERSION));
 
+			// Clear errors
+			WriteCache("poolthread" + RoundToString(iThreadID,0), "poolinfo1", "", GetAdjustedTime());
+	
             //
             // Search
             //
@@ -964,9 +985,25 @@ recover:
 						
 					pblock->nNonce += 1;
 			
-					if ((pblock->nNonce & nNonceBreak) == 0)
+					if ((pblock->nNonce & 0x5F) == 0)
 					{
-						UpdateHashesPerSec(nHashesDone);
+						int64_t nElapsed = GetAdjustedTime() - nLastGUI;
+						if (nElapsed > 7)
+						{
+							nLastGUI = GetAdjustedTime();
+							UpdateHashesPerSec(nHashesDone);
+							if (sFullSignature.empty())
+							{
+								WriteCache("poolthread" + RoundToString(iThreadID,0), "poolinfo1", "Unable to sign CPID", GetAdjustedTime());
+								MilliSleep(1000);
+								break;
+							}
+							else
+							{
+								WriteCache("poolthread" + RoundToString(iThreadID,0), "poolinfo1", "", GetAdjustedTime());
+							}
+		
+						}
 						bool fNonce = CheckNonce(f9000, pblock->nNonce, pindexPrev->nHeight, pindexPrev->nTime, pblock->GetBlockTime());
 						if (!fNonce)
 						{
@@ -978,15 +1015,18 @@ recover:
 					}
 				
 					// 0x4FFF is approximately 20 seconds, then we update hashmeter
-					if ((pblock->nNonce & nNonceBreakLarge) == 0)
+					if ((pblock->nNonce & 0x4FFF) == 0)
+					{
 						break;
+					}
 		        }
 
 				UpdateHashesPerSec(nHashesDone);
 		        // Check for stop or if block needs to be rebuilt
                 boost::this_thread::interruption_point();
                 // Regtest mode doesn't require peers
-                
+                iOuterLoop++;
+			
 				if (fPoolMiningMode && (!sPoolMiningAddress.empty()) && ((GetAdjustedTime() - nLastReadyToMine) > 7*60))
 				{
 					if (fDebugMaster) LogPrintf(" Pool mining hard block; checking for new work; \n");
@@ -995,7 +1035,7 @@ recover:
 					break;
 				}
 
-				if ((GetAdjustedTime() - nLastClearCache) > (10 * 60))
+				if ((GetAdjustedTime() - nLastClearCache) > (3 * 60))
 				{
 					nLastClearCache=GetAdjustedTime();
 					WriteCache("poolcache", "pooladdress", "", GetAdjustedTime());

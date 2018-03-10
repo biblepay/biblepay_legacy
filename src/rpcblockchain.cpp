@@ -2621,50 +2621,56 @@ UniValue GetVersionReport()
 
 bool SignStake(std::string sBitcoinAddress, std::string strMessage, std::string& sError, std::string& sSignature)
 {
-	// Unlock wallet if SecureKey is available
-	bool bTriedToUnlock = false;
-	if (!msEncryptedString.empty() && pwalletMain->IsLocked())
-	{
-		bTriedToUnlock = true;
-		if (!pwalletMain->Unlock(msEncryptedString, false))
+	LOCK(cs_main);
+	{	
+		// Unlock wallet if SecureKey is available
+		bool bTriedToUnlock = false;
+		if (pwalletMain->IsLocked())
 		{
-			static int nNotifiedOfUnlockIssue = 0;
-			if (nNotifiedOfUnlockIssue == 0)
-				LogPrintf("\nUnable to unlock wallet with SecureString.\n");
-			nNotifiedOfUnlockIssue++;
-			sError = "Unable to unlock wallet with PODC password provided";
+			if (!msEncryptedString.empty())
+			{
+				bTriedToUnlock = true;
+				if (!pwalletMain->Unlock(msEncryptedString, false))
+				{
+					static int nNotifiedOfUnlockIssue = 0;
+					if (nNotifiedOfUnlockIssue == 0)
+						LogPrintf("\nUnable to unlock wallet with SecureString.\n");
+					nNotifiedOfUnlockIssue++;
+					sError = "Unable to unlock wallet with PODC password provided";
+					return false;
+				}
+			}
+		}
+
+		CBitcoinAddress addr(sBitcoinAddress);
+		CKeyID keyID;
+		if (!addr.GetKeyID(keyID))
+		{
+			sError = "Address does not refer to key";
 			return false;
 		}
+		CKey key;
+		if (!pwalletMain->GetKey(keyID, key))
+		{
+			sError = "Private key not available";
+			return false;
+		}
+		CHashWriter ss(SER_GETHASH, 0);
+		ss << strMessageMagic;
+		ss << strMessage;
+		vector<unsigned char> vchSig;
+		if (!key.SignCompact(ss.GetHash(), vchSig))
+		{
+			sError = "Sign failed";
+			return false;
+		}
+		sSignature = EncodeBase64(&vchSig[0], vchSig.size());
+		if (bTriedToUnlock)
+		{
+			pwalletMain->Lock();
+		}
+		return true;
 	}
-
-	CBitcoinAddress addr(sBitcoinAddress);
-    CKeyID keyID;
-	if (!addr.GetKeyID(keyID))
-	{
-		sError = "Address does not refer to key";
-		return false;
-	}
-	CKey key;
-	if (!pwalletMain->GetKey(keyID, key))
-	{
-		sError = "Private key not available";
-		return false;
-	}
-	CHashWriter ss(SER_GETHASH, 0);
-	ss << strMessageMagic;
-	ss << strMessage;
-	vector<unsigned char> vchSig;
-	if (!key.SignCompact(ss.GetHash(), vchSig))
-	{
-		sError = "Sign failed";
-		return false;
-	}
-	sSignature = EncodeBase64(&vchSig[0], vchSig.size());
-	if (bTriedToUnlock)
-	{
-		pwalletMain->Lock();
-	}
-	return true;
 }
 
 
@@ -4832,7 +4838,6 @@ bool VerifyCPIDSignature(std::string sFullSig, bool bRequireEndToEndVerification
 		}
 	}
 	return true;
-
 }
 
 
@@ -5482,43 +5487,45 @@ bool PODCUpdate(std::string& sError, bool bForce, std::string sDebugInfo)
 					}
 					std::string sFullSig = "";
 					bool bTriedToUnlock = false;
-					if (!msEncryptedString.empty() && pwalletMain->IsLocked())
+					LOCK(cs_main);
 					{
-						bTriedToUnlock = true;
-						if (!pwalletMain->Unlock(msEncryptedString, false))
+						if (!msEncryptedString.empty() && pwalletMain->IsLocked())
 						{
-							static int nNotifiedOfUnlockIssue = 0;
-							if (nNotifiedOfUnlockIssue == 0)
+							bTriedToUnlock = true;
+							if (!pwalletMain->Unlock(msEncryptedString, false))
 							{
-								WriteCache("poolthread0", "poolinfo2", "Unable to unlock wallet with password provided.", GetAdjustedTime());
+								static int nNotifiedOfUnlockIssue = 0;
+								if (nNotifiedOfUnlockIssue == 0)
+								{
+									WriteCache("poolthread0", "poolinfo2", "Unable to unlock wallet with password provided.", GetAdjustedTime());
+								}
+								sError = "Unable to unlock wallet with SecureString.";
+								nNotifiedOfUnlockIssue++;
 							}
-							sError = "Unable to unlock wallet with SecureString.";
-							nNotifiedOfUnlockIssue++;
 						}
-					}
 
-					// Sign
-					std::string sErrorInternal = "";
-		
-					bool fSigned = SignCPID(s1, sErrorInternal, sFullSig);
-					if (!fSigned)
-					{
-						sError = "Failed to Sign CPID Signature. [" + sErrorInternal + "]";
+						// Sign
+						std::string sErrorInternal = "";
+						bool fSigned = SignCPID(s1, sErrorInternal, sFullSig);
+						if (!fSigned)
+						{
+							sError = "Failed to Sign CPID Signature. [" + sErrorInternal + "]";
+							if (bTriedToUnlock) pwalletMain->Lock();
+							return false;
+						}
+						std::string sXML = "<PODC_TASKS>" + sOutstanding + "</PODC_TASKS>" + sFullSig;
+
+						AddBlockchainMessages(sAddress, "PODC_UPDATE", s1, sXML, nTargetValue, sErrorInternal);
 						if (bTriedToUnlock) pwalletMain->Lock();
-						return false;
-					}
-					std::string sXML = "<PODC_TASKS>" + sOutstanding + "</PODC_TASKS>" + sFullSig;
 
-					AddBlockchainMessages(sAddress, "PODC_UPDATE", s1, sXML, nTargetValue, sErrorInternal);
-					if (bTriedToUnlock) pwalletMain->Lock();
-
-					if (!sErrorInternal.empty())
-					{
-						sError = sErrorInternal;
-						return false;
+						if (!sErrorInternal.empty())
+						{
+							sError = sErrorInternal;
+							return false;
+						}
+						if (fDebugMaster) LogPrint("podc", "\n PODCUpdate::Signed UTXO: %s ", sXML.c_str());
+						WriteCache("CPIDTasks", s1, sOutstanding, GetAdjustedTime());
 					}
-					if (fDebugMaster) LogPrint("podc", "\n PODCUpdate::Signed UTXO: %s ", sXML.c_str());
-					WriteCache("CPIDTasks", s1, sOutstanding, GetAdjustedTime());
 				}
 			}
 		}

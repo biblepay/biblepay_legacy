@@ -190,7 +190,7 @@ UniValue generate(const UniValue& params, bool fHelp)
     while (nHeight < nHeightEnd)
     {
 		std::string sErr = "";
-        auto_ptr<CBlockTemplate> pblocktemplate(CreateNewBlock(Params(), coinbaseScript->reserveScript, "", "", 0, 0, 0, sErr));
+        auto_ptr<CBlockTemplate> pblocktemplate(CreateNewBlock(Params(), coinbaseScript->reserveScript, "", "", 0, 0, 0, "", sErr));
         if (!pblocktemplate.get())
             throw JSONRPCError(RPC_INTERNAL_ERROR, "Couldn't create new block");
         CBlock *pblock = &pblocktemplate->block;
@@ -617,7 +617,7 @@ UniValue getblocktemplate(const UniValue& params, bool fHelp)
 		CScript scriptDummy = CScript() << OP_TRUE;
 		std::string sErr = "";
 
-        pblocktemplate = CreateNewBlock(Params(), scriptDummy, "", "", 0, 0, 0, sErr);
+        pblocktemplate = CreateNewBlock(Params(), scriptDummy, "", "", 0, 0, 0, "", sErr);
         if (!pblocktemplate)
             throw JSONRPCError(RPC_OUT_OF_MEMORY, "Out of memory");
 

@@ -4545,7 +4545,7 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIn
 
 
 	// Rob A. - Biblepay - 2/8/2018 - Contextual check CPID signature on each block to prevent botnet from forming - level 2
-	if (fDistributedComputingEnabled && nHeight > F11000_CUTOVER_HEIGHT_PROD)
+	if (fDistributedComputingEnabled && nHeight > F11000_CUTOVER_HEIGHT_PROD && !fMining)
 	{
 		int64_t nHeaderAge = GetAdjustedTime() - pindexPrev->nTime;
 		bool bActiveRACCheck = nHeaderAge < (60 * 15) ? true : false;

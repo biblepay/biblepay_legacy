@@ -33,7 +33,7 @@ struct CBlockTemplate
 void GenerateBiblecoins(bool fGenerate, int nThreads, const CChainParams& chainparams);
 /** Generate a new block, without valid proof-of-work */
 CBlockTemplate* CreateNewBlock(const CChainParams& chainparams, const CScript& scriptPubKeyIn, std::string sPoolMiningPublicKey, std::string sMinerGuid,
-	int iThreadID, CAmount retiredMiningTithe, double dProofOfLoyaltyPercentage, std::string& sErr);
+	int iThreadID, CAmount retiredMiningTithe, double dProofOfLoyaltyPercentage, std::string sCPIDSignature, std::string& sErr);
 
 /** Modify the extranonce in a block */
 void IncrementExtraNonce(CBlock* pblock, const CBlockIndex* pindexPrev, unsigned int& nExtraNonce);
