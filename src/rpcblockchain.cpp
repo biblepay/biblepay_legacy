@@ -2771,7 +2771,6 @@ double GetStakeWeight(CTransaction tx, int64_t nTipTime, std::string sXML, bool 
 			double dWeight = nAge * (nAmount/COIN);
 			dTotal += dWeight;
 		}
-		//LogPrintf(" time %f Amount %f  Age %s  , ",(double)nTime,(double)nAmount/COIN,RoundToString(nAge,2));
 	}
 	double dAverageAge = 0;
 	if (iInstances > 0) dAverageAge = nTotalAge / iInstances;
@@ -3186,7 +3185,6 @@ UniValue exec(const UniValue& params, bool fHelp)
 		results.push_back(Pair("Map Length",iTradeCount));
 		uint256 h = ttx.GetHash();
 		results.push_back(Pair("Hash",h.GetHex()));
-		LogPrintTrading("This is a test of trading.");
 	}
 	else if (sItem == "testmultisig")
 	{
@@ -3244,9 +3242,7 @@ UniValue exec(const UniValue& params, bool fHelp)
 			std::string sScriptComplexOrder = cct.GetScriptForComplexOrder("OCO", sOutboundColor, nExpectedAmount, sExpectedRecipient, sExpectedColor);
 			results.push_back(Pair("XML",sScriptComplexOrder));
 			cct.Color = sOutboundColor;
-			LogPrintf("\nScript for comp order %s ",sScriptComplexOrder.c_str());
 			SendColoredEscrow(address.Get(), nAmount, fSubtractFeeFromAmount, wtx, sScriptComplexOrder);
-			LogPrintf("\nScript for comp order %s ",sScriptComplexOrder.c_str());
 			results.push_back(Pair("txid",wtx.GetHash().GetHex()));
 		}
 	}
