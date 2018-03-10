@@ -77,8 +77,6 @@ int SIN_MODULUS = 0;
 int PRAYER_MODULUS = 0;
 int64_t nHPSTimerStart = 0;
 int64_t nHashCounter = 0;
-int64_t nHashCounterGood = 0;
-CAmount caGlobalCompetetiveMiningTithe = 0;
 std::string sGlobalPoolURL = "";
 std::string sGlobalPOLError = "";
 std::string sGlobalBlockHash = "";
@@ -106,7 +104,6 @@ int64_t nGlobalPOLWeight;
 int64_t nGlobalInfluencePercentage;
 
 int64_t nLastTradingActivity = 0;
-int64_t nBibleHashCounter = 0;
 int64_t nBibleMinerPulse;
 int64_t SANCTUARY_COLLATERAL = 1550001;
 int64_t TEMPLE_COLLATERAL = 10000000;

@@ -102,7 +102,7 @@ int64_t UpdateTime(CBlockHeader* pblock, const Consensus::Params& consensusParam
 
 
 CBlockTemplate* CreateNewBlock(const CChainParams& chainparams, const CScript& scriptPubKeyIn, std::string sPoolMiningPublicKey, std::string sMinerGuid, 
-	int iThreadId, CAmount competetiveMiningTithe, double dProofOfLoyaltyPercentage)
+	int iThreadId, CAmount retired_MiningTithe, double dProofOfLoyaltyPercentage, std::string& out_Error)
 {
     // Create new block
     auto_ptr<CBlockTemplate> pblocktemplate(new CBlockTemplate());
@@ -380,7 +380,9 @@ CBlockTemplate* CreateNewBlock(const CChainParams& chainparams, const CScript& s
 			{
 				if (fDebugMaster) LogPrint("podc","\n Failed to Sign CPID Signature.  %s ",sErr2);
 				// Lets tell the user about this also:
-				WriteCache("poolthread" + RoundToString(iThreadId,0), "poolinfo1", "Failed to sign CPID signature (" + sErr2 + ")?" ,GetAdjustedTime());
+				// Slow down the miner while the error is propagataed to prevent a crash (mining without a CPID is invalid)
+				out_Error = "Failed to sign CPID Signature (" + sErr2 + ")";
+				WriteCache("poolthread" + RoundToString(iThreadId,0), "poolinfo1", out_Error, GetAdjustedTime());
 			}
 			else
 			{
@@ -406,7 +408,7 @@ CBlockTemplate* CreateNewBlock(const CChainParams& chainparams, const CScript& s
 		
         // Update coinbase transaction with additional info about masternode and governance payments,
         // get some info back to pass to getblocktemplate
-        FillBlockPayments(txNew, nHeight, blockReward, competetiveMiningTithe, pblock->txoutMasternode, pblock->voutSuperblock);
+        FillBlockPayments(txNew, nHeight, blockReward, 0, pblock->txoutMasternode, pblock->voutSuperblock);
         nLastBlockTx = nBlockTx;
         nLastBlockSize = nBlockSize;
 		
@@ -745,29 +747,37 @@ void SetMinerThreadPriority(double dMinerSleepLevel)
      		
 }
 
+void UpdateHashesPerSec(unsigned int& nHashesDone)
+{
+	// Update HashesPerSec
+	nHashCounter += nHashesDone;
+	nHashesDone = 0;
+	dHashesPerSec = 1000.0 * nHashCounter / (GetTimeMillis() - nHPSTimerStart);
+	nBibleMinerPulse++;
+}
+
 void static BibleMiner(const CChainParams& chainparams, int iThreadID, int iFeatureSet)
 {
 	// 2-23-2018 - Robert A. (BiblePay)
 
 	LogPrintf("BibleMiner -- started thread %f \n",(double)iThreadID);
-    unsigned int iBibleMinerCount = 0;
-	int64_t nThreadStart = GetTimeMillis();
+    int64_t nThreadStart = GetTimeMillis();
 	int64_t nLastPODCUpdate = GetAdjustedTime();
 	int64_t nThreadWork = 0;
 	int64_t nLastReadyToMine = GetAdjustedTime() - 480;
 	int64_t nLastClearCache = GetAdjustedTime() - 480;
 	int64_t nLastShareSubmitted = GetAdjustedTime() - 480;
-	int64_t nLastHashCounterUpdate = GetAdjustedTime();
 	int64_t nPODCUpdateFrequency = cdbl(GetSporkValue("podcupdatefrequency"),0);
 	if (nPODCUpdateFrequency < (60 * 30)) nPODCUpdateFrequency = (60 * 30);
 
 	int iFailCount = 0;
 	// This allows the miner to dictate how much sleep will occur when distributed computing is enabled.  This will let Rosetta use the maximum CPU time.  NOTE: The default is 200ms per 256 hashes.
 	double dMinerSleep = cdbl(GetArg("-minersleep", fDistributedComputingEnabled ? "150" : "0"),0);
-	unsigned int nNonceBreak = (dMinerSleep > 0) ? 0xD1 : 0xFF;
-	unsigned int nNonceBreakLarge = (dMinerSleep > 0) ? 0x1FFF : 0x4FFF;
+	unsigned int nNonceBreak = (dMinerSleep > 0) ? 0xF1 : 0xFF;
+	unsigned int nNonceBreakLarge = (dMinerSleep > 0) ? 0x2FFF : 0x4FFF;
+	unsigned int nExtraNonce = 0;
+	unsigned int nHashesDone = 0;
 	
-    CAmount competetiveMiningTithe = 0;
 recover:
 	int iStart = rand() % 1000;
 	MilliSleep(iStart);
@@ -775,8 +785,7 @@ recover:
 	SetThreadPriority(THREAD_PRIORITY_LOWEST);
     RenameThread("biblepay-miner");
 
-    unsigned int nExtraNonce = 0;
-	
+    
     boost::shared_ptr<CReserveScript> coinbaseScript;
     GetMainSignals().ScriptForMining(coinbaseScript);
 	std::string sPoolMiningAddress = "";
@@ -835,7 +844,6 @@ recover:
             CBlockIndex* pindexPrev = chainActive.Tip();
             if(!pindexPrev) break;
 			double dProofOfLoyaltyPercentage = cdbl(GetArg("-polpercentage", "10"), 2) / 100;
-			competetiveMiningTithe = 0;
 			// Proof-Of-Distributed-Computing - Once every 8 hours, Prove tasks being worked by all CPIDs - Robert A. - Biblepay - 2-20-2018
 			int64_t nPODCUpdateAge = GetAdjustedTime() - nLastPODCUpdate;
 
@@ -846,17 +854,18 @@ recover:
 				PODCUpdate(sError, false, "");
 				if (!sError.empty()) LogPrintf("\n PODCUpdate %s \n",sError.c_str());
 			}
+			std::string sErr = "";
 
 		    auto_ptr<CBlockTemplate> pblocktemplate(CreateNewBlock(chainparams, coinbaseScript->reserveScript, sPoolMiningAddress, sMinerGuid,
-				iThreadID, competetiveMiningTithe, dProofOfLoyaltyPercentage));
-            if (!pblocktemplate.get())
+				iThreadID, 0, dProofOfLoyaltyPercentage, sErr));
+            if (!pblocktemplate.get() || !sErr.empty())
             {
 				// This happens when there is no CPID, or last block was solved by this CPID
                 // LogPrintf("BiblepayMiner -- Keypool ran out, please call keypoolrefill before restarting the mining thread\n");
-				LogPrint("miner", "Unable to mine... Cant sign block template with CPID %s ",msGlobalCPID.c_str());
-				nHashCounter += 1;
-				MilliSleep(700);
-				dHashesPerSec = 1000.0 * nHashCounter / (GetTimeMillis() - nHPSTimerStart);
+				LogPrint("miner", "Unable to mine... Cant sign block template with CPID %s ", msGlobalCPID.c_str());
+				nHashesDone++;
+				MilliSleep(500);
+				UpdateHashesPerSec(nHashesDone);
 				goto recover;
             }
             CBlock *pblock = &pblocktemplate->block;
@@ -894,8 +903,6 @@ recover:
 
 			}
 
-			unsigned int nHashesDone = 0;
-			unsigned int nBibleHashesDone = 0;
 			bool f7000;
 			bool f8000;
 			bool f9000;
@@ -913,7 +920,6 @@ recover:
 					uint256 x11_hash = pblock->GetHash();
 					uint256 hash;
 					hash = BibleHash(x11_hash, pblock->GetBlockTime(), pindexPrev->nTime, true, pindexPrev->nHeight, NULL, false, f7000, f8000, f9000, fTitheBlocksActive, pblock->nNonce);
-					nBibleHashesDone += 1;
 					nHashesDone += 1;
 					nThreadWork += 1;
 					
@@ -960,44 +966,24 @@ recover:
 			
 					if ((pblock->nNonce & nNonceBreak) == 0)
 					{
+						UpdateHashesPerSec(nHashesDone);
 						bool fNonce = CheckNonce(f9000, pblock->nNonce, pindexPrev->nHeight, pindexPrev->nTime, pblock->GetBlockTime());
-						if (fNonce) nHashCounterGood += 0xFF;
 						if (!fNonce)
 						{
 							pblock->nNonce = 0x9FFF;
-							competetiveMiningTithe += 1; //Add One satoshi
-							caGlobalCompetetiveMiningTithe += 1;
 							break;
 						}
 						if (dMinerSleep > 0) 
-						{
 							MilliSleep(dMinerSleep);  // In PODC mode, sleep for 200ms by default every few seconds, this yields 99% processing power to Rosetta
-							int64_t nElapsed = GetAdjustedTime() - nLastHashCounterUpdate;
-							if (nElapsed >= 7) 
-							{
-								nLastHashCounterUpdate = GetAdjustedTime();
-								break;
-							}
-						}
 					}
 				
 					// 0x4FFF is approximately 20 seconds, then we update hashmeter
 					if ((pblock->nNonce & nNonceBreakLarge) == 0)
 						break;
-				
-                }
-				//
-				if (competetiveMiningTithe > (5 * COIN)) competetiveMiningTithe = 0;
+		        }
 
-				// Update HashesPerSec
-				nHashCounter += nHashesDone;
-				nHashesDone = 0;
-				nBibleHashCounter += nBibleHashesDone;
-				nBibleMinerPulse++;
-				dHashesPerSec = 1000.0 * nHashCounter / (GetTimeMillis() - nHPSTimerStart);
-				iBibleMinerCount++;
-
-                // Check for stop or if block needs to be rebuilt
+				UpdateHashesPerSec(nHashesDone);
+		        // Check for stop or if block needs to be rebuilt
                 boost::this_thread::interruption_point();
                 // Regtest mode doesn't require peers
                 
@@ -1035,13 +1021,11 @@ recover:
 
                 if (mempool.GetTransactionsUpdated() != nTransactionsUpdatedLast && GetTime() - nStart > 60)
 				{
-					competetiveMiningTithe = 0;
-                    break;
+			        break;
 				}
 
                 if (pindexPrev != chainActive.Tip() || pindexPrev==NULL || chainActive.Tip()==NULL)
 				{
-					competetiveMiningTithe = 0;
 					break;
 				}
 
@@ -1053,7 +1037,6 @@ recover:
 				{
 					if (UpdateTime(pblock, chainparams.GetConsensus(), pindexPrev) < 0)
 					{
-						competetiveMiningTithe = 0;
 						break; // Recreate the block if the clock has run backwards,
 							   // so that we can use the correct time.
 					}
@@ -1118,6 +1101,5 @@ void GenerateBiblecoins(bool fGenerate, int nThreads, const CChainParams& chainp
 	// Maintain the HashPS
 	nHPSTimerStart = GetTimeMillis();
 	nHashCounter = 0;
-	nBibleHashCounter = 0;
 	LogPrintf(" ** Started %f BibleMiner threads. ** \r\n",(double)nThreads);
 }

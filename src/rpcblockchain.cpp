@@ -2621,7 +2621,7 @@ UniValue GetVersionReport()
 
 bool SignStake(std::string sBitcoinAddress, std::string strMessage, std::string& sError, std::string& sSignature)
 {
-	// 3-1-2018 - Unlock wallet if SecureKey is available
+	// Unlock wallet if SecureKey is available
 	bool bTriedToUnlock = false;
 	if (!msEncryptedString.empty() && pwalletMain->IsLocked())
 	{
@@ -3716,8 +3716,8 @@ UniValue exec(const UniValue& params, bool fHelp)
 		int iNextSuperblock = 0;
 		int iLastSuperblock = GetLastDCSuperblockHeight(chainActive.Tip()->nHeight, iNextSuperblock);
 		std::string sContract = GetDCCFileContract();
-		results.push_back(Pair("fileage", nAge));
-		results.push_back(Pair("filehash", uDCChash.GetHex()));
+		results.push_back(Pair("file-age", nAge));
+		results.push_back(Pair("file-hash", uDCChash.GetHex()));
 		results.push_back(Pair("contract", sContract));
 		double nRank = MyPercentile(iLastSuperblock);
 		results.push_back(Pair("sanctuary_rank", nRank));
@@ -3729,13 +3729,10 @@ UniValue exec(const UniValue& params, bool fHelp)
 		uint256 uGovObjHash = uint256S("0x0");
 		GetDistributedComputingGovObjByHeight(iNextSuperblock, uPAMHash, iVotes, uGovObjHash, sAddresses, sAmounts);
 		std::string sError = "";
-		LogPrintf(" count %f \n", (double)iVotes);
 		results.push_back(Pair("govobjhash", uGovObjHash.GetHex()));
 		results.push_back(Pair("Addresses", sAddresses));
 		results.push_back(Pair("Amounts", sAmounts));
-		uint256 uPamHash2 = GetDCPAMHash(sAddresses, sAmounts);
-		results.push_back(Pair("pam_hash2", uPamHash2.GetHex()));
-
+		
 		if (uGovObjHash == uint256S("0x0"))
 		{
 			// create the contract
@@ -3747,9 +3744,8 @@ UniValue exec(const UniValue& params, bool fHelp)
 			results.push_back(Pair("quorum_error", sError));
 		}
 		results.push_back(Pair("votes_for_my_contract", iVotes));
-		results.push_back(Pair("contract1", sContract));
 		int iRequiredVotes = GetRequiredQuorumLevel(iNextSuperblock);
-		results.push_back(Pair("RequiredVotes", iRequiredVotes));
+		results.push_back(Pair("required_votes", iRequiredVotes));
 		results.push_back(Pair("last_superblock", iLastSuperblock));
 		results.push_back(Pair("next_superblock", iNextSuperblock));
 		bool fTriggered = CSuperblockManager::IsSuperblockTriggered(iNextSuperblock);
@@ -3759,8 +3755,8 @@ UniValue exec(const UniValue& params, bool fHelp)
 		results.push_back(Pair("total_magnitude", nTotalMagnitude));
 		results.push_back(Pair("next_superblock_triggered", fTriggered));
 		bool bRes = VoteForDistributedComputingContract(iNextSuperblock, sContract, sError);
-		results.push_back(Pair("vote1", bRes));
-		results.push_back(Pair("vote1error", sError));
+		results.push_back(Pair("vote_result", bRes));
+		results.push_back(Pair("vote_error", sError));
 
 		// Verify the Vote serialization:
 		std::string sSerialize = mnpayments.SerializeSanctuaryQuorumSignatures(iNextSuperblock, uDCChash);
@@ -5624,10 +5620,14 @@ bool AdvertiseDistributedComputingKey(std::string sProjectId, std::string sAuth,
 			std::string sSignature = "";
 			// This is where we must create two sets of business logic, one for unbanked and one for banked - R Andrews - 3/8/2018 - Biblepay
 			bool bSigned = false;
+			bSigned = SignStake(sPubAddress, sData, sError, sSignature);
 			if (!sUnbankedPublicKey.empty())
 			{
-				bSigned = SignStake(sPubAddress, sData, sError, sSignature);
+				sError = "";
+				bSigned = true;
+				sSignature = "";
 			}
+			
 			// Only append the signature after we prove they can sign...
 			if (bSigned)
 			{
@@ -5637,7 +5637,7 @@ bool AdvertiseDistributedComputingKey(std::string sProjectId, std::string sAuth,
 			{
 				if (sUnbankedPublicKey.empty())
 				{
-					sError = "Unable to sign CPID " + sCPID;
+					sError = "Unable to sign CPID " + sCPID + " (" + sError + ")";
 					return false;
 				}
 				else

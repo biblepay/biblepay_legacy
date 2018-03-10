@@ -83,9 +83,10 @@ UniValue GetNetworkHashPS(int lookup, int height)
 
     arith_uint256 workDiff = pb->nChainWork - pb0->nChainWork;
     int64_t timeDiff = maxTime - minTime;
-	double dHashPs = workDiff.getdouble() / timeDiff;
-	// BiblePay - PoBh algorithm 10* harder than X11, return appropriate value
-	return dHashPs*10;
+	double dPODCFactor = 65 * 100;  // Calibrated in Testnet to reveal actual HashPS 
+	double dHashPs = workDiff.getdouble() / timeDiff / dPODCFactor;
+	// BiblePay - PODC 
+	return dHashPs;
 }
 
 UniValue getnetworkhashps(const UniValue& params, bool fHelp)
@@ -188,7 +189,8 @@ UniValue generate(const UniValue& params, bool fHelp)
     UniValue blockHashes(UniValue::VARR);
     while (nHeight < nHeightEnd)
     {
-        auto_ptr<CBlockTemplate> pblocktemplate(CreateNewBlock(Params(), coinbaseScript->reserveScript, "", "", 0, 0, 0));
+		std::string sErr = "";
+        auto_ptr<CBlockTemplate> pblocktemplate(CreateNewBlock(Params(), coinbaseScript->reserveScript, "", "", 0, 0, 0, sErr));
         if (!pblocktemplate.get())
             throw JSONRPCError(RPC_INTERNAL_ERROR, "Couldn't create new block");
         CBlock *pblock = &pblocktemplate->block;
@@ -326,17 +328,10 @@ UniValue getmininginfo(const UniValue& params, bool fHelp)
 	if (chainparams.NetworkIDString()=="test")
 	{
 		/*
-		obj.push_back(Pair("ratio", nBibleHashCounter/(nHashCounter+1)));
 		obj.push_back(Pair("hc1", nHashCounter));
-		obj.push_back(Pair("bhc2", nBibleHashCounter));
 		*/
 	}
 	obj.push_back(Pair("hashcounter", nHashCounter));
-	// obj.push_back(Pair("competetive_mining", fCompetetiveMining));
-	// obj.push_back(Pair("competetivemining_hash_counter", nHashCounterGood));
-	// obj.push_back(Pair("global_competetive_mining_tithe", caGlobalCompetetiveMiningTithe));
-	// double dRatio = nHashCounterGood/(nHashCounter+1);
-	// obj.push_back(Pair("competetive_mining_ratio", dRatio));
 	obj.push_back(Pair("pooledtx",         (uint64_t)mempool.size()));
     obj.push_back(Pair("testnet",          Params().TestnetToBeDeprecatedFieldRPC()));
     obj.push_back(Pair("chain",            Params().NetworkIDString()));
@@ -620,7 +615,9 @@ UniValue getblocktemplate(const UniValue& params, bool fHelp)
             pblocktemplate = NULL;
         }
 		CScript scriptDummy = CScript() << OP_TRUE;
-        pblocktemplate = CreateNewBlock(Params(), scriptDummy, "", "", 0, 0, 0);
+		std::string sErr = "";
+
+        pblocktemplate = CreateNewBlock(Params(), scriptDummy, "", "", 0, 0, 0, sErr);
         if (!pblocktemplate)
             throw JSONRPCError(RPC_OUT_OF_MEMORY, "Out of memory");
 

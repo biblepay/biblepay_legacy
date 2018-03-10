@@ -218,8 +218,6 @@ extern std::string strTemplePubKey;
 
 extern int64_t nHPSTimerStart;
 extern int64_t nHashCounter;
-extern int64_t nHashCounterGood;
-extern CAmount caGlobalCompetetiveMiningTithe;
 extern std::string sGlobalPoolURL;
 extern std::string sGlobalPOLError;
 extern int64_t nGlobalPOLWeight;
@@ -233,7 +231,6 @@ extern bool fDistributedComputingEnabled;
 extern bool fDistributedComputingCycleDownloading;
 
 extern int64_t nLastTradingActivity;
-extern int64_t nBibleHashCounter;
 extern int64_t nBibleMinerPulse;
 extern int64_t SANCTUARY_COLLATERAL;
 extern int64_t TEMPLE_COLLATERAL;

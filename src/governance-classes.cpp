@@ -568,7 +568,7 @@ void CSuperblockManager::uperblock(CMutableTransaction& txNewRet, int nBlockHeig
 
 void CSuperblockManager::CreateSuperblock(CMutableTransaction& txNewRet, int nBlockHeight, std::vector<CTxOut>& voutSuperblockRet)
 {
-    DBG( cout << "CSuperblockManager::CreateSuperblock Start" << endl; );
+    if (fDebugMaster) DBG( cout << "CSuperblockManager::CreateSuperblock Start" << endl; );
 
     LOCK(governance.cs);
 
@@ -577,8 +577,8 @@ void CSuperblockManager::CreateSuperblock(CMutableTransaction& txNewRet, int nBl
     CSuperblock_sptr pSuperblock;
     if(!CSuperblockManager::GetBestSuperblock(pSuperblock, nBlockHeight)) 
 	{
-        LogPrintf("CSuperblockManager::CreateSuperblock -- Can't find superblock for height %d\n", nBlockHeight);
-        DBG( cout << "CSuperblockManager::CreateSuperblock Failed to get superblock for height, returning" << endl; );
+        LogPrint("podc", "CSuperblockManager::CreateSuperblock -- Can't find superblock for height %d\n", nBlockHeight);
+        if (fDebugMaster) DBG( cout << "CSuperblockManager::CreateSuperblock Failed to get superblock for height, returning" << endl; );
         return;
     }
 
@@ -588,18 +588,20 @@ void CSuperblockManager::CreateSuperblock(CMutableTransaction& txNewRet, int nBl
     // CONFIGURE SUPERBLOCK OUTPUTS
 
     // Superblock payments are appended to the end of the coinbase vout vector
-    DBG( cout << "CSuperblockManager::CreateSuperblock Number payments: " << pSuperblock->CountPayments() << endl; );
+    if (fDebugMaster) DBG( cout << "CSuperblockManager::CreateSuperblock Number payments: " << pSuperblock->CountPayments() << endl; );
 
     // TO DO: How many payments can we add before things blow up?
     //       Consider at least following limits:
     //          - max coinbase tx size
     //          - max "budget" available
-	LogPrintf(" Creating superblock with %f payments \n", (double)pSuperblock->CountPayments());
+	if (fDebugMaster) LogPrintf(" Creating superblock with %f payments \n", (double)pSuperblock->CountPayments());
+
     for(int i = 0; i < pSuperblock->CountPayments(); i++) {
         CGovernancePayment payment;
         DBG( cout << "CSuperblockManager::CreateSuperblock i = " << i << endl; );
-        if(pSuperblock->GetPayment(i, payment)) {
-            DBG( cout << "CSuperblockManager::CreateSuperblock Payment found " << endl; );
+        if(pSuperblock->GetPayment(i, payment)) 
+		{
+            if (fDebugMaster) DBG( cout << "CSuperblockManager::CreateSuperblock Payment found " << endl; );
             // SET COINBASE OUTPUT TO SUPERBLOCK SETTING
 
             CTxOut txout = CTxOut(payment.nAmount, payment.script);
@@ -612,11 +614,15 @@ void CSuperblockManager::CreateSuperblock(CMutableTransaction& txNewRet, int nBl
             ExtractDestination(payment.script, address1);
             CBitcoinAddress address2(address1);
 
-            DBG( cout << "CSuperblockManager::CreateSuperblock Before LogPrintf call, nAmount = " << payment.nAmount << endl; );
-            LogPrintf("NEW Superblock : output %d (addr %s, amount %d)\n", i, address2.ToString(), payment.nAmount);
-            DBG( cout << "CSuperblockManager::CreateSuperblock After LogPrintf call " << endl; );
-        } else {
-            DBG( cout << "CSuperblockManager::CreateSuperblock Payment not found " << endl; );
+            if (fDebugMaster) DBG( cout << "CSuperblockManager::CreateSuperblock Before LogPrintf call, nAmount = " << payment.nAmount << endl; );
+
+            LogPrint("podc", "NEW Superblock : output %d (addr %s, amount %d)\n", i, address2.ToString(), payment.nAmount);
+            
+			if (fDebugMaster) DBG( cout << "CSuperblockManager::CreateSuperblock After LogPrintf call " << endl; );
+        } 
+		else 
+		{
+			if (fDebugMaster) DBG( cout << "CSuperblockManager::CreateSuperblock Payment not found " << endl; );
         }
     }
 
