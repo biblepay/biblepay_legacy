@@ -82,12 +82,11 @@ std::string RoundToString(double d, int place);
 extern std::string SQL(std::string sCommand, std::string sAddress, std::string sArguments, std::string& sError);
 extern std::string PrepareHTTPPost(std::string sPage, std::string sHostHeader, const string& sMsg, const map<string,string>& mapRequestHeaders);
 extern std::string GetDomainFromURL(std::string sURL);
-extern bool DownloadDistributedComputingFile(std::string& sError);
+extern bool DownloadDistributedComputingFile(int iNextSuperblock, std::string& sError);
 std::string GetSANDirectory2();
 std::string NameFromURL2(std::string sURL);
 std::string SystemCommand2(const char* cmd);
-bool FilterFile(int iBufferSize, std::string& sError);
-extern bool DownloadDistributedComputingFile(std::string& sError);
+bool FilterFile(int iBufferSize, int iNextSuperblock, std::string& sError);
 extern std::string NameFromURL2(std::string sURL);
 void TouchDailyMagnitudeFile();
 std::string GetSporkValue(std::string sKey);
@@ -2991,7 +2990,7 @@ std::string BiblepayHttpPost(int iThreadID, std::string sActionName, std::string
 
 }
 
-bool DownloadDistributedComputingFile(std::string& sError)
+bool DownloadDistributedComputingFile(int iNextSuperblock, std::string& sError)
 {
 	// First delete:
 	if (!fDistributedComputingEnabled) return true;
@@ -3135,7 +3134,7 @@ bool DownloadDistributedComputingFile(std::string& sError)
 	// Execute Phase 3 of the DC Cycle:
 	std::string sCommand = "gunzip " + sPath;
     std::string result = SystemCommand2(sCommand.c_str());
-	FilterFile(50, sError);
+	FilterFile(50, iNextSuperblock, sError);
 	fDistributedComputingCycleDownloading = false;
 	return true;
 }

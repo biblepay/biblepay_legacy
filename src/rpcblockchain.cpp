@@ -130,14 +130,14 @@ UniValue createrawtransaction(const UniValue& params, bool fHelp);
 extern std::string NameFromURL2(std::string sURL);
 
 extern std::string SystemCommand2(const char* cmd);
-extern bool FilterFile(int iBufferSize, std::string& sError);
-bool DownloadDistributedComputingFile(std::string& sError);
+extern bool FilterFile(int iBufferSize, int iNextSuperblock, std::string& sError);
+bool DownloadDistributedComputingFile(int iNextSuperblock, std::string& sError);
 
 CBlockIndex* FindBlockByHeight(int nHeight);
 extern double GetDifficulty(const CBlockIndex* blockindex);
 extern double GetDifficultyN(const CBlockIndex* blockindex, double N);
 extern std::string SendBlockchainMessage(std::string sType, std::string sPrimaryKey, std::string sValue, double dStorageFee, bool fSign, std::string& sError);
-// void SendMoneyToDestinationWithMinimumBalance(const CTxDestination& address, CAmount nValue, CAmount nMinimumBalanceRequired, CWalletTx& wtxNew);
+
 std::string SQL(std::string sCommand, std::string sAddress, std::string sArguments, std::string& sError);
 extern void StartTradingThread();
 extern CTradeTx GetOrderByHash(uint256 uHash);
@@ -169,7 +169,7 @@ extern bool AmIMasternode();
 double VerifyTasks(std::string sCPID, std::string sTasks);
 extern std::string VerifyManyWorkUnits(std::string sProjectId, std::string sTaskIds);
 extern std::string ChopLast(std::string sMyChop);
-extern double GetResearcherCredit(double dDRMode, double dAvgCredit, double dUTXOWeight, double dTaskWeight, double dUnbanked, double dTotalRAC, double dReqSPM);
+extern double GetResearcherCredit(double dDRMode, double dAvgCredit, double dUTXOWeight, double dTaskWeight, double dUnbanked, double dTotalRAC, double dReqSPM, double dReqSPR);
 extern std::string GetBoincUnbankedReport(std::string sProjectID);
 void PurgeCacheAsOfExpiration(std::string sSection, int64_t nExpiration);
 extern void ClearSanctuaryMemories();
@@ -965,7 +965,7 @@ std::string ExecuteDistributedComputingSanctuaryQuorumProcess()
 			{
 				// Pull down the distributed computing file
 				LogPrintf(" Chosen Sanctuary - pulling down the DCC file... \n");
-				bool fSuccess =  DownloadDistributedComputingFile(sError);
+				bool fSuccess =  DownloadDistributedComputingFile(iNextSuperblock, sError);
 				if (fSuccess)
 				{
 					LogPrintf("ExecuteDistributedSanctuaryQuorum::Error - Unable to download DC file %f ",sError.c_str());
@@ -2856,7 +2856,7 @@ CTransaction CreateCoinStake(CBlockIndex* pindexLast, CScript scriptCoinstakeKey
 	CWalletTx wtx;
 
 	bool fCreated = pwalletMain->CreateTransaction(vecSend, wtx, reservekey, nFeeRequired, nChangePosRet, 
-		strError, NULL, true, ALL_COINS, false, iMinConfirms);
+		strError, NULL, true, ONLY_NOT1000IFMN, false, iMinConfirms);
 	if (!fCreated)    
 	{
 		sError = "INSUFFICIENT FUNDS";
@@ -3609,7 +3609,9 @@ UniValue exec(const UniValue& params, bool fHelp)
 	else if (sItem == "dcc")
 	{
 		std::string sError = "";
-		bool fSuccess =  DownloadDistributedComputingFile(sError);
+		int iNextSuperblock = 0;
+		GetLastDCSuperblockHeight(chainActive.Tip()->nHeight, iNextSuperblock);
+		bool fSuccess =  DownloadDistributedComputingFile(iNextSuperblock, sError);
 		results.push_back(Pair("Success", fSuccess));
 		results.push_back(Pair("Error", sError));
 	}
@@ -3640,6 +3642,14 @@ UniValue exec(const UniValue& params, bool fHelp)
 		std::string sHash = ReadCache("dcc", "contract_hash");
 		results.push_back(Pair("contract", sContract));
 		results.push_back(Pair("hash", sHash));
+	}
+	else if (sItem == "testmodaldebuginput")
+	{
+		results.push_back(Pair("testmodal", "Entering Modal Mode Now"));
+		string sInput = "";
+		cout << "Please enter the value:\n>";
+		getline(cin, sInput);
+		results.push_back(Pair("Value", sInput));
 	}
 	else if (sItem == "associate")
 	{
@@ -3966,6 +3976,17 @@ UniValue exec(const UniValue& params, bool fHelp)
 		UniValue aDataList = GetDataList(sType, iDays, iSpecificEntry, sSearch, sEntry);
 		return aDataList;
 	}
+	else if (sItem == "setpodcunlockpassword")
+	{
+		if (params.size() != 2) throw runtime_error("You must specify headless podc wallet password.");
+		msEncryptedString.reserve(400);
+		msEncryptedString = params[1].get_str().c_str();
+		results.push_back(Pair("Length", (double)msEncryptedString.size()));
+	}
+	else if (sItem == "podcpasswordlength")
+	{
+		results.push_back(Pair("Length", (double)msEncryptedString.size()));
+	}
 	else if (sItem == "datalist")
 	{
 		if (params.size() != 2 && params.size() != 3)
@@ -4171,10 +4192,9 @@ std::string AddBlockchainMessages(std::string sAddress, std::string sType, std::
 	
     
 	bool fUseInstantSend = false;
-	bool fUsePrivateSend = false;
-
+	// 3-12-2018; Never spend sanctuary funds - R ANDREWS - BIBLEPAY
     if (!pwalletMain->CreateTransaction(vecSend, wtx, reservekey, nFeeRequired, nChangePosRet,
-                                         sError, NULL, true, fUsePrivateSend ? ONLY_DENOMINATED : ALL_COINS, fUseInstantSend)) 
+                                         sError, NULL, true, ONLY_NOT1000IFMN, fUseInstantSend)) 
 	{
 		if (!sError.empty())
 		{
@@ -4865,7 +4885,7 @@ bool SignCPID(std::string sCPID, std::string& sError, std::string& out_FullSig)
 }
 
 
-double GetSumOfXMLColumnFromXMLFile(std::string sFileName, std::string sObjectName, std::string sElementName, double dReqSPM)
+double GetSumOfXMLColumnFromXMLFile(std::string sFileName, std::string sObjectName, std::string sElementName, double dReqSPM, double dReqSPR)
 {
 	boost::filesystem::path pathIn(sFileName);
     std::ifstream streamIn;
@@ -4894,7 +4914,7 @@ double GetSumOfXMLColumnFromXMLFile(std::string sFileName, std::string sObjectNa
 		{
 			std::string sValue = ExtractXML(sData, "<" + sElementName + ">","</" + sElementName + ">");
 			double dAvgCredit = cdbl(sValue,2);
-			double dModifiedCredit = GetResearcherCredit(dDRMode, dAvgCredit, dUTXOWeight, dTaskWeight, dUnbanked, 0, dReqSPM);
+			double dModifiedCredit = GetResearcherCredit(dDRMode, dAvgCredit, dUTXOWeight, dTaskWeight, dUnbanked, 0, dReqSPM, dReqSPR);
 			dTotal += dModifiedCredit;
 			LogPrintf(" Adding %f from RAC of %f Grand Total %f \n", dModifiedCredit, dAvgCredit, dTotal);
 		}
@@ -4960,12 +4980,21 @@ double EnforceLimits(double dValue)
 	return dValue;
 }
 
-double GetUTXOLevel(double dUTXOWeight, double dTotalRAC, double dAvgCredit, double dRequiredSPM)
+double GetUTXOLevel(double dUTXOWeight, double dTotalRAC, double dAvgCredit, double dRequiredSPM, double dRequiredSPR)
 {
 	double dEstimatedMagnitude = (dAvgCredit / (dTotalRAC + .01)) * 1000;
 	if (dTotalRAC == 0) return 100; //This happens in Phase 1 of the Magnitude Calculation
 	if (dEstimatedMagnitude > 1000) dEstimatedMagnitude = 1000;
-	double dRequirement = dEstimatedMagnitude * dRequiredSPM;
+	double dRequirement = 0;
+	if (dRequiredSPM > 0) 
+	{
+		dRequirement = dEstimatedMagnitude * dRequiredSPM;
+	}
+	else if (dRequiredSPR > 0)
+	{
+		// If using Stake-Per-RAC, then 
+		dRequirement = dAvgCredit * dRequiredSPR;
+	}
 	double dAchievementPercent = (dUTXOWeight / (dRequirement + .01)) * 100;
 	double dSnappedAchievement = SnapToGrid(dAchievementPercent);
 	LogPrintf(" EstimatedMag %f, UTXORequirement %f, AchievementPecent %f, SnappedAchivement %f \n", dEstimatedMagnitude,
@@ -4973,7 +5002,7 @@ double GetUTXOLevel(double dUTXOWeight, double dTotalRAC, double dAvgCredit, dou
 	return dSnappedAchievement;
 }
 
-double GetResearcherCredit(double dDRMode, double dAvgCredit, double dUTXOWeight, double dTaskWeight, double dUnbanked, double dTotalRAC, double dReqSPM)
+double GetResearcherCredit(double dDRMode, double dAvgCredit, double dUTXOWeight, double dTaskWeight, double dUnbanked, double dTotalRAC, double dReqSPM, double dReqSPR)
 {
 
 	// Rob Andrews - BiblePay - 02-21-2018 - Add ability to run in distinct modes (via sporks):
@@ -4986,12 +5015,12 @@ double GetResearcherCredit(double dDRMode, double dAvgCredit, double dUTXOWeight
 				
 	if (dDRMode == 0)
 	{
-		dModifiedCredit = dAvgCredit * EnforceLimits(GetUTXOLevel(dUTXOWeight, dTotalRAC, dAvgCredit, dReqSPM) / 100) * EnforceLimits(dTaskWeight / 100);
+		dModifiedCredit = dAvgCredit * EnforceLimits(GetUTXOLevel(dUTXOWeight, dTotalRAC, dAvgCredit, dReqSPM, dReqSPR) / 100) * EnforceLimits(dTaskWeight / 100);
 		if (dUnbanked == 1) dModifiedCredit = dAvgCredit * 1 * 1;
 	}
 	else if (dDRMode == 1)
 	{
-		dModifiedCredit = dAvgCredit * EnforceLimits(GetUTXOLevel(dUTXOWeight, dTotalRAC, dAvgCredit, dReqSPM) / 100);
+		dModifiedCredit = dAvgCredit * EnforceLimits(GetUTXOLevel(dUTXOWeight, dTotalRAC, dAvgCredit, dReqSPM, dReqSPR) / 100);
 		if (dUnbanked==1) dModifiedCredit = dAvgCredit * 1 * 1;
 	}
 	else if (dDRMode == 2)
@@ -5049,7 +5078,7 @@ std::string MutateToList(std::string sData)
 	return sList;
 }
 
-bool FilterFile(int iBufferSize, std::string& sError)
+bool FilterFile(int iBufferSize, int iNextSuperblock, std::string& sError)
 {
 	std::vector<std::string> vCPIDs = GetListOfDCCS("", false);
     std::string buffer;
@@ -5069,6 +5098,7 @@ bool FilterFile(int iBufferSize, std::string& sError)
 	int iBuffer = 0;
 	int64_t nMaxAge = (int64_t)GetSporkDouble("podmaximumchatterage", (60 * 60 * 24));
 	double dReqSPM = GetSporkDouble("requiredspm", 500);
+	double dReqSPR = GetSporkDouble("requiredspr", 0);
 
 	boost::filesystem::path pathIn(sTarget);
     std::ifstream streamIn;
@@ -5163,7 +5193,7 @@ bool FilterFile(int iBufferSize, std::string& sError)
 	//  Phase II : Normalize the file for Biblepay (this process asseses the magnitude of each BiblePay Researcher relative to one another, with 100 being the leader, 0 being a researcher with no activity)
 	//  We measure users by RAC - the BOINC Decay function: expavg_credit.  This is the half-life of the users cobblestone emission over a one month period.
 
-	double dTotalRAC = GetSumOfXMLColumnFromXMLFile(sFiltered, "<user>", "expavg_credit", dReqSPM);
+	double dTotalRAC = GetSumOfXMLColumnFromXMLFile(sFiltered, "<user>", "expavg_credit", dReqSPM, dReqSPR);
 	if (dTotalRAC < 10)
 	{
 		sError = "Total DCC credit less than the project minimum.  Unable to calculate magnitudes.";
@@ -5200,19 +5230,19 @@ bool FilterFile(int iBufferSize, std::string& sError)
 			double dUTXOWeight = cdbl(ReadCacheWithMaxAge("UTXOWeight", sCPID, nMaxAge), 0);
 			double dTaskWeight = cdbl(ReadCacheWithMaxAge("TaskWeight", sCPID, nMaxAge), 0);
 			double dUnbanked = cdbl(ReadCacheWithMaxAge("Unbanked", sCPID, nMaxAge), 0);
-			double dModifiedCredit = GetResearcherCredit(dDRMode, dAvgCredit, dUTXOWeight, dTaskWeight, dUnbanked, dTotalRAC, dReqSPM);
+			double dModifiedCredit = GetResearcherCredit(dDRMode, dAvgCredit, dUTXOWeight, dTaskWeight, dUnbanked, dTotalRAC, dReqSPM, dReqSPR);
 			bool bTeamMatch = (dTeamRequired > 0) ? (dTeam == dTeamRequired) : true;
 			if (bTeamMatch)
 			{
 				bool fRequireSig = dUnbanked == 1 ? false : true;
 				std::string BPK = GetDCCPublicKey(sCPID, fRequireSig);
 				double dMagnitude = (dModifiedCredit / dTotalRAC) * 1000;
-				double dUTXO = GetUTXOLevel(dUTXOWeight, dTotalRAC, dAvgCredit, dReqSPM);
+				double dUTXO = GetUTXOLevel(dUTXOWeight, dTotalRAC, dAvgCredit, dReqSPM, dReqSPR);
 				std::string sRow = BPK + "," + sCPID + "," + RoundToString(dMagnitude, 3) + "," + sRosettaID + "," + RoundToString(dTeam, 0) 
 					+ "," + RoundToString(dUTXOWeight, 0) + "," + RoundToString(dTaskWeight, 0) 
 					+ "," + RoundToString(dTotalRAC, 0) + "," 
 					+ RoundToString(dUnbanked, 0) + "," + RoundToString(dUTXO, 2) + "," + RoundToString(dAvgCredit,0) + "," 
-					+ RoundToString(dModifiedCredit, 0)
+					+ RoundToString(dModifiedCredit, 0) + "," + RoundToString(iNextSuperblock, 0)
 					+ "\n<ROW>";
 				sDCC += sRow;
 			}

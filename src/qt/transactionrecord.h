@@ -87,7 +87,8 @@ public:
         PrivateSendCreateDenominations,
         PrivateSend,
 		ProofOfLoyalty,
-		PODCUpdate
+		PODCUpdate,
+		PODCAssociation
     };
 
     /** Number of confirmation recommended for accepting a transaction */

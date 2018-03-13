@@ -33,6 +33,16 @@ bool TransactionRecord::showTransaction(const CWalletTx &wtx)
     return true;
 }
 
+std::string GetEntireMessage(const CWalletTx & wtx)
+{
+	 std::string sOut = "";
+     for (unsigned int i = 0; i < wtx.vout.size(); i++)
+	 {
+		 sOut += wtx.vout[i].sTxOutMessage;
+	 }
+	 return sOut;
+}
+
 /*
  * Decompose CWallet transaction to model transaction records.
  */
@@ -129,16 +139,18 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
             // Payment to self
             // TO DO: this section still not accurate but covers most cases,
             // might need some additional work however
-			std::string sStakeWeight = ExtractXML(wtx.vout[0].sTxOutMessage, "<polweight>","</polweight>");
-		    std::string sTasks = ExtractXML(wtx.vout[0].sTxOutMessage, "<PODC_TASKS>", "</PODC_TASKS>");
+			std::string sMessage = GetEntireMessage(wtx);
+		    std::string sTasks = ExtractXML(sMessage, "<PODC_TASKS>", "</PODC_TASKS>");
+			std::string sDCC = ExtractXML(sMessage, "<MT>", "</MT>");
+
             TransactionRecord sub(hash, nTime);
             // Payment to self by default
             sub.type = TransactionRecord::SendToSelf;
-			if (!sStakeWeight.empty() && fProofOfLoyaltyEnabled)
+			if (fDistributedComputingEnabled && sDCC == "DCC")
 			{
-				sub.type=TransactionRecord::ProofOfLoyalty;
-			    sub.address = "Weight: " + sStakeWeight;
-         	}
+				sub.type=TransactionRecord::PODCAssociation;
+				sub.address = "Association: " + sDCC;
+			}
 			if (!sTasks.empty() && fDistributedComputingEnabled)
 			{
 				sub.type=TransactionRecord::PODCUpdate;

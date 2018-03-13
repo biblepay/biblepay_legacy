@@ -114,6 +114,8 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
 				in.push_back(Pair("podc-payment", HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
 			if (tx.IsSuperblockPayment())
 				in.push_back(Pair("superblock-payment", HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
+			if (tx.IsPODCAssociation())
+				in.push_back(Pair("podc-association", HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
 		}
 		else
 		{

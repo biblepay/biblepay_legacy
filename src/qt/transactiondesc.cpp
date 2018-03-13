@@ -128,6 +128,10 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionReco
 	{
 	     strHTML += "<b>" + tr("Source") + ":</b> " + tr("PODC-Update") + "<br>";
 	}
+	if (wtx.IsPODCAssociation())
+	{
+	     strHTML += "<b>" + tr("Source") + ":</b> " + tr("PODC-Association") + "<br>";
+	}
 	if (wtx.IsSuperblockPayment())
 	{
 	     strHTML += "<b>" + tr("Source") + ":</b> " + tr("Superblock-Payment") + "<br>";
@@ -311,15 +315,9 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionReco
     uint256 hashBlock;
 	std::string sNetworkMessage = "";
 	std::string sColor = "";
-	if (GetTransaction(wtx.GetHash(), tx, Params().GetConsensus(), hashBlock, false))
+	for (unsigned int i1 = 0; i1 < wtx.vout.size(); i1++)
 	{
-		sNetworkMessage = "TX: " + tx.vout[0].sTxOutMessage;
-		CComplexTransaction cct(tx);
-		sColor = cct.Color;
-	}
-	else
-	{
-		sNetworkMessage = "TXID NOT FOUND " + tx.GetHash().ToString();
+		sNetworkMessage += wtx.vout[i1].sTxOutMessage;
 	}
 
 	// Biblepay - Read actual block, so we can give the user even more information
@@ -429,7 +427,7 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionReco
         strHTML += "</ul>";
     }
 
-	if (sDebug.empty())
+	if (!sDebug.empty())
 	{
 		strHTML += "<br><b><p><font color=blue>XML: <pre>" + QString::fromStdString(sDebug) + "</pre></font></b><p>";
 	}

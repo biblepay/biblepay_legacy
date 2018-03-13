@@ -376,11 +376,13 @@ QString TransactionTableModel::formatTxType(const TransactionRecord *wtx) const
     case TransactionRecord::SendToOther:
         return tr("Sent to");
     case TransactionRecord::SendToSelf:
-        return tr("Payment to yourself");
+		return tr("Payment to yourself");
 	case TransactionRecord::ProofOfLoyalty:
 		return fProofOfLoyaltyEnabled ? tr("Proof of Loyalty") : tr("Payment to Self");
 	case TransactionRecord::PODCUpdate:
-		return fDistributedComputingEnabled ? tr("PODC Update") : tr("Payment to Self");
+		return tr("PODC Update");
+	case TransactionRecord::PODCAssociation:
+		return tr("PODC Association");
     case TransactionRecord::Generated:
 		if (wtx->IsPODCPayment) 
 		{
@@ -431,6 +433,8 @@ QVariant TransactionTableModel::txAddressDecoration(const TransactionRecord *wtx
 		}
 	case TransactionRecord::PODCUpdate:
 	    return QIcon(":/icons/drkblue/key");
+	case TransactionRecord::PODCAssociation:
+		return QIcon(":/icons/drkblue/key");
 	case TransactionRecord::RecvWithPrivateSend:
     case TransactionRecord::RecvWithAddress:
     case TransactionRecord::RecvFromOther:
@@ -467,6 +471,8 @@ QString TransactionTableModel::formatTxToAddress(const TransactionRecord *wtx, b
 		return fProofOfLoyaltyEnabled ? tr("Proof of Loyalty") : tr("Payment to Self");
 	case TransactionRecord::PODCUpdate:
 		return fDistributedComputingEnabled ? tr("PODC Update") : tr("Payment to Self");
+	case TransactionRecord::PODCAssociation:
+		return tr("PODC Association");
     case TransactionRecord::SendToSelf:
     default:
         return tr("(n/a)") + watchAddress;
@@ -491,6 +497,7 @@ QVariant TransactionTableModel::addressColor(const TransactionRecord *wtx) const
     case TransactionRecord::SendToSelf:
 	case TransactionRecord::ProofOfLoyalty:
 	case TransactionRecord::PODCUpdate:
+	case TransactionRecord::PODCAssociation:
     case TransactionRecord::PrivateSendCreateDenominations:
     case TransactionRecord::PrivateSendDenominate:
     case TransactionRecord::PrivateSendMakeCollaterals:

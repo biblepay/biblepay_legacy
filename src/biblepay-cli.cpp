@@ -247,7 +247,22 @@ int CommandLineRPC(int argc, char *argv[])
         // Parameters default to strings
         std::vector<std::string> strParams(&argv[2], &argv[argc]);
         UniValue params = RPCConvertValues(strMethod, strParams);
-
+		const bool fHeadlessPassword = GetBoolArg("-headlesspodcpassword", false);
+		if (fHeadlessPassword)
+		{
+			// R Andrews - 3/11/2018
+			// USAGE: ./biblepay-cli -headlesspodcpassword (optional: exec podcpasswordlength)
+			string sInput = "";
+			cout << "Please enter the headless podc unlock wallet password: >";
+			getline(cin, sInput);
+			cout << "Memorized " << sInput.length();
+			std::vector<std::string> strUnlockParams;
+			strUnlockParams.push_back("setpodcunlockpassword");
+			strUnlockParams.push_back(sInput);
+			std::string sRPCMethod = "exec";
+			UniValue uParams = RPCConvertValues(sRPCMethod, strUnlockParams);
+			CallRPC(sRPCMethod, uParams);
+		}
         // Execute and handle connection failures with -rpcwait
         const bool fWait = GetBoolArg("-rpcwait", false);
         do {

@@ -70,6 +70,8 @@ void WalletTxToJSON(const CWalletTx& wtx, UniValue& entry)
         entry.push_back(Pair("generated", true));
 	if (wtx.IsPODCUpdate())
 		entry.push_back(Pair("PODCIncome", true));
+	if (wtx.IsPODCAssociation())
+		entry.push_back(Pair("PODCAssociation", true));
     if (confirms > 0)
     {
         entry.push_back(Pair("blockhash", wtx.hashBlock.GetHex()));
@@ -378,7 +380,7 @@ UniValue getaddressesbyaccount(const UniValue& params, bool fHelp)
 
 
 static void SendMoney(const CTxDestination &address, CAmount nValue, bool fSubtractFeeFromAmount, CWalletTx& wtxNew, 
-	bool fUseInstantSend=false, bool fUsePrivateSend=false)
+	bool fUseInstantSend=false, bool fUsePrivateSend=false, bool fUseSanctuaryFunds=false)
 {
     CAmount curBalance = pwalletMain->GetBalance();
 
@@ -402,7 +404,9 @@ static void SendMoney(const CTxDestination &address, CAmount nValue, bool fSubtr
     vecSend.push_back(recipient);
 	
     if (!pwalletMain->CreateTransaction(vecSend, wtxNew, reservekey, nFeeRequired, nChangePosRet,
-                                         strError, NULL, true, fUsePrivateSend ? ONLY_DENOMINATED : ALL_COINS, fUseInstantSend)) {
+                                         strError, NULL, true, fUsePrivateSend ? ONLY_DENOMINATED : (fUseSanctuaryFunds ? ALL_COINS : ONLY_NOT1000IFMN), 
+										 fUseInstantSend)) 
+	{
         if (!fSubtractFeeFromAmount && nValue + nFeeRequired > pwalletMain->GetBalance())
             strError = strprintf("Error: This transaction requires a transaction fee of at least %s because of its amount, complexity, or use of recently received funds!", FormatMoney(nFeeRequired));
         throw JSONRPCError(RPC_WALLET_ERROR, strError);
@@ -453,7 +457,7 @@ static void SendMoneyToDestinationWithMinimumBalance(const CTxDestination& addre
 		sError = "Insufficient funds";
 		return;
 	}
-    SendMoney(address, nValue, false, wtxNew, false, false);
+    SendMoney(address, nValue, false, wtxNew, false, false, false);
 }
 
 
@@ -512,14 +516,18 @@ UniValue sendtoaddress(const UniValue& params, bool fHelp)
 
     bool fUseInstantSend = false;
     bool fUsePrivateSend = false;
+	bool fUseSanctuaryFunds = false;
     if (params.size() > 5)
         fUseInstantSend = params[5].get_bool();
     if (params.size() > 6)
         fUsePrivateSend = params[6].get_bool();
 
+	if (params.size() > 7)
+		fUseSanctuaryFunds = params[7].get_bool();
+
     EnsureWalletIsUnlocked();
 
-    SendMoney(address.Get(), nAmount, fSubtractFeeFromAmount, wtx, fUseInstantSend, fUsePrivateSend);
+    SendMoney(address.Get(), nAmount, fSubtractFeeFromAmount, wtx, fUseInstantSend, fUsePrivateSend, fUseSanctuaryFunds);
 
     return wtx.GetHash().GetHex();
 }
@@ -577,7 +585,7 @@ UniValue instantsendtoaddress(const UniValue& params, bool fHelp)
 
     EnsureWalletIsUnlocked();
 
-    SendMoney(address.Get(), nAmount, fSubtractFeeFromAmount, wtx, true);
+    SendMoney(address.Get(), nAmount, fSubtractFeeFromAmount, wtx, true, false);
 
     return wtx.GetHash().GetHex();
 }
@@ -1519,6 +1527,7 @@ void ListTransactions(const CWalletTx& wtx, const string& strAccount, int nMinDe
 					std::string sSuffix = (wtx.IsProofOfLoyalty()) ? " proof-of-loyalty" : "";
 					if (wtx.IsPODCUpdate()) sSuffix = " podc-update";
 					if (wtx.IsPODCPayment()) sSuffix = " podc-payment";
+					if (wtx.IsPODCAssociation()) sSuffix = " podc-association";
 					if (wtx.IsSuperblockPayment()) sSuffix = " superblock-payment";
                     if (wtx.GetDepthInMainChain() < 1)
                         entry.push_back(Pair("category", "orphan" + sSuffix));

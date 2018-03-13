@@ -310,6 +310,16 @@ public:
 		return false;
 	}
 
+	bool IsPODCAssociation() const
+	{
+		if (vout.size() > 1)
+		{
+			if (Contains(vout[0].sTxOutMessage,"<MT>DCC</MT>")) return true;
+		}
+		return false;
+	}
+
+
 	bool IsPODCPayment() const
 	{
 		// Determine if this is a superblock payment or PODC (Research) payment
