@@ -175,7 +175,7 @@ unsigned int static DarkGravityWave(const CBlockIndex* pindexLast, const Consens
 	}
 	else if (fProdChain && pindexLast->nHeight >= F12000_CUTOVER_HEIGHT_PROD)
 	{
-		_nTargetTimespan = CountBlocks * 315;
+		_nTargetTimespan = CountBlocks * 310;
 	}
 	
 
