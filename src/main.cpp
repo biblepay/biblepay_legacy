@@ -1320,7 +1320,7 @@ bool VerifyDistributedBurnTransaction(std::string sXML)
 	  boost::to_upper(sCPID);
 	  if (sCPID != sDCCPID) 
 	  {
-		  LogPrintf("VerifyDistributedBurnTransaction::ResearcherCPID %s does not match DC CPID %s. UserID %f \n", 
+		  if (fDebugMaster) LogPrintf("VerifyDistributedBurnTransaction::ResearcherCPID %s does not match DC CPID %s. UserID %f \n", 
 			  sCPID.c_str(), sDCCPID.c_str(), (double)nUserId);
 		  return false;
 	  }
@@ -1331,7 +1331,7 @@ bool VerifyDistributedBurnTransaction(std::string sXML)
 			  sHexCode.c_str(), sDCCode.c_str(), (double)nUserId);
 		  return false;
 	  }
-	  LogPrintf(" VerifyDistributedBurnTransaction::PASS for CPID %s \n",sCPID.c_str());
+	  if (fDebugMaster) LogPrintf("podc", " VerifyDistributedBurnTransaction::PASS for CPID %s \n",sCPID.c_str());
 	  return true;
 		
 }

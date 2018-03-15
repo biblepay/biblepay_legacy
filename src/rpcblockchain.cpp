@@ -1079,7 +1079,7 @@ UniValue blockheaderToJSON(const CBlockIndex* blockindex)
     return result;
 }
 
-UniValue blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool txDetails = false)
+UniValue blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool txDetails = false, bool bVerbose = false)
 {
     UniValue result(UniValue::VOBJ);
     result.push_back(Pair("hash", block.GetHash().GetHex()));
@@ -1161,7 +1161,8 @@ UniValue blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool tx
 		uint256 bibleHash = BibleHash(hashWork, block.GetBlockTime(), blockindex->pprev->nTime, false, blockindex->pprev->nHeight, blockindex->pprev, 
 			false, f7000, f8000, f9000, fTitheBlocksActive, blockindex->nNonce);
 		bool bSatisfiesBibleHash = (UintToArith256(bibleHash) <= hashTarget);
-		result.push_back(Pair("blockmessage", blockindex->sBlockMessage));
+	
+
     	result.push_back(Pair("satisfiesbiblehash", bSatisfiesBibleHash ? "true" : "false"));
 		result.push_back(Pair("biblehash", bibleHash.GetHex()));
 		// Rob A. - 02-11-2018 - Proof-of-Distributed-Computing
@@ -1222,6 +1223,15 @@ UniValue blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool tx
 	{
 		std::string sPrayers = GetMessagesFromBlock(block, "PRAYER");
 		result.push_back(Pair("prayers", sPrayers));
+		if (bVerbose)
+		{
+			std::string sMsg = "";
+			for (unsigned int i = 0; i < block.vtx[0].vout.size(); i++)
+			{
+				sMsg += block.vtx[0].vout[i].sTxOutMessage;
+			}
+			result.push_back(Pair("blockmessage", sMsg));
+		}
 	}
 	if (blockindex)
 	{
@@ -1235,7 +1245,7 @@ UniValue blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool tx
 
 UniValue showblock(const UniValue& params, bool fHelp)
 {
-    if (fHelp || params.size() != 1)
+    if (fHelp || (params.size() != 1 && params.size() != 2))
         throw runtime_error(
             "showblock <index>\n"
             "Returns information about the block at <height>.");
@@ -1249,7 +1259,9 @@ UniValue showblock(const UniValue& params, bool fHelp)
     CBlock block;
     const Consensus::Params& consensusParams = Params().GetConsensus();
 	ReadBlockFromDisk(block, pblockindex, consensusParams, "SHOWBLOCK");
-	return blockToJSON(block, pblockindex, false);
+	bool bVerbose = false;
+	if (params.size() > 1) bVerbose = params[1].get_str() == "true" ? true : false;
+	return blockToJSON(block, pblockindex, false, bVerbose);
 }
 
 UniValue getblockcount(const UniValue& params, bool fHelp)
@@ -1673,7 +1685,7 @@ UniValue getblock(const UniValue& params, bool fHelp)
         return strHex;
     }
 
-    return blockToJSON(block, pblockindex);
+    return blockToJSON(block, pblockindex, false, false);
 }
 
 UniValue gettxoutsetinfo(const UniValue& params, bool fHelp)
@@ -3520,7 +3532,7 @@ UniValue exec(const UniValue& params, bool fHelp)
 		CBlock block;
         if (!DecodeHexBlk(block, sHex))
                 throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "Block decode failed");
-        return blockToJSON(block, NULL);
+        return blockToJSON(block, NULL, true, true);
 	}
 	else if (sItem == "hexblocktocoinbase")
 	{
@@ -3551,7 +3563,19 @@ UniValue exec(const UniValue& params, bool fHelp)
 			pindexPrev->nHeight, NULL, false, f7000, f8000, f9000, fTitheBlocksActive, block.nNonce);
 		results.push_back(Pair("biblehash", hash.GetHex()));
 		results.push_back(Pair("subsidy", block.vtx[0].vout[0].nValue/COIN));
+		
 		results.push_back(Pair("blockversion", ExtractXML(block.vtx[0].vout[0].sTxOutMessage,"<VER>","</VER>")));
+		std::string sMsg = "";
+		for (unsigned int i = 0; i < block.vtx[0].vout.size(); i++)
+		{
+			sMsg += block.vtx[0].vout[i].sTxOutMessage;
+		}
+		std::string sMySig = ExtractXML(sMsg,"<cpidsig>","</cpidsig>");
+		std::string sErr2 = "";
+		bool fSigChecked = VerifyCPIDSignature(sMySig, true, sErr2);
+		results.push_back(Pair("cpid_sig_valid", fSigChecked));
+		
+		results.push_back(Pair("blockmessage", sMsg));
 	}
 	else if (sItem == "miningdiagnostics")
 	{

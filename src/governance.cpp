@@ -813,7 +813,7 @@ void CGovernanceManager::Sync(CNode* pfrom, const uint256& nProp, const CBloomFi
 
     pfrom->PushMessage(NetMsgType::SYNCSTATUSCOUNT, MASTERNODE_SYNC_GOVOBJ, nObjCount);
     pfrom->PushMessage(NetMsgType::SYNCSTATUSCOUNT, MASTERNODE_SYNC_GOVOBJ_VOTE, nVoteCount);
-    if (fDebugMaster) LogPrintf("CGovernanceManager::Sync -- sent %d objects and %d votes to peer=%d\n", nObjCount, nVoteCount, pfrom->id);
+    if (fDebugMaster) LogPrint("masternode", "CGovernanceManager::Sync -- sent %d objects and %d votes to peer=%d\n", nObjCount, nVoteCount, pfrom->id);
 }
 
 bool CGovernanceManager::MasternodeRateCheck(const CGovernanceObject& govobj, update_mode_enum_t eUpdateLast)
@@ -873,14 +873,16 @@ bool CGovernanceManager::MasternodeRateCheck(const CGovernanceObject& govobj, up
 
     std::string strHash = govobj.GetHash().ToString();
 
-    if(nTimestamp < nNow - 2 * nSuperblockCycleSeconds) {
-        LogPrintf("CGovernanceManager::MasternodeRateCheck -- object %s rejected due to too old timestamp, masternode vin = %s, timestamp = %d, current time = %d\n",
+    if(nTimestamp < nNow - 2 * nSuperblockCycleSeconds) 
+	{
+        LogPrint("masternode", "CGovernanceManager::MasternodeRateCheck -- object %s rejected due to too old timestamp, masternode vin = %s, timestamp = %d, current time = %d\n",
                  strHash, vin.prevout.ToStringShort(), nTimestamp, nNow);
         return false;
     }
 
-    if(nTimestamp > nNow + 60*60) {
-        LogPrintf("CGovernanceManager::MasternodeRateCheck -- object %s rejected due to too new (future) timestamp, masternode vin = %s, timestamp = %d, current time = %d\n",
+    if(nTimestamp > nNow + 60*60) 
+	{
+        LogPrint("masternode", "CGovernanceManager::MasternodeRateCheck -- object %s rejected due to too new (future) timestamp, masternode vin = %s, timestamp = %d, current time = %d\n",
                  strHash, vin.prevout.ToStringShort(), nTimestamp, nNow);
         return false;
     }
@@ -903,8 +905,9 @@ bool CGovernanceManager::MasternodeRateCheck(const CGovernanceObject& govobj, up
         break;
     }
 
-    if(!pBuffer) {
-        LogPrintf("CGovernanceManager::MasternodeRateCheck -- Internal Error returning false, NULL ptr found for object %s masternode vin = %s, timestamp = %d, current time = %d\n",
+    if(!pBuffer) 
+	{
+        LogPrint("masternode", "CGovernanceManager::MasternodeRateCheck -- Internal Error returning false, NULL ptr found for object %s masternode vin = %s, timestamp = %d, current time = %d\n",
                   strHash, vin.prevout.ToStringShort(), nTimestamp, nNow);
         return false;
     }
@@ -932,8 +935,9 @@ bool CGovernanceManager::MasternodeRateCheck(const CGovernanceObject& govobj, up
     if(fRateOK) {
         return true;
     }
-    else {
-        LogPrintf("CGovernanceManager::MasternodeRateCheck -- Rate too high: object hash = %s, masternode vin = %s, object timestamp = %d, rate = %f, max rate = %f\n",
+    else 
+	{
+		if (fDebugMaster) LogPrint("masternode", "CGovernanceManager::MasternodeRateCheck -- Rate too high: object hash = %s, masternode vin = %s, object timestamp = %d, rate = %f, max rate = %f\n",
                   strHash, vin.prevout.ToStringShort(), nTimestamp, dRate, dMaxRate);
     }
     return false;

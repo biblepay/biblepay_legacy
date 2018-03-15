@@ -59,7 +59,7 @@ struct CCoin {
 };
 
 extern void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry);
-extern UniValue blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool txDetails = false);
+extern UniValue blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool txDetails = false, bool verbose = false);
 extern UniValue mempoolInfoToJSON();
 extern UniValue mempoolToJSON(bool fVerbose = false);
 extern void ScriptPubKeyToJSON(const CScript& scriptPubKey, UniValue& out, bool fIncludeHex);
@@ -247,7 +247,7 @@ static bool rest_block(HTTPRequest* req,
     }
 
     case RF_JSON: {
-        UniValue objBlock = blockToJSON(block, pblockindex, showTxDetails);
+        UniValue objBlock = blockToJSON(block, pblockindex, showTxDetails, false);
         string strJSON = objBlock.write() + "\n";
         req->WriteHeader("Content-Type", "application/json");
         req->WriteReply(HTTP_OK, strJSON);

@@ -145,7 +145,7 @@ bool IsBlockValueValid(const CBlock& block, int nBlockHeight, CAmount blockRewar
 		{
 	        if(	CSuperblockManager::IsValidSuperblock(block.vtx[0], nBlockHeight, blockReward, block.GetBlockTime()))
 			{
-                LogPrintf("IsBlockValueValid -- Valid superblock at height %d: %s", nBlockHeight, block.vtx[0].ToString());
+                if (fDebugMaster) LogPrint("podc", "IsBlockValueValid -- Valid superblock at height %d: %s", nBlockHeight, block.vtx[0].ToString());
                 // all checks are done in CSuperblock::IsValid, nothing to do here
                 return true;
             }

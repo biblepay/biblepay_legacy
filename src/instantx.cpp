@@ -500,9 +500,8 @@ void CInstantSend::TryToFinalizeLockCandidate(const CTxLockCandidate& txLockCand
     LOCK2(cs_main, cs_instantsend);
 
     uint256 txHash = txLockCandidate.txLockRequest.GetHash();
-	LogPrintf(" InstantSend : AllOutPointReady %f, IsLockedInstantSendTransaction %f, bool %f \n",(float)txLockCandidate.IsAllOutPointsReady(),
-		(float)IsLockedInstantSendTransaction(txHash), (float)true); 
-	
+	if (fDebugMaster) LogPrint("debug10", "InstantSend : AllOutPointReady %f, IsLockedInstantSendTransaction %f, bool %f \n",(float)txLockCandidate.IsAllOutPointsReady(),	(float)IsLockedInstantSendTransaction(txHash), (float)true); 
+
     if(txLockCandidate.IsAllOutPointsReady() && !IsLockedInstantSendTransaction(txHash)) 
 	{
         // we have enough votes now

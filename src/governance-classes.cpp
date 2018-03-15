@@ -314,8 +314,7 @@ bool CSuperblockManager::IsDistributedComputingSuperblockTriggered(int nBlockHei
 		return false;
 	}
 
-	LogPrintf(" ** IsDCCTriggered::Superblock has enough support - Votes %f  Addresses %s Amounts %s  **",(double)iPendingVotes, sAddresses.c_str(), sAmounts.c_str());
-	
+	if (fDebugMaster) LogPrint("podc", " ** IsDCCTriggered::Superblock has enough support - Votes %f  Addresses %s Amounts %s  **",(double)iPendingVotes, sAddresses.c_str(), sAmounts.c_str());
 	return true;
 
 }
