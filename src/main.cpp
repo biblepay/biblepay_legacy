@@ -7451,8 +7451,8 @@ void SetOverviewStatus()
 	msGlobalStatus += "</font>";
 	std::string sVersionAlert = GetVersionAlert();
 	if (!sVersionAlert.empty()) msGlobalStatus += " <font color=purple>" + sVersionAlert + "</font> ;";
-	std::string sPrayers = FormatHTML(sPrayer, 12, "<br>");
-	msGlobalStatus2 = "<font color=maroon><b>" + sPrayers + "</font></b><br>&nbsp;";
+	// std::string sPrayers = FormatHTML(sPrayer, 12, "<br>");
+	msGlobalStatus2 = "<font color=maroon><b>" + sPrayer + "</font></b><br>&nbsp;";
 }
 
 std::string strReplace(std::string& str, const std::string& oldStr, const std::string& newStr)
