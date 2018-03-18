@@ -95,9 +95,7 @@ double GetPaymentByCPID(std::string CPID);
 extern std::string GetCPIDByAddress(std::string sAddress, int iOffset);
 std::string VerifyManyWorkUnits(std::string sProjectId, std::string sTaskIds);
 extern std::string GetCPIDByRosettaID(double dRosettaID);
-
-
-
+extern std::string GetVersionAlert();
 std::string GetElement(std::string sIn, std::string sDelimiter, int iPos);
 
 int64_t nGlobalPOLWeight;
@@ -110,13 +108,11 @@ int64_t TEMPLE_COLLATERAL = 10000000;
 int64_t MAX_BLOCK_SUBSIDY = 20000;
 std::string strTemplePubKey = "";
 int64_t MAX_MESSAGE_LENGTH = 3000;
-
 bool fProd = false;
 bool fMineSlow = false;
-
 double dHashesPerSec = 0;
 std::map<std::string, double> mvBlockVersion;
-
+std::string GetGithubVersion();
 extern bool WriteKey(std::string sKey, std::string sValue);
 extern bool InstantiateOneClickMiningEntries();
 extern std::string DefaultRecAddress(std::string sType);
@@ -198,9 +194,6 @@ bool AmIMasternode();
 std::string GetWorkUnitResultElement(std::string sProjectId, int nWorkUnitID, std::string sElement);
 extern double VerifyTasks(std::string sCPID, std::string sTasks);
 extern void PurgeCacheAsOfExpiration(std::string sSection, int64_t nExpiration);
-
-
-
 bool fImporting = false;
 bool fReindex = false;
 bool fTxIndex = true;
@@ -223,6 +216,8 @@ double mnMagnitudeOneDay = 0;
 std::string msGlobalCPID = "";
 std::string msGUIResponse = "";
 SecureString msEncryptedString = "";
+std::string msGithubVersion = "";
+
 bool fCheckedPODCUnlock = false;
 bool fWalletLoaded = false;
 
@@ -1331,7 +1326,7 @@ bool VerifyDistributedBurnTransaction(std::string sXML)
 			  sHexCode.c_str(), sDCCode.c_str(), (double)nUserId);
 		  return false;
 	  }
-	  if (fDebugMaster) LogPrintf("podc", " VerifyDistributedBurnTransaction::PASS for CPID %s \n",sCPID.c_str());
+	  if (fDebugMaster) LogPrint("podc", " VerifyDistributedBurnTransaction::PASS for CPID %s \n",sCPID.c_str());
 	  return true;
 		
 }
@@ -7298,7 +7293,8 @@ bool ProcessMessages(CNode* pfrom)
             if (strstr(e.what(), "end of data"))
             {
                 // Allow exceptions from under-length message on vRecv
-                LogPrintf("%s(%s, %u bytes): Exception '%s' caught, normally caused by a message being shorter than its stated length\n", __func__, SanitizeString(strCommand), nMessageSize, e.what());
+                LogPrintf("%s(%s, %u bytes): Exception '%s' caught, normally caused by a message being shorter than its stated length\n",
+					__func__, SanitizeString(strCommand), nMessageSize, e.what());
             }
             else if (strstr(e.what(), "size too large"))
             {
@@ -7423,20 +7419,40 @@ void UpdateMagnitude()
 		mnMagnitude = GetUserMagnitude(nBudget, nTotalPaid, iLastSuperblock, out_Superblocks, out_SuperblockCount, out_HitCount, out_OneDayPaid, out_OneWeekPaid, out_d1, out_d2);
 }
 
+std::string GetVersionAlert()
+{
+	if (msGithubVersion.empty()) 
+	{
+		msGithubVersion = GetGithubVersion();
+	}
+	if (msGithubVersion.empty()) return "";
+	std::string sGithubVersion = strReplace(msGithubVersion, ".", "");
+	double dGithubVersion = cdbl(sGithubVersion, 0);
+	std::string sCurrentVersion = FormatFullVersion();
+	sCurrentVersion = strReplace(sCurrentVersion, ".", "");
+	double dCurrentVersion = cdbl(sCurrentVersion, 0);
+	std::string sNarr = "";
+	if (dCurrentVersion < dGithubVersion) sNarr = "<br>** Client Out of Date (v=" + sCurrentVersion + "/v=" + sGithubVersion + ") **";
+	return sNarr;
+}
+
 void SetOverviewStatus()
 {
 	double dDiff = GetDifficultyN(chainActive.Tip(), 10);
+	double dPOWDifficulty = GetDifficulty(chainActive.Tip()) * 10;
+
 	if (fDistributedComputingEnabled) UpdateMagnitude();
 	std::string sPrayer = "NA";
 	GetDataList("PRAYER", 7, iPrayerIndex, "", sPrayer);
-	msGlobalStatus = "Blocks: " + RoundToString((double)chainActive.Tip()->nHeight, 0) 
-		+ "; Difficulty: " + RoundToString(dDiff,4)
-		+ ";";
-    if (fDistributedComputingEnabled) msGlobalStatus += " Magnitude: " + RoundToString(mnMagnitude,2);
-	// msGlobalStatus2="<font color=blue>Prayer Request:<br>";
+	msGlobalStatus = "<font color=blue>Blocks: " + RoundToString((double)chainActive.Tip()->nHeight, 0) 
+		+ "; PODC Difficulty: " + RoundToString(dDiff,2) 
+		+ "; <br>POW Difficulty: " + RoundToString(dPOWDifficulty,2) + ";";
+    if (fDistributedComputingEnabled) msGlobalStatus += " Magnitude: " + RoundToString(mnMagnitude,2) + "; ";
+	msGlobalStatus += "</font>";
+	std::string sVersionAlert = GetVersionAlert();
+	if (!sVersionAlert.empty()) msGlobalStatus += " <font color=purple>" + sVersionAlert + "</font> ;";
 	std::string sPrayers = FormatHTML(sPrayer, 12, "<br>");
-	msGlobalStatus2 = "<font color=red>" + sPrayers + "</font><br>&nbsp;";
-	// LogPrintf(" Prayers %s \n", sPrayers.c_str());
+	msGlobalStatus2 = "<font color=maroon><b>" + sPrayers + "</font></b><br>&nbsp;";
 }
 
 std::string strReplace(std::string& str, const std::string& oldStr, const std::string& newStr)

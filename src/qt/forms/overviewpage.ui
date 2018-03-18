@@ -44,7 +44,7 @@
         <widget class="QFrame" name="frame">
          <property name="minimumSize">
           <size>
-           <width>555</width>
+           <width>615</width>
            <height>0</height>
           </size>
          </property>
@@ -400,6 +400,18 @@
        </item>
        <item>
         <widget class="QFrame" name="framePrivateSend">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="minimumSize">
+          <size>
+           <width>0</width>
+           <height>0</height>
+          </size>
+         </property>
          <property name="layoutDirection">
           <enum>Qt::LeftToRight</enum>
          </property>
@@ -654,11 +666,11 @@
                 <property name="maximumSize">
                  <size>
                   <width>174</width>
-                  <height>25</height>
+                  <height>16777215</height>
                  </size>
                 </property>
                 <property name="text">
-                 <string>BiblePay - Start/Stop Mixing</string>
+                 <string>Mixing</string>
                 </property>
                </widget>
               </item>
@@ -741,7 +753,6 @@
             </item>
            </layout>
           </item>
-          
           <item>
            <widget class="QLabel" name="txtDisplay">
             <property name="sizePolicy">
@@ -767,8 +778,6 @@
             </property>
            </widget>
           </item>
-          
-          
           <item>
            <widget class="QLabel" name="txtDisplay2">
             <property name="sizePolicy">
@@ -780,7 +789,7 @@
             <property name="minimumSize">
              <size>
               <width>250</width>
-              <height>55</height>
+              <height>150</height>
              </size>
             </property>
             <property name="maximumSize">
@@ -794,7 +803,6 @@
             </property>
            </widget>
           </item>
-          
           <item>
            <widget class="QLabel" name="txtDisplay3">
             <property name="sizePolicy">
@@ -806,7 +814,7 @@
             <property name="minimumSize">
              <size>
               <width>255</width>
-              <height>225</height>
+              <height>12</height>
              </size>
             </property>
             <property name="maximumSize">
@@ -816,47 +824,13 @@
              </size>
             </property>
             <property name="text">
-             <string>. .      .      . </string>
+             <string>                                                                                            .</string>
             </property>
            </widget>
           </item>
          </layout>
         </widget>
        </item>
-       
-       
-       <item>
-                  <widget class="QLabel" name="txtDisplay4">
-                   <property name="sizePolicy">
-                    <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-                     <horstretch>0</horstretch>
-                     <verstretch>0</verstretch>
-                    </sizepolicy>
-                   </property>
-                   <property name="minimumSize">
-                    <size>
-                     <width>200</width>
-                     <height>5</height>
-                    </size>
-                   </property>
-                   <property name="maximumSize">
-                    <size>
-                     <width>16777215</width>
-                     <height>1677777</height>
-                    </size>
-                   </property>
-                   <property name="text">
-                    <string>..</string>
-                   </property>
-                  </widget>
-                 </item>
-          
-       
-       
-       
-       
-       
-       
        <item>
         <spacer name="verticalSpacer">
          <property name="orientation">
@@ -876,6 +850,12 @@
       <layout class="QVBoxLayout" name="verticalLayout_3">
        <item>
         <widget class="QFrame" name="frame_2">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="MinimumExpanding" vsizetype="Preferred">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
          <property name="frameShape">
           <enum>QFrame::StyledPanel</enum>
          </property>

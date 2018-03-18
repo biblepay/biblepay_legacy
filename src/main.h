@@ -212,6 +212,7 @@ extern std::string msGUIResponse;
 extern SecureString msEncryptedString;
 extern bool fCheckedPODCUnlock;
 extern bool fWalletLoaded;
+extern std::string msGithubVersion;
 
 extern int PRAYER_MODULUS;
 extern std::string strTemplePubKey;

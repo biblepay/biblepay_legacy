@@ -52,7 +52,7 @@ using namespace std;
 extern void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry);
 int32_t ComputeBlockVersion(const CBlockIndex* pindexPrev, const Consensus::Params& params);
 std::string ExtractXML(std::string XMLdata, std::string key, std::string key_end);
-std::string BiblepayHttpPost(int iThreadID, std::string sActionName, std::string sDistinctUser, std::string sPayload, std::string sBaseURL, std::string sPage, int iPort, std::string sSolution);
+std::string BiblepayHttpPost(bool bPost, int iThreadID, std::string sActionName, std::string sDistinctUser, std::string sPayload, std::string sBaseURL, std::string sPage, int iPort, std::string sSolution);
 void ScriptPubKeyToJSON(const CScript& scriptPubKey, UniValue& out, bool fIncludeHex);
 std::string DefaultRecAddress(std::string sType);
 std::string PubKeyToAddress(const CScript& scriptPubKey);
@@ -69,14 +69,14 @@ std::string SignMessage(std::string sMsg, std::string sPrivateKey);
 extern double CAmountToRetirementDouble(CAmount Amount);
 void GetMiningParams(int nPrevHeight, bool& f7000, bool& f8000, bool& f9000, bool& fTitheBlocksActive);
 std::string strReplace(std::string& str, const std::string& oldStr, const std::string& newStr);
-std::string PrepareHTTPPost(std::string sPage, std::string sHostHeader, const string& sMsg, const map<string,string>& mapRequestHeaders);
+std::string PrepareHTTPPost(bool bPost, std::string sPage, std::string sHostHeader, const string& sMsg, const map<string,string>& mapRequestHeaders);
 std::string GetDomainFromURL(std::string sURL);
-std::string BiblepayHTTPSPost(int iThreadID, std::string sActionName, std::string sDistinctUser, std::string sPayload, std::string sBaseURL, std::string sPage, int iPort,
+std::string BiblepayHTTPSPost(bool bPost, int iThreadID, std::string sActionName, std::string sDistinctUser, std::string sPayload, std::string sBaseURL, std::string sPage, int iPort,
 	std::string sSolution, int iTimeoutSecs, int iMaxSize, int iBreakOnError = 0);
 extern CTransaction CreateCoinStake(CBlockIndex* pindexLast, CScript scriptCoinstakeKey, CAmount nTargetValue, int iMinConfirms, std::string& sXML, std::string& sError);
 extern bool IsStakeSigned(std::string sXML);
 extern std::string GetSANDirectory2();
-
+extern std::string GetGithubVersion();
 extern int64_t GetStakeTargetModifierPercent(int nHeight, double nWeight);
 extern double GetStakeWeight(CTransaction tx, int64_t nTipTime, std::string sXML, bool bVerifySignature, std::string& sMetrics, std::string& sError);
 UniValue ContributionReport();
@@ -101,7 +101,7 @@ extern std::string GetDCCElement(std::string sData, int iElement, bool bCheckSig
 std::string FindResearcherCPIDByAddress(std::string sSearch, std::string& out_address, double& nTotalMagnitude);
 extern double GetUserMagnitude(double& nBudget, double& nTotalPaid, int& iLastSuperblock, std::string& out_Superblocks, int& out_SuperblockCount, int& out_HitCount, double& out_OneDayPaid, double& out_OneWeekPaid, double& out_OneDayBudget, double& out_OneWeekBudget);
 std::string ReadCacheWithMaxAge(std::string sSection, std::string sKey, int64_t nMaxAge);
-
+std::string GetVersionAlert();
 extern bool SignCPID(std::string sCPID, std::string& sError, std::string& out_FullSig);
 extern bool VerifyCPIDSignature(std::string sFullSig, bool bRequireEndToEndVerification, std::string& sError);
 extern int GetCPIDCount(std::string sContract, double& nTotalMagnitude);
@@ -343,6 +343,8 @@ int GetSanctuaryCount()
 
 double MyPercentile(int nHeight)
 {
+	double dRank = cdbl(GetArg("-sanctuaryrank", "0"), 0);
+	if (dRank > 0) return dRank; // Allow aggregators to constantly re-assess the contract for stats sites
 	int iRank = MyRank(nHeight);
 	int iSanctuaryCount = GetSanctuaryCount();
 	//Note: We can also :  return mnodeman.CountEnabled() if we want only Enabled masternodes
@@ -388,7 +390,7 @@ std::string GetBoincAuthenticator(std::string sProjectID, std::string sProjectEm
 	std::string sArgs = "?email_addr=" + sProjectEmail + "&passwd_hash=" + sPasswordHash + "&get_opaque_auth=1";
 	std::string sURL = sProjectURL + sRestfulURL + sArgs;
 	std::string sUser = sProjectEmail;
-	std::string sResponse = BiblepayHTTPSPost(0, "", sUser, "", sProjectURL, sRestfulURL + sArgs, 443, "", 20, 25000, 1);
+	std::string sResponse = BiblepayHTTPSPost(true, 0, "", sUser, "", sProjectURL, sRestfulURL + sArgs, 443, "", 20, 25000, 1);
 	if (false) LogPrintf("BoincResponse %s %s \n", sProjectURL + sRestfulURL, sResponse.c_str());
 	std::string sAuthenticator = ExtractXML(sResponse, "<authenticator>","</authenticator>");
 	return sAuthenticator;
@@ -400,7 +402,7 @@ std::string GetBoincUnbankedReport(std::string sProjectID)
 	std::string sRestfulURL = "Action.aspx";
 	std::string sArgs = "?action=unbanked";
 	std::string sURL = sProjectURL + sRestfulURL + sArgs;
-	std::string sResponse = BiblepayHTTPSPost(0, "", sProjectID, "", sProjectURL, sRestfulURL + sArgs, 443, "", 20, 25000, 1);
+	std::string sResponse = BiblepayHTTPSPost(true, 0, "", sProjectID, "", sProjectURL, sRestfulURL + sArgs, 443, "", 20, 25000, 1);
 	std::string sUnbanked = ExtractXML(sResponse, "<UNBANKED>","</UNBANKED>");
 	return sUnbanked;
 }
@@ -409,7 +411,7 @@ int GetBoincResearcherUserId(std::string sProjectId, std::string sAuthenticator)
 {
 		std::string sProjectURL= "https://" + GetSporkValue(sProjectId);
 		std::string sRestfulURL = "am_get_info.php?account_key=" + sAuthenticator;
-		std::string sResponse = BiblepayHTTPSPost(0, "", "", "", sProjectURL, sRestfulURL, 443, "", 20, 25000, 1);
+		std::string sResponse = BiblepayHTTPSPost(true, 0, "", "", "", sProjectURL, sRestfulURL, 443, "", 20, 25000, 1);
 		if (false) LogPrintf("BoincResponse %s %s \n",sProjectURL + sRestfulURL, sResponse.c_str());
 		int nId = cdbl(ExtractXML(sResponse, "<id>","</id>"),0);
 		return nId;
@@ -419,7 +421,7 @@ std::string GetBoincResearcherHexCodeAndCPID(std::string sProjectId, int nUserId
 {
 	 	std::string sProjectURL = "http://" + GetSporkValue(sProjectId);
 		std::string sRestfulURL = "show_user.php?userid=" + RoundToString(nUserId,0) + "&format=xml";
-		std::string sResponse = BiblepayHTTPSPost(0, "", "", "", sProjectURL, sRestfulURL, 443, "", 20, 5000, 1);
+		std::string sResponse = BiblepayHTTPSPost(true, 0, "", "", "", sProjectURL, sRestfulURL, 443, "", 20, 5000, 1);
 		if (false) LogPrintf("GetBoincResearcherHexCodeAndCPID::url     %s%s       , User %f , BoincResponse %s \n",sProjectURL.c_str(), sRestfulURL.c_str(), (double)nUserId, sResponse.c_str());
 		std::string sHexCode = ExtractXML(sResponse, "<url>","</url>");
 		sHexCode = strReplace(sHexCode,"http://","");
@@ -432,7 +434,7 @@ std::string VerifyManyWorkUnits(std::string sProjectId, std::string sTaskIds)
 {
  	std::string sProjectURL = "http://" + GetSporkValue(sProjectId);
 	std::string sRestfulURL = "rosetta/result_status.php?ids=" + sTaskIds;
-	std::string sResponse = BiblepayHTTPSPost(0, "", "", "", sProjectURL, sRestfulURL, 443, "", 15, 275000, 2);
+	std::string sResponse = BiblepayHTTPSPost(true, 0, "", "", "", sProjectURL, sRestfulURL, 443, "", 15, 275000, 2);
 	return sResponse;
 }
 
@@ -440,7 +442,7 @@ std::string GetWorkUnitResultElement(std::string sProjectId, int nWorkUnitID, st
 {
  	std::string sProjectURL = "http://" + GetSporkValue(sProjectId);
 	std::string sRestfulURL = "rosetta/result_status.php?ids=" + RoundToString(nWorkUnitID, 0);
-	std::string sResponse = BiblepayHTTPSPost(0, "", "", "", sProjectURL, sRestfulURL, 443, "", 20, 35000, 1);
+	std::string sResponse = BiblepayHTTPSPost(true, 0, "", "", "", sProjectURL, sRestfulURL, 443, "", 20, 35000, 1);
 	std::string sResult = ExtractXML(sResponse, "<" + sElement + ">", "</" + sElement + ">");
 	return sResult;
 }
@@ -449,7 +451,7 @@ double GetBoincRACByUserId(std::string sProjectId, int nUserId)
 {
 		std::string sProjectURL = "http://" + GetSporkValue(sProjectId);
 		std::string sRestfulURL = "show_user.php?userid=" + RoundToString(nUserId,0) + "&format=xml";
-		std::string sResponse = BiblepayHTTPSPost(0, "", "", "", sProjectURL, sRestfulURL, 443, "", 20, 5000, 1);
+		std::string sResponse = BiblepayHTTPSPost(true, 0, "", "", "", sProjectURL, sRestfulURL, 443, "", 20, 5000, 1);
 		double dRac = cdbl(ExtractXML(sResponse,"<expavg_credit>", "</expavg_credit>"), 2);
 		return dRac;
 }
@@ -459,7 +461,7 @@ double GetBoincTeamByUserId(std::string sProjectId, int nUserId)
 {
 		std::string sProjectURL = "http://" + GetSporkValue(sProjectId);
 		std::string sRestfulURL = "show_user.php?userid=" + RoundToString(nUserId,0) + "&format=xml";
-		std::string sResponse = BiblepayHTTPSPost(0, "", "", "", sProjectURL, sRestfulURL, 443, "", 20, 5000, 1);
+		std::string sResponse = BiblepayHTTPSPost(true, 0, "", "", "", sProjectURL, sRestfulURL, 443, "", 20, 5000, 1);
 		double dTeam = cdbl(ExtractXML(sResponse,"<teamid>", "</teamid>"), 0);
 		return dTeam;
 }
@@ -468,7 +470,7 @@ std::string SetBoincResearcherHexCode(std::string sProjectId, std::string sAuthC
 {
 	 	std::string sProjectURL = "https://" + GetSporkValue(sProjectId);
 		std::string sRestfulURL = "am_set_info.php?account_key=" + sAuthCode + "&url=" + sHexKey;
-		std::string sResponse = BiblepayHTTPSPost(0, "", "", "", sProjectURL, sRestfulURL, 443, "", 20, 5000, 1);
+		std::string sResponse = BiblepayHTTPSPost(true, 0, "", "", "", sProjectURL, sRestfulURL, 443, "", 20, 5000, 1);
 		if (fDebugMaster) LogPrint("boinc","SetBoincResearcherHexCode::BoincResponse %s \n",sResponse.c_str());
 		std::string sHexCode = ExtractXML(sResponse, "<url>","</url>");
 		return sHexCode;
@@ -961,7 +963,7 @@ std::string ExecuteDistributedComputingSanctuaryQuorumProcess()
 			uint256 uDCChash = GetDCCFileHash();
 			sContract = GetDCCFileContract();
 			LogPrintf(" DCC hash %s  Age %f ",uDCChash.GetHex(), (float)nAge);
-			if (uDCChash == uint256S("0x0") || nAge > (60 * 60))
+			if (uDCChash == uint256S("0x0") || nAge > (60 * 60 * 4))
 			{
 				// Pull down the distributed computing file
 				LogPrintf(" Chosen Sanctuary - pulling down the DCC file... \n");
@@ -3007,10 +3009,10 @@ UniValue exec(const UniValue& params, bool fHelp)
 	}
 	else if (sItem == "betatestpoolpost")
 	{
-		std::string sResponse = BiblepayHttpPost(0,"POST","USER_A","PostSpeed","http://www.biblepay.org","home.html",80,"");
+		std::string sResponse = BiblepayHttpPost(true, 0, "POST","USER_A","PostSpeed","http://www.biblepay.org","home.html",80,"");
 		results.push_back(Pair("beta_post", sResponse));
 		results.push_back(Pair("beta_post_length", (double)sResponse.length()));
-		std::string sResponse2 = BiblepayHttpPost(0,"POST","USER_A","PostSpeed","http://www.biblepay.org","404.html",80,"");
+		std::string sResponse2 = BiblepayHttpPost(true, 0,"POST","USER_A","PostSpeed","http://www.biblepay.org","404.html",80,"");
 		results.push_back(Pair("beta_post_404", sResponse2));
 		results.push_back(Pair("beta_post_length_404", (double)sResponse2.length()));
 	}
@@ -3507,7 +3509,7 @@ UniValue exec(const UniValue& params, bool fHelp)
 	}
 	else if (sItem=="ssl")
 	{
-		std::string sResponse = BiblepayHTTPSPost(0,"POST","USER_A","PostSpeed","https://pool.biblepay.org","Action.aspx", 443, "SOLUTION", 20, 5000);
+		std::string sResponse = BiblepayHTTPSPost(true, 0,"POST","USER_A","PostSpeed","https://pool.biblepay.org","Action.aspx", 443, "SOLUTION", 20, 5000);
 		results.push_back(Pair("Test",sResponse));
 	}
 	else if (sItem == "hp")
@@ -4010,6 +4012,15 @@ UniValue exec(const UniValue& params, bool fHelp)
 	else if (sItem == "podcpasswordlength")
 	{
 		results.push_back(Pair("Length", (double)msEncryptedString.size()));
+	}
+	else if (sItem == "versioncheck")
+	{
+		std::string sNarr = GetVersionAlert();
+		std::string sGithubVersion = GetGithubVersion();
+		std::string sCurrentVersion = FormatFullVersion();
+		results.push_back(Pair("Github_version", sGithubVersion));
+		results.push_back(Pair("Current_version", sCurrentVersion));
+		if (!sNarr.empty()) results.push_back(Pair("Alert", sNarr));
 	}
 	else if (sItem == "datalist")
 	{
@@ -5391,7 +5402,7 @@ std::string GetBoincHostsByUser(int iRosettaID, std::string sProjectId)
 {
     	std::string sProjectURL= "https://" + GetSporkValue(sProjectId);
 		std::string sRestfulURL = "rosetta/hosts_user.php?userid=" + RoundToString(iRosettaID, 0);
-		std::string sResponse = BiblepayHTTPSPost(0, "", "", "", sProjectURL, sRestfulURL, 443, "", 25, 95000, 1);
+		std::string sResponse = BiblepayHTTPSPost(true, 0, "", "", "", sProjectURL, sRestfulURL, 443, "", 25, 95000, 1);
 		std::vector<std::string> vRows = Split(sResponse.c_str(), "<tr");
 		std::string sOut = "";
         for (int j = 1; j < (int)vRows.size(); j++)
@@ -5411,6 +5422,20 @@ std::string GetBoincHostsByUser(int iRosettaID, std::string sProjectId)
 		return sOut;
 }
 
+std::string GetGithubVersion()
+{
+	std::string sURL = "https://" + GetSporkValue("pool");
+	std::string sRestfulURL = "SAN/version.htm";
+	std::string sResponse = BiblepayHTTPSPost(false, 0, "", "", "", sURL, sRestfulURL, 443, "", 25, 10000, 1);
+	if (sResponse.length() > 6)
+	{
+		sResponse = sResponse.substr(sResponse.length()-11, 11);
+		sResponse = strReplace(sResponse, "\n", "");
+		sResponse = strReplace(sResponse, "\r", "");
+    }
+	return sResponse;
+}
+
 std::string GetBoincTasksByHost(int iHostID, std::string sProjectId)
 {
 	std::string sOut = "";
@@ -5418,7 +5443,7 @@ std::string GetBoincTasksByHost(int iHostID, std::string sProjectId)
     {
 		std::string sProjectURL= "https://" + GetSporkValue(sProjectId);
 		std::string sRestfulURL = "rosetta/results.php?hostid=" + RoundToString(iHostID, 0) + "&offset=" + RoundToString(i,0) + "&show_names=0&state=1&appid=";
-		std::string sResponse = BiblepayHTTPSPost(0, "", "", "", sProjectURL, sRestfulURL, 443, "", 25, 95000, 1);
+		std::string sResponse = BiblepayHTTPSPost(true, 0, "", "", "", sProjectURL, sRestfulURL, 443, "", 25, 95000, 1);
        	std::vector<std::string> vRows = Split(sResponse.c_str(), "<tr");
 	    for (int j = 1; j < (int)vRows.size(); j++)
         {

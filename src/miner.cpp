@@ -53,7 +53,7 @@ uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool
 std::string ExtractXML(std::string XMLdata, std::string key, std::string key_end);
 void WriteCache(std::string section, std::string key, std::string value, int64_t locktime);
 std::string ReadCache(std::string section, std::string key);
-std::string BiblepayHttpPost(int iThreadID, std::string sActionName, std::string sDistinctUser, std::string sPayload, std::string sBaseURL, std::string sPage, int iPort, std::string sSolution);
+std::string BiblepayHttpPost(bool bPost, int iThreadID, std::string sActionName, std::string sDistinctUser, std::string sPayload, std::string sBaseURL, std::string sPage, int iPort, std::string sSolution);
 std::string RoundToString(double d, int place);
 std::string PoolRequest(int iThreadID, std::string sAction, std::string sPoolURL, std::string sMinerID, std::string sSolution);
 double cdbl(std::string s, int place);
@@ -61,7 +61,7 @@ void ClearCache(std::string section);
 std::string TimestampToHRDate(double dtm);
 void GetMiningParams(int nPrevHeight, bool& f7000, bool& f8000, bool& f9000, bool& fTitheBlocksActive);
 bool CheckNonce(bool f9000, unsigned int nNonce, int nPrevHeight, int64_t nPrevBlockTime, int64_t nBlockTime);
-std::string BiblepayHTTPSPost(int iThreadID, std::string sActionName, std::string sDistinctUser, std::string sPayload, std::string sBaseURL, std::string sPage, int iPort,
+std::string BiblepayHTTPSPost(bool bPost, int iThreadID, std::string sActionName, std::string sDistinctUser, std::string sPayload, std::string sBaseURL, std::string sPage, int iPort,
 	std::string sSolution, int iTimeoutSecs, int iMaxSize, int iBreakOnError = 0);
 CTransaction CreateCoinStake(CBlockIndex* pindexLast, CScript scriptCoinstakeKey, double dPercent, int iMinConfirms, std::string& sXML, std::string& sError);
 double GetStakeWeight(CTransaction tx, int64_t nTipTime, std::string sXML, bool bVerifySignature, std::string& sMetrics, std::string& sError);
@@ -574,12 +574,12 @@ std::string PoolRequest(int iThreadID, std::string sAction, std::string sPoolURL
 	std::string sMultiResponse = "";
 	if (sPoolURL.find("https:") == string::npos)
 	{
-		sMultiResponse = BiblepayHttpPost(iThreadID, "POST", sMinerID, sAction, sPoolURL, sPoolPage, iPoolPort, sSolution);
+		sMultiResponse = BiblepayHttpPost(true, iThreadID, "POST", sMinerID, sAction, sPoolURL, sPoolPage, iPoolPort, sSolution);
 		fPoolMiningUseSSL = false;
 	}
 	else
 	{
-		sMultiResponse = BiblepayHTTPSPost(iThreadID, "POST", sMinerID, sAction, sPoolURL, sPoolPage, 443, sSolution, 15, 50000);
+		sMultiResponse = BiblepayHTTPSPost(true, iThreadID, "POST", sMinerID, sAction, sPoolURL, sPoolPage, 443, sSolution, 15, 50000);
 		fPoolMiningUseSSL = true;
 	}
 	// Glean the pool responses

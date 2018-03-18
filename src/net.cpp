@@ -73,14 +73,14 @@
 
 bool AddSeedNode(std::string sNode);
 
-extern std::string BiblepayHttpPost(int iThreadID, std::string sActionName, std::string sDistinctUser, std::string sPayload, std::string sBaseURL, 
+extern std::string BiblepayHttpPost(bool bPost, int iThreadID, std::string sActionName, std::string sDistinctUser, std::string sPayload, std::string sBaseURL, 
 	std::string sPage, int iPort, std::string sSolution);
-extern std::string BiblepayHTTPSPost(int iThreadID, std::string sActionName, std::string sDistinctUser, std::string sPayload, std::string sBaseURL, std::string sPage, int iPort,
+extern std::string BiblepayHTTPSPost(bool bPost, int iThreadID, std::string sActionName, std::string sDistinctUser, std::string sPayload, std::string sBaseURL, std::string sPage, int iPort,
 	std::string sSolution, int iTimeoutSecs, int iMaxSize, int iBreakOnError = 0);
 
 std::string RoundToString(double d, int place);
 extern std::string SQL(std::string sCommand, std::string sAddress, std::string sArguments, std::string& sError);
-extern std::string PrepareHTTPPost(std::string sPage, std::string sHostHeader, const string& sMsg, const map<string,string>& mapRequestHeaders);
+extern std::string PrepareHTTPPost(bool bPost, std::string sPage, std::string sHostHeader, const string& sMsg, const map<string,string>& mapRequestHeaders);
 extern std::string GetDomainFromURL(std::string sURL);
 extern bool DownloadDistributedComputingFile(int iNextSuperblock, std::string& sError);
 std::string GetSANDirectory2();
@@ -2917,10 +2917,11 @@ std::string GetDomainFromURL(std::string sURL)
 
 
 
-std::string PrepareHTTPPost(std::string sPage, std::string sHostHeader, const string& sMsg, const map<string,string>& mapRequestHeaders)
+std::string PrepareHTTPPost(bool bPost, std::string sPage, std::string sHostHeader, const string& sMsg, const map<string,string>& mapRequestHeaders)
 {
     ostringstream s;
-    s << "POST /" + sPage + " HTTP/1.1\r\n"
+	std::string sMethod = bPost ? "POST" : "GET";
+    s << sMethod + " /" + sPage + " HTTP/1.1\r\n"
       << "User-Agent: BiblePay-QT/" << FormatFullVersion() << "\r\n"
 	  << "Host: " + sHostHeader + "" << "\r\n"
       << "Content-Length: " << sMsg.size() << "\r\n";
@@ -2936,7 +2937,7 @@ std::string SQL(std::string sCommand, std::string sAddress, std::string sArgumen
 	std::string sSQLURL = GetArg("-sqlnode", "http://pool.biblepay.org");
 	int iPort = (int)cdbl(GetArg("-sqlport", "80"),0);
 	std::string sSqlPage = "Action.aspx";
-	std::string sMultiResponse = BiblepayHttpPost(0,"POST",sAddress,sCommand,sSQLURL,sSqlPage,iPort,sArguments);
+	std::string sMultiResponse = BiblepayHttpPost(true, 0, "POST", sAddress, sCommand, sSQLURL, sSqlPage, iPort, sArguments);
 	sError = ExtractXML(sMultiResponse,"<ERROR>","</ERROR>");
 	std::string sResponse = ExtractXML(sMultiResponse,"<RESPONSE>","</RESPONSE>");
 	if (!sError.empty())
@@ -2947,7 +2948,7 @@ std::string SQL(std::string sCommand, std::string sAddress, std::string sArgumen
 }
 
 
-std::string BiblepayHttpPost(int iThreadID, std::string sActionName, std::string sDistinctUser, std::string sPayload, std::string sBaseURL, std::string sPage, int iPort, std::string sSolution)
+std::string BiblepayHttpPost(bool bPost, int iThreadID, std::string sActionName, std::string sDistinctUser, std::string sPayload, std::string sBaseURL, std::string sPage, int iPort, std::string sSolution)
 {
 	try
 	{
@@ -2974,7 +2975,7 @@ std::string BiblepayHttpPost(int iThreadID, std::string sActionName, std::string
 			{
   				return "DNS_ERROR"; 
 			}
-			std::string sPost = PrepareHTTPPost(sPage, sDomain, sPayload, mapRequestHeaders);
+			std::string sPost = PrepareHTTPPost(bPost, sPage, sDomain, sPayload, mapRequestHeaders);
 			std::string sResponse = GetHTTPContent(addrConnect, sPost, 15);
 			if (fDebug10) LogPrintf("\r\n  HTTP_RESPONSE:    %s    \r\n",sResponse.c_str());
 			return sResponse;
@@ -3056,7 +3057,7 @@ bool DownloadDistributedComputingFile(int iNextSuperblock, std::string& sError)
 				return false;
 			}
 			std::string sPayload = "";
-			std::string sPost = PrepareHTTPPost(sPage, sDomain, sPayload, mapRequestHeaders);
+			std::string sPost = PrepareHTTPPost(true, sPage, sDomain, sPayload, mapRequestHeaders);
 			const char* write_buf = sPost.c_str();
 			if(BIO_write(bio, write_buf, strlen(write_buf)) <= 0)
 			{
@@ -3140,7 +3141,7 @@ bool DownloadDistributedComputingFile(int iNextSuperblock, std::string& sError)
 }
 
 
-std::string BiblepayHTTPSPost(int iThreadID, std::string sActionName, std::string sDistinctUser, std::string sPayload, std::string sBaseURL, 
+std::string BiblepayHTTPSPost(bool bPost, int iThreadID, std::string sActionName, std::string sDistinctUser, std::string sPayload, std::string sBaseURL, 
 	std::string sPage, int iPort, std::string sSolution, int iTimeoutSecs, int iMaxSize, int iBreakOnError)
 {
 	try
@@ -3185,7 +3186,7 @@ std::string BiblepayHTTPSPost(int iThreadID, std::string sActionName, std::strin
 			{
   				return "<ERROR>DNS_ERROR</ERROR>"; 
 			}
-			std::string sPost = PrepareHTTPPost(sPage, sDomain, sPayload, mapRequestHeaders);
+			std::string sPost = PrepareHTTPPost(bPost, sPage, sDomain, sPayload, mapRequestHeaders);
 			const char* write_buf = sPost.c_str();
 			if(BIO_write(bio, write_buf, strlen(write_buf)) <= 0)
 			{
