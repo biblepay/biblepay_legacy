@@ -7900,6 +7900,10 @@ void MemorizePrayer(std::string sMessage, int64_t nTime, double dAmount, int iPo
 				WriteCache("UTXOWeight", sCPID, RoundToString(dAmount, 0), nTime);
 				WriteCache("CPIDTasks", sCPID, sPODC, nTime);
 			}
+			else
+			{
+				if (fDebugMaster && false) LogPrintf("\n Time %f SigFailure %s SigLen %f ", (double)nTime, sMySig.c_str(), (double)sMySig.length());
+			}
 		}
 		return;
 	}

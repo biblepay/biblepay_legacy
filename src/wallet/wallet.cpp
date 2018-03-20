@@ -3295,13 +3295,11 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
                         else
                         {
                             // Insert change txn at random position:
-							std::string sAssetColor = txNew.vout[0].sTxOutMessage;
+							// PODC Support - do not duplicate cpid signature due to change, this will actually corrupt the base64 in the signature - R ANDREWS - 3/20/2018
                             nChangePosRet = GetRandInt(txNew.vout.size()+1);
                             vector<CTxOut>::iterator position = txNew.vout.begin()+nChangePosRet;
                             txNew.vout.insert(position, newTxOut);
-							// BiblePay - Rob A. - Colored change
-							txNew.vout[nChangePosRet].sTxOutMessage = sAssetColor;
-							// if (fDebugMaster) LogPrintf(" AssetPos %f , AssetColor %s ",(double)nChangePosRet,txNew.vout[nChangePosRet].sTxOutMessage.c_str());
+							txNew.vout[nChangePosRet].sTxOutMessage = "<change>1</change>";
                         }
                     }
                 }

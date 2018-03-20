@@ -44,6 +44,8 @@ std::string ExtractXML(std::string XMLdata, std::string key, std::string key_end
 
 
 extern UniValue createrawtransaction(const UniValue& params, bool fHelp);
+bool VerifyCPIDSignature(std::string sFullSig, bool bRequireEndToEndVerification, std::string& sError);
+std::string RoundToString(double d, int place);
 
 
 void ScriptPubKeyToJSON(const CScript& scriptPubKey, UniValue& out, bool fIncludeHex)
@@ -184,6 +186,28 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
             }
         }
     }
+
+	if (fDebugMaster)
+	{
+		std::string sError = "";
+		std::string sMsg = "";
+		for (unsigned int i = 0; i < tx.vout.size(); i++) 
+		{
+			sMsg += tx.vout[i].sTxOutMessage;
+			entry.push_back(Pair("msg " + RoundToString(i,0), tx.vout[i].sTxOutMessage));
+			entry.push_back(Pair("len", (double)tx.vout[i].sTxOutMessage.length()));
+		}
+		std::string sCPIDSignature = ExtractXML(sMsg, "<cpidsig>","</cpidsig>");
+		if (!sCPIDSignature.empty())
+		{
+			bool fCheckCPIDSignature = VerifyCPIDSignature(sCPIDSignature, true, sError);
+			entry.push_back(Pair("sig", sCPIDSignature));
+			entry.push_back(Pair("sig_valid", fCheckCPIDSignature));
+			entry.push_back(Pair("length", (double)sMsg.length()));
+			entry.push_back(Pair("cpid-sig-length", (double)sCPIDSignature.length()));
+			if (!sError.empty()) entry.push_back(Pair("sign_error", sError));
+		}
+	}
 }
 
 UniValue getrawtransaction(const UniValue& params, bool fHelp)
