@@ -19,26 +19,8 @@
 #include "util.h"
 #include "utilmoneystr.h"
 #include <boost/lexical_cast.hpp>
+#include "podc.h"
 
-extern std::string GJE(std::string sKey, std::string sValue, bool bIncludeDelimiter, bool bQuoteValue);
-
-
-std::string GJE(std::string sKey, std::string sValue, bool bIncludeDelimiter, bool bQuoteValue)
-{
-	// JSON: "key":"value",
-	std::string sQ = "\"";
-	std::string sOut = sQ + sKey + sQ + ":";
-	if (bQuoteValue)
-	{
-		sOut += sQ + sValue + sQ;
-	}
-	else
-	{
-		sOut += sValue;
-	}
-	if (bIncludeDelimiter) sOut += ",";
-	return sOut;
-}
 
 UniValue gobject(const UniValue& params, bool fHelp)
 {

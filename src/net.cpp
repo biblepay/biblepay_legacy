@@ -22,7 +22,7 @@
 #include "ui_interface.h"
 #include "wallet/wallet.h"
 #include "utilstrencodings.h"
-
+#include "podc.h"
 #include "darksend.h"
 #include "instantx.h"
 #include "masternode-sync.h"
@@ -78,19 +78,12 @@ extern std::string BiblepayHttpPost(bool bPost, int iThreadID, std::string sActi
 extern std::string BiblepayHTTPSPost(bool bPost, int iThreadID, std::string sActionName, std::string sDistinctUser, std::string sPayload, std::string sBaseURL, std::string sPage, int iPort,
 	std::string sSolution, int iTimeoutSecs, int iMaxSize, int iBreakOnError = 0);
 
-std::string RoundToString(double d, int place);
 extern std::string SQL(std::string sCommand, std::string sAddress, std::string sArguments, std::string& sError);
 extern std::string PrepareHTTPPost(bool bPost, std::string sPage, std::string sHostHeader, const string& sMsg, const map<string,string>& mapRequestHeaders);
 extern std::string GetDomainFromURL(std::string sURL);
 extern bool DownloadDistributedComputingFile(int iNextSuperblock, std::string& sError);
-std::string GetSANDirectory2();
-std::string NameFromURL2(std::string sURL);
-std::string SystemCommand2(const char* cmd);
 bool FilterFile(int iBufferSize, int iNextSuperblock, std::string& sError);
-extern std::string NameFromURL2(std::string sURL);
-void TouchDailyMagnitudeFile();
 std::string GetSporkValue(std::string sKey);
-
 
 using namespace std;
 

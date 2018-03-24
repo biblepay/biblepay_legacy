@@ -5,7 +5,7 @@
 
 #include "rpcconsole.h"
 #include "ui_debugwindow.h"
-
+#include "podc.h"
 #include "bantablemodel.h"
 #include "clientmodel.h"
 #include "guiutil.h"
@@ -63,23 +63,8 @@ const QString UPGRADEWALLET("-upgradewallet");
 const QString REINDEX("-reindex");
 const QString EMPTY("");
 QString ToQstring(std::string s);
-std::string strReplace(std::string& str, const std::string& oldStr, const std::string& newStr);
-extern std::vector<std::string> Split(std::string s, std::string delim);
 std::string RetrieveMd5(std::string s1);
-std::string GetDCCPublicKey(const std::string& cpid, bool fRequireSig);
-std::string RoundToString(double d, int place);
-double cdbl(std::string s, int place);
 void WriteCache(std::string section, std::string key, std::string value, int64_t locktime);
-bool Contains(std::string data, std::string instring);
-uint256 GetDCCFileHash();
-uint256 GetDCCHash(std::string sContract);
-std::string GetSANDirectory2();
-std::string GetSporkValue(std::string sKey);
-std::vector<std::string> GetListOfDCCS(std::string sSearch, bool fRequireSig);
-std::string GetDCCElement(std::string sData, int iElement, bool fCheckSignature);
-std::string NameFromURL2(std::string sURL);
-std::string SystemCommand2(const char* cmd);
-bool FileExists2(std::string sPath);
 
 const struct {
     const char *url;
@@ -555,7 +540,6 @@ void RPCConsole::walletReindex()
 }
 
 
-
 /*
 
 void RPCConsole::downloadDCCFinished(QNetworkReply *reply)
@@ -566,39 +550,7 @@ void RPCConsole::downloadDCCFinished(QNetworkReply *reply)
 		return;
 	}
 	// First delete:
-	std::string sPath = GetSANDirectory2() + "user.gz";
-	std::string sTarget = GetSANDirectory2() + "user";
-
-    boost::filesystem::remove(sTarget);
-    boost::filesystem::remove(sPath);
-	// Then Write
-
-	QUrl url = reply->url();
-	std::string sURL = url.toEncoded().constData();
-	std::string sName = NameFromURL2(sURL);
-	QByteArray qData = reply->readAll();
-	QFile file(ToQstring(sName));
-	file.open(QIODevice::WriteOnly);
-	file.write(qData);
-	file.close();
-	std::string sCommand = "gunzip " + sPath;
-    std::string result = SystemCommand2(sCommand.c_str());
-	std::string sError = "";
-	ile(50, sError);
-	CycleDownloading = false;
-}
-
-bool RPCConsole::DownloadDCCFile(std::string sURL)
-{
-	CycleDownloading = true;
-	std::string sPath = NameFromURL2(sURL);
-	LogPrintf("Downloading DCC File NAME %s FROM URL %s ",sPath.c_str(),sURL.c_str());
-	bool fExists = FileExists2(sPath);
-	if (fExists) return true;
-	QNetworkAccessManager *manager = new QNetworkAccessManager(this);
-	connect(manager, SIGNAL(finished(QNetworkReply*)), this, SLOT(downloadDCCFinished(QNetworkReply*)));
-	manager->get(QNetworkRequest(QUrl(ToQstring(sURL))));
-	return true;
+    CycleDownloading = false;
 }
 
 void RPCConsole::DownloadDCC()
@@ -607,16 +559,9 @@ void RPCConsole::DownloadDCC()
 	// Download the GZ file from reference site
 	// First Touch the daily magnitude to prevent duplicate downloads:
 	if (CycleDownloading) return;
-	TouchDailyMagnitudeFile();
 	// spork project1 = boinc.bakerlab.org
 	std::string sSrc = Value(sProjectId);
 	DownloadDCCFile(sSrc);
-}
-
-void RPCConsole::DCC()
-{
-	// 1-28-2018 - R Andrijas - Add support for Distributed Computing
-	DownloadDCC();
 }
 
 */

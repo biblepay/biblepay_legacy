@@ -39,7 +39,6 @@ extern CAmount maxTxFee;
 extern unsigned int nTxConfirmTarget;
 extern bool bSpendZeroConfChange;
 extern bool fSendFreeTransactions;
-
 extern bool fLargeWorkForkFound;
 extern bool fLargeWorkInvalidChainFound;
 
@@ -464,8 +463,6 @@ public:
 
     std::set<uint256> GetConflicts() const;
 };
-
-
 
 
 class COutput

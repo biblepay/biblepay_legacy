@@ -10,12 +10,9 @@
 #include "main.h"
 #include "timedata.h"
 #include "wallet/wallet.h"
-
 #include "darksend.h"
 #include "instantx.h"
-
 #include <stdint.h>
-
 #include <boost/foreach.hpp>
 
 /* Return positive answer if transaction should be shown in list.

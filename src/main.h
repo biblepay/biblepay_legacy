@@ -11,7 +11,6 @@
 #include "config/biblepay-config.h"
 #endif
 
-
 #include "amount.h"
 #include "chain.h"
 #include "coins.h"

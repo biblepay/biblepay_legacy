@@ -23,11 +23,8 @@
 
 #include <stdint.h>
 #include <string>
-std::string ExtractXML(std::string XMLdata, std::string key, std::string key_end);
-std::string strReplace(std::string& str, const std::string& oldStr, const std::string& newStr);
 const CBlockIndex* GetBlockIndexByTransactionHash(const uint256 &hash);
 std::string TimestampToHRDate(double dtm);
-std::string RoundToString(double d, int place);
 double GetDifficultyN(const CBlockIndex* blockindex, double N);
 
 QString TransactionDesc::FormatTxStatus(const CWalletTx& wtx)

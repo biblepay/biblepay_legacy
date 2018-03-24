@@ -10,7 +10,7 @@
 #include "main.h"
 #include "utilstrencodings.h"
 #include "darksend.h"
-
+#include "podc.h"
 #include "masternode-payments.h"
 
 #include <boost/algorithm/string.hpp>
@@ -18,15 +18,9 @@
 
 #include <univalue.h>
 
-int GetRequiredQuorumLevel(int iHeight);
-uint256 GetDCCHash(std::string sContract);
 std::vector<std::string> Split(std::string s, std::string delim);
-int GetCPIDCount(std::string sContract, double& nTotalMagnitude);
-double cdbl(std::string s, int place);
-std::string RoundToString(double d, int place);
-int VerifySanctuarySignatures(std::string sSignatureData);
-void GetDistributedComputingGovObjByHeight(int nHeight, uint256 uOptFilter, int& out_nVotes, uint256& out_uGovObjHash, 
-	std::string& out_sAddresses, std::string& out_sAmounts);
+void GetDistributedComputingGovObjByHeight(int nHeight, uint256 uOptFilter, int& out_nVotes, uint256& out_uGovObjHash, std::string& out_PaymentAddresses, std::string& out_PaymentAmounts);
+int GetRequiredQuorumLevel(int nHeight);
 
 
 // DECLARE GLOBAL VARIABLES FOR GOVERNANCE CLASSES
@@ -471,9 +465,9 @@ void CSuperblockManager::uperblock(CMutableTransaction& txNewRet, int nBlockHeig
 		return;
 	}
 	std::string sContract = upcomingVote.contract;
-	uint256 uHash = GetDCCHash(sContract);
+	uint256 uHash = ash(sContract);
 	double nTotalMagnitude = 0;
-	int iCPIDCount = GetCPIDCount(sContract, nTotalMagnitude);
+	int iCPIDCount = (sContract, nTotalMagnitude);
 	if (nTotalMagnitude < .01) 
 	{
 		LogPrintf(" \n ** uperblock::SUPERBLOCK CONTAINS NO MAGNITUDE height %f (cpid count %f ), hash %s %s** \n", (double)nBlockHeight, 
@@ -487,11 +481,11 @@ void CSuperblockManager::uperblock(CMutableTransaction& txNewRet, int nBlockHeig
 		return;
 	}
 	double PaymentPerMagnitude = (dDCPaymentsTotal-1) / nTotalMagnitude;
-	std::vector<std::string> vRows = Split(sContract.c_str(),"<ROW>");
+	std::vector<std::string> vRows = sContract.c_str(),"<ROW>");
 	double dTotalPaid = 0;
 	for (int i = 0; i < (int)vRows.size(); i++)
 	{
-		std::vector<std::string> vCPID = Split(vRows[i].c_str(),",");
+		std::vector<std::string> vCPID = vRows[i].c_str(),",");
 		if (vCPID.size() >= 3)
 		{
 			std::string sCpid = vCPID[1];
@@ -567,7 +561,7 @@ void CSuperblockManager::uperblock(CMutableTransaction& txNewRet, int nBlockHeig
 
 void CSuperblockManager::CreateSuperblock(CMutableTransaction& txNewRet, int nBlockHeight, std::vector<CTxOut>& voutSuperblockRet)
 {
-    if (fDebugMaster) DBG( cout << "CSuperblockManager::CreateSuperblock Start" << endl; );
+    DBG( cout << "CSuperblockManager::CreateSuperblock Start" << endl; );
 
     LOCK(governance.cs);
 
@@ -577,7 +571,10 @@ void CSuperblockManager::CreateSuperblock(CMutableTransaction& txNewRet, int nBl
     if(!CSuperblockManager::GetBestSuperblock(pSuperblock, nBlockHeight)) 
 	{
         LogPrint("podc", "CSuperblockManager::CreateSuperblock -- Can't find superblock for height %d\n", nBlockHeight);
-        if (fDebugMaster) DBG( cout << "CSuperblockManager::CreateSuperblock Failed to get superblock for height, returning" << endl; );
+        if (fDebugMaster) 
+		{
+			DBG( cout << "CSuperblockManager::CreateSuperblock Failed to get superblock for height, returning" << endl; );
+		}
         return;
     }
 
@@ -587,7 +584,10 @@ void CSuperblockManager::CreateSuperblock(CMutableTransaction& txNewRet, int nBl
     // CONFIGURE SUPERBLOCK OUTPUTS
 
     // Superblock payments are appended to the end of the coinbase vout vector
-    if (fDebugMaster) DBG( cout << "CSuperblockManager::CreateSuperblock Number payments: " << pSuperblock->CountPayments() << endl; );
+    if (fDebugMaster) 
+	{
+			DBG( cout << "CSuperblockManager::CreateSuperblock Number payments: " << pSuperblock->CountPayments() << endl; );
+	}
 
     // TO DO: How many payments can we add before things blow up?
     //       Consider at least following limits:
@@ -600,7 +600,7 @@ void CSuperblockManager::CreateSuperblock(CMutableTransaction& txNewRet, int nBl
         DBG( cout << "CSuperblockManager::CreateSuperblock i = " << i << endl; );
         if(pSuperblock->GetPayment(i, payment)) 
 		{
-            if (fDebugMaster) DBG( cout << "CSuperblockManager::CreateSuperblock Payment found " << endl; );
+            DBG( cout << "CSuperblockManager::CreateSuperblock Payment found " << endl; );
             // SET COINBASE OUTPUT TO SUPERBLOCK SETTING
 
             CTxOut txout = CTxOut(payment.nAmount, payment.script);
@@ -613,15 +613,15 @@ void CSuperblockManager::CreateSuperblock(CMutableTransaction& txNewRet, int nBl
             ExtractDestination(payment.script, address1);
             CBitcoinAddress address2(address1);
 
-            if (fDebugMaster) DBG( cout << "CSuperblockManager::CreateSuperblock Before LogPrintf call, nAmount = " << payment.nAmount << endl; );
+            DBG( cout << "CSuperblockManager::CreateSuperblock Before LogPrintf call, nAmount = " << payment.nAmount << endl; );
 
             LogPrint("podc", "NEW Superblock : output %d (addr %s, amount %d)\n", i, address2.ToString(), payment.nAmount);
             
-			if (fDebugMaster) DBG( cout << "CSuperblockManager::CreateSuperblock After LogPrintf call " << endl; );
+			DBG( cout << "CSuperblockManager::CreateSuperblock After LogPrintf call " << endl; );
         } 
 		else 
 		{
-			if (fDebugMaster) DBG( cout << "CSuperblockManager::CreateSuperblock Payment not found " << endl; );
+			DBG( cout << "CSuperblockManager::CreateSuperblock Payment not found " << endl; );
         }
     }
 
@@ -986,19 +986,19 @@ bool CSuperblock::IsValidSuperblock(const CTransaction& txNew, int nBlockHeight,
 		std::string sContract = ExtractXML(sData,"<CONTRACT>","</CONTRACT>");
 		std::string sSigs = ExtractXML(sData,"<SIGS>","</SIGS>");
 		int64_t nAge = GetAdjustedTime() - nBlockTime;
-		uint256 uHash = GetDCCHash(sContract);
+		uint256 uHash = ash(sContract);
 		// ENSURE DC RECIPIENTS MATCH SUPERBLOCK RECIPIENTS
 		CAmount nDCPaymentsTotal = CSuperblock::(nBlockHeight);
 		double dDCPaymentsTotal = nDCPaymentsTotal / COIN;
 		double nTotalMagnitude = 0;
-		int iCPIDCount = GetCPIDCount(sContract, nTotalMagnitude);
+		int iCPIDCount = (sContract, nTotalMagnitude);
 		double PaymentPerMagnitude = (dDCPaymentsTotal-1) / nTotalMagnitude;
-		std::vector<std::string> vRows = Split(sContract.c_str(),"<ROW>");
+		std::vector<std::string> vRows = sContract.c_str(),"<ROW>");
 		LogPrintf(" ** IS VALID SUPERBLOCK:  Contract %s,   Sigs %s   \n  ", sContract.c_str(), sSigs.c_str());
 		
 		for (int i = 0; i < (int)vRows.size(); i++)
 		{
-			std::vector<std::string> vCPID = Split(vRows[i].c_str(),",");
+			std::vector<std::string> vCPID = vRows[i].c_str(),",");
 			if (vCPID.size() >= 3)
 			{
 				std::string sCpid = vCPID[1];

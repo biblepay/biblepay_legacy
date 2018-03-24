@@ -145,8 +145,6 @@ public:
 	bool BibleDecrypt(const std::vector<unsigned char>& vchCiphertext,std::vector<unsigned char>& vchPlaintext);
 	bool BibleEncrypt(std::vector<unsigned char> vchPlaintext, std::vector<unsigned char> &vchCiphertext);
 	std::string RetrieveMd5(std::string s1);
-	int HexToInteger(const std::string& hex);
-	double ConvertHexToDouble(std::string hex);
 	std::vector<unsigned char> StringToVector(std::string sData);
     std::string VectorToString(std::vector<unsigned char> v);
 	std::string ExtractXML(std::string XMLdata, std::string key, std::string key_end);

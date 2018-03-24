@@ -17,6 +17,7 @@
 #include "consensus/validation.h"
 #include "hash.h"
 #include "init.h"
+#include "podc.h"
 #include "merkleblock.h"
 #include "net.h"
 #include "policy/policy.h"
@@ -44,11 +45,8 @@
 #include "masternode-sync.h"
 #include "masternodeman.h"
 #include "governance-classes.h"
-
 #include "support/allocators/secure.h"
-
 #include <sstream>
-
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
@@ -89,12 +87,6 @@ bool fInternalRequestedShutdown = false;
 
 int nDistributedComputingCycles = 0;
 
-double GetUserMagnitude(double& nBudget, double& nTotalPaid, int& iLastSuperblock, std::string& out_Superblocks, int& out_SuperblockCount, 
-	int& out_HitCount, double& out_OneDayPaid, double& out_OneWeekPaid, double& out_OneDayBudget, double& out_OneWeekBudget);
-double GetPaymentByCPID(std::string CPID);
-extern std::string GetCPIDByAddress(std::string sAddress, int iOffset);
-std::string VerifyManyWorkUnits(std::string sProjectId, std::string sTaskIds);
-extern std::string GetCPIDByRosettaID(double dRosettaID);
 extern std::string GetVersionAlert();
 std::string GetElement(std::string sIn, std::string sDelimiter, int iPos);
 
@@ -112,38 +104,17 @@ bool fProd = false;
 bool fMineSlow = false;
 double dHashesPerSec = 0;
 std::map<std::string, double> mvBlockVersion;
-std::string GetGithubVersion();
 extern bool WriteKey(std::string sKey, std::string sValue);
 extern bool InstantiateOneClickMiningEntries();
 extern std::string DefaultRecAddress(std::string sType);
 extern CAmount GetRetirementAccountContributionAmount(int nPrevHeight);
 extern std::string AmountToString(const CAmount& amount);
 extern CAmount StringToAmount(std::string sValue);
-extern bool CheckMessageSignature(std::string sMsg, std::string sSig);
-extern bool CheckMessageSignature(std::string sMsg, std::string sSig, std::string sPubKey);
 bool CheckProofOfLoyalty(double dWeight, uint256 hash, unsigned int nBits, const Consensus::Params& params, 
 	int64_t nBlockTime, int64_t nPrevBlockTime, int nPrevHeight, unsigned int nNonce, const CBlockIndex* pindexPrev, bool bLoadingBlockIndex);
 double GetStakeWeight(CTransaction tx, int64_t nTipTime, std::string sXML, bool bVerifySignature, std::string& sMetrics, std::string& sError);
-bool CheckStakeSignature(std::string sBitcoinAddress, std::string sSignature, std::string strMessage, std::string& strError);
-extern std::string ReadCache(std::string sSection, std::string sKey);
-extern bool Contains(std::string data, std::string instring);
-extern std::string GetTemplePrivKey();
 extern std::string SignMessage(std::string sMsg, std::string sPrivateKey);
 extern void GetMiningParams(int nPrevHeight, bool& f7000, bool& f8000, bool& f9000, bool& fTitheBlocksActive);
-std::string GetDCCElement(std::string sData, int iElement, bool fCheckSignature);
-std::string GetBoincResearcherHexCodeAndCPID(std::string sProjectId, int nUserId, std::string& sCPID);
-std::string GetSporkValue(std::string sKey);
-std::string ExecuteDistributedComputingSanctuaryQuorumProcess();
-extern std::string FindResearcherCPIDByAddress(std::string sSearch, std::string& out_address, double& nTotalMagnitude);
-std::vector<std::string> GetListOfDCCS(std::string sSearch, bool fRequireSig);
-int GetRequiredQuorumLevel(int nHeight);
-int GetLastDCSuperblockHeight(int nCurrentHeight, int& nNextSuperblock);
-void GetDistributedComputingGovObjByHeight(int nHeight, uint256 uOptFilter, int& out_nVotes, uint256& out_uGovObjHash, std::string& out_PAD, std::string& out_PAM);
-extern std::string GetMyPublicKeys();
-bool VerifyCPIDSignature(std::string sFullSig, bool bRequireEndToEndVerification, std::string& sError);
-std::string ChopLast(std::string sMyChop);
-extern std::string ReadCacheWithMaxAge(std::string sSection, std::string sKey, int64_t nMaxAge);
-double GetSporkDouble(std::string sName, double nDefault);
 CWaitableCriticalSection csBestBlock;
 CConditionVariable cvBlockChange;
 int nScriptCheckThreads = 0;
@@ -154,6 +125,7 @@ bool fRetirementAccountsEnabled = false;
 bool fProofOfLoyaltyEnabled = false;
 
 int64_t nLastDCContractSubmitted = 0;
+std::string ExecuteDistributedComputingSanctuaryQuorumProcess();
 
 
 int iPrayerIndex = 0;
@@ -172,28 +144,35 @@ int iMinerThreadCount = 0;
 extern void SetOverviewStatus();
 extern const CBlockIndex* GetBlockIndexByTransactionHash(const uint256 &hash);
 extern int32_t ComputeBlockVersion(const CBlockIndex* pindexPrev, const Consensus::Params& params);
-extern void ClearCache(std::string section);
 extern std::string RetrieveTxOutInfo(const CBlockIndex* pindex, int iLookback, int iTxOffset, int ivOutOffset, int iDataType);
-std::string ExtractXML(std::string XMLdata, std::string key, std::string key_end);
 UniValue GetDataList(std::string sType, int iMaxAgeInDays, int& iSpecificEntry, std::string sSearch, std::string& outEntry);
 double GetDifficulty(const CBlockIndex* blockindex);
 void MemorizePrayer(std::string sMessage, int64_t nTime, double dAmount, int iPos, std::string sTxID);
-extern double cdbl(std::string s, int place);
 std::string PubKeyToAddress(const CScript& scriptPubKey);
-extern std::string strReplace(std::string& str, const std::string& oldStr, const std::string& newStr);
 std::string GetSin(int iSinNumber, std::string& out_Description);
-extern void WriteCache(std::string section, std::string key, std::string value, int64_t locktime);
 std::string TimestampToHRDate(double dtm);
-extern std::string RoundToString(double d, int place);
 extern std::string GetArrayElement(std::string s, std::string delim, int iPos);
 double GetDifficultyN(const CBlockIndex* blockindex, double N);
 uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight, const CBlockIndex* pindexLast, bool bRequireTxIndex, bool f7000, bool f8000, bool f9000, bool fTitheBlocksActive, unsigned int nNonce);
-double GetMagnitudeInContract(std::string sContract, std::string sCPID);
-extern double GetMagnitude(std::string sCPID);
-bool AmIMasternode();
-std::string GetWorkUnitResultElement(std::string sProjectId, int nWorkUnitID, std::string sElement);
-extern double VerifyTasks(std::string sCPID, std::string sTasks);
 extern void PurgeCacheAsOfExpiration(std::string sSection, int64_t nExpiration);
+double GetUserMagnitude(double& nBudget, double& nTotalPaid, int& out_iLastSuperblock, std::string& out_Superblocks, int& out_SuperblockCount, int& out_HitCount, double& out_OneDayPaid, double& out_OneWeekPaid, double& out_OneDayBudget, double& out_OneWeekBudget);
+double GetPaymentByCPID(std::string CPID);
+bool CheckStakeSignature(std::string sBitcoinAddress, std::string sSignature, std::string strMessage, std::string& strError);
+bool VerifyCPIDSignature(std::string sFullSig, bool bRequireEndToEndVerification, std::string& sError);
+double GetSporkDouble(std::string sName, double nDefault);
+
+std::string GetGithubVersion();
+
+std::string GetBoincResearcherHexCodeAndCPID(std::string sProjectId, int nUserId, std::string& sCPID);
+std::string GetDCCElement(std::string sData, int iElement, bool fCheckSignature);
+
+extern std::string ReadCache(std::string sSection, std::string sKey);
+extern void WriteCache(std::string section, std::string key, std::string value, int64_t locktime);
+extern void ClearCache(std::string sSection);
+extern std::string ReadCacheWithMaxAge(std::string sSection, std::string sKey, int64_t nMaxAge);
+
+
+
 bool fImporting = false;
 bool fReindex = false;
 bool fTxIndex = true;
@@ -226,8 +205,6 @@ uint64_t nPruneTarget = 0;
 bool fAlerts = DEFAULT_ALERTS;
 bool fEnableReplacement = DEFAULT_ENABLE_REPLACEMENT;
 extern void MemorizeBlockChainPrayers(bool fDuringConnectBlock);
-extern std::vector<std::string> Split(std::string s, std::string delim);
-
 
 /** Fees smaller than this (in duffs) are considered zero fee (for relaying, mining and transaction creation) */
 CFeeRate minRelayTxFee = CFeeRate(DEFAULT_MIN_RELAY_TX_FEE);
@@ -733,28 +710,12 @@ void UnregisterNodeSignals(CNodeSignals& nodeSignals)
     nodeSignals.FinalizeNode.disconnect(&FinalizeNode);
 }
 
-std::vector<std::string> Split(std::string s, std::string delim)
-{
-	size_t pos = 0;
-	std::string token;
-	std::vector<std::string> elems;
-	while ((pos = s.find(delim)) != std::string::npos)
-	{
-		token = s.substr(0, pos);
-		elems.push_back(token);
-		s.erase(0, pos + delim.length());
-	}
-	elems.push_back(s);
-	return elems;
-}
-
 std::string GetArrayElement(std::string s, std::string delim, int iPos)
 {
 	std::vector<std::string> vGE = Split(s.c_str(),delim);
 	if (iPos > (int)vGE.size()) return "";
 	return vGE[iPos];
 }
-
 
 
 CBlockIndex* FindForkInGlobalIndex(const CChain& chain, const CBlockLocator& locator)
@@ -1916,18 +1877,15 @@ bool ProcessComplexTransaction(CTxMemPool& pool, CValidationState &state, const 
    				
 								if (cct.Color == hist_complex_tx.ExpectedColor && cct.ExpectedColor == hist_complex_tx.Color) // and they sent the color we expected
 								{
-									LogPrintf("10 Paired! \n");
 									std::vector<uint256> vHashTxToUncache1;
 
 									// Remove the paired transaction and place in the memory pool
 									bool res1 = AcceptToMemoryPoolWorker(pool, state, tx, fLimitFree, pfMissingInputs, fOverrideMempoolLimit, fRejectAbsurdFee, vHashTxToUncache1, fDryRun);
 									mapComplexTransactions.erase(tx.GetHash());
-									LogPrintf("11 \n ");
 									std::vector<uint256> vHashTxToUncache2;
 
 									bool res2 = AcceptToMemoryPoolWorker(pool, state, ctx, fLimitFree, pfMissingInputs, fOverrideMempoolLimit, fRejectAbsurdFee, vHashTxToUncache2, fDryRun);
 									mapComplexTransactions.erase(ctx.GetHash());
-									//LogPrintf(" paired %f, %f \n",()res1,(double)res2);
 									return res1 && res2;
 								}
 							}
@@ -7349,15 +7307,6 @@ CBlockIndex* FindBlockByHeight(int nHeight)
 }
 
 
-bool Contains(std::string data, std::string instring)
-{
-	std::size_t found = 0;
-	found = data.find(instring);
-	if (found != std::string::npos) return true;
-	return false;
-}
-
-
 CAmount StringToAmount(std::string sValue)
 {
 	if (sValue.empty()) return 0;
@@ -7377,14 +7326,6 @@ std::string AmountToString(const CAmount& amount)
 	return sAmount;
 }
 
-
-
-std::string RoundToString(double d, int place)
-{
-	std::ostringstream ss;
-    ss << std::fixed << std::setprecision(place) << d ;
-    return ss.str() ;
-}
 
 std::string FormatHTML(std::string sInput, int iInsertCount, std::string sStringToInsert)
 {
@@ -7455,86 +7396,6 @@ void SetOverviewStatus()
 	msGlobalStatus2 = "<font color=maroon><b>" + sPrayer + "</font></b><br>&nbsp;";
 }
 
-std::string strReplace(std::string& str, const std::string& oldStr, const std::string& newStr)
-{
-  size_t pos = 0;
-  while((pos = str.find(oldStr, pos)) != std::string::npos){
-     str.replace(pos, oldStr.length(), newStr);
-     pos += newStr.length();
-  }
-  return str;
-}
-
-double Round(double d, int place)
-{
-    std::ostringstream ss;
-    ss << std::fixed << std::setprecision(place) << d ;
-	double r = boost::lexical_cast<double>(ss.str());
-	return r;
-}
-
-double cdbl(std::string s, int place)
-{
-	if (s=="") s = "0";
-	if (s.length() > 255) return 0;
-	s = strReplace(s,"\r","");
-	s = strReplace(s,"\n","");
-	std::string t = "";
-	for (int i = 0; i < (int)s.length(); i++)
-	{
-		std::string u = s.substr(i,1);
-		if (u=="0" || u=="1" || u=="2" || u=="3" || u=="4" || u=="5" || u=="6" || u == "7" || u=="8" || u=="9" || u==".") 
-		{
-			t += u;
-		}
-	}
-
-    double r = boost::lexical_cast<double>(t);
-	double d = Round(r,place);
-	return d;
-}
-
-std::string ReadCache(std::string sSection, std::string sKey)
-{
-	boost::to_upper(sSection);
-	boost::to_upper(sKey);
-	
-	if (sSection.empty() || sKey.empty()) return "";
-	try
-	{
-		std::string sValue = mvApplicationCache[sSection + ";" + sKey];
-		if (sValue.empty())
-		{
-			mvApplicationCache.insert(map<std::string,std::string>::value_type(sSection + ";" + sKey,""));
-			mvApplicationCache[sSection + ";" + sKey]="";
-			return "";
-		}
-		return sValue;
-	}
-	catch(...)
-	{
-		LogPrintf("ReadCache error %s",sSection.c_str());
-		return "";
-	}
-}
-
-std::string ReadCacheWithMaxAge(std::string sSection, std::string sKey, int64_t nMaxAge)
-{
-	// This allows us to disregard old cache messages
-	std::string sValue = ReadCache(sSection, sKey);
-	std::string sFullKey = sSection + ";" + sKey;
-	boost::to_upper(sFullKey);
-	int64_t nTime = mvApplicationCacheTimestamp[sFullKey];
-	if (nTime==0)
-	{
-		// LogPrintf(" ReadCacheWithMaxAge key %s timestamp 0 \n",sFullKey);
-	}
-	int64_t nAge = GetAdjustedTime() - nTime;
-	if (nAge > nMaxAge) return "";
-	return sValue;
-}
-
-
 void ResetTimerMain(std::string timer_name)
 {
 	mvTimers[timer_name] = 0;
@@ -7599,24 +7460,6 @@ void PurgeCacheAsOfExpiration(std::string sSection, int64_t nExpiration)
 	}
 }
 
-
-void ClearCache(std::string sSection)
-{
-	boost::to_upper(sSection);
-	for(map<string,string>::iterator ii=mvApplicationCache.begin(); ii!=mvApplicationCache.end(); ++ii)
-	{
-		std::string sKey = (*ii).first;
-		boost::to_upper(sKey);
-		if (sKey.length() > sSection.length())
-		{
-			if (sKey.substr(0,sSection.length())==sSection)
-			{
-				mvApplicationCache[sKey]="";
-				mvApplicationCacheTimestamp[sKey]=0;
-			}
-		}
-	}
-}
 
 
 bool IsTimeWithinMins(int64_t nTime, int mins)
@@ -7753,132 +7596,6 @@ std::string SignMessage(std::string sMsg, std::string sPrivateKey)
      const std::string sig(vchSig.begin(), vchSig.end());     
      std::string SignedMessage = EncodeBase64(sig);
      return SignedMessage;
-}
-
-std::string GetTemplePrivKey()
-{
-	std::string sSuffix = fProd ? "main" : "test";
-	std::string sPRIVK = GetArg("-templeprivkey" + sSuffix, "");
-	return sPRIVK;
-}
-
-bool CheckMessageSignature(std::string sMsg, std::string sSig)
-{
-     std::string db64 = DecodeBase64(sSig);
-     CPubKey key(ParseHex(strTemplePubKey));
-	 std::vector<unsigned char> vchMsg = vector<unsigned char>(sMsg.begin(), sMsg.end());
-     std::vector<unsigned char> vchSig = vector<unsigned char>(db64.begin(), db64.end());
-	 return (!key.Verify(Hash(vchMsg.begin(), vchMsg.end()), vchSig)) ? false : true;
-}
-
-bool CheckMessageSignature(std::string sMsg, std::string sSig, std::string sPubKey)
-{
-     std::string db64 = DecodeBase64(sSig);
-     CPubKey key(ParseHex(sPubKey));
-	 std::vector<unsigned char> vchMsg = vector<unsigned char>(sMsg.begin(), sMsg.end());
-     std::vector<unsigned char> vchSig = vector<unsigned char>(db64.begin(), db64.end());
-	 return (!key.Verify(Hash(vchMsg.begin(), vchMsg.end()), vchSig)) ? false : true;
-}
-
-
-double GetCPIDUTXOWeight(double dAmount)
-{
-	if (dAmount <= 0) return 0;
-	if (dAmount > 00000 && dAmount <= 01000) return 25;
-	if (dAmount > 01000 && dAmount <= 05000) return 50;
-	if (dAmount > 05000 && dAmount <= 10000) return 60;
-	if (dAmount > 10000 && dAmount <= 50000) return 75;
-	if (dAmount > 50000) return 100;
-	return 0;
-}
-
-
-std::string GetListOfData(std::string sSourceData, std::string sDelimiter, std::string sSubDelimiter, int iSubPosition, int iMaxCount)
-{
-	std::vector<std::string> vPODC = Split(sSourceData.c_str(), sDelimiter);
-	std::string sMyData = "";
-	int iInserted = 0;
-	for (int i = 0; i < (int)vPODC.size(); i++)
-	{
-		std::string sElement = GetElement(vPODC[i], sSubDelimiter, iSubPosition);
-		if (!sElement.empty())
-		{
-			sMyData += sElement + sDelimiter;
-			iInserted++;
-		}
-		if (iInserted >= iMaxCount) break;
-	}
-	sMyData = ChopLast(sMyData);
-	return sMyData;
-
-}
-
-std::string GetWUElement(std::string sWUdata, std::string sRootElementName, double dTaskID, std::string sPrimaryKeyElement, std::string sOutputElement)
-{
-	// The boinc network forms the XML file hierarchy like this
-	/*
-	<results>
-	<error>ID 976055122</error>
-	<result>
-	<id>975055123</id>
-	<create_time>1519055586</create_time>
-	<workunitid>879197165</workunitid>
-	<server_state>5</server_state>
-	<outcome>1</outcome>
-	<client_state>5</client_state>
-	<hostid>3247080</hostid>
-	<userid>1942555</userid>
-	<report_deadline>1519315255</report_deadline>
-	<sent_time>1519056055</sent_time>
-	<received_time>1519151181</received_time>
-	<name>
-	</result>
-	</results>
-	*/
-	std::vector<std::string> vPODC = Split(sWUdata.c_str(), sRootElementName);
-	for (int i = 0; i < (int)vPODC.size(); i++)
-	{
-		double dTask = cdbl(ExtractXML(vPODC[i], "<" + sPrimaryKeyElement + ">", "</" + sPrimaryKeyElement + ">"), 0);
-		// LogPrintf(" GETWUElement::task %f \n",dTask);
-		if (dTask == dTaskID)
-		{
-			std::string sEleValue = ExtractXML(vPODC[i], "<" + sOutputElement + ">", "</" + sOutputElement + ">");
-			return sEleValue;
-		}	
-	}
-	return "";
-}
-
-double VerifyTasks(std::string sCPID, std::string sTasks)
-{
-	if (sTasks.empty()) return 0;
-	double dCounted = 0;
-	double dVerified = 0;
-	std::string sTaskIds = GetListOfData(sTasks, ",", "=", 0, 255);
-	std::string sTimestamps = GetListOfData(sTasks, ",", "=", 1, 255);
-	std::string sResults = VerifyManyWorkUnits("project1", sTaskIds);
-	std::vector<std::string> vPODC = Split(sTaskIds.c_str(), ",");
-	std::vector<std::string> vTimes = Split(sTimestamps.c_str(), ",");
-	std::string sDebug = sResults;
-	if (sDebug.length() > 2500) sDebug = sDebug.substr(0, 2499);
-	if (fDebugMaster) LogPrint("podc", "\n\n VerifyTasks CPID %s, taskids %s, stamps %s, output %s \n\n\n", sCPID.c_str(), sTaskIds.c_str(), sTimestamps.c_str(), sDebug.c_str());
-	for (int i = 0; i < (int)vPODC.size() && i < (int)vTimes.size(); i++)
-	{
-		double dTask = cdbl(vPODC[i], 0);
-		double dTime = cdbl(vTimes[i], 0);
-		dCounted++;
-		if (dTask > 0 && dTime > 0)
-		{
-			double dXMLTime = cdbl(GetWUElement(sResults, "<result>", dTask, "id", "sent_time"), 0);
-			if (dXMLTime > 0 && dXMLTime == dTime) dVerified++;
-		}
-		if (dCounted > 255) break;
-	}
-	if (dCounted < 1) return 0;
-	double dSource = (dVerified / dCounted) * 60000;
-	double dSnapped = GetCPIDUTXOWeight(dSource);
-	if (fDebugMaster) LogPrintf("\n VerifyTasks::Tasks %f  Verified %f   Source %f  Snapped %f  ", dCounted, dVerified, dSource, dSnapped);
-	return dSnapped;
 }
 
 void MemorizePrayer(std::string sMessage, int64_t nTime, double dAmount, int iPosition, std::string sTxID)
@@ -8344,146 +8061,6 @@ ThresholdState VersionBitsTipState(const Consensus::Params& params, Consensus::D
     return VersionBitsState(chainActive.Tip(), params, pos, versionbitscache);
 }
 
-double GetMagnitudeByAddress(std::string sAddress)
-{
-	CDistributedComputingVote upcomingVote;
-	int iNextSuperblock = 0;
-	int iLastSuperblock = GetLastDCSuperblockHeight(chainActive.Tip()->nHeight, iNextSuperblock);
-	
-	int iVotes = 0;
-	std::string sContract = "";
-	uint256 uGovObjHash;
-	double nTotal = 0;
-	std::string sPAD = "";
-	std::string sPAM = "";
-	GetDistributedComputingGovObjByHeight(iLastSuperblock, uint256S("0x0"), iVotes, uGovObjHash, sPAD, sPAM);
-		
-	double dBudget = CSuperblock::GetPaymentsLimit(iLastSuperblock) / COIN;
-	std::vector<std::string> vSPAD = Split(sPAD.c_str(), "|");
-	std::vector<std::string> vSPAM = Split(sPAM.c_str(), "|");
-
-	if (dBudget < 1) return 0;
-	// Since an address my have more than one cpid... (not recommended but nevertheless...) get the grand total magnitude per address 
-	for (int i=0; i < (int)vSPAD.size() && i < (int)vSPAM.size(); i++)
-	{
-		std::string sLocalAddress = vSPAD[i];
-		double dAmt = cdbl(vSPAM[i],2);
-		std::string sAmount = vSPAM[i];
-		if (sAddress==sLocalAddress) 
-		{
-			double dMag = (dAmt / dBudget) * 1000;
-			nTotal += dMag;
-		}
-	  
-	}
-	nTotal = cdbl(RoundToString(nTotal,2),2);
-	return nTotal;
-}
-
-
-std::string GetMyPublicKeys()
-{
-	std::string sPK = "";
-	BOOST_FOREACH(const PAIRTYPE(CBitcoinAddress, CAddressBookData)& item, pwalletMain->mapAddressBook)
-    {
-        const CBitcoinAddress& address = item.first;
-        std::string strName = item.second.name;
-        bool fMine = IsMine(*pwalletMain, address.Get());
-        if (fMine)
-		{
-		    std::string sAddress = CBitcoinAddress(address).ToString();
-			sPK += sAddress + "|";
-	    }
-	}
-	if (sPK.length() > 1) sPK = sPK.substr(0,sPK.length()-1);
-	return sPK;
-}
-
-std::string GetCPIDByAddress(std::string sAddress, int iOffset)
-{
-	std::vector<std::string> vCPIDs = GetListOfDCCS(sAddress, true);
-	int nFound = 0;
-	if (vCPIDs.size() > 0)
-	{
-		for (int i=0; i < (int)vCPIDs.size(); i++)
-		{
-			std::string sCPID = GetDCCElement(vCPIDs[i], 0, false);
-			std::string sInternalAddress = GetDCCElement(vCPIDs[i], 1, false);
-			if (sAddress == sInternalAddress) 
-			{
-				nFound++;
-				if (nFound > iOffset) return sCPID;
-			}
-		}
-	}
-	return "";
-}
-
-std::string GetCPIDByRosettaID(double dRosettaID)
-{
-	std::vector<std::string> vCPIDs = GetListOfDCCS("", false);
-	if (vCPIDs.size() > 0)
-	{
-		for (int i=0; i < (int)vCPIDs.size(); i++)
-		{
-			std::string sCPID = GetDCCElement(vCPIDs[i], 0, false);
-			double dInternalRosettaId = cdbl(GetDCCElement(vCPIDs[i], 3, false),0);
-			if (dInternalRosettaId == dRosettaID) return sCPID;
-		}
-	}
-	return "";
-}
-
-
-std::string FindResearcherCPIDByAddress(std::string sSearch, std::string& out_address, double& nTotalMagnitude)
-{
-	std::string sDefaultRecAddress = "";
-	msGlobalCPID = "";
-	std::string sLastCPID = "";
-	nTotalMagnitude = 0;
-	BOOST_FOREACH(const PAIRTYPE(CBitcoinAddress, CAddressBookData)& item, pwalletMain->mapAddressBook)
-    {
-        const CBitcoinAddress& address = item.first;
-        std::string strName = item.second.name;
-        bool fMine = IsMine(*pwalletMain, address.Get());
-        if (fMine)
-		{
-		    std::string sAddress = CBitcoinAddress(address).ToString();
-			boost::to_upper(strName);
-			// If we have a valid burn in the chain, prefer it
-			std::vector<std::string> vCPIDs = GetListOfDCCS(sAddress, true);
-			nTotalMagnitude += GetMagnitudeByAddress(sAddress);
-			if (vCPIDs.size() > 0)
-			{
-				for (int i=0; i < (int)vCPIDs.size(); i++)
-				{
-					std::string sCPID = GetDCCElement(vCPIDs[i], 0, false);
-					if (sSearch.empty() && !sCPID.empty()) 
-					{
-						out_address = sAddress;
-						msGlobalCPID += sCPID + ";";
-						sLastCPID = sCPID;
-					}
-					if (!sSearch.empty())
-					{
-						if (sSearch == sAddress && !sCPID.empty()) 
-						{
-							nTotalMagnitude = GetMagnitudeByAddress(sAddress);
-							out_address = sAddress;
-							return sCPID;
-						}
-					}
-				}
-			}
-			
-
-		}
-    }
-	mnMagnitude = nTotalMagnitude;
-	return sLastCPID;
-	
-}
-
 std::string DefaultRecAddress(std::string sType)
 {
 	std::string sDefaultRecAddress = "";
@@ -8534,6 +8111,69 @@ CAmount GetRetirementAccountContributionAmount(int nPrevHeight)
     }
 	return nRetirementContributionAmount * RETIREMENT_COIN;
 }
+
+
+std::string ReadCacheWithMaxAge(std::string sSection, std::string sKey, int64_t nMaxAge)
+{
+	// This allows us to disregard old cache messages
+	std::string sValue = ReadCache(sSection, sKey);
+	std::string sFullKey = sSection + ";" + sKey;
+	boost::to_upper(sFullKey);
+	int64_t nTime = mvApplicationCacheTimestamp[sFullKey];
+	if (nTime==0)
+	{
+		// LogPrintf(" ReadCacheWithMaxAge key %s timestamp 0 \n",sFullKey);
+	}
+	int64_t nAge = GetAdjustedTime() - nTime;
+	if (nAge > nMaxAge) return "";
+	return sValue;
+}
+
+
+void ClearCache(std::string sSection)
+{
+	boost::to_upper(sSection);
+	for(map<string,string>::iterator ii=mvApplicationCache.begin(); ii!=mvApplicationCache.end(); ++ii)
+	{
+		std::string sKey = (*ii).first;
+		boost::to_upper(sKey);
+		if (sKey.length() > sSection.length())
+		{
+			if (sKey.substr(0,sSection.length())==sSection)
+			{
+				mvApplicationCache[sKey]="";
+				mvApplicationCacheTimestamp[sKey]=0;
+			}
+		}
+	}
+}
+
+
+
+std::string ReadCache(std::string sSection, std::string sKey)
+{
+	boost::to_upper(sSection);
+	boost::to_upper(sKey);
+	
+	if (sSection.empty() || sKey.empty()) return "";
+	try
+	{
+		std::string sValue = mvApplicationCache[sSection + ";" + sKey];
+		if (sValue.empty())
+		{
+			mvApplicationCache.insert(map<std::string,std::string>::value_type(sSection + ";" + sKey,""));
+			mvApplicationCache[sSection + ";" + sKey]="";
+			return "";
+		}
+		return sValue;
+	}
+	catch(...)
+	{
+		LogPrintf("ReadCache error %s",sSection.c_str());
+		return "";
+	}
+}
+
 
 
 class CMainCleanup

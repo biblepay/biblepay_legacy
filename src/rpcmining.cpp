@@ -21,6 +21,8 @@
 #include "spork.h"
 #include "txmempool.h"
 #include "util.h"
+#include "podc.h"
+
 #ifdef ENABLE_WALLET
 #include "masternode-sync.h"
 #endif
@@ -36,13 +38,11 @@ using namespace std;
 uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight, const CBlockIndex* pindexLast, bool bRequireTxIndex, 
 	bool f7000, bool f8000, bool f9000, bool fTitheBlocksActive, unsigned int nNonce);
 
+std::string ReadCache(std::string sSection, std::string sKey);
+double GetBlockMagnitude(int nChainHeight);
 
 std::string TimestampToHRDate(double dtm);
-std::string RoundToString(double d, int place);
-std::string ReadCache(std::string section, std::string key);
 double GetDifficultyN(const CBlockIndex* blockindex, double N);
-double cdbl(std::string s, int place);
-double GetBlockMagnitude(int nChainHeight);
 
 /**
  * Return average network hashes per second based on the last 'lookup' blocks,

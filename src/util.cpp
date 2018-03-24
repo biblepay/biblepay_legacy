@@ -9,9 +9,8 @@
 #endif
 
 
-
 #include "util.h"
-
+#include "podc.h"
 #include "support/allocators/secure.h"
 #include "chainparamsbase.h"
 #include "random.h"
@@ -137,6 +136,7 @@ bool fLogThreadNames = DEFAULT_LOGTHREADNAMES;
 bool fLogIPs = DEFAULT_LOGIPS;
 volatile bool fReopenDebugLog = false;
 CTranslationInterface translationInterface;
+std::string GetSporkValue(std::string sKey);
 
 /** Init OpenSSL library multithreading support */
 static CCriticalSection** ppmutexOpenSSL;
@@ -978,4 +978,194 @@ int GetNumCores()
     return boost::thread::hardware_concurrency();
 #endif
 }
+
+
+bool FileExists2(std::string sPath)
+{
+	if (!sPath.empty())
+	{
+		try
+		{
+			boost::filesystem::path pathImg(sPath);
+			return (boost::filesystem::exists(pathImg));
+		}
+		catch(const boost::filesystem::filesystem_error& e)
+		{
+			return false;
+		}
+		catch (const std::exception& e) 
+		{
+			return false;
+		}
+		catch(...)
+		{
+			return false;
+		}
+
+	}
+	return false;
+}
+
+bool IsInList(std::string sData, std::string sDelimiter, std::string sValue)
+{
+	std::vector<std::string> vRows = Split(sData.c_str(), sDelimiter);
+	for (int i = 0; i < (int)vRows.size(); i++)
+	{
+		std::string sLocalValue = vRows[i];
+		if (!sLocalValue.empty() && sValue==sLocalValue)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+std::string ChopLast(std::string sMyChop)
+{
+	if (sMyChop.length() > 1) sMyChop = sMyChop.substr(0,sMyChop.length()-1);
+	return sMyChop;
+}
+
+std::string GetElement(std::string sIn, std::string sDelimiter, int iPos)
+{
+	if (sIn.empty()) return "";
+	std::vector<std::string> vInput = Split(sIn.c_str(), sDelimiter);
+	if (iPos < (int)vInput.size())
+	{
+		return vInput[iPos];
+	}
+	return "";
+}
+
+std::string NameFromURL2(std::string sURL)
+{
+	std::vector<std::string> vURL = Split(sURL.c_str(),"/");
+	std::string sOut = "";
+	if (vURL.size() > 0)
+	{
+		std::string sName = vURL[vURL.size()-1];
+		sName=strReplace(sName,"'","");
+		std::string sDir = GetSANDirectory2();
+		std::string sPath = sDir + sName;
+		return sPath;
+	}
+	return "";
+}
+
+std::string SystemCommand2(const char* cmd)
+{
+    FILE* pipe = popen(cmd, "r");
+    if (!pipe) return "ERROR";
+    char buffer[128];
+    std::string result = "";
+    while(!feof(pipe))
+    {
+        if(fgets(buffer, 128, pipe) != NULL)
+            result += buffer;
+    }
+    pclose(pipe);
+    return result;
+}
+
+std::vector<std::string> Split(std::string s, std::string delim)
+{
+	size_t pos = 0;
+	std::string token;
+	std::vector<std::string> elems;
+	while ((pos = s.find(delim)) != std::string::npos)
+	{
+		token = s.substr(0, pos);
+		elems.push_back(token);
+		s.erase(0, pos + delim.length());
+	}
+	elems.push_back(s);
+	return elems;
+}
+
+
+template< typename T >
+std::string int_to_hex( T i )
+{
+  std::stringstream stream;
+  stream << "0x" 
+         << std::setfill ('0') << std::setw(sizeof(T)*2) 
+         << std::hex << i;
+  return stream.str();
+}
+
+
+std::string DoubleToHexStr(double d, int iPlaces)
+{
+    int nDouble = atoi(RoundToString(d,0).c_str()); 
+    std::string hex_string = int_to_hex(nDouble);
+	hex_string = strReplace(hex_string, "0x", "");
+    std::string sOut = "000000000000000000" + hex_string;
+    std::string sHex = sOut.substr(sOut.length()-iPlaces, iPlaces);
+    return sHex;
+}
+
+int HexToInt(std::string sHex)
+{
+    int x;   
+    std::stringstream ss;
+    ss << std::hex << sHex;
+    ss >> x;
+    return x;
+}
+
+
+int HexToInteger(const std::string& hex)
+{
+	int x = 0;
+	std::stringstream ss;
+	ss << std::hex << hex;
+	ss >> x;
+	return x;
+}
+
+
+
+double ConvertHexToDouble(std::string hex)
+{
+	int d = HexToInteger(hex);
+	double dOut = (double)d;
+	return dOut;
+}
+
+std::string ConvertHexToBin(std::string a, int iPlaces)
+{
+    if (a.empty()) return "";
+	if (iPlaces == 0) return "";
+	std::string sOut = "";
+	for (int i = 1; i <= 20; i++)
+	{
+		int j = HexToInt("00");
+		char d = (char)j;
+		sOut.push_back(d);
+	}
+    for (unsigned int x = 1; x <= a.length(); x += 2)
+    {
+       std::string sChunk = a.substr(x-1, 2);
+       int i = HexToInt(sChunk);
+       char c = (char)i;
+       sOut.push_back(c);
+    }
+    std::string sOut2 = sOut.substr(sOut.length() - iPlaces, iPlaces);
+	return sOut2;
+}
+
+std::string ConvertBinToHex(std::string a) 
+{
+      if (a.empty()) return "0";
+	  std::string sOut = "";
+      for (unsigned int x = 1; x <= a.length(); x++)
+      {
+           char c = a[x-1];
+           int i = (int)c; 
+           std::string sHex = DoubleToHexStr((double)i, 2);
+           sOut += sHex;
+      }
+      return sOut;
+}
+
 

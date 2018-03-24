@@ -29,7 +29,7 @@
 #include "masternode-payments.h"
 #include "masternode-sync.h"
 #include "validationinterface.h"
-
+#include "podc.h"
 #include <boost/thread.hpp>
 #include <boost/tuple/tuple.hpp>
 #include <queue>
@@ -50,14 +50,8 @@ using namespace std;
 uint64_t nLastBlockTx = 0;
 uint64_t nLastBlockSize = 0;
 uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight, const CBlockIndex* pindexLast, bool bRequireTxIndex, bool f7000, bool f8000, bool f9000, bool fTitheBlocksActive, unsigned int nNonce);
-std::string ExtractXML(std::string XMLdata, std::string key, std::string key_end);
-void WriteCache(std::string section, std::string key, std::string value, int64_t locktime);
-std::string ReadCache(std::string section, std::string key);
 std::string BiblepayHttpPost(bool bPost, int iThreadID, std::string sActionName, std::string sDistinctUser, std::string sPayload, std::string sBaseURL, std::string sPage, int iPort, std::string sSolution);
-std::string RoundToString(double d, int place);
 std::string PoolRequest(int iThreadID, std::string sAction, std::string sPoolURL, std::string sMinerID, std::string sSolution);
-double cdbl(std::string s, int place);
-void ClearCache(std::string section);
 std::string TimestampToHRDate(double dtm);
 void GetMiningParams(int nPrevHeight, bool& f7000, bool& f8000, bool& f9000, bool& fTitheBlocksActive);
 bool CheckNonce(bool f9000, unsigned int nNonce, int nPrevHeight, int64_t nPrevBlockTime, int64_t nBlockTime);
@@ -68,10 +62,12 @@ double GetStakeWeight(CTransaction tx, int64_t nTipTime, std::string sXML, bool 
 uint256 PercentToBigIntBase(int iPercent);
 int64_t GetStakeTargetModifierPercent(int nHeight, double nWeight);
 bool IsStakeSigned(std::string sXML);
-bool SignCPID(std::string sCPID, std::string& sError, std::string& out_FullSig);
-bool VerifyCPIDSignature(std::string sFullSig, bool bRequireEndToEndVerification, std::string& sError);
+void ClearCache(std::string sSection);
+std::string ReadCache(std::string sSection, std::string sKey);
+void WriteCache(std::string section, std::string key, std::string value, int64_t locktime);
 bool PODCUpdate(std::string& sError, bool bForce, std::string sDebugInfo);
 std::string GetSporkValue(std::string sKey);
+bool SignCPID(std::string sCPID, std::string& sError, std::string& out_FullSig);
 
 
 class ScoreCompare

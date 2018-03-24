@@ -8,7 +8,6 @@
 #include "config/biblepay-config.h"
 #endif
 
-
 #include "init.h"
 
 #include "addrman.h"
@@ -52,6 +51,7 @@
 #include "flat-database.h"
 #include "governance.h"
 #include "instantx.h"
+#include "podc.h"
 #ifdef ENABLE_WALLET
 #include "keepass.h"
 #endif
@@ -89,7 +89,6 @@ using namespace std;
 
 extern void ThreadSendAlert();
 extern void CheckGenesisBlock(CBlock block, uint256 targetBlockHash, uint256 targetMerkleRoot);
-std::string FindResearcherCPIDByAddress(std::string sSearch, std::string& out_address, double& nTotalMagnitude);
 
 #ifdef ENABLE_WALLET
 CWallet* pwalletMain = NULL;
@@ -102,6 +101,7 @@ void MemorizeBlockChainPrayers(bool fDuringConnectBlock);
 extern CBlock CreateGenesisBlock(const char* pszTimestamp, const CScript& genesisOutputScript, uint32_t nTime, uint32_t nNonce, uint32_t nBits, int32_t nVersion, const CAmount& genesisReward);
 bool fFeeEstimatesInitialized = false;
 bool fRestartRequested = false;  // true: restart false: shutdown
+std::string FindResearcherCPIDByAddress(std::string sSearch, std::string& out_address, double& nTotalMagnitude);
 
 static const bool DEFAULT_PROXYRANDOMIZE = true;
 static const bool DEFAULT_REST_ENABLE = false;

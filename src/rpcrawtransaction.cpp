@@ -26,26 +26,23 @@
 #include "utilstrencodings.h"
 #include "instantx.h"
 #include "timedata.h"
+#include "podc.h"
 
 #ifdef ENABLE_WALLET
 #include "wallet/wallet.h"
 #endif
 
+
 #include <stdint.h>
-
 #include <boost/assign/list_of.hpp>
-
 #include <univalue.h>
 
 using namespace std;
 
 extern std::string GetTxNews(uint256 hash, std::string& sHeadline);
-std::string ExtractXML(std::string XMLdata, std::string key, std::string key_end);
-
 
 extern UniValue createrawtransaction(const UniValue& params, bool fHelp);
 bool VerifyCPIDSignature(std::string sFullSig, bool bRequireEndToEndVerification, std::string& sError);
-std::string RoundToString(double d, int place);
 
 
 void ScriptPubKeyToJSON(const CScript& scriptPubKey, UniValue& out, bool fIncludeHex)

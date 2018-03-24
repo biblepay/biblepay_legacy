@@ -33,8 +33,6 @@ extern QString ToQstring(std::string s);
 extern std::string FromQStringW(QString qs);
 
 
-
-
 WalletModel::WalletModel(const PlatformStyle *platformStyle, CWallet *wallet, OptionsModel *optionsModel, QObject *parent) :
     QObject(parent), wallet(wallet), optionsModel(optionsModel), addressTableModel(0),
     transactionTableModel(0),

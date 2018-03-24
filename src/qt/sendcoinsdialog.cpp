@@ -15,7 +15,6 @@
 #include "platformstyle.h"
 #include "sendcoinsentry.h"
 #include "walletmodel.h"
-
 #include "base58.h"
 #include "coincontrol.h"
 #include "main.h" // mempool and minRelayTxFee

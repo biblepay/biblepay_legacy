@@ -35,18 +35,14 @@ std::string GetPrayer(int iPrayerNumber, std::string& out_Title);
 std::string GetVerse(std::string sBook, int iChapter, int iVerse, int iBookStart, int iBookEnd);
 std::string GetBook(int iBookNumber);
 std::string GetBookByName(std::string sName);
-std::string RoundToString(double d, int place);
 void GetBookStartEnd(std::string sBook, int& iStart, int& iEnd);
 std::string AddBlockchainMessages(std::string sAddress, std::string sType, std::string sPrimaryKey, std::string sHTML, CAmount nAmount, std::string& sError);
 
 QString FromEscapedToHTML(QString qsp);
 QString FromHTMLToEscaped(QString qsp);
 QString FleeceBoilerPlate(QString qsp);
-std::string ExtractXML(std::string XMLdata, std::string key, std::string key_end);
-std::string strReplace(std::string& str, const std::string& oldStr, const std::string& newStr);
 QString ToQstring(std::string s);
 std::string FromQStringW(QString qs);
-std::string strReplace(std::string& str, const std::string& oldStr, const std::string& newStr);
 std::string GetTxNews(uint256 hash, std::string& sHeadline);
 std::string ReadCache(std::string section, std::string key);
 void WriteCache(std::string section, std::string key, std::string value, int64_t locktime);
@@ -724,7 +720,6 @@ QString NewsPreviewWindow::ReplaceImageTags(QString qsp)
 	}
 	return ToQstring(sHTML);
 }
-
 
 
 void NewsPreviewWindow::showNewsWindow(QWidget *myparent, std::string sTxID)

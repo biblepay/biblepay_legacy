@@ -15,9 +15,6 @@
 #include "config/biblepay-config.h"
 #endif
 
-
-
-
 #include "compat.h"
 #include "tinyformat.h"
 #include "utiltime.h"
@@ -161,6 +158,25 @@ boost::filesystem::path GetDefaultDataDir();
 const boost::filesystem::path &GetDataDir(bool fNetSpecific = true);
 const boost::filesystem::path &GetBackupsDir();
 void ClearDatadirCache();
+std::string SystemCommand2(const char* cmd);
+std::string NameFromURL2(std::string sURL);
+std::string GetElement(std::string sIn, std::string sDelimiter, int iPos);
+std::string ChopLast(std::string sMyChop);
+bool IsInList(std::string sData, std::string sDelimiter, std::string sValue);
+bool FileExists2(std::string sPath);
+std::string ConvertBinToHex(std::string a);
+std::string ConvertHexToBin(std::string a, int iPlaces);
+double ConvertHexToDouble(std::string hex);
+std::vector<std::string> Split(std::string s, std::string delim);
+std::string DoubleToHexStr(double d, int iPlaces);
+
+template< typename T >
+std::string int_to_hex( T i );
+
+int HexToInteger(const std::string& hex);
+
+
+
 boost::filesystem::path GetConfigFile();
 boost::filesystem::path GetMasternodeConfigFile();
 #ifndef WIN32

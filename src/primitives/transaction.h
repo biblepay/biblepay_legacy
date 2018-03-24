@@ -10,10 +10,8 @@
 #include "script/script.h"
 #include "serialize.h"
 #include "uint256.h"
+#include "podc.h"
 
-
-std::string ExtractXML(std::string XMLdata, std::string key, std::string key_end);
-bool Contains(std::string data, std::string instring);
 
 /** An outpoint - a combination of a transaction hash and an index n into its vout */
 class COutPoint

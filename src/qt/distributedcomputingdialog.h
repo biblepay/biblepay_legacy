@@ -48,7 +48,6 @@ public:
 
 public Q_SLOTS:
     void clear();
-    //void accept();
 
 protected:
    
@@ -59,9 +58,6 @@ private:
     WalletModel *model;
     QMenu *contextMenu;
     const PlatformStyle *platformStyle;
-
-    //void copyColumnToClipboard(int column);
-    //virtual void resizeEvent(QResizeEvent *event);
 
 private Q_SLOTS:
     void on_btnAssociate_clicked();

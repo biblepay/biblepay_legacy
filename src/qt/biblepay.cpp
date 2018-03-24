@@ -8,7 +8,6 @@
 #endif
 
 
-
 #include "bitcoingui.h"
 
 #include "chainparams.h"

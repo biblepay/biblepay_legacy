@@ -527,7 +527,8 @@ public:
     {
         {
             LOCK(cs_inventory);
-            if (inv.type == MSG_TX && filterInventoryKnown.contains(inv.hash)) {
+            if (inv.type == MSG_TX && filterInventoryKnown.contains(inv.hash)) 
+			{
                 LogPrint("net", "PushInventory --  filtered inv: %s peer=%d\n", inv.ToString(), id);
                 return;
             }

@@ -19,7 +19,6 @@
 void CheckGenesisBlock(CBlock block, uint256 targetBlockHash, uint256 targetMerkleRoot);
 
 
-
 /**
  * Main network
  */

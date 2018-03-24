@@ -9,13 +9,14 @@
 #include "addresstablemodel.h"
 #include "bitcoinunits.h"
 #include "guiutil.h"
+#include "util.h"
 #include "optionsmodel.h"
 #include "platformstyle.h"
 #include "receiverequestdialog.h"
 #include "recentrequeststablemodel.h"
 #include "walletmodel.h"
 #include "main.h"
-
+#include "podc.h"
 #include <QAction>
 #include <QCursor>
 #include <QItemSelection>
@@ -24,11 +25,11 @@
 #include <QTextDocument>
 QString ToQstring(std::string s);
 std::string FromQStringW(QString qs);
-std::string AssociateDCAccount(std::string sProjectId, std::string sBoincEmail, std::string sBoincPassword, std::string sUnbanked, bool fForce);
 std::string RoundToString(double d, int place);
-std::string GetElement(std::string sIn, std::string sDelimiter, int iPos);
 double GetTaskWeight(std::string sCPID);
+
 double GetUTXOWeight(std::string sCPID);
+std::string AssociateDCAccount(std::string sProjectId, std::string sBoincEmail, std::string sBoincPassword, std::string sUnbankedPublicKey, bool fForce);
 
 DistributedComputingDialog::DistributedComputingDialog(const PlatformStyle *platformStyle, QWidget *parent) :
     QDialog(parent),
