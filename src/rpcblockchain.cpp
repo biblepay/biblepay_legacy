@@ -61,10 +61,10 @@ extern std::string AssociateDCAccount(std::string sProjectId, std::string sBoinc
 extern std::vector<std::string> GetListOfDCCS(std::string sSearch, bool fRequireSig);
 extern bool VerifyCPIDSignature(std::string sFullSig, bool bRequireEndToEndVerification, std::string& sError);
 
-extern double GetSumOfXMLColumnFromXMLFile(std::string sFileName, std::string sObjectName, std::string sElementName, double dReqSPM, double dReqSPR);
+extern double GetSumOfXMLColumnFromXMLFile(std::string sFileName, std::string sObjectName, std::string sElementName, double dReqSPM, double dReqSPR, double dTeamRequired);
 
 extern uint256 GetDCCHash(std::string sContract);
-
+extern UniValue UTXOReport(std::string sCPID);
 
 extern uint256 GetDCCFileHash();
 
@@ -279,7 +279,7 @@ UniValue blockheaderToJSON(const CBlockIndex* blockindex)
     return result;
 }
 
-UniValue blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool txDetails = false, bool bVerbose = false)
+UniValue blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool txDetails = false, bool bVerbose = false, bool bShowPrayers = true)
 {
     UniValue result(UniValue::VOBJ);
     result.push_back(Pair("hash", block.GetHash().GetHex()));
@@ -338,17 +338,21 @@ UniValue blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool tx
 	{
 		result.push_back(Pair("subsidy", block.vtx[0].vout[0].nValue/COIN));
 		result.push_back(Pair("blockversion", ExtractXML(block.vtx[0].vout[0].sTxOutMessage,"<VER>","</VER>")));
+		if (block.vtx.size() > 1)
+		{
+			result.push_back(Pair("sanctuary_reward", block.vtx[0].vout[1].nValue/COIN));
+		}
 	}
 
 	const Consensus::Params& consensusParams = Params().GetConsensus();
 	
 	if (blockindex && blockindex->pprev)
 	{
-		CAmount MasterNodeReward = GetBlockSubsidy(blockindex->pprev, blockindex->pprev->nBits, blockindex->pprev->nHeight, consensusParams, true);
-		result.push_back(Pair("masternodereward", MasterNodeReward));
+		//double dReward = GetBlockSubsidy(blockindex->pprev, blockindex->pprev->nBits, blockindex->pprev->nHeight, consensusParams, true)/COIN;
+		//result.push_back(Pair("estimatedsanctuaryreward", dReward));
         result.push_back(Pair("previousblockhash", blockindex->pprev->GetBlockHash().GetHex()));
 		std::string sVerses = GetBibleHashVerses(block.GetHash(), block.GetBlockTime(), blockindex->pprev->nTime, blockindex->pprev->nHeight, blockindex->pprev);
-		result.push_back(Pair("verses", sVerses));
+		if (bShowPrayers) result.push_back(Pair("verses", sVerses));
     	// Check work against BibleHash
 		bool f7000;
 		bool f8000;
@@ -1748,6 +1752,15 @@ UniValue exec(const UniValue& params, bool fHelp)
 		UniValue aContributionReport = ContributionReport();
 		return aContributionReport;
 	}
+	else if (sItem == "utxoreport")
+	{
+		std::string sError = "You must specify a CPID.";
+		if (params.size() != 2)
+			 throw runtime_error(sError);
+		std::string sCPID = params[1].get_str();
+		UniValue aUTXOReport = UTXOReport(sCPID);
+		return aUTXOReport;
+	}
 	else if (sItem == "reboot")
 	{
 		fReboot2=true;
@@ -2586,6 +2599,23 @@ UniValue exec(const UniValue& params, bool fHelp)
 		int iVersion = 	GetPODCVersion();
 		results.push_back(Pair("version", iVersion));
 	}
+	else if (sItem == "getblock")
+	{
+		if (params.size() != 2)
+			throw runtime_error("You must specify height.");
+		std::string sBlock = params[1].get_str();
+		int nHeight = (int)cdbl(sBlock,0);
+		if (nHeight < 0 || nHeight > chainActive.Tip()->nHeight)
+			throw runtime_error("Block number out of range.");
+		CBlockIndex* pblockindex = FindBlockByHeight(nHeight);
+		if (pblockindex==NULL)
+			throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
+		CBlock block;
+		const Consensus::Params& consensusParams = Params().GetConsensus();
+		ReadBlockFromDisk(block, pblockindex, consensusParams, "SHOWBLOCK");
+		bool bVerbose = false;
+		return blockToJSON(block, pblockindex, false, false, false);
+	}
 	else if (sItem == "datalist")
 	{
 		if (params.size() != 2 && params.size() != 3)
@@ -3079,9 +3109,6 @@ int MyRank(int nHeight)
 }
 
 
-
-
-
 UniValue ContributionReport()
 {
 
@@ -3459,7 +3486,7 @@ bool PODCUpdate(std::string& sError, bool bForce, std::string sDebugInfo)
 				// If so, the UTXO COINAMOUNT * AGE * RAC will be rewarded for this task.
 				double nMinimumChatterAge = GetSporkDouble("podcminimumchatterage", (60 * 60 * 4));
 				std::string sCurrentState = ReadCacheWithMaxAge("CPIDTasks", s1, nMinimumChatterAge);
-				double nMaximumChatterAge = GetSporkDouble("podmaximumchatterage", (60 * 60 * 24));
+				double nMaximumChatterAge = GetSporkDouble("podcmaximumchatterage", (60 * 60 * 24));
 				std::string sOldState = ReadCacheWithMaxAge("CPIDTasks", s1, nMaximumChatterAge);
 				bool bFresh = (sOldState == sOutstanding || sOutstanding == sCurrentState || (!sCurrentState.empty()));
 				if (bForce) bFresh = false;
@@ -3570,17 +3597,80 @@ std::string GetDCCPublicKey(const std::string& cpid, bool fRequireSig)
 
 double GetTaskWeight(std::string sCPID)
 {
-	double nMaximumChatterAge = GetSporkDouble("podmaximumchatterage", (60 * 60 * 24));
+	double nMaximumChatterAge = GetSporkDouble("podcmaximumchatterage", (60 * 60 * 24));
 	std::string sTaskList = ReadCacheWithMaxAge("CPIDTasks", sCPID, nMaximumChatterAge);
 	return (sTaskList.empty()) ? 0 : 100;
 }
 
 double GetUTXOWeight(std::string sCPID)
 {
-	double nMaximumChatterAge = GetSporkDouble("podmaximumchatterage", (60 * 60 * 24));
+	double nMaximumChatterAge = GetSporkDouble("podcmaximumchatterage", (60 * 60 * 24));
 	double dUTXOWeight = cdbl(ReadCacheWithMaxAge("UTXOWeight", sCPID, nMaximumChatterAge), 0);
 	return dUTXOWeight;
 }
+
+UniValue UTXOReport(std::string sCPID)
+{
+    UniValue Report(UniValue::VOBJ);
+	const Consensus::Params& consensusParams = Params().GetConsensus();
+	int iBlocks = 0;
+	int64_t nLastTimestamp = GetAdjustedTime();
+	double dAvgAmount = 0;
+	double dTotalAmount = 0;
+	double dInstances = 0;
+	double dAvgSpan = 0;
+	double dTotalSpan = 0;
+	int b = chainActive.Tip()->nHeight;
+	for (; b > 1; b--)
+	{
+		CBlockIndex* pindex = FindBlockByHeight(b);
+		CBlock block;
+		if (ReadBlockFromDisk(block, pindex, consensusParams, "MemorizeBlockChainPrayers")) 
+		{
+			iBlocks++;
+			if (iBlocks > (BLOCKS_PER_DAY*10)) break;
+			BOOST_FOREACH(const CTransaction &tx, block.vtx)
+			{
+				double dUTXOAmount = 0;
+				std::string sMsg = "";
+			
+				for (unsigned int i = 0; i < tx.vout.size(); i++)
+				{
+					sMsg += tx.vout[i].sTxOutMessage;
+					dUTXOAmount += tx.vout[i].nValue / COIN;
+				}
+				std::string sPODC = ExtractXML(sMsg, "<PODC_TASKS>", "</PODC_TASKS>");
+				if (!sPODC.empty())
+				{
+					std::string sErr2 = "";
+					std::string sMySig = ExtractXML(sMsg,"<cpidsig>","</cpidsig>");
+					bool fSigChecked = VerifyCPIDSignature(sMySig, true, sErr2);
+					std::string sDiskCPID = GetElement(sMySig, ";", 0);
+					if (fSigChecked && sDiskCPID == sCPID)
+					{
+						dTotalAmount += dUTXOAmount;
+						dInstances++;
+						std::string sTimestamp = TimestampToHRDate(block.GetBlockTime());
+						int64_t nTimestamp = block.GetBlockTime();
+						int64_t nSpan = nLastTimestamp - nTimestamp;
+						std::string sHash = tx.GetHash().GetHex();
+						std::string sEntry = RoundToString(b, 0) + " [" + sTimestamp + "]" + " (" + RoundToString(dUTXOAmount,0) + " BBP) [TXID=" + sHash + "] ";
+						double nSpanDays = nSpan / 86400.01;
+						dTotalSpan += nSpanDays;
+						Report.push_back(Pair(sEntry, RoundToString(nSpanDays, 2)));
+    					nLastTimestamp = nTimestamp;
+					}
+				}
+			}
+		}
+	}
+	dAvgSpan = dTotalSpan / (dInstances + .01);
+	dAvgAmount = dTotalAmount / (dInstances + .01);
+	Report.push_back(Pair("Average Span (Days)", dAvgSpan));
+	Report.push_back(Pair("Average UTXO Amount", dAvgAmount));
+	return Report;
+}
+
 
 
 
@@ -3621,7 +3711,7 @@ double GetUserMagnitude(double& nBudget, double& nTotalPaid, int& out_iLastSuper
 								if (Age > 0 && Age < (7*86400)) out_OneWeekPaid += dAmount;
 							}
 					  }
-					  if (nTotalBlock > nBudget-100) 
+					  if (nTotalBlock > (nBudget * .90)) 
 					  {
 						    if (out_iLastSuperblock == 0) out_iLastSuperblock = iLastSuperblock;
 						    out_Superblocks += RoundToString(b,0) + ",";
@@ -3946,74 +4036,24 @@ std::string GetBoincTasksByHost(int iHostID, std::string sProjectId)
 }
 
 
-
-
-
-bool FilterFile(int iBufferSize, int iNextSuperblock, std::string& sError)
+bool FilterPhase1(std::string sConcatCPIDs, std::string sSourcePath, std::string sTargetPath, std::vector<std::string> vCPIDs)
 {
-	std::vector<std::string> vCPIDs = GetListOfDCCS("", false);
-    std::string buffer;
-    std::string line;
-    std::string sTarget = GetSANDirectory2() + "user";
-	std::string sFiltered = GetSANDirectory2() + "filtered";
-	std::string sDailyMagnitudeFile = GetSANDirectory2() + "magnitude";
-
-    if (!boost::filesystem::exists(sTarget.c_str())) 
-	{
-        sError = "DCC input file does not exist.";
-        return false;
-    }
-
-	FILE *outFile = fopen(sFiltered.c_str(),"w");
-    std::string sBuffer = "";
-	int iBuffer = 0;
-	int64_t nMaxAge = (int64_t)GetSporkDouble("podmaximumchatterage", (60 * 60 * 24));
-	double dReqSPM = GetSporkDouble("requiredspm", 500);
-	double dReqSPR = GetSporkDouble("requiredspr", 0);
-
-	boost::filesystem::path pathIn(sTarget);
+	boost::filesystem::path pathIn(sSourcePath);
     std::ifstream streamIn;
     streamIn.open(pathIn.string().c_str());
 	if (!streamIn) return false;
-	std::string sConcatCPIDs = "";
-	std::string sUnbankedList = MutateToList(GetBoincUnbankedReport("pool"));
-	ClearSanctuaryMemories();
-	ClearCache("Unbanked");
-	LogPrintf(" Filtering file, unbanked contents %s \n", sUnbankedList.c_str());
+
+	FILE *outFile = fopen(sTargetPath.c_str(), "w");
+	std::string sBuffer = "";
+	int iBuffer = 0;
 	
-	for (int i = 0; i < (int)vCPIDs.size(); i++)
-	{
-		std::string sCPID1 = GetDCCElement(vCPIDs[i], 0, true);
-		double dRosettaID = cdbl(GetDCCElement(vCPIDs[i], 3, false), 0);
-		double dUnbankedIndicator = cdbl(GetDCCElement(vCPIDs[i], 5, false), 0);
-		if (dUnbankedIndicator==1) sCPID1 = GetDCCElement(vCPIDs[i], 0, false);
-		if (!sCPID1.empty())
-		{
-			sConcatCPIDs += sCPID1 + ",";
-			std::string sTaskList = ReadCacheWithMaxAge("CPIDTasks", sCPID1, nMaxAge);
-			double dVerifyTasks = VerifyTasks(sCPID1, sTaskList);
-			WriteCache("TaskWeight", sCPID1, RoundToString(dVerifyTasks, 0), GetAdjustedTime());
-			if (dRosettaID > 0 && IsInList(sUnbankedList, ",", RoundToString(dRosettaID,0)))
-			{
-				WriteCache("Unbanked", sCPID1, "1", GetAdjustedTime());
-			}
-			else
-			{
-				if (dUnbankedIndicator == 1)
-				{
-					WriteCache("Unbanked", sCPID1, "0", GetAdjustedTime());
-				}
-			}
-		}
-	}
-
-	boost::to_upper(sConcatCPIDs);
-	LogPrintf("CPID List concatenated %s ",sConcatCPIDs.c_str());
-
 	// Phase 1: Scan the Combined Researcher file for all Biblepay Researchers (who have associated BiblePay Keys with Research Projects)
 	// Filter the file down to BiblePay researchers:
 	int iLines = 0;
 	std::string sOutData = "";
+	std::string line;
+    int64_t nMaxAge = (int64_t)GetSporkDouble("podcmaximumchatterage", (60 * 60 * 24));
+	 
     while(std::getline(streamIn, line))
     {
 		  std::string sCpid = ExtractXML(line,"<cpid>","</cpid>");
@@ -4060,13 +4100,131 @@ bool FilterFile(int iBufferSize, int iNextSuperblock, std::string& sError)
 	fputs(sOutData.c_str(), outFile);
 	streamIn.close();
     fclose(outFile);
+	return true;
+}
+
+
+double GetExtraRacFromBackupProject(std::string sFileName, std::string sResearcherCPID, double dDRMode, double dReqSPM, double dReqSPR, double dTeamRequired,
+	double dProjectFactor)
+{
+	boost::filesystem::path pathFiltered(sFileName);
+	std::ifstream streamFiltered;
+    streamFiltered.open(pathFiltered.string().c_str());
+	if (!streamFiltered) return 0;
+	std::string sUser = "";
+	int64_t nMaxAge = (int64_t)GetSporkDouble("podcmaximumchatterage", (60 * 60 * 24));
+	double dUTXOWeight = cdbl(ReadCacheWithMaxAge("UTXOWeight", sResearcherCPID, nMaxAge), 0);
+	double dTaskWeight = cdbl(ReadCacheWithMaxAge("TaskWeight", sResearcherCPID, nMaxAge), 0);
+	double dUnbanked = cdbl(ReadCacheWithMaxAge("Unbanked", sResearcherCPID, nMaxAge), 0);
+	double dTotalRAC = 0;
+	double dTotalFound = 0;
+	std::string line = "";
+    while(std::getline(streamFiltered, line))
+    {
+		sUser += line;
+		if (Contains(line, "</user>"))
+		{
+			std::string sCPID = ExtractXML(sUser, "<cpid>", "</cpid>");
+			if (sCPID == sResearcherCPID)
+			{
+				double dAvgCredit = cdbl(ExtractXML(sUser, "<expavg_credit>", "</expavg_credit>"), 4);
+				double dTeam = cdbl(ExtractXML(sUser, "<teamid>", "</teamid>"), 0);
+				// std::string sBackupProjectUserID = ExtractXML(sUser, "<id>", "</id>");
+				double dModifiedCredit = GetResearcherCredit(dDRMode, dAvgCredit, dUTXOWeight, dTaskWeight, dUnbanked, dTotalRAC, dReqSPM, dReqSPR) * dProjectFactor;
+				if (fDebugMaster) LogPrintf(" CPID %s, ExtraRAC %f, Team %f, TeamReq %f  ", sCPID.c_str(), dModifiedCredit, dTeam, dTeamRequired);
+				bool bTeamMatch = (dTeamRequired > 0) ? (dTeam == dTeamRequired) : true;
+				if (bTeamMatch)
+				{
+					dTotalFound += dModifiedCredit;
+				}
+			}
+			sUser = "";
+		}
+    }
+	streamFiltered.close();
+	return dTotalFound;
+}
+
+bool FilterFile(int iBufferSize, int iNextSuperblock, std::string& sError)
+{
+	std::vector<std::string> vCPIDs = GetListOfDCCS("", false);
+    std::string buffer;
+    std::string line;
+    std::string sTarget = GetSANDirectory2() + "user1";
+	std::string sFiltered = GetSANDirectory2() + "filtered1";
+	std::string sDailyMagnitudeFile = GetSANDirectory2() + "magnitude";
+
+    if (!boost::filesystem::exists(sTarget.c_str())) 
+	{
+        sError = "DCC input file does not exist.";
+        return false;
+    }
+
+    int64_t nMaxAge = (int64_t)GetSporkDouble("podcmaximumchatterage", (60 * 60 * 24));
+	double dReqSPM = GetSporkDouble("requiredspm", 500);
+	double dReqSPR = GetSporkDouble("requiredspr", 0);
+
+	std::string sConcatCPIDs = "";
+	std::string sUnbankedList = MutateToList(GetBoincUnbankedReport("pool"));
+	ClearSanctuaryMemories();
+	ClearCache("Unbanked");
+
+	for (int i = 0; i < (int)vCPIDs.size(); i++)
+	{
+		std::string sCPID1 = GetDCCElement(vCPIDs[i], 0, true);
+		double dRosettaID = cdbl(GetDCCElement(vCPIDs[i], 3, false), 0);
+		double dUnbankedIndicator = cdbl(GetDCCElement(vCPIDs[i], 5, false), 0);
+		if (dUnbankedIndicator==1) sCPID1 = GetDCCElement(vCPIDs[i], 0, false);
+		if (!sCPID1.empty())
+		{
+			if (!sCPID1.empty()) sConcatCPIDs += sCPID1 + ",";
+			std::string sTaskList = ReadCacheWithMaxAge("CPIDTasks", sCPID1, nMaxAge);
+			double dVerifyTasks = VerifyTasks(sCPID1, sTaskList);
+			WriteCache("TaskWeight", sCPID1, RoundToString(dVerifyTasks, 0), GetAdjustedTime());
+			if (dRosettaID > 0 && IsInList(sUnbankedList, ",", RoundToString(dRosettaID,0)))
+			{
+				WriteCache("Unbanked", sCPID1, "1", GetAdjustedTime());
+			}
+			else
+			{
+				if (dUnbankedIndicator == 1)
+				{
+					WriteCache("Unbanked", sCPID1, "0", GetAdjustedTime());
+				}
+			}
+		}
+	}
+	boost::to_upper(sConcatCPIDs);
+	LogPrintf("CPID List concatenated %s, unbanked %s  ",sConcatCPIDs.c_str(), sUnbankedList.c_str());
+	// Filter each BOINC Project file down to the individual BiblePay records
+
+	bool bResult = FilterPhase1(sConcatCPIDs, sTarget, sFiltered, vCPIDs);
+	if (!bResult)
+	{
+		LogPrintf(" \n FilterFile::FilterPhase 1 failed. \n");
+		return false;
+	}
+
+	std::string sTarget2 = GetSANDirectory2() + "user2";
+	std::string sFiltered2 = GetSANDirectory2() + "filtered2";
+	
+    if (boost::filesystem::exists(sTarget2.c_str())) 
+	{
+		FilterPhase1(sConcatCPIDs, sTarget2, sFiltered2, vCPIDs);
+    }
+
 	//  Phase II : Normalize the file for Biblepay (this process asseses the magnitude of each BiblePay Researcher relative to one another, with 100 being the leader, 0 being a researcher with no activity)
 	//  We measure users by RAC - the BOINC Decay function: expavg_credit.  This is the half-life of the users cobblestone emission over a one month period.
-
-	double dTotalRAC = GetSumOfXMLColumnFromXMLFile(sFiltered, "<user>", "expavg_credit", dReqSPM, dReqSPR);
+	double dTeamRequired = cdbl(GetSporkValue("team"), 0);
+	double dTeamBackupProject = cdbl(GetSporkValue("team2"), 0);
+	
+	double dRAC1 = GetSumOfXMLColumnFromXMLFile(sFiltered, "<user>", "expavg_credit", dReqSPM, dReqSPR, dTeamRequired);
+	double dRAC2 = GetSumOfXMLColumnFromXMLFile(sFiltered2,"<user>", "expavg_credit", dReqSPM, dReqSPR, dTeamBackupProject);
+	double dTotalRAC = dRAC1 + dRAC2;
+	LogPrintf(" \n Proj1 RAC %f, Proj2 RAC %f, Total RAC %f \n", dRAC1, dRAC2, dTotalRAC);
 	if (dTotalRAC < 10)
 	{
-		sError = "Total DCC credit less than the project minimum.  Unable to calculate magnitudes.";
+		sError = "Total DC credit less than the project minimum.  Unable to calculate magnitudes.";
 		return false;
 	}
 
@@ -4085,8 +4243,10 @@ bool FilterFile(int iBufferSize, int iNextSuperblock, std::string& sError)
 
 	std::string sUser = "";
 	std::string sDCC = "";
-	double dTeamRequired = cdbl(GetSporkValue("team"), 0);
+	double dBackupProjectFactor = cdbl(GetSporkValue("project2factor"), 0);
 	double dDRMode = cdbl(GetSporkValue("dr"), 0);
+	double dTotalMagnitude = 0;
+	int iRows = 0;
 
     while(std::getline(streamFiltered, line))
     {
@@ -4100,21 +4260,31 @@ bool FilterFile(int iBufferSize, int iNextSuperblock, std::string& sError)
 			double dUTXOWeight = cdbl(ReadCacheWithMaxAge("UTXOWeight", sCPID, nMaxAge), 0);
 			double dTaskWeight = cdbl(ReadCacheWithMaxAge("TaskWeight", sCPID, nMaxAge), 0);
 			double dUnbanked = cdbl(ReadCacheWithMaxAge("Unbanked", sCPID, nMaxAge), 0);
-			double dModifiedCredit = GetResearcherCredit(dDRMode, dAvgCredit, dUTXOWeight, dTaskWeight, dUnbanked, dTotalRAC, dReqSPM, dReqSPR);
+			double dRAC1 = GetResearcherCredit(dDRMode, dAvgCredit, dUTXOWeight, dTaskWeight, dUnbanked, dTotalRAC, dReqSPM, dReqSPR);
 			bool bTeamMatch = (dTeamRequired > 0) ? (dTeam == dTeamRequired) : true;
+
+			// If backup project enabled, add additional credit
+			double dExtraRAC = 0;
+			if (dTeamBackupProject > 0)
+			{
+				dExtraRAC = GetExtraRacFromBackupProject(sFiltered2, sCPID, dDRMode, dReqSPM, dReqSPR, dTeamBackupProject, dBackupProjectFactor);
+			}
+			double dModifiedCredit = dRAC1 + dExtraRAC;
 			if (bTeamMatch)
 			{
 				bool fRequireSig = dUnbanked == 1 ? false : true;
 				std::string BPK = GetDCCPublicKey(sCPID, fRequireSig);
-				double dMagnitude = (dModifiedCredit / dTotalRAC) * 1000;
+				double dMagnitude = (dModifiedCredit / dTotalRAC) * 999;
 				double dUTXO = GetUTXOLevel(dUTXOWeight, dTotalRAC, dAvgCredit, dReqSPM, dReqSPR);
 				std::string sRow = BPK + "," + sCPID + "," + RoundToString(dMagnitude, 3) + "," + sRosettaID + "," + RoundToString(dTeam, 0) 
 					+ "," + RoundToString(dUTXOWeight, 0) + "," + RoundToString(dTaskWeight, 0) 
 					+ "," + RoundToString(dTotalRAC, 0) + "," 
 					+ RoundToString(dUnbanked, 0) + "," + RoundToString(dUTXO, 2) + "," + RoundToString(dAvgCredit,0) + "," 
-					+ RoundToString(dModifiedCredit, 0) + "," + RoundToString(iNextSuperblock, 0)
-					+ "\n<ROW>";
+					+ RoundToString(dModifiedCredit, 0) + "," + RoundToString(iNextSuperblock, 0) + ","
+					+ RoundToString(dExtraRAC, 0) + "\n<ROW>";
 				sDCC += sRow;
+				dTotalMagnitude += dMagnitude;
+				iRows++;
 			}
 			sUser = "";
 		}
@@ -4129,11 +4299,9 @@ bool FilterFile(int iBufferSize, int iNextSuperblock, std::string& sError)
 	// Persist the contract in memory for verification
     WriteCache("dcc", "contract", sDCC, GetAdjustedTime());
 	WriteCache("dcc", "contract_hash", uhash.GetHex(), GetAdjustedTime());
-
+	LogPrintf("\n Created Contract with %f rows, Total Magnitude %f \n", (double)iRows, dTotalMagnitude);
     return true;
 }
-
-
 
 
 
@@ -4194,7 +4362,7 @@ int GetLastDCSuperblockWithPayment(int nChainHeight)
 						double dAmount = block.vtx[0].vout[i].nValue/COIN;
 						nTotalBlock += dAmount;
 				  }
-   				  if (nTotalBlock > nBudget-100) return b;
+   				  if (nTotalBlock > (nBudget * .90)) return b;
 			}
 		}
 	}
@@ -4265,7 +4433,7 @@ double GetPaymentByCPID(std::string CPID)
 	}
 	if (nBudget == 0 || nTotalBlock == 0) return -1;
 	if (nBudget < 21000 || nTotalBlock < 21000) return -1; 
-	bool bSuperblockHit = (nTotalBlock > nBudget-100);
+	bool bSuperblockHit = (nTotalBlock > (nBudget * .90));
 	if (!bSuperblockHit) return -1;
 	return nTotalPaid;
 }
@@ -4907,7 +5075,7 @@ double VerifyTasks(std::string sCPID, std::string sTasks)
 	if (dCounted < 1) return 0;
 	double dSource = (dVerified / dCounted) * 60000;
 	double dSnapped = GetCPIDUTXOWeight(dSource);
-	if (fDebugMaster) LogPrintf("\n VerifyTasks::Tasks %f  Verified %f   Source %f  Snapped %f  ", dCounted, dVerified, dSource, dSnapped);
+	if (fDebugMaster) LogPrint("podc", "\n VerifyTasks::Tasks %f  Verified %f   Source %f  Snapped %f  ", dCounted, dVerified, dSource, dSnapped);
 	return dSnapped;
 }
 
@@ -4971,7 +5139,7 @@ std::vector<std::string> GetListOfDCCS(std::string sSearch, bool fRequireSig)
 }
 
 
-double GetSumOfXMLColumnFromXMLFile(std::string sFileName, std::string sObjectName, std::string sElementName, double dReqSPM, double dReqSPR)
+double GetSumOfXMLColumnFromXMLFile(std::string sFileName, std::string sObjectName, std::string sElementName, double dReqSPM, double dReqSPR, double dTeamRequired)
 {
 	boost::filesystem::path pathIn(sFileName);
     std::ifstream streamIn;
@@ -4980,7 +5148,6 @@ double GetSumOfXMLColumnFromXMLFile(std::string sFileName, std::string sObjectNa
 	double dTotal = 0;
 	std::string sLine = "";
 	std::string sBuffer = "";
-	double dTeamRequired = cdbl(GetSporkValue("team"), 0);
 	double dDRMode = cdbl(GetSporkValue("dr"), 0);
     while(std::getline(streamIn, sLine))
     {
@@ -5002,7 +5169,7 @@ double GetSumOfXMLColumnFromXMLFile(std::string sFileName, std::string sObjectNa
 			double dAvgCredit = cdbl(sValue,2);
 			double dModifiedCredit = GetResearcherCredit(dDRMode, dAvgCredit, dUTXOWeight, dTaskWeight, dUnbanked, 0, dReqSPM, dReqSPR);
 			dTotal += dModifiedCredit;
-			LogPrintf(" Adding %f from RAC of %f Grand Total %f \n", dModifiedCredit, dAvgCredit, dTotal);
+			// LogPrintf(" Adding %f from RAC of %f Grand Total %f \n", dModifiedCredit, dAvgCredit, dTotal);
 		}
     }
 	return dTotal;

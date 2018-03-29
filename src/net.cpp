@@ -2981,29 +2981,18 @@ std::string BiblepayHttpPost(bool bPost, int iThreadID, std::string sActionName,
 	{
 		return "GENERAL_WEB_EXCEPTION";
 	}
-
 }
 
-bool DownloadDistributedComputingFile(int iNextSuperblock, std::string& sError)
+bool DownloadIndividualDistributedComputingFile(int iNextSuperblock, std::string sBaseURL, std::string sPage, std::string sUserFile, std::string& sError)
 {
 	// First delete:
-	if (!fDistributedComputingEnabled) return true;
-	if (fDistributedComputingCycleDownloading) return false;
-	TouchDailyMagnitudeFile();
-	std::string sPath2 = GetSANDirectory2() + "user.gz";
-	std::string sTarget2 = GetSANDirectory2() + "user";
+	std::string sPath2 = GetSANDirectory2() + sUserFile + ".gz";
+	std::string sTarget2 = GetSANDirectory2() + sUserFile;
 	boost::filesystem::remove(sTarget2);
     boost::filesystem::remove(sPath2);
 	int iMaxSize = 900000000;
     int iTimeoutSecs = 60 * 7;
-	fDistributedComputingCycleDownloading = true;
-	std::string sProjectId = "project1"; // Cancer Research
-	std::string sSrc = GetSporkValue(sProjectId);
-	std::string sBaseURL = "https://" + sSrc;
-	std::string sPage = "/rosetta/stats/user.gz"; // ToDo - Make this a class, add Rosetta as a Spork
-	std::string sFullURL = sBaseURL + sPage;
-	std::string sPath = NameFromURL2(sFullURL);
-	LogPrintf("Downloading DC File NAME %s FROM URL %s ",sPath.c_str(), sFullURL.c_str());
+	LogPrintf("Downloading DC File NAME %s FROM URL %s ",sPath2.c_str(), sBaseURL.c_str());
 	int iIterations = 0;
 	try
 	{
@@ -3062,7 +3051,7 @@ bool DownloadDistributedComputingFile(int iNextSuperblock, std::string& sError)
 			char bigbuf[4096];
 			clock_t begin = clock();
 			std::string sData = "";
-			FILE *outUserFile = fopen(sPath.c_str(),"wb");
+			FILE *outUserFile = fopen(sPath2.c_str(), "wb");
 			for(;;)
 			{
 				iSize = BIO_read(bio, bigbuf, 4096);
@@ -3111,7 +3100,6 @@ bool DownloadDistributedComputingFile(int iNextSuperblock, std::string& sError)
 			}
 			// R ANDREW - JAN 4 2018: Free bio resources
 			BIO_free_all(bio);
-			LogPrintf(" download ready to write \n");
 		 	fclose(outUserFile);
 	}
 	catch (std::exception &e)
@@ -3125,14 +3113,33 @@ bool DownloadDistributedComputingFile(int iNextSuperblock, std::string& sError)
 		return false;
 	}
 
-	// Execute Phase 3 of the DC Cycle:
-	std::string sCommand = "gunzip " + sPath;
+	std::string sCommand = "gunzip " + sPath2;
     std::string result = SystemCommand2(sCommand.c_str());
+	return true;
+}
+
+bool DownloadDistributedComputingFile(int iNextSuperblock, std::string& sError)
+{
+	if (!fDistributedComputingEnabled) return true;
+	if (fDistributedComputingCycleDownloading) return false;
+	TouchDailyMagnitudeFile();
+	fDistributedComputingCycleDownloading = true;
+	// Project #1 - Currently Rosetta 
+	std::string sProjectId = "project1"; // Cancer Research
+	std::string sSrc = GetSporkValue(sProjectId);
+	std::string sBaseURL = "https://" + sSrc;
+	std::string sPage = "/rosetta/stats/user.gz";
+	// Project #2 - Currently WCG
+	std::string sProjectId2 = "project2"; // WCG
+	std::string sSrc2 = GetSporkValue(sProjectId2);
+	std::string sBaseURL2 = "https://" + sSrc2;
+	std::string sPage2 = "/boinc/stats/user.gz";
+	DownloadIndividualDistributedComputingFile(iNextSuperblock, sBaseURL, sPage, "user1", sError);
+	DownloadIndividualDistributedComputingFile(iNextSuperblock, sBaseURL2, sPage2, "user2", sError);
 	FilterFile(50, iNextSuperblock, sError);
 	fDistributedComputingCycleDownloading = false;
 	return true;
 }
-
 
 std::string BiblepayHTTPSPost(bool bPost, int iThreadID, std::string sActionName, std::string sDistinctUser, std::string sPayload, std::string sBaseURL, 
 	std::string sPage, int iPort, std::string sSolution, int iTimeoutSecs, int iMaxSize, int iBreakOnError)

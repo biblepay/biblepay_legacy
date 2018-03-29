@@ -7605,7 +7605,7 @@ void MemorizePrayer(std::string sMessage, int64_t nTime, double dAmount, int iPo
 	std::string sPODC = ExtractXML(sMessage, "<PODC_TASKS>", "</PODC_TASKS>");
 	if (!sPODC.empty())
 	{
-		double nMaximumChatterAge = GetSporkDouble("podmaximumchatterage", (60 * 60 * 24));
+		double nMaximumChatterAge = GetSporkDouble("podcmaximumchatterage", (60 * 60 * 24));
 		if (nAge < nMaximumChatterAge)
 		{
 			std::string sErr2 = "";

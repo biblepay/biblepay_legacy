@@ -157,7 +157,10 @@ std::string FilterBoincData(std::string sData, std::string sRootElement, std::st
 			sOut += sExtra + "\r\n" + sEndElement + "\r\n";
 			return sOut;
 		}
-		sOut += sLine + "\r\n";
+		if (!Contains(sLine, sEndElement))
+		{
+			sOut += sLine + "\r\n";
+		}
 	}
 	return "";
 }
