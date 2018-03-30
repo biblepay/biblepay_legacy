@@ -57,19 +57,13 @@ extern UniValue GetLeaderboard(int nHeight);
 extern double MyPercentile(int nHeight);
 extern double GetSporkDouble(std::string sName, double nDefault);
 extern std::string AssociateDCAccount(std::string sProjectId, std::string sBoincEmail, std::string sBoincPassword, std::string sUnbankedPublicKey, bool fForce);
-
+extern double AscertainResearcherTotalRAC();
 extern std::vector<std::string> GetListOfDCCS(std::string sSearch, bool fRequireSig);
 extern bool VerifyCPIDSignature(std::string sFullSig, bool bRequireEndToEndVerification, std::string& sError);
-
 extern double GetSumOfXMLColumnFromXMLFile(std::string sFileName, std::string sObjectName, std::string sElementName, double dReqSPM, double dReqSPR, double dTeamRequired);
-
 extern uint256 GetDCCHash(std::string sContract);
 extern UniValue UTXOReport(std::string sCPID);
-
 extern uint256 GetDCCFileHash();
-
-
-
 std::string SignMessage(std::string sMsg, std::string sPrivateKey);
 extern double CAmountToRetirementDouble(CAmount Amount);
 void GetMiningParams(int nPrevHeight, bool& f7000, bool& f8000, bool& f9000, bool& fTitheBlocksActive);
@@ -84,6 +78,7 @@ extern double GetStakeWeight(CTransaction tx, int64_t nTipTime, std::string sXML
 UniValue ContributionReport();
 extern std::string TimestampToHRDate(double dtm);
 void GetBookStartEnd(std::string sBook, int& iStart, int& iEnd);
+extern double GetMinimumRequiredUTXOStake(double dRAC);
 
 /* Cache */
 std::string ReadCache(std::string sSection, std::string sKey);
@@ -2616,6 +2611,13 @@ UniValue exec(const UniValue& params, bool fHelp)
 		bool bVerbose = false;
 		return blockToJSON(block, pblockindex, false, false, false);
 	}
+	else if (sItem == "totalrac")
+	{
+		double dRAC = AscertainResearcherTotalRAC();
+		double dStake = GetMinimumRequiredUTXOStake(dRAC);
+		results.push_back(Pair("Total RAC", dRAC));
+		results.push_back(Pair("UTXO Target", dStake));
+	}
 	else if (sItem == "datalist")
 	{
 		if (params.size() != 2 && params.size() != 3)
@@ -3417,6 +3419,51 @@ bool AdvertiseDistributedComputingKey(std::string sProjectId, std::string sAuth,
 	}
 }
 
+double GetMinimumRequiredUTXOStake(double dRAC)
+{
+	double dReqSPM = GetSporkDouble("requiredspm", 500);
+	double dReqSPR = GetSporkDouble("requiredspr", 0);
+	double dRequirement = 0;
+	double dEstimatedMagnitude = dRAC / 5000; // This is a rough estimate only lasting until April 1, 2018 pending outcome of SPR vote
+	if (dReqSPM > 0) 
+	{
+		dRequirement = dEstimatedMagnitude * dReqSPM * 1.1;
+	}
+	else if (dReqSPR > 0)
+	{
+		// If using Stake-Per-RAC, then 
+		dRequirement = dRAC * dReqSPR * 1.1;
+	}
+	if (dRequirement < 10) dRequirement = 10;
+	return dRequirement;
+}
+
+double AscertainResearcherTotalRAC()
+{
+		std::string out_address = "";
+		std::string sAddress = "";
+		double nMagnitude2 = 0;
+		std::string sCPID = FindResearcherCPIDByAddress(sAddress, out_address, nMagnitude2);
+		std::vector<std::string> vCPIDS = Split(msGlobalCPID.c_str(),";");
+		double nTotalRAC = 0;
+		int64_t iMaxSeconds = 60 * 24 * 30 * 12 * 60;
+		for (int i = 0; i < (int)vCPIDS.size(); i++)
+		{
+			std::string s1 = vCPIDS[i];
+			if (!s1.empty())
+			{
+				std::string sData = RetrieveDCCWithMaxAge(s1, iMaxSeconds);
+				int nUserId = cdbl(GetDCCElement(sData, 3, true), 0);
+				std::string sAddress = GetDCCElement(sData, 1, true);
+				if (nUserId > 0)
+				{
+					double RAC = GetBoincRACByUserId("project1", nUserId);
+					nTotalRAC += RAC;
+				}
+			}
+		}
+		return nTotalRAC;
+}
 
 
 bool PODCUpdate(std::string& sError, bool bForce, std::string sDebugInfo)
@@ -3428,6 +3475,14 @@ bool PODCUpdate(std::string& sError, bool bForce, std::string sDebugInfo)
 	{
 		sError = "Unable to find any CPIDS.  Please try exec getboincinfo.";
 		return false;
+	}
+	double dDRMode = cdbl(GetSporkValue("dr"), 0);
+	bool bForceUTXO = false;
+	if (dDRMode > 1)
+	{
+		// In this mode the sanctuaries are not checking tasks, so forcefully send a UTXO Update (to allow backup project to function)
+		sDebugInfo = "00000=00000";
+		bForceUTXO = true;
 	}
 	int64_t iMaxSeconds = 60 * 24 * 30 * 12 * 60;
 	int iInserted = 0;
@@ -3485,6 +3540,7 @@ bool PODCUpdate(std::string& sError, bool bForce, std::string sDebugInfo)
 				// Create PODC UTXO Transaction - R Andrews - 02-20-2018 - These tasks will be checked on the Sanctuary side, to ensure they were started at this time.  
 				// If so, the UTXO COINAMOUNT * AGE * RAC will be rewarded for this task.
 				double nMinimumChatterAge = GetSporkDouble("podcminimumchatterage", (60 * 60 * 4));
+				if (bForceUTXO) LogPrintf("Forcefully creating UTXO transmission %s %f", sDebugInfo.c_str(), (double)nMinimumChatterAge);
 				std::string sCurrentState = ReadCacheWithMaxAge("CPIDTasks", s1, nMinimumChatterAge);
 				double nMaximumChatterAge = GetSporkDouble("podcmaximumchatterage", (60 * 60 * 24));
 				std::string sOldState = ReadCacheWithMaxAge("CPIDTasks", s1, nMaximumChatterAge);
@@ -3492,7 +3548,12 @@ bool PODCUpdate(std::string& sError, bool bForce, std::string sDebugInfo)
 				if (bForce) bFresh = false;
 				if (!bFresh)
 				{
-					double dUTXOAmount = cdbl(GetArg("-utxoamount", "50001"), 2);
+					double dRAC = AscertainResearcherTotalRAC();
+					double dUTXOOverride = cdbl(GetArg("-utxooverride", "0"), 2);
+					double dUTXOAmount = GetMinimumRequiredUTXOStake(dRAC);
+					if (dUTXOOverride > 0) dUTXOAmount = dUTXOOverride;
+					LogPrintf(" PODCUpdate::Creating UTXO, Users RAC %f for %f ",dRAC, (double)dUTXOAmount);
+
 					CAmount curBalance = pwalletMain->GetUnlockedBalance(); // 3-5-2018, R Andrews
 					
 					CAmount nTargetValue = dUTXOAmount * COIN;
