@@ -573,8 +573,12 @@ UniValue decoderawtransaction(const UniValue& params, bool fHelp)
     RPCTypeCheck(params, boost::assign::list_of(UniValue::VSTR));
 
     CTransaction tx;
+	
+	double dEnableLegacySendRawTransaction = cdbl(GetArg("-enablelegacysendrawtransaction", "0"), 0);
+    std::string sHex = params[0].get_str();
+	if (dEnableLegacySendRawTransaction == 1) sHex += "00";
 
-    if (!DecodeHexTx(tx, params[0].get_str()))
+    if (!DecodeHexTx(tx, sHex))
         throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "TX decode failed");
 
     UniValue result(UniValue::VOBJ);
@@ -929,9 +933,13 @@ UniValue sendrawtransaction(const UniValue& params, bool fHelp)
 	std::string sSendDisabled = GetArg("-sendrawtransaction_disabled", "");
 	if (sSendDisabled=="true") throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "Sending raw transaction disabled.");
     
+	double dEnableLegacySendRawTransaction = cdbl(GetArg("-enablelegacysendrawtransaction", "0"), 0);
+					
     // parse hex string from parameter
     CTransaction tx;
-    if (!DecodeHexTx(tx, params[0].get_str()))
+	std::string sHex = params[0].get_str();
+	if (dEnableLegacySendRawTransaction == 1) sHex += "00";
+    if (!DecodeHexTx(tx, sHex))
         throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "TX decode failed");
     uint256 hashTx = tx.GetHash();
 
