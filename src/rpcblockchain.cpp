@@ -110,21 +110,15 @@ extern std::string GetGithubVersion();
 extern double GetBoincRACByUserId(std::string sProjectId, int nUserId);
 extern double GetBoincTeamByUserId(std::string sProjectId, int nUserId);
 extern std::string GetDCCElement(std::string sData, int iElement, bool fCheckSignature);
-
+extern double GetWCGRACByCPID(std::string sCPID);
 extern std::string SerializeSanctuaryQuorumTrigger(int nEventBlockHeight, std::string sContract);
 extern double VerifyTasks(std::string sCPID, std::string sTasks);
 
 
-
-
 extern std::string GetSporkValue(std::string sKey);
-
 extern int64_t RetrieveCPIDAssociationTime(std::string cpid);
-
 extern bool CheckStakeSignature(std::string sBitcoinAddress, std::string sSignature, std::string strMessage, std::string& strError);
-
 extern int VerifySanctuarySignatures(std::string sSignatureData);
-
 extern int GetRequiredQuorumLevel(int nHeight);
 
 std::string GetVersionAlert();
@@ -2480,7 +2474,6 @@ UniValue exec(const UniValue& params, bool fHelp)
 				if (nUserId > 0)
 				{
 					double RAC = GetBoincRACByUserId("project1", nUserId);
-					nTotalRAC += RAC;
 					results.push_back(Pair(s1 + "_ADDRESS", sAddress));
 					results.push_back(Pair(s1 + "_RAC", RAC));
 					double dTeam = GetBoincTeamByUserId("project1", nUserId);
@@ -2492,6 +2485,10 @@ UniValue exec(const UniValue& params, bool fHelp)
 							results.push_back(Pair("Warning", "CPID " + s1 + " not in team Biblepay.  This CPID is not receiving rewards for cancer research."));
 						}
 					}
+					// Gather the WCG RAC
+					double dWCGRAC = GetWCGRACByCPID(s1);
+					results.push_back(Pair(s1 + "_WCGRAC", dWCGRAC));
+					nTotalRAC += RAC + dWCGRAC;
 					// Show the User the estimated Task Weight, and estimated UTXOWeight
 					double dTaskWeight = GetTaskWeight(s1);
 					double dUTXOWeight = GetUTXOWeight(s1);
@@ -2610,6 +2607,14 @@ UniValue exec(const UniValue& params, bool fHelp)
 		ReadBlockFromDisk(block, pblockindex, consensusParams, "SHOWBLOCK");
 		bool bVerbose = false;
 		return blockToJSON(block, pblockindex, false, false, false);
+	}
+	else if (sItem == "wcgrac")
+	{
+		if (params.size() != 2)
+			throw runtime_error("You must specify the cpid.");
+		std::string sCPID = params[1].get_str();
+		double dWCGRAC = GetWCGRACByCPID(sCPID);
+		results.push_back(Pair("WCGRAC", dWCGRAC));
 	}
 	else if (sItem == "totalrac")
 	{
@@ -3440,29 +3445,30 @@ double GetMinimumRequiredUTXOStake(double dRAC)
 
 double AscertainResearcherTotalRAC()
 {
-		std::string out_address = "";
-		std::string sAddress = "";
-		double nMagnitude2 = 0;
-		std::string sCPID = FindResearcherCPIDByAddress(sAddress, out_address, nMagnitude2);
-		std::vector<std::string> vCPIDS = Split(msGlobalCPID.c_str(),";");
-		double nTotalRAC = 0;
-		int64_t iMaxSeconds = 60 * 24 * 30 * 12 * 60;
-		for (int i = 0; i < (int)vCPIDS.size(); i++)
+	std::string out_address = "";
+	std::string sAddress = "";
+	double nMagnitude2 = 0;
+	std::string sCPID = FindResearcherCPIDByAddress(sAddress, out_address, nMagnitude2);
+	std::vector<std::string> vCPIDS = Split(msGlobalCPID.c_str(),";");
+	double nTotalRAC = 0;
+	int64_t iMaxSeconds = 60 * 24 * 30 * 12 * 60;
+	for (int i = 0; i < (int)vCPIDS.size(); i++)
+	{
+		std::string s1 = vCPIDS[i];
+		if (!s1.empty())
 		{
-			std::string s1 = vCPIDS[i];
-			if (!s1.empty())
+			std::string sData = RetrieveDCCWithMaxAge(s1, iMaxSeconds);
+			int nUserId = cdbl(GetDCCElement(sData, 3, true), 0);
+			std::string sAddress = GetDCCElement(sData, 1, true);
+			if (nUserId > 0)
 			{
-				std::string sData = RetrieveDCCWithMaxAge(s1, iMaxSeconds);
-				int nUserId = cdbl(GetDCCElement(sData, 3, true), 0);
-				std::string sAddress = GetDCCElement(sData, 1, true);
-				if (nUserId > 0)
-				{
-					double RAC = GetBoincRACByUserId("project1", nUserId);
-					nTotalRAC += RAC;
-				}
+				double RAC = GetBoincRACByUserId("project1", nUserId);
+				double dWCGRAC = GetWCGRACByCPID(s1);
+				nTotalRAC += RAC + dWCGRAC;
 			}
 		}
-		return nTotalRAC;
+	}
+	return nTotalRAC;
 }
 
 
@@ -3557,6 +3563,11 @@ bool PODCUpdate(std::string& sError, bool bForce, std::string sDebugInfo)
 					CAmount curBalance = pwalletMain->GetUnlockedBalance(); // 3-5-2018, R Andrews
 					
 					CAmount nTargetValue = dUTXOAmount * COIN;
+					if (nTargetValue > curBalance && curBalance > (1*COIN))
+					{
+						LogPrintf(" \n PODCUpdate::Creating UTXO, Stake balance %f less than required amount %f, changing Target to stake balance. \n",(double)curBalance/COIN, (double)nTargetValue/COIN);
+						nTargetValue = curBalance;
+					}
 					if (nTargetValue < 1)
 					{
 						sError = "Unable to create PODC UTXO::Target UTXO too low.";
@@ -5069,6 +5080,15 @@ double GetBoincRACByUserId(std::string sProjectId, int nUserId)
 	std::string sRestfulURL = "show_user.php?userid=" + RoundToString(nUserId,0) + "&format=xml";
 	std::string sResponse = BiblepayHTTPSPost(true, 0, "", "", "", sProjectURL, sRestfulURL, 443, "", 20, 5000, 1);
 	double dRac = cdbl(ExtractXML(sResponse,"<expavg_credit>", "</expavg_credit>"), 2);
+	return dRac;
+}
+
+double GetWCGRACByCPID(std::string sCPID)
+{
+	std::string sProjectURL = "http://" + GetSporkValue("pool");
+	std::string sRestfulURL = "Action.aspx?action=wcgrac&cpid=" + sCPID + "&format=xml";
+	std::string sResponse = BiblepayHTTPSPost(true, 0, "", "", "", sProjectURL, sRestfulURL, 443, "", 20, 5000, 1);
+	double dRac = cdbl(ExtractXML(sResponse,"<WCGRAC>", "</WCGRAC>"), 2);
 	return dRac;
 }
 
