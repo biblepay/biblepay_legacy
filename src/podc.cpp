@@ -451,7 +451,7 @@ double cdbl(std::string s, int place)
 	for (int i = 0; i < (int)s.length(); i++)
 	{
 		std::string u = s.substr(i,1);
-		if (u=="0" || u=="1" || u=="2" || u=="3" || u=="4" || u=="5" || u=="6" || u == "7" || u=="8" || u=="9" || u==".") 
+		if (u=="0" || u=="1" || u=="2" || u=="3" || u=="4" || u=="5" || u=="6" || u == "7" || u=="8" || u=="9" || u=="." || u=="-") 
 		{
 			t += u;
 		}

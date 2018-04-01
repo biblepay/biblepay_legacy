@@ -3430,6 +3430,7 @@ double GetMinimumRequiredUTXOStake(double dRAC)
 	double dReqSPR = GetSporkDouble("requiredspr", 0);
 	double dRequirement = 0;
 	double dEstimatedMagnitude = dRAC / 5000; // This is a rough estimate only lasting until April 1, 2018 pending outcome of SPR vote
+	LogPrintf(" getminimumrequiredutxostake RAC %f, reqspm %f, reqspr %f ",dRAC, dReqSPM, dReqSPR);
 	if (dReqSPM > 0) 
 	{
 		dRequirement = dEstimatedMagnitude * dReqSPM * 1.1;
