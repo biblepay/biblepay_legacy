@@ -60,7 +60,7 @@ extern std::string AssociateDCAccount(std::string sProjectId, std::string sBoinc
 extern double AscertainResearcherTotalRAC();
 extern std::vector<std::string> GetListOfDCCS(std::string sSearch, bool fRequireSig);
 extern bool VerifyCPIDSignature(std::string sFullSig, bool bRequireEndToEndVerification, std::string& sError);
-extern double GetSumOfXMLColumnFromXMLFile(std::string sFileName, std::string sObjectName, std::string sElementName, double dReqSPM, double dReqSPR, double dTeamRequired);
+extern double GetSumOfXMLColumnFromXMLFile(std::string sFileName, std::string sObjectName, std::string sElementName, double dReqSPM, double dReqSPR, double dTeamRequired, std::string sConcatCpids);
 extern uint256 GetDCCHash(std::string sContract);
 extern UniValue UTXOReport(std::string sCPID);
 extern uint256 GetDCCFileHash();
@@ -4291,8 +4291,8 @@ bool FilterFile(int iBufferSize, int iNextSuperblock, std::string& sError)
 	double dTeamRequired = cdbl(GetSporkValue("team"), 0);
 	double dTeamBackupProject = cdbl(GetSporkValue("team2"), 0);
 	
-	double dRAC1 = GetSumOfXMLColumnFromXMLFile(sFiltered, "<user>", "expavg_credit", dReqSPM, dReqSPR, dTeamRequired);
-	double dRAC2 = GetSumOfXMLColumnFromXMLFile(sFiltered2,"<user>", "expavg_credit", dReqSPM, dReqSPR, dTeamBackupProject);
+	double dRAC1 = GetSumOfXMLColumnFromXMLFile(sFiltered, "<user>", "expavg_credit", dReqSPM, dReqSPR, dTeamRequired, sConcatCPIDs);
+	double dRAC2 = GetSumOfXMLColumnFromXMLFile(sFiltered2,"<user>", "expavg_credit", dReqSPM, dReqSPR, dTeamBackupProject, sConcatCPIDs);
 	double dTotalRAC = dRAC1 + dRAC2;
 	LogPrintf(" \n Proj1 RAC %f, Proj2 RAC %f, Total RAC %f \n", dRAC1, dRAC2, dTotalRAC);
 	if (dTotalRAC < 10)
@@ -5221,7 +5221,7 @@ std::vector<std::string> GetListOfDCCS(std::string sSearch, bool fRequireSig)
 }
 
 
-double GetSumOfXMLColumnFromXMLFile(std::string sFileName, std::string sObjectName, std::string sElementName, double dReqSPM, double dReqSPR, double dTeamRequired)
+double GetSumOfXMLColumnFromXMLFile(std::string sFileName, std::string sObjectName, std::string sElementName, double dReqSPM, double dReqSPR, double dTeamRequired, std::string sConcatCPIDs)
 {
 	boost::filesystem::path pathIn(sFileName);
     std::ifstream streamIn;
@@ -5244,14 +5244,19 @@ double GetSumOfXMLColumnFromXMLFile(std::string sFileName, std::string sObjectNa
 		double dUTXOWeight = cdbl(ExtractXML(sData,"<utxoweight>","</utxoweight>"), 0);
 		double dTaskWeight = cdbl(ExtractXML(sData,"<taskweight>","</taskweight>"), 0);
 		double dUnbanked = cdbl(ExtractXML(sData,"<unbanked>","</unbanked>"), 0);
-		bool bTeamMatch = (dTeamRequired > 0) ? (dTeam == dTeamRequired) : true;
-		if (bTeamMatch)
+		std::string sCPID = ExtractXML(sData,"<cpid>","</cpid>");
+		boost::to_upper(sCPID);
+		if (Contains(sConcatCPIDs, sCPID))
 		{
-			std::string sValue = ExtractXML(sData, "<" + sElementName + ">","</" + sElementName + ">");
-			double dAvgCredit = cdbl(sValue,2);
-			double dModifiedCredit = GetResearcherCredit(dDRMode, dAvgCredit, dUTXOWeight, dTaskWeight, dUnbanked, 0, dReqSPM, dReqSPR);
-			dTotal += dModifiedCredit;
-			// LogPrintf(" Adding %f from RAC of %f Grand Total %f \n", dModifiedCredit, dAvgCredit, dTotal);
+			bool bTeamMatch = (dTeamRequired > 0) ? (dTeam == dTeamRequired) : true;
+			if (bTeamMatch)
+			{
+				std::string sValue = ExtractXML(sData, "<" + sElementName + ">","</" + sElementName + ">");
+				double dAvgCredit = cdbl(sValue,2);
+				double dModifiedCredit = GetResearcherCredit(dDRMode, dAvgCredit, dUTXOWeight, dTaskWeight, dUnbanked, 0, dReqSPM, dReqSPR);
+				dTotal += dModifiedCredit;
+				// LogPrintf(" Adding %f from RAC of %f Grand Total %f \n", dModifiedCredit, dAvgCredit, dTotal);
+			}
 		}
     }
 	return dTotal;

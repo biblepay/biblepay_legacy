@@ -186,8 +186,8 @@ double GetResearcherCredit(double dDRMode, double dAvgCredit, double dUTXOWeight
 
 	// Rob Andrews - BiblePay - 02-21-2018 - Add ability to run in distinct modes (via sporks):
 	// 0) Heavenly               = UTXOWeight * TaskWeight * RAC = Magnitude
-	// 1) Possessed by Tasks     = TaskWeight * RAC = Magnitude  
-	// 2) Possessed by UTXO      = UTXOWeight * RAC = Magnitude
+	// 1) Possessed by UTXO      = UTXOWeight * RAC = Magnitude
+	// 2) Possessed by Tasks     = TaskWeight * RAC = Magnitude  
 	// 3) The-Law                = RAC = Magnitude
 	// 4) DR (Disaster-Recovery) = Proof-Of-BibleHash Only (Heat Mining only)
 	double dModifiedCredit = 0;
@@ -221,7 +221,7 @@ double GetResearcherCredit(double dDRMode, double dAvgCredit, double dUTXOWeight
 double GetUTXOLevel(double dUTXOWeight, double dTotalRAC, double dAvgCredit, double dRequiredSPM, double dRequiredSPR)
 {
 	double dEstimatedMagnitude = (dAvgCredit / (dTotalRAC + .01)) * 1000;
-	if (dTotalRAC == 0) return 100; //This happens in Phase 1 of the Magnitude Calculation
+	if (dTotalRAC == 0 && dRequiredSPR == 0) return 100; //This happens in Phase 1 of the Magnitude Calculation
 	if (dEstimatedMagnitude > 1000) dEstimatedMagnitude = 1000;
 	double dRequirement = 0;
 	if (dRequiredSPM > 0) 
