@@ -2700,7 +2700,11 @@ UniValue fundrawtransaction(const UniValue& params, bool fHelp)
 
     // parse hex string from parameter
     CTransaction origTx;
-    if (!DecodeHexTx(origTx, params[0].get_str()))
+	std::string sHex = params[0].get_str();
+	double dEnableLegacySendRawTransaction = cdbl(GetArg("-enablelegacysendrawtransaction", "0"), 0);
+	if (dEnableLegacySendRawTransaction) sHex += "00";
+
+    if (!DecodeHexTx(origTx, sHex))
         throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "TX decode failed");
 
     if (origTx.vout.size() == 0)

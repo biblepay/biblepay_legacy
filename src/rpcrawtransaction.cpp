@@ -729,14 +729,16 @@ UniValue signrawtransaction(const UniValue& params, bool fHelp)
         }
         catch (const std::exception&) 
 		{
-            throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "TX decode failed");
+            throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "TX dec-ode failed");
         }
     }
 	*/
 
     CTransaction txInbound1;
-
-    if (!DecodeHexTx(txInbound1, params[0].get_str()))
+	double dEnableLegacySendRawTransaction = cdbl(GetArg("-enablelegacysendrawtransaction", "0"), 0);
+	std::string sHex = params[0].get_str();
+	if (dEnableLegacySendRawTransaction) sHex += "00";
+    if (!DecodeHexTx(txInbound1, sHex))
         throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "TX decode failed");
 
 	CMutableTransaction txMutable1(txInbound1);
