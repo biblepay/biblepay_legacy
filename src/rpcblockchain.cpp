@@ -3983,8 +3983,11 @@ std::string ExecuteDistributedComputingSanctuaryQuorumProcess()
 	std::string sError = "";
 		
 	bool bPending = iPendingVotes >= GetRequiredQuorumLevel(chainActive.Tip()->nHeight);
-
-	if (bPending) 
+	// 4-3-2018 - R ANDREWS - Honor Sanctuary Aggregator Nodes
+	double dAggregationRank = cdbl(GetArg("-sanctuaryrank", "0"), 0);
+	bool bAggregator = (dAggregationRank > 0 && dAggregationRank < 10);
+	
+	if (bPending && !bAggregator) 
 	{
 		if (fDebugMaster) LogPrintf("We have a pending superblock at height %f \n",(double)iNextSuperblock);
 		return "PENDING_SUPERBLOCK";
@@ -4002,7 +4005,7 @@ std::string ExecuteDistributedComputingSanctuaryQuorumProcess()
 			if (uDCChash == uint256S("0x0") || nAge > (60 * 60 * 4))
 			{
 				// Pull down the distributed computing file
-				LogPrintf(" Chosen Sanctuary - pulling down the DCC file... \n");
+				LogPrintf("\n Chosen Sanctuary - pulling down the DCC file... Aggregator %f, Percentile %f \n", dAggregationRank, MyPercentile(iLastSuperblock));
 				bool fSuccess =  DownloadDistributedComputingFile(iNextSuperblock, sError);
 				if (fSuccess)
 				{
