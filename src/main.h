@@ -215,6 +215,10 @@ extern std::string msGithubVersion;
 
 extern int PRAYER_MODULUS;
 extern std::string strTemplePubKey;
+extern int mnPODCTried;
+extern int mnPODCSent;
+extern double mnPODCAmountSent;
+
 
 extern int64_t nHPSTimerStart;
 extern int64_t nHashCounter;

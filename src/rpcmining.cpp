@@ -339,6 +339,10 @@ UniValue getmininginfo(const UniValue& params, bool fHelp)
 	obj.push_back(Pair("poolinfo1",        ConcatenatePoolHealth("poolinfo1")));
     obj.push_back(Pair("poolinfo2",        ConcatenatePoolHealth("poolinfo2")));
     obj.push_back(Pair("poolinfo3",        ConcatenatePoolHealth("poolinfo3")));
+	obj.push_back(Pair("podc_tried", (double)mnPODCTried));
+	obj.push_back(Pair("podc_sent", (double)mnPODCSent));
+	obj.push_back(Pair("podc_sent_amount", (double)mnPODCAmountSent));
+	obj.push_back(Pair("podc_average_amount_sent", (double)mnPODCAmountSent/(double)(mnPODCSent+.01)));
 	obj.push_back(Pair("miningpulse",      nBibleMinerPulse));
 	obj.push_back(Pair("poolmining",       fPoolMiningMode));
 	obj.push_back(Pair("pool_url",         sGlobalPoolURL));

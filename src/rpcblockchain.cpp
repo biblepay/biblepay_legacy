@@ -90,6 +90,7 @@ void PurgeCacheAsOfExpiration(std::string sSection, int64_t nExpiration);
 /* PODC */
 extern std::string FindResearcherCPIDByAddress(std::string sSearch, std::string& out_address, double& nTotalMagnitude);
 extern std::string AddBlockchainMessages(std::string sAddress, std::string sType, std::string sPrimaryKey, std::string sHTML, CAmount nAmount, std::string& sError);
+bool HasThisCPIDSolvedPriorBlocks(std::string CPID, CBlockIndex* pindexPrev);
 
 extern void GetDistributedComputingGovObjByHeight(int nHeight, uint256 uOptFilter, int& out_nVotes, uint256& out_uGovObjHash, std::string& out_PaymentAddresses, std::string& out_PaymentAmounts);
 extern bool GetContractPaymentData(std::string sContract, int nBlockHeight, std::string& sPaymentAddresses, std::string& sAmounts);
@@ -2099,16 +2100,21 @@ UniValue exec(const UniValue& params, bool fHelp)
 		CBlock block;
         if (!DecodeHexBlk(block, sBlockHex))
                 throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "Block decode failed");
+		/*
 		std::string sTxHex = params[2].get_str();
 		CTransaction tx;
 	    if (!DecodeHexTx(tx, sTxHex))
 		    throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "TX decode failed");
-		if (block.vtx.size() < 1)
-		    throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "Block Mutilation Error");
-    	if (block.vtx[0].GetHash().GetHex() != tx.GetHash().GetHex())
+		if (block.vtx[0].GetHash().GetHex() != tx.GetHash().GetHex())
 		{
 		    throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "Coinbase TX not in block");
 		}
+
+		*/
+
+		if (block.vtx.size() < 1)
+		    throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "Block Mutilation Error");
+    
 		results.push_back(Pair("txid", block.vtx[0].GetHash().GetHex()));
 		results.push_back(Pair("recipient", PubKeyToAddress(block.vtx[0].vout[0].scriptPubKey)));
 		// 1-23-2018: Biblepay - Rob A., add biblehash to tail end of coinbase tx
@@ -2133,7 +2139,40 @@ UniValue exec(const UniValue& params, bool fHelp)
 		std::string sErr2 = "";
 		bool fSigChecked = VerifyCPIDSignature(sMySig, true, sErr2);
 		results.push_back(Pair("cpid_sig_valid", fSigChecked));
+		// 4-5-2018 Ensure it is legal for this CPID to solve this block
+
+		bool fLegality = true;
+		std::string sLegalityNarr = "";
+		int64_t nHeaderAge = GetAdjustedTime() - block.GetBlockTime();
+		bool bActiveRACCheck = nHeaderAge < (60 * 15) ? true : false;
 		
+		if (bActiveRACCheck)
+		{
+			if (fSigChecked)
+			{
+				// Ensure this CPID has not solved any of the last N blocks in prod or last block in testnet if header age is < 1 hour:
+				std::string sCPID = GetElement(sMySig, ";", 0);
+				bool bSolvedPriorBlocks = HasThisCPIDSolvedPriorBlocks(sCPID, pindexPrev);
+				// Ensure this block can only be solved if this CPID was in the last superblock with a payment - but only if the header age is recent (this allows the chain to continue rolling if PODC goes down)
+				double nRecentlyPaid = GetPaymentByCPID(sCPID);
+				bool bRenumerationLegal = (nRecentlyPaid >= 0 && nRecentlyPaid < .50) ? false : true;
+				fLegality = (bRenumerationLegal && !bSolvedPriorBlocks);
+				if (!fLegality)
+				{
+					if (!bRenumerationLegal) sLegalityNarr = "CPID_HAS_NO_MAGNITUDE";
+					if (bSolvedPriorBlocks)  sLegalityNarr = "CPID_SOLVED_RECENT_BLOCK";
+				}
+			}
+			else
+			{
+				fLegality = false;
+				sLegalityNarr = "CPID_SIGNATURE_INVALID";
+			}
+			
+		}
+
+		results.push_back(Pair("cpid_legal", fLegality));
+		results.push_back(Pair("cpid_legality_narr", sLegalityNarr));
 		results.push_back(Pair("blockmessage", sMsg));
 	}
 	else if (sItem == "miningdiagnostics")
@@ -3544,6 +3583,8 @@ bool PODCUpdate(std::string& sError, bool bForce, std::string sDebugInfo)
 			if (!sOutstanding.empty())
 			{
 				sOutstanding = ChopLast(sOutstanding);
+				mnPODCTried++;
+					
 				// Create PODC UTXO Transaction - R Andrews - 02-20-2018 - These tasks will be checked on the Sanctuary side, to ensure they were started at this time.  
 				// If so, the UTXO COINAMOUNT * AGE * RAC will be rewarded for this task.
 				double nMinimumChatterAge = GetSporkDouble("podcminimumchatterage", (60 * 60 * 4));
@@ -3558,18 +3599,16 @@ bool PODCUpdate(std::string& sError, bool bForce, std::string sDebugInfo)
 					double dRAC = AscertainResearcherTotalRAC();
 					double dUTXOOverride = cdbl(GetArg("-utxooverride", "0"), 2);
 					double dUTXOAmount = GetMinimumRequiredUTXOStake(dRAC);
-					if (dUTXOOverride > 0) dUTXOAmount = dUTXOOverride;
+					if (dUTXOOverride > 0 || dUTXOOverride < 0) dUTXOAmount = dUTXOOverride;
 					LogPrintf(" PODCUpdate::Creating UTXO, Users RAC %f for %f ",dRAC, (double)dUTXOAmount);
-
 					CAmount curBalance = pwalletMain->GetUnlockedBalance(); // 3-5-2018, R Andrews
-					
 					CAmount nTargetValue = dUTXOAmount * COIN;
 					if (nTargetValue > curBalance && curBalance > (1*COIN))
 					{
 						LogPrintf(" \n PODCUpdate::Creating UTXO, Stake balance %f less than required amount %f, changing Target to stake balance. \n",(double)curBalance/COIN, (double)nTargetValue/COIN);
 						nTargetValue = curBalance;
 					}
-					if (nTargetValue < 1)
+					if (nTargetValue < 1 || dUTXOAmount < 0)
 					{
 						sError = "Unable to create PODC UTXO::Target UTXO too low.";
 						return false;
@@ -3616,6 +3655,11 @@ bool PODCUpdate(std::string& sError, bool bForce, std::string sDebugInfo)
 						{
 							sError = sErrorInternal;
 							return false;
+						}
+						else
+						{
+							mnPODCSent++;
+							mnPODCAmountSent += dUTXOAmount;
 						}
 						if (fDebugMaster) LogPrint("podc", "\n PODCUpdate::Signed UTXO: %s ", sXML.c_str());
 						WriteCache("CPIDTasks", s1, sOutstanding, GetAdjustedTime());

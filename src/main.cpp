@@ -115,6 +115,9 @@ bool CheckProofOfLoyalty(double dWeight, uint256 hash, unsigned int nBits, const
 double GetStakeWeight(CTransaction tx, int64_t nTipTime, std::string sXML, bool bVerifySignature, std::string& sMetrics, std::string& sError);
 extern std::string SignMessage(std::string sMsg, std::string sPrivateKey);
 extern void GetMiningParams(int nPrevHeight, bool& f7000, bool& f8000, bool& f9000, bool& fTitheBlocksActive);
+
+extern bool HasThisCPIDSolvedPriorBlocks(std::string CPID, CBlockIndex* pindexPrev);
+
 CWaitableCriticalSection csBestBlock;
 CConditionVariable cvBlockChange;
 int nScriptCheckThreads = 0;
@@ -192,6 +195,10 @@ std::string msGlobalStatus2 = "";
 std::string msGlobalStatus3 = "";
 double mnMagnitude = 0;
 double mnMagnitudeOneDay = 0;
+int mnPODCTried = 0;
+int mnPODCSent = 0;
+double mnPODCAmountSent = 0;
+
 std::string msGlobalCPID = "";
 std::string msGUIResponse = "";
 SecureString msEncryptedString = "";
