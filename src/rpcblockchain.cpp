@@ -2511,7 +2511,7 @@ UniValue exec(const UniValue& params, bool fHelp)
 				int nUserId = cdbl(GetDCCElement(sData, 3, true), 0);
 				std::string sAddress = GetDCCElement(sData, 1, true);
 				if (nUserId > 0)
-				{
+				{ 
 					double RAC = GetBoincRACByUserId("project1", nUserId);
 					results.push_back(Pair(s1 + "_ADDRESS", sAddress));
 					results.push_back(Pair(s1 + "_RAC", RAC));
@@ -4380,7 +4380,7 @@ bool FilterFile(int iBufferSize, int iNextSuperblock, std::string& sError)
 			double dUTXOWeight = cdbl(ReadCacheWithMaxAge("UTXOWeight", sCPID, nMaxAge), 0);
 			double dTaskWeight = cdbl(ReadCacheWithMaxAge("TaskWeight", sCPID, nMaxAge), 0);
 			double dUnbanked = cdbl(ReadCacheWithMaxAge("Unbanked", sCPID, nMaxAge), 0);
-			double dRAC1 = GetResearcherCredit(dDRMode, dAvgCredit, dUTXOWeight, dTaskWeight, dUnbanked, dTotalRAC, dReqSPM, dReqSPR);
+			// double dRAC1 = GetResearcherCredit(dDRMode, dAvgCredit, dUTXOWeight, dTaskWeight, dUnbanked, dTotalRAC, dReqSPM, dReqSPR);
 			bool bTeamMatch = (dTeamRequired > 0) ? (dTeam == dTeamRequired) : true;
 
 			// If backup project enabled, add additional credit
@@ -4389,13 +4389,17 @@ bool FilterFile(int iBufferSize, int iNextSuperblock, std::string& sError)
 			{
 				dExtraRAC = GetExtraRacFromBackupProject(sFiltered2, sCPID, dDRMode, dReqSPM, dReqSPR, dTeamBackupProject, dBackupProjectFactor);
 			}
-			double dModifiedCredit = dRAC1 + dExtraRAC;
+
+			// Base GetResearcherCredit on the sum of RAH + WCG
+			double dModifiedCredit = GetResearcherCredit(dDRMode, dAvgCredit + dExtraRAC, dUTXOWeight, dTaskWeight, dUnbanked, dTotalRAC, dReqSPM, dReqSPR);
+
+			//double dModifiedCredit = dRAC1 + dExtraRAC;
 			if (bTeamMatch)
 			{
 				bool fRequireSig = dUnbanked == 1 ? false : true;
 				std::string BPK = GetDCCPublicKey(sCPID, fRequireSig);
 				double dMagnitude = (dModifiedCredit / dTotalRAC) * 999;
-				double dUTXO = GetUTXOLevel(dUTXOWeight, dTotalRAC, dAvgCredit, dReqSPM, dReqSPR);
+				double dUTXO = GetUTXOLevel(dUTXOWeight, dTotalRAC, dAvgCredit + dExtraRAC, dReqSPM, dReqSPR);
 				std::string sRow = BPK + "," + sCPID + "," + RoundToString(dMagnitude, 3) + "," + sRosettaID + "," + RoundToString(dTeam, 0) 
 					+ "," + RoundToString(dUTXOWeight, 0) + "," + RoundToString(dTaskWeight, 0) 
 					+ "," + RoundToString(dTotalRAC, 0) + "," 
