@@ -4341,7 +4341,7 @@ bool FilterFile(int iBufferSize, int iNextSuperblock, std::string& sError)
 	double dRAC1 = GetSumOfXMLColumnFromXMLFile(sFiltered, "<user>", "expavg_credit", dReqSPM, dReqSPR, dTeamRequired, sConcatCPIDs);
 	double dRAC2 = GetSumOfXMLColumnFromXMLFile(sFiltered2,"<user>", "expavg_credit", dReqSPM, dReqSPR, dTeamBackupProject, sConcatCPIDs);
 	double dTotalRAC = dRAC1 + dRAC2;
-	LogPrintf(" \n Proj1 RAC %f, Proj2 RAC %f, Total RAC %f \n", dRAC1, dRAC2, dTotalRAC);
+	// LogPrintf(" \n Proj1 RAC %f, Proj2 RAC %f, Total RAC %f \n", dRAC1, dRAC2, dTotalRAC);
 	if (dTotalRAC < 10)
 	{
 		sError = "Total DC credit less than the project minimum.  Unable to calculate magnitudes.";
@@ -4380,7 +4380,6 @@ bool FilterFile(int iBufferSize, int iNextSuperblock, std::string& sError)
 			double dUTXOWeight = cdbl(ReadCacheWithMaxAge("UTXOWeight", sCPID, nMaxAge), 0);
 			double dTaskWeight = cdbl(ReadCacheWithMaxAge("TaskWeight", sCPID, nMaxAge), 0);
 			double dUnbanked = cdbl(ReadCacheWithMaxAge("Unbanked", sCPID, nMaxAge), 0);
-			double dRAC1 = GetResearcherCredit(dDRMode, dAvgCredit, dUTXOWeight, dTaskWeight, dUnbanked, dTotalRAC, dReqSPM, dReqSPR);
 			bool bTeamMatch = (dTeamRequired > 0) ? (dTeam == dTeamRequired) : true;
 
 			// If backup project enabled, add additional credit
@@ -4389,13 +4388,17 @@ bool FilterFile(int iBufferSize, int iNextSuperblock, std::string& sError)
 			{
 				dExtraRAC = GetExtraRacFromBackupProject(sFiltered2, sCPID, dDRMode, dReqSPM, dReqSPR, dTeamBackupProject, dBackupProjectFactor);
 			}
-			double dModifiedCredit = dRAC1 + dExtraRAC;
+
+			// Base GetResearcherCredit on the sum of RAH + WCG
+			double dModifiedCredit = GetResearcherCredit(dDRMode, dAvgCredit + dExtraRAC, dUTXOWeight, dTaskWeight, dUnbanked, dTotalRAC, dReqSPM, dReqSPR);
+			
 			if (bTeamMatch)
 			{
 				bool fRequireSig = dUnbanked == 1 ? false : true;
 				std::string BPK = GetDCCPublicKey(sCPID, fRequireSig);
 				double dMagnitude = (dModifiedCredit / dTotalRAC) * 999;
-				double dUTXO = GetUTXOLevel(dUTXOWeight, dTotalRAC, dAvgCredit, dReqSPM, dReqSPR);
+				//TODO: Modify GetUTXOLevel to use dAvgCredit + dExtraRAC
+				double dUTXO = GetUTXOLevel(dUTXOWeight, dTotalRAC, dAvgCredit + dExtraRAC, dReqSPM, dReqSPR);
 				std::string sRow = BPK + "," + sCPID + "," + RoundToString(dMagnitude, 3) + "," + sRosettaID + "," + RoundToString(dTeam, 0) 
 					+ "," + RoundToString(dUTXOWeight, 0) + "," + RoundToString(dTaskWeight, 0) 
 					+ "," + RoundToString(dTotalRAC, 0) + "," 
