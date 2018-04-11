@@ -87,7 +87,7 @@ void SendCoinsEntry::on_pasteButton_clicked()
 void SendCoinsEntry::updateFoundationAddress()
 {
 	const CChainParams& chainparams = Params();
-    ui->payTo->setText( ToQstring(chainparams.GetConsensus().FoundationAddress));
+    ui->payTo->setText(ToQstring(chainparams.GetConsensus().FoundationAddress));
     ui->payAmount->setFocus();
 }
 

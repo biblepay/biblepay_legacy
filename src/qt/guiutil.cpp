@@ -908,7 +908,7 @@ QString getThemeName()
     if(!theme.isEmpty()){
         return theme;
     }
-    return QString("light");  
+    return QString("bezaleel");  
 }
 
 // Open CSS when configured

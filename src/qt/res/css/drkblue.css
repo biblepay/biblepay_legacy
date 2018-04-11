@@ -1277,13 +1277,14 @@ padding-left:10px;
 /* SEND COINS ENTRY */
 
 QStackedWidget#SendCoinsEntry .QFrame#SendCoins > .QLabel { /* Send Coin Entry Labels */
-background-color:#56ABD8;
+/* color 56ABD8 is the default background color - powder blue - of buttons */
+background-color:#800000;
 min-width:102px;
 font-weight:bold;
 font-size:11px;
 color:#ffffff;
 min-height:25px;
-margin-right:5px;
+margin-right:5px; 
 padding-right:5px;
 }
 

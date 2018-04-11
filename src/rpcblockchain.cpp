@@ -3828,7 +3828,7 @@ double GetUserMagnitude(double& nBudget, double& nTotalPaid, int& out_iLastSuper
 								if (Age > 0 && Age < (7*86400)) out_OneWeekPaid += dAmount;
 							}
 					  }
-					  if (nTotalBlock > (nBudget * .90)) 
+					  if (nTotalBlock > (nBudget * .50) && nBudget > 0) 
 					  {
 						    if (out_iLastSuperblock == 0) out_iLastSuperblock = iLastSuperblock;
 						    out_Superblocks += RoundToString(b,0) + ",";
@@ -4486,7 +4486,7 @@ int GetLastDCSuperblockWithPayment(int nChainHeight)
 						double dAmount = block.vtx[0].vout[i].nValue/COIN;
 						nTotalBlock += dAmount;
 				  }
-   				  if (nTotalBlock > (nBudget * .90)) return b;
+   				  if (nTotalBlock > (nBudget * .50) && nBudget > 0) return b;
 			}
 		}
 	}
@@ -4557,7 +4557,7 @@ double GetPaymentByCPID(std::string CPID)
 	}
 	if (nBudget == 0 || nTotalBlock == 0) return -1;
 	if (nBudget < 21000 || nTotalBlock < 21000) return -1; 
-	bool bSuperblockHit = (nTotalBlock > (nBudget * .90));
+	bool bSuperblockHit = (nTotalBlock > (nBudget * .50) && nBudget > 0);
 	if (!bSuperblockHit) return -1;
 	return nTotalPaid;
 }
@@ -5063,14 +5063,11 @@ std::string GetBoincAuthenticator(std::string sProjectID, std::string sProjectEm
 }
 
 
-
-
-
 int GetBoincResearcherUserId(std::string sProjectId, std::string sAuthenticator)
 {
 	std::string sProjectURL= "https://" + GetSporkValue(sProjectId);
 	std::string sRestfulURL = "am_get_info.php?account_key=" + sAuthenticator;
-	std::string sResponse = BiblepayHTTPSPost(true, 0, "", "", "", sProjectURL, sRestfulURL, 443, "", 20, 25000, 1);
+	std::string sResponse = BiblepayHTTPSPost(true, 0, "", "", "", sProjectURL, sRestfulURL, 443, "", 12, 25000, 1);
 	if (false) LogPrintf("BoincResponse %s %s \n",sProjectURL + sRestfulURL, sResponse.c_str());
 	int nId = cdbl(ExtractXML(sResponse, "<id>","</id>"),0);
 	return nId;
@@ -5080,17 +5077,14 @@ std::string GetBoincResearcherHexCodeAndCPID(std::string sProjectId, int nUserId
 {
  	std::string sProjectURL = "http://" + GetSporkValue(sProjectId);
 	std::string sRestfulURL = "show_user.php?userid=" + RoundToString(nUserId,0) + "&format=xml";
-	std::string sResponse = BiblepayHTTPSPost(true, 0, "", "", "", sProjectURL, sRestfulURL, 443, "", 20, 5000, 1);
-	if (false) LogPrintf("GetBoincResearcherHexCodeAndCPID::url     %s%s       , User %f , BoincResponse %s \n",sProjectURL.c_str(), sRestfulURL.c_str(), (double)nUserId, sResponse.c_str());
+	std::string sResponse = BiblepayHTTPSPost(true, 0, "", "", "", sProjectURL, sRestfulURL, 443, "", 12, 5000, 1);
+	if (false) LogPrintf("GetBoincResearcherHexCodeAndCPID::url     %s%s  ,User %f , BoincResponse %s \n",sProjectURL.c_str(), sRestfulURL.c_str(), (double)nUserId, sResponse.c_str());
 	std::string sHexCode = ExtractXML(sResponse, "<url>","</url>");
 	sHexCode = strReplace(sHexCode,"http://","");
 	sHexCode = strReplace(sHexCode,"https://","");
 	sCPID = ExtractXML(sResponse, "<cpid>","</cpid>");
 	return sHexCode;
 }
-
-
-
 
 
 std::string GetBoincUnbankedReport(std::string sProjectID)

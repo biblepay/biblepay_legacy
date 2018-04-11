@@ -1,4 +1,5 @@
 <!DOCTYPE RCC><RCC version="1.0">
+
     <qresource prefix="/icons">
         <file alias="bitcoin">res/icons/bitcoin.png</file>
     </qresource>
@@ -51,6 +52,56 @@
         <file alias="about">res/icons/drkblue/about.png</file>
         <file alias="about_qt">res/icons/drkblue/about_qt.png</file>
         <file alias="verify">res/icons/drkblue/verify.png</file>
+    </qresource>
+    <qresource prefix="/icons/bezaleel">
+        <file alias="address-book">res/icons/bezaleel/address-book.png</file>
+        <file alias="quit">res/icons/bezaleel/quit.png</file>
+        <file alias="send">res/icons/bezaleel/send.png</file>
+        <file alias="connect_0">res/icons/bezaleel/connect0_16.png</file>
+        <file alias="connect_1">res/icons/bezaleel/connect1_16.png</file>
+        <file alias="connect_2">res/icons/bezaleel/connect2_16.png</file>
+        <file alias="connect_3">res/icons/bezaleel/connect3_16.png</file>
+        <file alias="connect_4">res/icons/bezaleel/connect4_16.png</file>
+        <file alias="transaction_0">res/icons/bezaleel/transaction0.png</file>
+        <file alias="transaction_confirmed">res/icons/bezaleel/transaction2.png</file>
+        <file alias="transaction_conflicted">res/icons/bezaleel/transaction_conflicted.png</file>
+        <file alias="transaction_1">res/icons/bezaleel/clock1.png</file>
+        <file alias="transaction_2">res/icons/bezaleel/clock2.png</file>
+        <file alias="transaction_3">res/icons/bezaleel/clock3.png</file>
+        <file alias="transaction_4">res/icons/bezaleel/clock4.png</file>
+        <file alias="transaction_5">res/icons/bezaleel/clock5.png</file>
+        <file alias="eye">res/icons/bezaleel/eye.png</file>
+        <file alias="eye_minus">res/icons/bezaleel/eye_minus.png</file>
+        <file alias="eye_plus">res/icons/bezaleel/eye_plus.png</file>
+        <file alias="options">res/icons/bezaleel/configure.png</file>
+        <file alias="receiving_addresses">res/icons/bezaleel/receive.png</file>
+        <file alias="editpaste">res/icons/bezaleel/editpaste.png</file>
+        <file alias="editcopy">res/icons/bezaleel/editcopy.png</file>
+        <file alias="add">res/icons/bezaleel/add.png</file>
+        <file alias="edit">res/icons/bezaleel/edit.png</file>
+        <file alias="history">res/icons/bezaleel/history.png</file>
+        <file alias="masternodes">res/icons/bezaleel/masternodes.png</file>
+        <file alias="overview">res/icons/bezaleel/overview.png</file>
+        <file alias="export">res/icons/bezaleel/export.png</file>
+        <file alias="synced">res/icons/bezaleel/synced.png</file>
+        <file alias="remove">res/icons/bezaleel/remove.png</file>
+        <file alias="tx_mined">res/icons/bezaleel/tx_mined.png</file>
+        <file alias="tx_input">res/icons/bezaleel/tx_input.png</file>
+        <file alias="tx_output">res/icons/bezaleel/tx_output.png</file>
+        <file alias="tx_inout">res/icons/bezaleel/tx_inout.png</file>
+        <file alias="lock_closed">res/icons/bezaleel/lock_closed.png</file>
+        <file alias="lock_open">res/icons/bezaleel/lock_open.png</file>
+        <file alias="key">res/icons/bezaleel/key.png</file>
+        <file alias="filesave">res/icons/bezaleel/filesave.png</file>
+        <file alias="debugwindow">res/icons/bezaleel/debugwindow.png</file>
+        <file alias="bezaleel_editpaste">res/icons/bezaleel/bezaleel_editpaste.png</file>
+        <file alias="bezaleel_address-book">res/icons/bezaleel/bezaleel_address-book.png</file>
+        <file alias="bezaleel_editcopy">res/icons/bezaleel/bezaleel_editcopy.png</file>
+        <file alias="bezaleel_remove">res/icons/bezaleel/bezaleel_remove.png</file>
+        <file alias="browse">res/icons/bezaleel/browse.png</file>
+        <file alias="about">res/icons/bezaleel/about.png</file>
+        <file alias="about_qt">res/icons/bezaleel/about_qt.png</file>
+        <file alias="verify">res/icons/bezaleel/verify.png</file>
     </qresource>
     <qresource prefix="/icons/gradient">
         <file alias="address-book">res/icons/gradient/address-book.png</file>
@@ -204,6 +255,7 @@
     </qresource>
     <qresource prefix="/css">
         <file alias="drkblue">res/css/drkblue.css</file>
+        <file alias="bezaleel">res/css/bezaleel.css</file>
         <file alias="gradient">res/css/gradient.css</file>
         <file alias="light">res/css/light.css</file>
     </qresource>
@@ -221,6 +273,21 @@
         <file alias="drkblue_walletFrame_bg">res/images/drkblue/drkblue_walletFrame_bg.png</file>
         <file alias="splash">res/images/drkblue/splash.png</file>
         <file alias="splash_testnet">res/images/drkblue/splash_testnet.png</file>
+    </qresource>
+    <qresource prefix="/images/bezaleel">
+        <file alias="about">res/images/bezaleel/about.png</file>
+        <file alias="biblepay_logo_horizontal">res/images/bezaleel/biblepay_logo_horizontal.png</file>
+        <file alias="unchecked">res/images/bezaleel/unchecked.png</file>
+        <file alias="checked">res/images/bezaleel/checked.png</file>
+        <file alias="bezaleel_downArrow">res/images/bezaleel/bezaleel_downArrow.png</file>
+        <file alias="bezaleel_downArrow_small">res/images/bezaleel/bezaleel_downArrow_small.png</file>
+        <file alias="bezaleel_upArrow_small">res/images/bezaleel/bezaleel_upArrow_small.png</file>
+        <file alias="bezaleel_leftArrow_small">res/images/bezaleel/bezaleel_leftArrow_small.png</file>
+        <file alias="bezaleel_rightArrow_small">res/images/bezaleel/bezaleel_rightArrow_small.png</file>
+        <file alias="bezaleel_qtreeview_selected">res/images/bezaleel/bezaleel_qtreeview_selected.png</file>
+        <file alias="bezaleel_walletFrame_bg">res/images/bezaleel/bezaleel_walletFrame_bg.png</file>
+        <file alias="splash">res/images/bezaleel/splash.png</file>
+        <file alias="splash_testnet">res/images/bezaleel/splash_testnet.png</file>
     </qresource>
     <qresource prefix="/images/gradient">
         <file alias="about">res/images/gradient/about.png</file>

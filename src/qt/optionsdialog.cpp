@@ -93,6 +93,7 @@ OptionsDialog::OptionsDialog(QWidget *parent, bool enableWallet) :
     /* Theme selector */
     ui->theme->addItem(QString("biblepay-light"), QVariant("light"));
     ui->theme->addItem(QString("biblepay-blue"), QVariant("drkblue"));
+    ui->theme->addItem(QString("biblepay-bezaleel"), QVariant("bezaleel"));
     ui->theme->addItem(QString("biblepay-gradient"), QVariant("gradient"));
     ui->theme->addItem(QString("biblepay-traditional"), QVariant("trad"));
 
