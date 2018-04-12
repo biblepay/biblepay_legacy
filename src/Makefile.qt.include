@@ -524,8 +524,21 @@ RES_IMAGES = \
   qt/res/images/trad/drkblue_leftArrow_small.png \
   qt/res/images/trad/drkblue_rightArrow_small.png \
   qt/res/images/trad/drkblue_qtreeview_selected.png \
-  qt/res/images/trad/drkblue_walletFrame_bg.png
-
+  qt/res/images/trad/drkblue_walletFrame_bg.png \
+  qt/res/images/bezaleel/about.png \
+  qt/res/images/bezaleel/splash.png \
+  qt/res/images/bezaleel/splash_testnet.png \
+  qt/res/images/bezaleel/biblepay_logo_horizontal.png \
+  qt/res/images/bezaleel/unchecked.png \
+  qt/res/images/bezaleel/checked.png \
+  qt/res/images/bezaleel/bezaleel_downArrow.png \
+  qt/res/images/bezaleel/bezaleel_downArrow_small.png \
+  qt/res/images/bezaleel/bezaleel_upArrow_small.png \
+  qt/res/images/bezaleel/bezaleel_leftArrow_small.png \
+  qt/res/images/bezaleel/bezaleel_rightArrow_small.png \
+  qt/res/images/bezaleel/bezaleel_qtreeview_selected.png \
+  qt/res/images/bezaleel/bezaleel_walletFrame_bg.png
+  
 RES_CSS = \
   qt/res/css/drkblue.css \
   qt/res/css/gradient.css \
