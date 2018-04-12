@@ -408,8 +408,12 @@ RES_ICONS = \
   qt/res/icons/bezaleel/tx_mined.png \
   qt/res/icons/bezaleel/about.png \
   qt/res/icons/bezaleel/about_qt.png \
-  qt/res/icons/bezaleel/verify.png
- 
+  qt/res/icons/bezaleel/verify.png \
+  qt/res/icons/bezaleel/bezaleel_editpaste.png \
+  qt/res/icons/bezaleel/bezaleel_address-book.png \
+  qt/res/icons/bezaleel/bezaleel_editcopy.png \
+  qt/res/icons/bezaleel/bezaleel_remove.png
+  
 BITCOIN_QT_CPP = \
   qt/bantablemodel.cpp \
   qt/bitcoinaddressvalidator.cpp \
