@@ -281,6 +281,31 @@ uint256 SerializeHash(const T& obj, int nType=SER_GETHASH, int nVersion=PROTOCOL
 unsigned int MurmurHash3(unsigned int nHashSeed, const std::vector<unsigned char>& vDataToHash);
 
 void BIP32Hash(const ChainCode &chainCode, unsigned int nChild, unsigned char header, const unsigned char data[32], unsigned char output[64]);
+/* ------------ Groestl Hash --------------------- */
+template<typename T1>
+inline uint256 HashGroestl(const T1 pbegin, const T1 pend)
+{
+    sph_groestl512_context   ctx_groestl;
+    static unsigned char pblank[1];
+    uint512 hash[1];
+    sph_groestl512_init(&ctx_groestl);
+    sph_groestl512 (&ctx_groestl, (pbegin == pend ? pblank : static_cast<const void*>(&pbegin[0])), (pend - pbegin) * sizeof(pbegin[0]));
+    sph_groestl512_close(&ctx_groestl, static_cast<void*>(&hash[0]));
+    return hash[0].trim256();
+}
+
+/* ------------ Biblepay Isolated hash ----------- */
+template<typename T1>
+inline uint256 HashBiblepayIsolated(const T1 pbegin, const T1 pend)
+{
+    sph_biblepay512_context  ctx_biblepay;
+    static unsigned char pblank[1];
+    uint512 hash[1];
+    sph_biblepay512_init(&ctx_biblepay);
+    sph_biblepay512 (&ctx_biblepay, (pbegin == pend ? pblank : static_cast<const void*>(&pbegin[0])), (pend - pbegin) * sizeof(pbegin[0]));
+    sph_biblepay512_close(&ctx_biblepay, static_cast<void*>(&hash[0]));
+    return hash[0].trim256();
+}
 
 /* ----------- Biblepay Hash ------------------------------------------------ */
 template<typename T1>

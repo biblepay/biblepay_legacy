@@ -2050,12 +2050,20 @@ UniValue exec(const UniValue& params, bool fHelp)
 		uint256 h4 = HashBiblePay(h3.begin(),h3.end());
 		uint256 h5 = HashBiblePay(h4.begin(),h4.end());
 		uint256 h00 = HashX11(vch1.begin(), vch1.end());
+		uint256 hGroestl = HashGroestl(vch1.begin(), vch1.end());
+		uint256 hBiblepayIsolated = HashBiblepayIsolated(vch1.begin(), vch1.end());
+		uint256 hBiblePayTest = HashBiblePay(vch1.begin(), vch1.end());
+
 		for (int i = 0; i < vch1.size(); i++)
 		{
 			int ichar = (int)vch1[i];
 			results.push_back(Pair(RoundToString(i,0), RoundToString(ichar,0)));
 		}
 		results.push_back(Pair("h00_biblepay", h00.GetHex()));
+		results.push_back(Pair("h_Groestl", hGroestl.GetHex()));
+		results.push_back(Pair("h_BiblePayIsolated", hBiblepayIsolated.GetHex()));
+		results.push_back(Pair("h_BiblePayTest", hBiblePayTest.GetHex()));
+
 		results.push_back(Pair("h1",h1.GetHex()));
 		results.push_back(Pair("h2",h2.GetHex()));
 		results.push_back(Pair("h3",h3.GetHex()));
