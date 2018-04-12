@@ -280,7 +280,7 @@ background-color:transparent;
 QHeaderView::section { /* Table Header Sections */
 qproperty-alignment:center;
 background-color:qlineargradient(x1: 0, y1: 0, x2: 0, y2: 0.25, stop: 0 #1070B0, stop: 1 #1c75bc);
-color:#fff;
+color: #ffffff;
 min-height:25px;
 font-weight:bold;
 font-size:11px;

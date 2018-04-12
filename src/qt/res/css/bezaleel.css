@@ -296,7 +296,8 @@ background-color:transparent;
 QHeaderView::section { /* Table Header Sections */
 qproperty-alignment:center;
 background-color:qlineargradient(x1: 0, y1: 0, x2: 0, y2: 0.25, stop: 0 #FF1100, stop: 1 #800000);
-color:#800000;
+/* overview page table header background color */
+color: black;
 min-height:25px;
 font-weight:bold;
 font-size:11px;

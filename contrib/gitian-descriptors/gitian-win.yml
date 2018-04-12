@@ -21,7 +21,7 @@ packages:
 - "zip"
 - "ca-certificates"
 - "python"
-reference_datetime: "2017-01-01 00:00:00"
+reference_datetime: "2016-01-01 00:00:00"
 remotes:
 - "url": "https://github.com/biblepay/biblepay.git"
   "dir": "biblepay"
@@ -93,15 +93,23 @@ script: |
   done
 
   export PATH=${WRAP_DIR}:${PATH}
-
+  #fix genbuild permission denied issue
+  
   cd biblepay
+  chmod 777 share/genbuild.sh
+  chmod 777 contrib/devtools/*.py
+  chmod 755 src/leveldb/build_detect_platform
+  
   BASEPREFIX=`pwd`/depends
+  chmod 777 depends/*
   # Build dependencies for each host
   for i in $HOSTS; do
     make ${MAKEOPTS} -C ${BASEPREFIX} HOST="${i}"
+    echo "HELLO ${i}"
   done
 
   # Create the release tarball using (arbitrarily) the first host
+  chmod 777 ./autogen.sh
   ./autogen.sh
   CONFIG_SITE=${BASEPREFIX}/`echo "${HOSTS}" | awk '{print $1;}'`/share/config.site ./configure --prefix=/
   make dist
@@ -132,7 +140,9 @@ script: |
     make ${MAKEOPTS} -C src check-security
     make deploy
     make install DESTDIR=${INSTALLPATH}
-    cp -f biblepaycore-*setup*.exe $OUTDIR/
+    ls -R
+    cp -f bible*setup*.exe $OUTDIR/
+    
     cd installed
     mv ${DISTNAME}/bin/*.dll ${DISTNAME}/lib/
     find . -name "lib*.la" -delete

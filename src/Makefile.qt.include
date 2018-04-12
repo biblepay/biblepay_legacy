@@ -360,8 +360,56 @@ RES_ICONS = \
   qt/res/icons/trad/tx_mined.png \
   qt/res/icons/trad/about.png \
   qt/res/icons/trad/about_qt.png \
-  qt/res/icons/trad/verify.png
-
+  qt/res/icons/trad/verify.png \
+  qt/res/icons/bezaleel/add.png \
+  qt/res/icons/bezaleel/address-book.png \
+  qt/res/icons/bezaleel/browse.png \
+  qt/res/icons/bezaleel/clock1.png \
+  qt/res/icons/bezaleel/clock2.png \
+  qt/res/icons/bezaleel/clock3.png \
+  qt/res/icons/bezaleel/clock4.png \
+  qt/res/icons/bezaleel/clock5.png \
+  qt/res/icons/bezaleel/configure.png \
+  qt/res/icons/bezaleel/connect0_16.png \
+  qt/res/icons/bezaleel/connect1_16.png \
+  qt/res/icons/bezaleel/connect2_16.png \
+  qt/res/icons/bezaleel/connect3_16.png \
+  qt/res/icons/bezaleel/connect4_16.png \
+  qt/res/icons/bezaleel/debugwindow.png \
+  qt/res/icons/bezaleel/editpaste.png \
+  qt/res/icons/bezaleel/address-book.png \
+  qt/res/icons/bezaleel/editcopy.png \
+  qt/res/icons/bezaleel/remove.png \
+  qt/res/icons/bezaleel/edit.png \
+  qt/res/icons/bezaleel/editcopy.png \
+  qt/res/icons/bezaleel/editpaste.png \
+  qt/res/icons/bezaleel/export.png \
+  qt/res/icons/bezaleel/eye.png \
+  qt/res/icons/bezaleel/eye_minus.png \
+  qt/res/icons/bezaleel/eye_plus.png \
+  qt/res/icons/bezaleel/filesave.png \
+  qt/res/icons/bezaleel/history.png \
+  qt/res/icons/bezaleel/key.png \
+  qt/res/icons/bezaleel/lock_closed.png \
+  qt/res/icons/bezaleel/lock_open.png \
+  qt/res/icons/bezaleel/masternodes.png \
+  qt/res/icons/bezaleel/overview.png \
+  qt/res/icons/bezaleel/quit.png \
+  qt/res/icons/bezaleel/receive.png \
+  qt/res/icons/bezaleel/remove.png \
+  qt/res/icons/bezaleel/send.png \
+  qt/res/icons/bezaleel/synced.png \
+  qt/res/icons/bezaleel/transaction0.png \
+  qt/res/icons/bezaleel/transaction2.png \
+  qt/res/icons/bezaleel/transaction_conflicted.png \
+  qt/res/icons/bezaleel/tx_inout.png \
+  qt/res/icons/bezaleel/tx_input.png \
+  qt/res/icons/bezaleel/tx_output.png \
+  qt/res/icons/bezaleel/tx_mined.png \
+  qt/res/icons/bezaleel/about.png \
+  qt/res/icons/bezaleel/about_qt.png \
+  qt/res/icons/bezaleel/verify.png
+ 
 BITCOIN_QT_CPP = \
   qt/bantablemodel.cpp \
   qt/bitcoinaddressvalidator.cpp \

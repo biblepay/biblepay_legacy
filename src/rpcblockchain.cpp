@@ -2043,12 +2043,19 @@ UniValue exec(const UniValue& params, bool fHelp)
 		std::string smd1="BiblePay";
 		std::vector<unsigned char> vch1 = vector<unsigned char>(smd1.begin(), smd1.end());
 		//std::vector<unsigned char> vchPlaintext = vector<unsigned char>(hash.begin(), hash.end());
-	 
+	    
 	    uint256 h1 = SerializeHash(vch1); 
 		uint256 h2 = HashBiblePay(vch1.begin(),vch1.end());
 		uint256 h3 = HashBiblePay(h2.begin(),h2.end());
 		uint256 h4 = HashBiblePay(h3.begin(),h3.end());
 		uint256 h5 = HashBiblePay(h4.begin(),h4.end());
+		uint256 h00 = HashX11(vch1.begin(), vch1.end());
+		for (int i = 0; i < vch1.size(); i++)
+		{
+			int ichar = (int)vch1[i];
+			results.push_back(Pair(RoundToString(i,0), RoundToString(ichar,0)));
+		}
+		results.push_back(Pair("h00_biblepay", h00.GetHex()));
 		results.push_back(Pair("h1",h1.GetHex()));
 		results.push_back(Pair("h2",h2.GetHex()));
 		results.push_back(Pair("h3",h3.GetHex()));
