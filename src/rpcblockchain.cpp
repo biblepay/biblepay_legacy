@@ -91,13 +91,15 @@ void PurgeCacheAsOfExpiration(std::string sSection, int64_t nExpiration);
 extern std::string FindResearcherCPIDByAddress(std::string sSearch, std::string& out_address, double& nTotalMagnitude);
 extern std::string AddBlockchainMessages(std::string sAddress, std::string sType, std::string sPrimaryKey, std::string sHTML, CAmount nAmount, std::string& sError);
 bool HasThisCPIDSolvedPriorBlocks(std::string CPID, CBlockIndex* pindexPrev);
-
+std::string VectorToString(std::vector<unsigned char> v);
+std::string BibleMD5(std::string sData);
 extern void GetDistributedComputingGovObjByHeight(int nHeight, uint256 uOptFilter, int& out_nVotes, uint256& out_uGovObjHash, std::string& out_PaymentAddresses, std::string& out_PaymentAmounts);
 extern bool GetContractPaymentData(std::string sContract, int nBlockHeight, std::string& sPaymentAddresses, std::string& sAmounts);
 extern std::string VerifyManyWorkUnits(std::string sProjectId, std::string sTaskIds);
 extern bool SignCPID(std::string sCPID, std::string& sError, std::string& out_FullSig);
 extern bool SubmitDistributedComputingTrigger(std::string sHex, std::string& gobjecthash, std::string& sError);
 extern std::string GetBoincAuthenticator(std::string sProjectID, std::string sProjectEmail, std::string sPasswordHash);
+bool BibleEncrypt(std::vector<unsigned char> vchPlaintext, std::vector<unsigned char> &vchCiphertext);
 
 extern int GetBoincResearcherUserId(std::string sProjectId, std::string sAuthenticator);
 extern std::string GetBoincResearcherHexCodeAndCPID(std::string sProjectId, int nUserId, std::string& sCPID);
@@ -2040,7 +2042,8 @@ UniValue exec(const UniValue& params, bool fHelp)
 	}
 	else if (sItem == "XBBP")
 	{
-		std::string smd1="BiblePay";
+		std::string smd1="BiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePay";
+
 		std::vector<unsigned char> vch1 = vector<unsigned char>(smd1.begin(), smd1.end());
 		//std::vector<unsigned char> vchPlaintext = vector<unsigned char>(hash.begin(), hash.end());
 	    
@@ -2053,16 +2056,71 @@ UniValue exec(const UniValue& params, bool fHelp)
 		uint256 hGroestl = HashGroestl(vch1.begin(), vch1.end());
 		uint256 hBiblepayIsolated = HashBiblepayIsolated(vch1.begin(), vch1.end());
 		uint256 hBiblePayTest = HashBiblePay(vch1.begin(), vch1.end());
+		uint256 hBrokenDog = HashBrokenDog(vch1.begin(), vch1.end());
+		bool f7000 = false;
+		bool f8000 = false;
+		bool f9000 = false;
+		bool fTitheBlocksActive = false;
+		int nHeight = 1;
+		GetMiningParams(nHeight, f7000, f8000, f9000, fTitheBlocksActive);
+		f7000 = false;
+		f8000 = false;
+		f9000 = false;
+		fTitheBlocksActive = false;
+		int64_t nTime = 3;
+		int64_t nPrevTime = 2;
+		int64_t nPrevHeight = 1;
+		int64_t nNonce = 10;
+		uint256 inHash = uint256S("0x1234");
+		bool bMining = true;
+		//uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight, const CBlockIndex* pindexLast, bool bRequireTxIndex, 
+	    //bool f7000, bool f8000, bool f9000, bool fTitheBlocksActive, unsigned int nNonce)
 
+		uint256 uBibleHash = BibleHash(inHash, nTime, nPrevTime, bMining, nPrevHeight, NULL, false, f7000, f8000, f9000, fTitheBlocksActive, nNonce);
+	
+		std::vector<unsigned char> vchPlaintext = vector<unsigned char>(inHash.begin(), inHash.end());
+		std::vector<unsigned char> vchCiphertext;
+		BibleEncrypt(vchPlaintext, vchCiphertext);
+		
+		/*
 		for (int i = 0; i < vch1.size(); i++)
 		{
 			int ichar = (int)vch1[i];
 			results.push_back(Pair(RoundToString(i,0), RoundToString(ichar,0)));
 		}
+		*/
+
+
+		/* Try to discover AES256 empty encryption value */
+		uint256 hBlank = uint256S("0x0");
+
+		std::vector<unsigned char> vchBlank = vector<unsigned char>(hBlank.begin(), hBlank.end());
+		std::vector<unsigned char> vchBlankEncrypted;
+		BibleEncrypt(vchBlank, vchBlankEncrypted);
+		for (int i = 0; i < (int)vch1.size(); i++)
+		{
+			int ichar = (int)vch1[i];
+			results.push_back(Pair("BlankInt" + RoundToString(i,0), RoundToString(ichar,0)));
+		}
+	
+		std::string sBlankBase64 = EncodeBase64(VectorToString(vchBlankEncrypted));
+		results.push_back(Pair("Blank_Base64", sBlankBase64));
+
+		std::string sCipher64 = EncodeBase64(VectorToString(vchCiphertext));
+		std::string sBibleMD5 = BibleMD5(sCipher64);
+		std::string sBibleMD51234 = BibleMD5("1234");
+
+		results.push_back(Pair("AES_Cipher64", sCipher64));
+		results.push_back(Pair("AES_BibleMD5", sBibleMD5));
+		results.push_back(Pair("Plain_BibleMD5_1234", sBibleMD51234));
+
+		results.push_back(Pair("biblehash", uBibleHash.GetHex()));
+
 		results.push_back(Pair("h00_biblepay", h00.GetHex()));
 		results.push_back(Pair("h_Groestl", hGroestl.GetHex()));
 		results.push_back(Pair("h_BiblePayIsolated", hBiblepayIsolated.GetHex()));
 		results.push_back(Pair("h_BiblePayTest", hBiblePayTest.GetHex()));
+		results.push_back(Pair("h_BrokenDog", hBrokenDog.GetHex()));
 
 		results.push_back(Pair("h1",h1.GetHex()));
 		results.push_back(Pair("h2",h2.GetHex()));
@@ -4378,7 +4436,7 @@ bool FilterFile(int iBufferSize, int iNextSuperblock, std::string& sError)
 
 	std::string sUser = "";
 	std::string sDCC = "";
-	double dBackupProjectFactor = cdbl(GetSporkValue("project2factor"), 0);
+	double dBackupProjectFactor = cdbl(GetSporkValue("project2factor"), 2);
 	double dDRMode = cdbl(GetSporkValue("dr"), 0);
 	double dTotalMagnitude = 0;
 	int iRows = 0;

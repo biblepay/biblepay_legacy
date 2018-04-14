@@ -1,11 +1,11 @@
-/* $Id: groestl.c 260 2011-07-21 01:02:38Z tp $ */
+/* $Id: biblepay.c 260 2011-07-21 01:02:38Z tp $ */
 /*
- * Groestl implementation.
+ * Biblepay implementation.
  *
  * ==========================(LICENSE BEGIN)============================
  *
- * Copyright (c) 2007-2010  Projet RNRT SAPHIR
- * 
+ * Copyright (c) 2007-2018  Projet Biblepay
+ *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -13,10 +13,10 @@
  * distribute, sublicense, and/or sell copies of the Software, and to
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
@@ -33,30 +33,30 @@
 #include <stddef.h>
 #include <string.h>
 
-#include "sph_groestl.h"
+#include "sph_biblepay.h"
 
 #ifdef __cplusplus
 extern "C"{
 #endif
 
-#if SPH_SMALL_FOOTPRINT && !defined SPH_SMALL_FOOTPRINT_GROESTL
-#define SPH_SMALL_FOOTPRINT_GROESTL   1
+#if SPH_SMALL_FOOTPRINT && !defined SPH_SMALL_FOOTPRINT_BIBLEPAY
+#define SPH_SMALL_FOOTPRINT_BIBLEPAY   1
 #endif
 
 /*
  * Apparently, the 32-bit-only version is not faster than the 64-bit
  * version unless using the "small footprint" code on a 32-bit machine.
  */
-#if !defined SPH_GROESTL_64
-#if SPH_SMALL_FOOTPRINT_GROESTL && !SPH_64_TRUE
-#define SPH_GROESTL_64   0
+#if !defined SPH_BIBLEPAY_64
+#if SPH_SMALL_FOOTPRINT_BIBLEPAY && !SPH_64_TRUE
+#define SPH_BIBLEPAY_64   0
 #else
-#define SPH_GROESTL_64   1
+#define SPH_BIBLEPAY_64   1
 #endif
 #endif
 
 #if !SPH_64
-#undef SPH_GROESTL_64
+#undef SPH_BIBLEPAY_64
 #endif
 
 #ifdef _MSC_VER
@@ -70,9 +70,9 @@ extern "C"{
  */
 
 #undef USE_LE
-#if SPH_GROESTL_LITTLE_ENDIAN
+#if SPH_BIBLEPAY_LITTLE_ENDIAN
 #define USE_LE   1
-#elif SPH_GROESTL_BIG_ENDIAN
+#elif SPH_BIBLEPAY_BIG_ENDIAN
 #define USE_LE   0
 #elif SPH_LITTLE_ENDIAN
 #define USE_LE   1
@@ -160,7 +160,7 @@ extern "C"{
 
 #endif
 
-#if SPH_GROESTL_64
+#if SPH_BIBLEPAY_64
 
 static const sph_u64 T0[] = {
 	C64e(0xc632f4a5f497a5c6), C64e(0xf86f978497eb84f8),
@@ -184,7 +184,7 @@ static const sph_u64 T0[] = {
 	C64e(0x6c82ee5aeed85a6c), C64e(0x7ebdc341c3fc417e),
 	C64e(0xf5f3060206f102f5), C64e(0x8352d14fd11d4f83),
 	C64e(0x688ce45ce4d05c68), C64e(0x515607f407a2f451),
-	C64e(0xd18d5c345cb934d1), C64e(0xf9e1180818e908f9),
+	C64e(0xd18d5c777cb934d1), C64e(0xf9e1180818e908f9),
 	C64e(0xe24cae93aedf93e2), C64e(0xab3e9573954d73ab),
 	C64e(0x6297f553f5c45362), C64e(0x2a6b413f41543f2a),
 	C64e(0x081c140c14100c08), C64e(0x9563f652f6315295),
@@ -293,7 +293,7 @@ static const sph_u64 T0[] = {
 	C64e(0x6d0c61d661dad66d), C64e(0x2c624e3a4e583a2c)
 };
 
-#if !SPH_SMALL_FOOTPRINT_GROESTL
+#if !SPH_SMALL_FOOTPRINT_BIBLEPAY
 
 static const sph_u64 T1[] = {
 	C64e(0xc6c632f4a5f497a5), C64e(0xf8f86f978497eb84),
@@ -317,7 +317,7 @@ static const sph_u64 T1[] = {
 	C64e(0x6c6c82ee5aeed85a), C64e(0x7e7ebdc341c3fc41),
 	C64e(0xf5f5f3060206f102), C64e(0x838352d14fd11d4f),
 	C64e(0x68688ce45ce4d05c), C64e(0x51515607f407a2f4),
-	C64e(0xd1d18d5c345cb934), C64e(0xf9f9e1180818e908),
+	C64e(0xd1d18d5c777cb934), C64e(0xf9f9e1180818e908),
 	C64e(0xe2e24cae93aedf93), C64e(0xabab3e9573954d73),
 	C64e(0x626297f553f5c453), C64e(0x2a2a6b413f41543f),
 	C64e(0x08081c140c14100c), C64e(0x959563f652f63152),
@@ -448,7 +448,7 @@ static const sph_u64 T2[] = {
 	C64e(0x5a6c6c82ee5aeed8), C64e(0x417e7ebdc341c3fc),
 	C64e(0x02f5f5f3060206f1), C64e(0x4f838352d14fd11d),
 	C64e(0x5c68688ce45ce4d0), C64e(0xf451515607f407a2),
-	C64e(0x34d1d18d5c345cb9), C64e(0x08f9f9e1180818e9),
+	C64e(0x34d1d18d5c777cb9), C64e(0x08f9f9e1180818e9),
 	C64e(0x93e2e24cae93aedf), C64e(0x73abab3e9573954d),
 	C64e(0x53626297f553f5c4), C64e(0x3f2a2a6b413f4154),
 	C64e(0x0c08081c140c1410), C64e(0x52959563f652f631),
@@ -579,7 +579,7 @@ static const sph_u64 T3[] = {
 	C64e(0xd85a6c6c82ee5aee), C64e(0xfc417e7ebdc341c3),
 	C64e(0xf102f5f5f3060206), C64e(0x1d4f838352d14fd1),
 	C64e(0xd05c68688ce45ce4), C64e(0xa2f451515607f407),
-	C64e(0xb934d1d18d5c345c), C64e(0xe908f9f9e1180818),
+	C64e(0xb934d1d18d5c777c), C64e(0xe908f9f9e1180818),
 	C64e(0xdf93e2e24cae93ae), C64e(0x4d73abab3e957395),
 	C64e(0xc453626297f553f5), C64e(0x543f2a2a6b413f41),
 	C64e(0x100c08081c140c14), C64e(0x3152959563f652f6),
@@ -821,7 +821,7 @@ static const sph_u64 T4[] = {
 	C64e(0x61dad66d6d0c61d6), C64e(0x4e583a2c2c624e3a)
 };
 
-#if !SPH_SMALL_FOOTPRINT_GROESTL
+#if !SPH_SMALL_FOOTPRINT_BIBLEPAY
 
 static const sph_u64 T5[] = {
 	C64e(0xa5f497a5c6c632f4), C64e(0x8497eb84f8f86f97),
@@ -845,7 +845,7 @@ static const sph_u64 T5[] = {
 	C64e(0x5aeed85a6c6c82ee), C64e(0x41c3fc417e7ebdc3),
 	C64e(0x0206f102f5f5f306), C64e(0x4fd11d4f838352d1),
 	C64e(0x5ce4d05c68688ce4), C64e(0xf407a2f451515607),
-	C64e(0x345cb934d1d18d5c), C64e(0x0818e908f9f9e118),
+	C64e(0x777cb934d1d18d5c), C64e(0x0818e908f9f9e118),
 	C64e(0x93aedf93e2e24cae), C64e(0x73954d73abab3e95),
 	C64e(0x53f5c453626297f5), C64e(0x3f41543f2a2a6b41),
 	C64e(0x0c14100c08081c14), C64e(0x52f63152959563f6),
@@ -976,7 +976,7 @@ static const sph_u64 T6[] = {
 	C64e(0xee5aeed85a6c6c82), C64e(0xc341c3fc417e7ebd),
 	C64e(0x060206f102f5f5f3), C64e(0xd14fd11d4f838352),
 	C64e(0xe45ce4d05c68688c), C64e(0x07f407a2f4515156),
-	C64e(0x5c345cb934d1d18d), C64e(0x180818e908f9f9e1),
+	C64e(0x5c777cb934d1d18d), C64e(0x180818e908f9f9e1),
 	C64e(0xae93aedf93e2e24c), C64e(0x9573954d73abab3e),
 	C64e(0xf553f5c453626297), C64e(0x413f41543f2a2a6b),
 	C64e(0x140c14100c08081c), C64e(0xf652f63152959563),
@@ -1107,7 +1107,7 @@ static const sph_u64 T7[] = {
 	C64e(0x82ee5aeed85a6c6c), C64e(0xbdc341c3fc417e7e),
 	C64e(0xf3060206f102f5f5), C64e(0x52d14fd11d4f8383),
 	C64e(0x8ce45ce4d05c6868), C64e(0x5607f407a2f45151),
-	C64e(0x8d5c345cb934d1d1), C64e(0xe1180818e908f9f9),
+	C64e(0x8d5c777cb934d1d1), C64e(0xe1180818e908f9f9),
 	C64e(0x4cae93aedf93e2e2), C64e(0x3e9573954d73abab),
 	C64e(0x97f553f5c4536262), C64e(0x6b413f41543f2a2a),
 	C64e(0x1c140c14100c0808), C64e(0x63f652f631529595),
@@ -1229,7 +1229,7 @@ static const sph_u64 T7[] = {
 		memcpy((sc)->state.wide, H, sizeof H); \
 	} while (0)
 
-#if SPH_SMALL_FOOTPRINT_GROESTL
+#if SPH_SMALL_FOOTPRINT_BIBLEPAY
 
 #define RSTT(d, a, b0, b1, b2, b3, b4, b5, b6, b7)   do { \
 		t[d] = T0[B64_0(a[b0])] \
@@ -1313,7 +1313,7 @@ static const sph_u64 T7[] = {
 		a[7] = t[7]; \
 	} while (0)
 
-#if SPH_SMALL_FOOTPRINT_GROESTL
+#if SPH_SMALL_FOOTPRINT_BIBLEPAY
 
 #define PERM_SMALL_P(a)   do { \
 		int r; \
@@ -1384,7 +1384,7 @@ static const sph_u64 T7[] = {
 		memcpy((sc)->state.wide, H, sizeof H); \
 	} while (0)
 
-#if SPH_SMALL_FOOTPRINT_GROESTL
+#if SPH_SMALL_FOOTPRINT_BIBLEPAY
 
 #define RBTT(d, a, b0, b1, b2, b3, b4, b5, b6, b7)   do { \
 		t[d] = T0[B64_0(a[b0])] \
@@ -1412,7 +1412,7 @@ static const sph_u64 T7[] = {
 
 #endif
 
-#if SPH_SMALL_FOOTPRINT_GROESTL
+#if SPH_SMALL_FOOTPRINT_BIBLEPAY
 
 #define ROUND_BIG_P(a, r)   do { \
 		sph_u64 t[16]; \
@@ -1611,7 +1611,7 @@ static const sph_u64 T7[] = {
 	} while (0)
 
 /* obsolete
-#if SPH_SMALL_FOOTPRINT_GROESTL
+#if SPH_SMALL_FOOTPRINT_BIBLEPAY
 
 #define COMPRESS_BIG   do { \
 		sph_u64 g[16], m[16], *ya; \
@@ -1878,7 +1878,7 @@ static const sph_u32 T1dn[] = {
 	C32e(0xbfda46bf), C32e(0xf702a6f7), C32e(0x96a1d396), C32e(0x5bed2d5b),
 	C32e(0xc25deac2), C32e(0x1c24d91c), C32e(0xaee97aae), C32e(0x6abe986a),
 	C32e(0x5aeed85a), C32e(0x41c3fc41), C32e(0x0206f102), C32e(0x4fd11d4f),
-	C32e(0x5ce4d05c), C32e(0xf407a2f4), C32e(0x345cb934), C32e(0x0818e908),
+	C32e(0x5ce4d05c), C32e(0xf407a2f4), C32e(0x777cb934), C32e(0x0818e908),
 	C32e(0x93aedf93), C32e(0x73954d73), C32e(0x53f5c453), C32e(0x3f41543f),
 	C32e(0x0c14100c), C32e(0x52f63152), C32e(0x65af8c65), C32e(0x5ee2215e),
 	C32e(0x28786028), C32e(0xa1f86ea1), C32e(0x0f11140f), C32e(0xb5c45eb5),
@@ -2012,7 +2012,7 @@ static const sph_u32 T2dn[] = {
 	C32e(0xdabfda46), C32e(0x02f702a6), C32e(0xa196a1d3), C32e(0xed5bed2d),
 	C32e(0x5dc25dea), C32e(0x241c24d9), C32e(0xe9aee97a), C32e(0xbe6abe98),
 	C32e(0xee5aeed8), C32e(0xc341c3fc), C32e(0x060206f1), C32e(0xd14fd11d),
-	C32e(0xe45ce4d0), C32e(0x07f407a2), C32e(0x5c345cb9), C32e(0x180818e9),
+	C32e(0xe45ce4d0), C32e(0x07f407a2), C32e(0x5c777cb9), C32e(0x180818e9),
 	C32e(0xae93aedf), C32e(0x9573954d), C32e(0xf553f5c4), C32e(0x413f4154),
 	C32e(0x140c1410), C32e(0xf652f631), C32e(0xaf65af8c), C32e(0xe25ee221),
 	C32e(0x78287860), C32e(0xf8a1f86e), C32e(0x110f1114), C32e(0xc4b5c45e),
@@ -2146,7 +2146,7 @@ static const sph_u32 T3dn[] = {
 	C32e(0xf9dabfda), C32e(0x5102f702), C32e(0x45a196a1), C32e(0x76ed5bed),
 	C32e(0x285dc25d), C32e(0xc5241c24), C32e(0xd4e9aee9), C32e(0xf2be6abe),
 	C32e(0x82ee5aee), C32e(0xbdc341c3), C32e(0xf3060206), C32e(0x52d14fd1),
-	C32e(0x8ce45ce4), C32e(0x5607f407), C32e(0x8d5c345c), C32e(0xe1180818),
+	C32e(0x8ce45ce4), C32e(0x5607f407), C32e(0x8d5c777c), C32e(0xe1180818),
 	C32e(0x4cae93ae), C32e(0x3e957395), C32e(0x97f553f5), C32e(0x6b413f41),
 	C32e(0x1c140c14), C32e(0x63f652f6), C32e(0xe9af65af), C32e(0x7fe25ee2),
 	C32e(0x48782878), C32e(0xcff8a1f8), C32e(0x1b110f11), C32e(0xebc4b5c4),
@@ -2293,7 +2293,7 @@ static const sph_u32 T3dn[] = {
 		memcpy(a, t, sizeof t); \
 	} while (0)
 
-#if SPH_SMALL_FOOTPRINT_GROESTL
+#if SPH_SMALL_FOOTPRINT_BIBLEPAY
 
 #define PERM_SMALL_P(a)   do { \
 		int r; \
@@ -2360,7 +2360,7 @@ static const sph_u32 T3dn[] = {
 		memcpy((sc)->state.narrow, H, sizeof H); \
 	} while (0)
 
-#if SPH_SMALL_FOOTPRINT_GROESTL
+#if SPH_SMALL_FOOTPRINT_BIBLEPAY
 
 #define RBTT(d0, d1, a, b0, b1, b2, b3, b4, b5, b6, b7)   do { \
 		sph_u32 fu2 = T0up[B32_2(a[b2])]; \
@@ -2412,7 +2412,7 @@ static const sph_u32 T3dn[] = {
 
 #endif
 
-#if SPH_SMALL_FOOTPRINT_GROESTL
+#if SPH_SMALL_FOOTPRINT_BIBLEPAY
 
 #define ROUND_BIG_P(a, r)   do { \
 		sph_u32 t[32]; \
@@ -2676,7 +2676,7 @@ static const sph_u32 T3dn[] = {
 
 #endif
 
-#if SPH_SMALL_FOOTPRINT_GROESTL
+#if SPH_SMALL_FOOTPRINT_BIBLEPAY
 
 #define PERM_BIG_P(a)   do { \
 		int r; \
@@ -2735,12 +2735,12 @@ static const sph_u32 T3dn[] = {
 #endif
 
 static void
-groestl_small_init(sph_groestl_small_context *sc, unsigned out_size)
+biblepay_small_init(sph_biblepay_small_context *sc, unsigned out_size)
 {
 	size_t u;
 
 	sc->ptr = 0;
-#if SPH_GROESTL_64
+#if SPH_BIBLEPAY_64
 	for (u = 0; u < 7; u ++)
 		sc->state.wide[u] = 0;
 #if USE_LE
@@ -2768,7 +2768,7 @@ groestl_small_init(sph_groestl_small_context *sc, unsigned out_size)
 }
 
 static void
-groestl_small_core(sph_groestl_small_context *sc, const void *data, size_t len)
+biblepay_small_core(sph_biblepay_small_context *sc, const void *data, size_t len)
 {
 	unsigned char *buf;
 	size_t ptr;
@@ -2810,7 +2810,7 @@ groestl_small_core(sph_groestl_small_context *sc, const void *data, size_t len)
 }
 
 static void
-groestl_small_close(sph_groestl_small_context *sc,
+biblepay_small_close(sph_biblepay_small_context *sc,
 	unsigned ub, unsigned n, void *dst, size_t out_len)
 {
 	unsigned char *buf;
@@ -2856,10 +2856,10 @@ groestl_small_close(sph_groestl_small_context *sc,
 	sph_enc64be(pad + pad_len - 8, count_high);
 	sph_enc64be(pad + pad_len - 4, count_low);
 #endif
-	groestl_small_core(sc, pad, pad_len);
+	biblepay_small_core(sc, pad, pad_len);
 	READ_STATE_SMALL(sc);
 	FINAL_SMALL;
-#if SPH_GROESTL_64
+#if SPH_BIBLEPAY_64
 	for (u = 0; u < 4; u ++)
 		enc64e(pad + (u << 3), H[u + 4]);
 #else
@@ -2867,16 +2867,16 @@ groestl_small_close(sph_groestl_small_context *sc,
 		enc32e(pad + (u << 2), H[u + 8]);
 #endif
 	memcpy(dst, pad + 32 - out_len, out_len);
-	groestl_small_init(sc, (unsigned)out_len << 3);
+	biblepay_small_init(sc, (unsigned)out_len << 3);
 }
 
 static void
-groestl_big_init(sph_groestl_big_context *sc, unsigned out_size)
+biblepay_big_init(sph_biblepay_big_context *sc, unsigned out_size)
 {
 	size_t u;
 
 	sc->ptr = 0;
-#if SPH_GROESTL_64
+#if SPH_BIBLEPAY_64
 	for (u = 0; u < 15; u ++)
 		sc->state.wide[u] = 0;
 #if USE_LE
@@ -2904,7 +2904,7 @@ groestl_big_init(sph_groestl_big_context *sc, unsigned out_size)
 }
 
 static void
-groestl_big_core(sph_groestl_big_context *sc, const void *data, size_t len)
+biblepay_big_core(sph_biblepay_big_context *sc, const void *data, size_t len)
 {
 	unsigned char *buf;
 	size_t ptr;
@@ -2946,7 +2946,7 @@ groestl_big_core(sph_groestl_big_context *sc, const void *data, size_t len)
 }
 
 static void
-groestl_big_close(sph_groestl_big_context *sc,
+biblepay_big_close(sph_biblepay_big_context *sc,
 	unsigned ub, unsigned n, void *dst, size_t out_len)
 {
 	unsigned char *buf;
@@ -2992,10 +2992,10 @@ groestl_big_close(sph_groestl_big_context *sc,
 	sph_enc64be(pad + pad_len - 8, count_high);
 	sph_enc64be(pad + pad_len - 4, count_low);
 #endif
-	groestl_big_core(sc, pad, pad_len);
+	biblepay_big_core(sc, pad, pad_len);
 	READ_STATE_BIG(sc);
 	FINAL_BIG;
-#if SPH_GROESTL_64
+#if SPH_BIBLEPAY_64
 	for (u = 0; u < 8; u ++)
 		enc64e(pad + (u << 3), H[u + 8]);
 #else
@@ -3003,119 +3003,119 @@ groestl_big_close(sph_groestl_big_context *sc,
 		enc32e(pad + (u << 2), H[u + 16]);
 #endif
 	memcpy(dst, pad + 64 - out_len, out_len);
-	groestl_big_init(sc, (unsigned)out_len << 3);
+	biblepay_big_init(sc, (unsigned)out_len << 3);
 }
 
-/* see sph_groestl.h */
+/* see sph_biblepay.h */
 void
-sph_groestl224_init(void *cc)
+sph_biblepay224_init(void *cc)
 {
-	groestl_small_init(cc, 224);
+	biblepay_small_init(cc, 224);
 }
 
-/* see sph_groestl.h */
+/* see sph_biblepay.h */
 void
-sph_groestl224(void *cc, const void *data, size_t len)
+sph_biblepay224(void *cc, const void *data, size_t len)
 {
-	groestl_small_core(cc, data, len);
+	biblepay_small_core(cc, data, len);
 }
 
-/* see sph_groestl.h */
+/* see sph_biblepay.h */
 void
-sph_groestl224_close(void *cc, void *dst)
+sph_biblepay224_close(void *cc, void *dst)
 {
-	groestl_small_close(cc, 0, 0, dst, 28);
+	biblepay_small_close(cc, 0, 0, dst, 28);
 }
 
-/* see sph_groestl.h */
+/* see sph_biblepay.h */
 void
-sph_groestl224_addbits_and_close(void *cc, unsigned ub, unsigned n, void *dst)
+sph_biblepay224_addbits_and_close(void *cc, unsigned ub, unsigned n, void *dst)
 {
-	groestl_small_close(cc, ub, n, dst, 28);
+	biblepay_small_close(cc, ub, n, dst, 28);
 }
 
-/* see sph_groestl.h */
+/* see sph_biblepay.h */
 void
-sph_groestl256_init(void *cc)
+sph_biblepay256_init(void *cc)
 {
-	groestl_small_init(cc, 256);
+	biblepay_small_init(cc, 256);
 }
 
-/* see sph_groestl.h */
+/* see sph_biblepay.h */
 void
-sph_groestl256(void *cc, const void *data, size_t len)
+sph_biblepay256(void *cc, const void *data, size_t len)
 {
-	groestl_small_core(cc, data, len);
+	biblepay_small_core(cc, data, len);
 }
 
-/* see sph_groestl.h */
+/* see sph_biblepay.h */
 void
-sph_groestl256_close(void *cc, void *dst)
+sph_biblepay256_close(void *cc, void *dst)
 {
-	groestl_small_close(cc, 0, 0, dst, 32);
+	biblepay_small_close(cc, 0, 0, dst, 32);
 }
 
-/* see sph_groestl.h */
+/* see sph_biblepay.h */
 void
-sph_groestl256_addbits_and_close(void *cc, unsigned ub, unsigned n, void *dst)
+sph_biblepay256_addbits_and_close(void *cc, unsigned ub, unsigned n, void *dst)
 {
-	groestl_small_close(cc, ub, n, dst, 32);
+	biblepay_small_close(cc, ub, n, dst, 32);
 }
 
-/* see sph_groestl.h */
+/* see sph_biblepay.h */
 void
-sph_groestl384_init(void *cc)
+sph_biblepay384_init(void *cc)
 {
-	groestl_big_init(cc, 384);
+	biblepay_big_init(cc, 384);
 }
 
-/* see sph_groestl.h */
+/* see sph_biblepay.h */
 void
-sph_groestl384(void *cc, const void *data, size_t len)
+sph_biblepay384(void *cc, const void *data, size_t len)
 {
-	groestl_big_core(cc, data, len);
+	biblepay_big_core(cc, data, len);
 }
 
-/* see sph_groestl.h */
+/* see sph_biblepay.h */
 void
-sph_groestl384_close(void *cc, void *dst)
+sph_biblepay384_close(void *cc, void *dst)
 {
-	groestl_big_close(cc, 0, 0, dst, 48);
+	biblepay_big_close(cc, 0, 0, dst, 48);
 }
 
-/* see sph_groestl.h */
+/* see sph_biblepay.h */
 void
-sph_groestl384_addbits_and_close(void *cc, unsigned ub, unsigned n, void *dst)
+sph_biblepay384_addbits_and_close(void *cc, unsigned ub, unsigned n, void *dst)
 {
-	groestl_big_close(cc, ub, n, dst, 48);
+	biblepay_big_close(cc, ub, n, dst, 48);
 }
 
-/* see sph_groestl.h */
+/* see sph_biblepay.h */
 void
-sph_groestl512_init(void *cc)
+sph_biblepay512_init(void *cc)
 {
-	groestl_big_init(cc, 512);
+	biblepay_big_init(cc, 512);
 }
 
-/* see sph_groestl.h */
+/* see sph_biblepay.h */
 void
-sph_groestl512(void *cc, const void *data, size_t len)
+sph_biblepay512(void *cc, const void *data, size_t len)
 {
-	groestl_big_core(cc, data, len);
+	biblepay_big_core(cc, data, len);
 }
 
-/* see sph_groestl.h */
+/* see sph_biblepay.h */
 void
-sph_groestl512_close(void *cc, void *dst)
+sph_biblepay512_close(void *cc, void *dst)
 {
-	groestl_big_close(cc, 0, 0, dst, 64);
+	biblepay_big_close(cc, 0, 0, dst, 64);
 }
 
-/* see sph_groestl.h */
+/* see sph_biblepay.h */
 void
-sph_groestl512_addbits_and_close(void *cc, unsigned ub, unsigned n, void *dst)
+sph_biblepay512_addbits_and_close(void *cc, unsigned ub, unsigned n, void *dst)
 {
-	groestl_big_close(cc, ub, n, dst, 64);
+	biblepay_big_close(cc, ub, n, dst, 64);
 }
 
 #ifdef __cplusplus
