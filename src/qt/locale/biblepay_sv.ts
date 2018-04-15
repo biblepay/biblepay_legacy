@@ -38,7 +38,7 @@
         <translation>S&amp;täng</translation>
     </message>
     <message>
-        <source>Choose the address to send coins to</source>
+        <source>Choose the address to send coins to!</source>
         <translation>Välj en adress att skicka mynt till</translation>
     </message>
     <message>

@@ -117,6 +117,7 @@ extern std::string SignMessage(std::string sMsg, std::string sPrivateKey);
 extern void GetMiningParams(int nPrevHeight, bool& f7000, bool& f8000, bool& f9000, bool& fTitheBlocksActive);
 
 extern bool HasThisCPIDSolvedPriorBlocks(std::string CPID, CBlockIndex* pindexPrev);
+std::string VectorToString(std::vector<unsigned char> v);
 
 CWaitableCriticalSection csBestBlock;
 CConditionVariable cvBlockChange;
@@ -7268,6 +7269,17 @@ bool ProcessMessages(CNode* pfrom)
             }
             else
             {
+				//EXCEPTION: NSt8ios_base7failureE        String length limit exceeded        biblepay in ProcessMessages()     
+			    if (strstr(e.what(),"length limit exceeded"))
+				{
+					LogPrintf(" Length exceeded \n");
+				}
+				vector<unsigned char> vData;
+				vRecv >> vData;
+				std::string sData = VectorToString(vData);
+				LogPrintf("Function::%s (Command: %s, MessageSize: %u bytes): Exception: %s  - TrappedData %s \n", 
+					__func__, SanitizeString(strCommand), nMessageSize, e.what(), sData.c_str());
+				
                 PrintExceptionContinue(&e, "ProcessMessages()");
             }
         }

@@ -168,6 +168,25 @@ std::string RetrieveMd5(std::string s1)
 	}
 }
 
+void PrintStratisKeyDebugInfo()
+{
+	std::string sKey1(reinterpret_cast<char*>(chKeyBiblePay));
+	std::string sIV1(reinterpret_cast<char*>(chIVBiblePay));
+	std::string sRow = "chKeyBiblePay: ";
+	for (int i = 0; i < sKey1.length(); i++)
+	{
+		int ichar = (int)sKey1[i];
+		sRow += RoundToString(ichar,0) + ",";
+	}
+	sRow += "  chIVBiblePay: ";
+	for (int i = 0; i < sIV1.length(); i++)
+	{
+		int ichar = (int)sIV1[i];
+		sRow += RoundToString(ichar,0) + ",";
+	}
+	LogPrintf(" \n StratisKeyDebugInfo: %s \n",sRow.c_str());
+}
+
 bool BibleEncrypt(std::vector<unsigned char> vchPlaintext, std::vector<unsigned char> &vchCiphertext)
 {
 	if (!fKeySetBiblePay) LoadBibleKey("biblepay","eb5a781ea9da2ef36");
@@ -178,7 +197,7 @@ bool BibleEncrypt(std::vector<unsigned char> vchPlaintext, std::vector<unsigned 
     // EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
     bool fOk = true;
     EVP_CIPHER_CTX_init(&ctx);
-    if (fOk) fOk = EVP_EncryptInit_ex(&ctx, EVP_aes_256_cbc(), NULL, chKeyBiblePay, chIVBiblePay);
+	if (fOk) fOk = EVP_EncryptInit_ex(&ctx, EVP_aes_256_cbc(), NULL, chKeyBiblePay, chIVBiblePay);
     if (fOk) fOk = EVP_EncryptUpdate(&ctx, &vchCiphertext[0], &nCLen, &vchPlaintext[0], nLen);
     if (fOk) fOk = EVP_EncryptFinal_ex(&ctx, (&vchCiphertext[0])+nCLen, &nFLen);
     EVP_CIPHER_CTX_cleanup(&ctx);

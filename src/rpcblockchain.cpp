@@ -2046,8 +2046,12 @@ UniValue exec(const UniValue& params, bool fHelp)
 
 		std::vector<unsigned char> vch1 = vector<unsigned char>(smd1.begin(), smd1.end());
 		//std::vector<unsigned char> vchPlaintext = vector<unsigned char>(hash.begin(), hash.end());
-	    
+	    std::string smd2="biblepay";
+		std::vector<unsigned char> vch2 = vector<unsigned char>(smd2.begin(), smd2.end());
+		
 	    uint256 h1 = SerializeHash(vch1); 
+		uint256 hSMD2 = SerializeHash(vch2);
+
 		uint256 h2 = HashBiblePay(vch1.begin(),vch1.end());
 		uint256 h3 = HashBiblePay(h2.begin(),h2.end());
 		uint256 h4 = HashBiblePay(h3.begin(),h3.end());
@@ -2097,11 +2101,14 @@ UniValue exec(const UniValue& params, bool fHelp)
 		std::vector<unsigned char> vchBlank = vector<unsigned char>(hBlank.begin(), hBlank.end());
 		std::vector<unsigned char> vchBlankEncrypted;
 		BibleEncrypt(vchBlank, vchBlankEncrypted);
+		/*
 		for (int i = 0; i < (int)vch1.size(); i++)
 		{
 			int ichar = (int)vch1[i];
 			results.push_back(Pair("BlankInt" + RoundToString(i,0), RoundToString(ichar,0)));
 		}
+		*/
+
 	
 		std::string sBlankBase64 = EncodeBase64(VectorToString(vchBlankEncrypted));
 		results.push_back(Pair("Blank_Base64", sBlankBase64));
@@ -2124,6 +2131,8 @@ UniValue exec(const UniValue& params, bool fHelp)
 
 		results.push_back(Pair("h1",h1.GetHex()));
 		results.push_back(Pair("h2",h2.GetHex()));
+		results.push_back(Pair("hSMD2", hSMD2.GetHex()));
+
 		results.push_back(Pair("h3",h3.GetHex()));
 		results.push_back(Pair("h4",h4.GetHex()));
 		results.push_back(Pair("h5",h5.GetHex()));

@@ -29,6 +29,8 @@
 #include "crypto/sph_echo.h"
 
 #include <vector>
+#include <iostream>
+
 
 typedef uint256 ChainCode;
 
@@ -249,7 +251,23 @@ public:
 
     CHashWriter(int nTypeIn, int nVersionIn) : nType(nTypeIn), nVersion(nVersionIn) {}
 
-    CHashWriter& write(const char *pch, size_t size) {
+    CHashWriter& write(const char *pch, size_t size) 
+	{
+		/*
+		if (true)
+		{
+			std::string sRow = "";
+			std::cout << " STRCH ";
+			for (int i = 0; i < (int)size; i++)
+			{
+				int ichar = (int)pch[i];
+				std::cout << ichar << " ";
+			}
+
+			std::cout << " STRATIS= " << pch << " END";
+		}
+		*/
+
         ctx.Write((const unsigned char*)pch, size);
         return (*this);
     }
