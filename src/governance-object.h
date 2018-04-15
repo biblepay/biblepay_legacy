@@ -23,7 +23,10 @@ class CGovernanceTriggerManager;
 class CGovernanceObject;
 class CGovernanceVote;
 
-static const int MAX_GOVERNANCE_OBJECT_DATA_SIZE = 16 * 1024;
+// This constant is the root cause of the EXCEPTION: NSt8ios_base7failureE, String length limit exceeded, biblepay in ProcessMessages() on 4-15-2018
+// The governance objects are planned to contain ~2500 researchers, meaning they will most likely reach 250K (250,000) bytes soon.
+// Therefore I am raising the limit to 256*1024 from 16*1024.
+static const int MAX_GOVERNANCE_OBJECT_DATA_SIZE = 256 * 1024;
 static const int MIN_GOVERNANCE_PEER_PROTO_VERSION = 70206;
 static const int GOVERNANCE_FILTER_PROTO_VERSION = 70206;
 

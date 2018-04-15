@@ -2726,7 +2726,6 @@ UniValue exec(const UniValue& params, bool fHelp)
 		CBlock block;
 		const Consensus::Params& consensusParams = Params().GetConsensus();
 		ReadBlockFromDisk(block, pblockindex, consensusParams, "SHOWBLOCK");
-		bool bVerbose = false;
 		return blockToJSON(block, pblockindex, false, false, false);
 	}
 	else if (sItem == "wcgrac")
@@ -4434,68 +4433,84 @@ bool FilterFile(int iBufferSize, int iNextSuperblock, std::string& sError)
 
 	// Emit the BiblePay DCC Leaderboard file, and then stamp it with the Biblepay hash
 	// Leaderboard file format:  Biblepay-Public-Key-Compressed, DCC-CPID, DCC-Magnitude <rowdelimiter>
-	boost::filesystem::path pathFiltered(sFiltered);
-    std::ifstream streamFiltered;
-    streamFiltered.open(pathFiltered.string().c_str());
-	if (!streamFiltered) 
-	{
-		sError = "Unable to open filtered file";
-		return false;
-	}
-
-	std::string sUser = "";
-	std::string sDCC = "";
-	double dBackupProjectFactor = cdbl(GetSporkValue("project2factor"), 2);
-	double dDRMode = cdbl(GetSporkValue("dr"), 0);
-	double dTotalMagnitude = 0;
+	int iTries = 0;
+	// Adding a more robust contract creator loop, just in case magnitude exceeds 1000 due to rounding errors, this gives the sanctuary a second chance to make it correct.
+	double dGlobalMagnitudeFactor = 1;  
 	int iRows = 0;
-
-    while(std::getline(streamFiltered, line))
-    {
-		sUser += line;
-		if (Contains(line, "</user>"))
+	double dTotalMagnitude = 0;
+	std::string sDCC = "";
+	/* Assess Magnitude Levels */
+	while(true)
+	{
+		iTries++;
+		if (iTries > 7) break;
+		boost::filesystem::path pathFiltered(sFiltered);
+		std::ifstream streamFiltered;
+		streamFiltered.open(pathFiltered.string().c_str());
+		if (!streamFiltered) 
 		{
-			std::string sCPID = ExtractXML(sUser, "<cpid>", "</cpid>");
-			double dAvgCredit = cdbl(ExtractXML(sUser, "<expavg_credit>", "</expavg_credit>"), 4);
-			double dTeam = cdbl(ExtractXML(sUser, "<teamid>", "</teamid>"), 0);
-			std::string sRosettaID = ExtractXML(sUser, "<id>", "</id>");
-			double dUTXOWeight = cdbl(ReadCacheWithMaxAge("UTXOWeight", sCPID, nMaxAge), 0);
-			double dTaskWeight = cdbl(ReadCacheWithMaxAge("TaskWeight", sCPID, nMaxAge), 0);
-			double dUnbanked = cdbl(ReadCacheWithMaxAge("Unbanked", sCPID, nMaxAge), 0);
-			// double dRAC1 = GetResearcherCredit(dDRMode, dAvgCredit, dUTXOWeight, dTaskWeight, dUnbanked, dTotalRAC, dReqSPM, dReqSPR);
-			bool bTeamMatch = (dTeamRequired > 0) ? (dTeam == dTeamRequired) : true;
-
-			// If backup project enabled, add additional credit
-			double dExtraRAC = 0;
-			if (dTeamBackupProject > 0)
-			{
-				dExtraRAC = GetExtraRacFromBackupProject(sFiltered2, sCPID, dDRMode, dReqSPM, dReqSPR, dTeamBackupProject, dBackupProjectFactor);
-			}
-
-			// Base GetResearcherCredit on the sum of RAH + WCG
-			double dModifiedCredit = GetResearcherCredit(dDRMode, dAvgCredit + dExtraRAC, dUTXOWeight, dTaskWeight, dUnbanked, dTotalRAC, dReqSPM, dReqSPR);
-
-			//double dModifiedCredit = dRAC1 + dExtraRAC;
-			if (bTeamMatch)
-			{
-				bool fRequireSig = dUnbanked == 1 ? false : true;
-				std::string BPK = GetDCCPublicKey(sCPID, fRequireSig);
-				double dMagnitude = (dModifiedCredit / dTotalRAC) * 999;
-				double dUTXO = GetUTXOLevel(dUTXOWeight, dTotalRAC, dAvgCredit + dExtraRAC, dReqSPM, dReqSPR);
-				std::string sRow = BPK + "," + sCPID + "," + RoundToString(dMagnitude, 3) + "," + sRosettaID + "," + RoundToString(dTeam, 0) 
-					+ "," + RoundToString(dUTXOWeight, 0) + "," + RoundToString(dTaskWeight, 0) 
-					+ "," + RoundToString(dTotalRAC, 0) + "," 
-					+ RoundToString(dUnbanked, 0) + "," + RoundToString(dUTXO, 2) + "," + RoundToString(dAvgCredit,0) + "," 
-					+ RoundToString(dModifiedCredit, 0) + "," + RoundToString(iNextSuperblock, 0) + ","
-					+ RoundToString(dExtraRAC, 0) + "\n<ROW>";
-				sDCC += sRow;
-				dTotalMagnitude += dMagnitude;
-				iRows++;
-			}
-			sUser = "";
+			sError = "Unable to open filtered file";
+			return false;
 		}
-    }
-	streamFiltered.close();
+
+		std::string sUser = "";
+		sDCC = "";
+		double dBackupProjectFactor = cdbl(GetSporkValue("project2factor"), 2);
+		double dDRMode = cdbl(GetSporkValue("dr"), 0);
+		dTotalMagnitude = 0;
+		iRows = 0;
+
+		while(std::getline(streamFiltered, line))
+		{
+			sUser += line;
+			if (Contains(line, "</user>"))
+			{
+				std::string sCPID = ExtractXML(sUser, "<cpid>", "</cpid>");
+				double dAvgCredit = cdbl(ExtractXML(sUser, "<expavg_credit>", "</expavg_credit>"), 4);
+				double dTeam = cdbl(ExtractXML(sUser, "<teamid>", "</teamid>"), 0);
+				std::string sRosettaID = ExtractXML(sUser, "<id>", "</id>");
+				double dUTXOWeight = cdbl(ReadCacheWithMaxAge("UTXOWeight", sCPID, nMaxAge), 0);
+				double dTaskWeight = cdbl(ReadCacheWithMaxAge("TaskWeight", sCPID, nMaxAge), 0);
+				double dUnbanked = cdbl(ReadCacheWithMaxAge("Unbanked", sCPID, nMaxAge), 0);
+				bool bTeamMatch = (dTeamRequired > 0) ? (dTeam == dTeamRequired) : true;
+				// If backup project enabled, add additional credit
+				double dExtraRAC = 0;
+				if (dTeamBackupProject > 0)
+				{
+					dExtraRAC = GetExtraRacFromBackupProject(sFiltered2, sCPID, dDRMode, dReqSPM, dReqSPR, dTeamBackupProject, dBackupProjectFactor);
+				}
+
+				// Base GetResearcherCredit on the sum of RAH + WCG
+				double dModifiedCredit = GetResearcherCredit(dDRMode, dAvgCredit + dExtraRAC, dUTXOWeight, dTaskWeight, dUnbanked, dTotalRAC, dReqSPM, dReqSPR);
+
+				if (bTeamMatch)
+				{
+					bool fRequireSig = dUnbanked == 1 ? false : true;
+					std::string BPK = GetDCCPublicKey(sCPID, fRequireSig);
+					double dMagnitude = (dModifiedCredit / dTotalRAC) * 999 * dGlobalMagnitudeFactor;
+					double dUTXO = GetUTXOLevel(dUTXOWeight, dTotalRAC, dAvgCredit + dExtraRAC, dReqSPM, dReqSPR);
+					std::string sRow = BPK + "," + sCPID + "," + RoundToString(dMagnitude, 3) + "," + sRosettaID + "," + RoundToString(dTeam, 0) 
+						+ "," + RoundToString(dUTXOWeight, 0) + "," + RoundToString(dTaskWeight, 0) 
+						+ "," + RoundToString(dTotalRAC, 0) + "," 
+						+ RoundToString(dUnbanked, 0) + "," + RoundToString(dUTXO, 2) + "," + RoundToString(dAvgCredit,0) + "," 
+						+ RoundToString(dModifiedCredit, 0) + "," + RoundToString(iNextSuperblock, 0) + ","
+						+ RoundToString(dExtraRAC, 0) + "\n<ROW>";
+					sDCC += sRow;
+					dTotalMagnitude += dMagnitude;
+					iRows++;
+				}
+				sUser = "";
+			}
+		}
+		streamFiltered.close();
+		if (dTotalMagnitude < 1000) break;
+		// Magnitude exceeded 1000, adjust the global factor:
+		dGlobalMagnitudeFactor -= .02;
+		LogPrintf("\n FilterFile::AssessMagnitudeLevels, Attempt #%f, GlobalMagnitudeFactor %f \n", iTries, dGlobalMagnitudeFactor);
+	}
+	/* End of Assess Magnitude Levels */
+
+
     // Phase 3: Create the Daily Magnitude Contract and hash it
 	FILE *outMagFile = fopen(sDailyMagnitudeFile.c_str(),"w");
     fputs(sDCC.c_str(), outMagFile);
