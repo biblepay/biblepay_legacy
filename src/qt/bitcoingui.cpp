@@ -418,54 +418,54 @@ void BitcoinGUI::createActions()
     aboutAction->setEnabled(false);
     
 	
-	sinnerAction = new QAction(QIcon(":/icons/" + theme + "/sinnersprayer"), tr("The Sinners Prayer"), this);
+	sinnerAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("The Sinners Prayer"), this);
     sinnerAction->setStatusTip(tr("Show the Sinners Prayer"));
     sinnerAction->setMenuRole(QAction::AboutRole);
     sinnerAction->setEnabled(false);
 
-	TheLordsPrayerAction = new QAction(QIcon(":/icons/" + theme + "/sinnersprayer"), tr("The Lords Prayer"), this);
+	TheLordsPrayerAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("The Lords Prayer"), this);
     TheLordsPrayerAction->setStatusTip(tr("Show the Lords Prayer"));
     TheLordsPrayerAction->setMenuRole(QAction::AboutRole);
     TheLordsPrayerAction->setEnabled(false);
 
-	TheApostlesCreedAction = new QAction(QIcon(":/icons/" + theme + "/sinnersprayer"), tr("The Apostles Creed"), this);
+	TheApostlesCreedAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("The Apostles Creed"), this);
     TheApostlesCreedAction->setStatusTip(tr("Show the Lords Prayer"));
     TheApostlesCreedAction->setMenuRole(QAction::AboutRole);
     TheApostlesCreedAction->setEnabled(false);
 
-	TheNiceneCreedAction = new QAction(QIcon(":/icons/" + theme + "/sinnersprayer"), tr("The Nicene Creed"), this);
+	TheNiceneCreedAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("The Nicene Creed"), this);
     TheNiceneCreedAction->setStatusTip(tr("Show the Nicene Creed"));
     TheNiceneCreedAction->setMenuRole(QAction::AboutRole);
     TheNiceneCreedAction->setEnabled(false);
 
-	TheTenCommandmentsAction = new QAction(QIcon(":/icons/" + theme + "/sinnersprayer"), tr("The Ten Commandments"), this);
+	TheTenCommandmentsAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("The Ten Commandments"), this);
     TheTenCommandmentsAction->setStatusTip(tr("Show the Ten Commandments"));
     TheTenCommandmentsAction->setMenuRole(QAction::AboutRole);
     TheTenCommandmentsAction->setEnabled(false);
 
-	JesusConciseCommandmentsAction = new QAction(QIcon(":/icons/" + theme + "/sinnersprayer"), tr("Jesus Concise Commandments"), this);
+	JesusConciseCommandmentsAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("Jesus Concise Commandments"), this);
     JesusConciseCommandmentsAction->setStatusTip(tr("Show Jesus Concise Commandments"));
     JesusConciseCommandmentsAction->setMenuRole(QAction::AboutRole);
     JesusConciseCommandmentsAction->setEnabled(false);
-
-	ReadBibleAction = new QAction(QIcon(":/icons/" + theme + "/sinnersprayer"), tr("Read Bible"), this);
+	
+	ReadBibleAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("Read Bible"), this);
     ReadBibleAction->setStatusTip(tr("Read Bible"));
     ReadBibleAction->setMenuRole(QAction::AboutRole);
     ReadBibleAction->setEnabled(false);
 
 	// Create News Article Action
 
-	CreateNewsAction = new QAction(QIcon(":/icons/" + theme + "/sinnersprayer"), tr("Create News Article"), this);
+	CreateNewsAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("Create News Article"), this);
     CreateNewsAction->setStatusTip(tr("Create news Article"));
     CreateNewsAction->setMenuRole(QAction::AboutRole);
     CreateNewsAction->setEnabled(false);
 
-	ReadNewsAction = new QAction(QIcon(":/icons/" + theme + "/sinnersprayer"), tr("Read News Article"), this);
+	ReadNewsAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("Read News Article"), this);
     ReadNewsAction->setStatusTip(tr("Read news Article"));
     ReadNewsAction->setMenuRole(QAction::AboutRole);
     ReadNewsAction->setEnabled(false);
 
-	OneClickMiningAction = new QAction(QIcon(":/icons/" + theme + "/sinnersprayer"), tr("One Click Mining Configuration"), this);
+	OneClickMiningAction = new QAction(QIcon(":/icons/" + theme + "/editpaste"), tr("One Click Mining Configuration"), this);
     OneClickMiningAction->setStatusTip(tr("One Click Mining Configuration"));
     OneClickMiningAction->setMenuRole(QAction::AboutRole);
     OneClickMiningAction->setEnabled(false);
@@ -488,9 +488,11 @@ void BitcoinGUI::createActions()
     backupWalletAction->setStatusTip(tr("Backup wallet to another location"));
     changePassphraseAction = new QAction(QIcon(":/icons/" + theme + "/key"), tr("&Change Passphrase..."), this);
     changePassphraseAction->setStatusTip(tr("Change the passphrase used for wallet encryption"));
-    unlockWalletAction = new QAction(tr("&Unlock Wallet..."), this);
+
+    unlockWalletAction = new QAction(QIcon(":/icons/" + theme + "/key"), tr("&Unlock Wallet..."), this);
     unlockWalletAction->setToolTip(tr("Unlock wallet"));
-    lockWalletAction = new QAction(tr("&Lock Wallet"), this);
+
+    lockWalletAction = new QAction(QIcon(":/icons/" + theme + "/key"), tr("&Lock Wallet"), this);
     signMessageAction = new QAction(QIcon(":/icons/" + theme + "/edit"), tr("Sign &message..."), this);
     signMessageAction->setStatusTip(tr("Sign messages with your Biblepay addresses to prove you own them"));
     verifyMessageAction = new QAction(QIcon(":/icons/" + theme + "/transaction_0"), tr("&Verify message..."), this);

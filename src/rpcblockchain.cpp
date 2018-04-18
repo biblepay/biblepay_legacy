@@ -86,6 +86,7 @@ void WriteCache(std::string section, std::string key, std::string value, int64_t
 void ClearCache(std::string sSection);
 std::string ReadCacheWithMaxAge(std::string sSection, std::string sKey, int64_t nMaxAge);
 void PurgeCacheAsOfExpiration(std::string sSection, int64_t nExpiration);
+std::vector<unsigned char> StringToVector(std::string sData);
 
 /* PODC */
 extern std::string FindResearcherCPIDByAddress(std::string sSearch, std::string& out_address, double& nTotalMagnitude);
@@ -1727,6 +1728,17 @@ double CAmountToRetirementDouble(CAmount Amount)
 	return d;
 }
 
+uint256 Sha256001(int nType, int nVersion, string data)
+{
+    CHash256 ctx;
+	unsigned char *val = new unsigned char[data.length()+1];
+	strcpy((char *)val, data.c_str());
+	ctx.Write(val, data.length()+1);
+    uint256 result;
+	ctx.Finalize((unsigned char*)&result);
+    return result;
+}
+
 UniValue exec(const UniValue& params, bool fHelp)
 {
     if (fHelp || (params.size() != 1 && params.size() != 2  && params.size() != 3 && params.size() != 4 && params.size() != 5 && params.size() != 6 && params.size() != 7))
@@ -2042,16 +2054,28 @@ UniValue exec(const UniValue& params, bool fHelp)
 	}
 	else if (sItem == "XBBP")
 	{
-		std::string smd1="BiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePay";
-
+		std::string smd1 = "BiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePay";
+		uint256 hMax = uint256S("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF");
+		// 62 hex chars = 31 bytes
+		arith_uint256 aMax = UintToArith256(hMax);
+		arith_uint256 aMax420 = aMax * 420;
+		uint256 hMaxResult = ArithToUint256(aMax420);
+		results.push_back(Pair("hMax", hMax.GetHex()));
+		results.push_back(Pair("hMaxResult", hMaxResult.GetHex()));
+		// test division
+		arith_uint256 bnDiff = aMax - aMax420;
+		uint256 hDiff = ArithToUint256(bnDiff);
+		results.push_back(Pair("bnDiff", hDiff.GetHex()));
+		arith_uint256 aDiv = aMax420 / 1260;
+		uint256 hDivResult = ArithToUint256(aDiv);
+		results.push_back(Pair("bnDivision", hDivResult.GetHex()));
 		std::vector<unsigned char> vch1 = vector<unsigned char>(smd1.begin(), smd1.end());
 		//std::vector<unsigned char> vchPlaintext = vector<unsigned char>(hash.begin(), hash.end());
 	    std::string smd2="biblepay";
 		std::vector<unsigned char> vch2 = vector<unsigned char>(smd2.begin(), smd2.end());
-		
+		uint256 hSMD10 = Sha256001(1,170001,smd2);
 	    uint256 h1 = SerializeHash(vch1); 
 		uint256 hSMD2 = SerializeHash(vch2);
-
 		uint256 h2 = HashBiblePay(vch1.begin(),vch1.end());
 		uint256 h3 = HashBiblePay(h2.begin(),h2.end());
 		uint256 h4 = HashBiblePay(h3.begin(),h3.end());
@@ -2077,15 +2101,10 @@ UniValue exec(const UniValue& params, bool fHelp)
 		int64_t nNonce = 10;
 		uint256 inHash = uint256S("0x1234");
 		bool bMining = true;
-		//uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight, const CBlockIndex* pindexLast, bool bRequireTxIndex, 
-	    //bool f7000, bool f8000, bool f9000, bool fTitheBlocksActive, unsigned int nNonce)
-
 		uint256 uBibleHash = BibleHash(inHash, nTime, nPrevTime, bMining, nPrevHeight, NULL, false, f7000, f8000, f9000, fTitheBlocksActive, nNonce);
-	
 		std::vector<unsigned char> vchPlaintext = vector<unsigned char>(inHash.begin(), inHash.end());
 		std::vector<unsigned char> vchCiphertext;
 		BibleEncrypt(vchPlaintext, vchCiphertext);
-		
 		/*
 		for (int i = 0; i < vch1.size(); i++)
 		{
@@ -2093,11 +2112,8 @@ UniValue exec(const UniValue& params, bool fHelp)
 			results.push_back(Pair(RoundToString(i,0), RoundToString(ichar,0)));
 		}
 		*/
-
-
 		/* Try to discover AES256 empty encryption value */
 		uint256 hBlank = uint256S("0x0");
-
 		std::vector<unsigned char> vchBlank = vector<unsigned char>(hBlank.begin(), hBlank.end());
 		std::vector<unsigned char> vchBlankEncrypted;
 		BibleEncrypt(vchBlank, vchBlankEncrypted);
@@ -2108,31 +2124,24 @@ UniValue exec(const UniValue& params, bool fHelp)
 			results.push_back(Pair("BlankInt" + RoundToString(i,0), RoundToString(ichar,0)));
 		}
 		*/
-
-	
 		std::string sBlankBase64 = EncodeBase64(VectorToString(vchBlankEncrypted));
 		results.push_back(Pair("Blank_Base64", sBlankBase64));
-
 		std::string sCipher64 = EncodeBase64(VectorToString(vchCiphertext));
 		std::string sBibleMD5 = BibleMD5(sCipher64);
 		std::string sBibleMD51234 = BibleMD5("1234");
-
+		results.push_back(Pair("h_sha256", hSMD10.GetHex()));
 		results.push_back(Pair("AES_Cipher64", sCipher64));
 		results.push_back(Pair("AES_BibleMD5", sBibleMD5));
 		results.push_back(Pair("Plain_BibleMD5_1234", sBibleMD51234));
-
 		results.push_back(Pair("biblehash", uBibleHash.GetHex()));
-
 		results.push_back(Pair("h00_biblepay", h00.GetHex()));
 		results.push_back(Pair("h_Groestl", hGroestl.GetHex()));
 		results.push_back(Pair("h_BiblePayIsolated", hBiblepayIsolated.GetHex()));
 		results.push_back(Pair("h_BiblePayTest", hBiblePayTest.GetHex()));
 		results.push_back(Pair("h_BrokenDog", hBrokenDog.GetHex()));
-
 		results.push_back(Pair("h1",h1.GetHex()));
 		results.push_back(Pair("h2",h2.GetHex()));
 		results.push_back(Pair("hSMD2", hSMD2.GetHex()));
-
 		results.push_back(Pair("h3",h3.GetHex()));
 		results.push_back(Pair("h4",h4.GetHex()));
 		results.push_back(Pair("h5",h5.GetHex()));

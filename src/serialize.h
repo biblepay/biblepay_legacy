@@ -640,6 +640,7 @@ inline unsigned int GetSerializeSize(const prevector<N, T>& v, int nType, int nV
 template<typename Stream, unsigned int N, typename T>
 void Serialize_impl(Stream& os, const prevector<N, T>& v, int nType, int nVersion, const unsigned char&)
 {
+	// 4-15-2018 - R ANDREWS - Reverse Engineer WriteCompactSize for Stratis
     WriteCompactSize(os, v.size());
     if (!v.empty())
         os.write((char*)&v[0], v.size() * sizeof(T));

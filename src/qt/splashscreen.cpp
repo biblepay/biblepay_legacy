@@ -64,7 +64,7 @@ SplashScreen::SplashScreen(Qt::WindowFlags f, const NetworkStyle *networkStyle) 
 	// gold: 255,215,0
     pixPaint.setPen(QColor(100,100,100)); // Grey
 	pixPaint.setPen(QColor(255,0,0)); // Red (Version)
-	pixPaint.setPen(QColor(1,0,0)); // Black
+	pixPaint.setPen(QColor(192,192,192)); // Silver
 
 
     // check font size and drawing with

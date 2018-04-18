@@ -30,6 +30,7 @@
 
 #include <vector>
 #include <iostream>
+#include <sstream>
 
 
 typedef uint256 ChainCode;
@@ -239,6 +240,7 @@ inline uint160 Hash160(const prevector<N, unsigned char>& vch)
     return Hash160(vch.begin(), vch.end());
 }
 
+
 /** A writer stream (for serialization) that computes a 256-bit hash. */
 class CHashWriter
 {
@@ -249,43 +251,67 @@ public:
     int nType;
     int nVersion;
 
-    CHashWriter(int nTypeIn, int nVersionIn) : nType(nTypeIn), nVersion(nVersionIn) {}
+	
+	std::string toStringFromInt(int number)
+	{  
+	   std::stringstream ss;
+	   ss << number;
+	   return ss.str();
+	}
+
+
+    CHashWriter(int nTypeIn, int nVersionIn) : nType(nTypeIn), nVersion(nVersionIn) 
+	{
+	}
 
     CHashWriter& write(const char *pch, size_t size) 
 	{
-		/*
-		if (true)
-		{
-			std::string sRow = "";
-			std::cout << " STRCH ";
-			for (int i = 0; i < (int)size; i++)
-			{
-				int ichar = (int)pch[i];
-				std::cout << ichar << " ";
-			}
-
-			std::cout << " STRATIS= " << pch << " END";
-		}
-		*/
-
         ctx.Write((const unsigned char*)pch, size);
+		/*
+		// Stratis
+		for (int i = 0; i < (int)size; i++)
+		{
+			int ichar = (int)pch[i];
+			sForensics += toStringFromInt(ichar) + ",";
+		}
+		// End of Stratis
+		*/
         return (*this);
     }
 
+	/*
+	std::string GetForensics()
+	{
+		return sForensics;
+	}
+	*/
+
     // invalidates the object
-    uint256 GetHash() {
+    uint256 GetHash() 
+	{
         uint256 result;
         ctx.Finalize((unsigned char*)&result);
         return result;
     }
 
     template<typename T>
-    CHashWriter& operator<<(const T& obj) {
+    CHashWriter& operator<<(const T& obj) 
+	{
         // Serialize to this stream
         ::Serialize(*this, obj, nType, nVersion);
         return (*this);
     }
 };
+
+/*
+template<typename T>
+std::string SerializeForensics(const T& obj, int nType=SER_GETHASH, int nVersion=PROTOCOL_VERSION)
+{
+    CHashWriter ss(nType, nVersion);
+    ss << obj;
+    return ss.GetForensics();
+}
+*/
 
 /** Compute the 256-bit hash of an object's serialization. */
 template<typename T>
