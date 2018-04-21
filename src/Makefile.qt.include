@@ -529,6 +529,7 @@ RES_IMAGES = \
   qt/res/images/bezaleel/splash.png \
   qt/res/images/bezaleel/splash_testnet.png \
   qt/res/images/bezaleel/biblepay_logo_horizontal.png \
+  qt/res/images/bezaleel/biblepay_logo.png \
   qt/res/images/bezaleel/unchecked.png \
   qt/res/images/bezaleel/checked.png \
   qt/res/images/bezaleel/bezaleel_downArrow.png \

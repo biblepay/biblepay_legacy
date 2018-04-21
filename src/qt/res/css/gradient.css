@@ -1,5 +1,5 @@
 WalletFrame {
-border-image: url(':/images/gradient/drkblue_walletFrame_bg') 0 0 0 0 stretch stretch;
+border-image: url(':/images/gradient/bezaleel_walletFrame_bg') 0 0 0 0 stretch stretch;
 /* background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #222222, stop: .1 #EEEEEE, stop: .9 #EEEEEE, stop: 1 #222222); */
 border-top:0px solid #000;
 margin:0;
@@ -43,21 +43,26 @@ color:#333333;
 QToolBar {
 background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, stop: .05 #222222, stop: .4 #EEEEEE, stop: .6 #EEEEEE, stop: 1 #222222);
 border:0px solid #333;
+width:217px;
 padding:0;
 margin:0;
 }
 
 QToolBar > QToolButton {
 background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, stop: .05 #222222, stop: .4 #EEEEEE, stop: .6 #EEEEEE, stop: 1 #222222);
-min-height:2.5em;
-min-width:110px;
+min-width:191px;
+min-height:35px;
 padding: 0em 1em;
+padding-left: 3px;
 color:#000000;
 }
 
 QToolBar > QToolButton:checked {
 background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, stop: .05 #000000, stop: .4 #EEEEEE, stop: .6 #EEEEEE, stop: 1 #000000);
 font-weight:bold;
+min-width:191px;
+min-height:35px;
+padding-left: 3px;
 color:#000000;
 border:none;
 }
@@ -65,6 +70,9 @@ border:none;
 QToolBar > QToolButton:hover {
 background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, stop: .05 #222222, stop: .4 #EEEEEE, stop: .6 #EEEEEE, stop: 1 #222222);
 font-weight:bold;
+min-width:191px;
+min-height:35px;
+padding-left: 3px;
 color:#000000;
 border:none;
 }

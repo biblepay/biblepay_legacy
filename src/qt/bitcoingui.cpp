@@ -41,10 +41,12 @@
 #include <QDateTime>
 #include <QDesktopWidget>
 #include <QDragEnterEvent>
+#include <QLabel>
 #include <QListWidget>
 #include <QMenuBar>
 #include <QMessageBox>
 #include <QMimeData>
+#include <QPixmap>
 #include <QProgressBar>
 #include <QProgressDialog>
 #include <QSettings>
@@ -55,6 +57,7 @@
 #include <QTimer>
 #include <QToolBar>
 #include <QVBoxLayout>
+#include <QHBoxLayout>
 #include <QInputDialog>
 
 #if QT_VERSION < 0x050000
@@ -447,7 +450,7 @@ void BitcoinGUI::createActions()
     JesusConciseCommandmentsAction->setStatusTip(tr("Show Jesus Concise Commandments"));
     JesusConciseCommandmentsAction->setMenuRole(QAction::AboutRole);
     JesusConciseCommandmentsAction->setEnabled(false);
-	
+
 	ReadBibleAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("Read Bible"), this);
     ReadBibleAction->setStatusTip(tr("Read Bible"));
     ReadBibleAction->setMenuRole(QAction::AboutRole);
@@ -488,10 +491,8 @@ void BitcoinGUI::createActions()
     backupWalletAction->setStatusTip(tr("Backup wallet to another location"));
     changePassphraseAction = new QAction(QIcon(":/icons/" + theme + "/key"), tr("&Change Passphrase..."), this);
     changePassphraseAction->setStatusTip(tr("Change the passphrase used for wallet encryption"));
-
     unlockWalletAction = new QAction(QIcon(":/icons/" + theme + "/key"), tr("&Unlock Wallet..."), this);
     unlockWalletAction->setToolTip(tr("Unlock wallet"));
-
     lockWalletAction = new QAction(QIcon(":/icons/" + theme + "/key"), tr("&Lock Wallet"), this);
     signMessageAction = new QAction(QIcon(":/icons/" + theme + "/edit"), tr("Sign &message..."), this);
     signMessageAction->setStatusTip(tr("Sign messages with your Biblepay addresses to prove you own them"));
@@ -674,34 +675,59 @@ void BitcoinGUI::createMenuBar()
 
 }
 
+static QWidget* makeToolBarSpacer()
+{
+        QWidget* spacer = new QWidget();
+        spacer->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Expanding);
+        return spacer;
+}
+
+static QWidget* makeToolBarHeader()
+{
+        QWidget* header = new QWidget();
+        header->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+        header->setObjectName(QStringLiteral("header"));
+        return header;
+}
+
 void BitcoinGUI::createToolBars()
 {
     if(walletFrame)
     {
         QToolBar *toolbar = new QToolBar(tr("Tabs toolbar"));
         toolbar->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+
+        toolbar->addWidget(makeToolBarHeader());
+
         toolbar->addAction(overviewAction);
         toolbar->addAction(sendCoinsAction);
         toolbar->addAction(historyAction);
-        
-		if (fDistributedComputingEnabled) toolbar->addAction(distributedComputingAction);
-		toolbar->addAction(receiveCoinsAction);
+	if (fDistributedComputingEnabled) 
+        {
+            toolbar->addAction(distributedComputingAction);
+        }
+
+	toolbar->addAction(receiveCoinsAction);
 		
         QSettings settings;
         if (settings.value("fShowMasternodesTab").toBool())
         {
             toolbar->addAction(masternodeAction);
         }
+		
+        toolbar->addAction(orphanAction);
 
-		toolbar->addAction(orphanAction);
+        toolbar->addWidget(makeToolBarSpacer());
 
+        toolbar->setOrientation(Qt::Vertical);
         toolbar->setMovable(false); // remove unused icon in upper left corner
         overviewAction->setChecked(true);
+        addToolBar(Qt::LeftToolBarArea, toolbar);
 
         /** Create additional container for toolbar and walletFrame and make it the central widget.
             This is a workaround mostly for toolbar styling on Mac OS but should work fine for every other OSes too.
         */
-        QVBoxLayout *layout = new QVBoxLayout;
+        QHBoxLayout *layout = new QHBoxLayout;
         layout->addWidget(toolbar);
         layout->addWidget(walletFrame);
         layout->setSpacing(0);

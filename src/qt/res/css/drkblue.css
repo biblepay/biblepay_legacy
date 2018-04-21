@@ -42,6 +42,7 @@ color:green;
 QToolBar {
 background-color:#3398CC;
 border:0px solid #000;
+width:217px;
 padding:0;
 margin:0;
 }
@@ -49,14 +50,19 @@ margin:0;
 QToolBar > QToolButton {
 background-color:#3398CC;
 border:0px solid #333;
-min-height:2.5em;
+min-width:191px;
+min-height:35px;
 padding: 0em 1em;
+padding-left: 3px;
 font-weight:bold;
 color:#fff;
 }
 
 QToolBar > QToolButton:checked {
 background-color:transparent;
+min-width:191px;
+min-height:35px;
+padding-left: 3px;
 color:#333;
 font-weight:bold;
 }
@@ -1277,14 +1283,13 @@ padding-left:10px;
 /* SEND COINS ENTRY */
 
 QStackedWidget#SendCoinsEntry .QFrame#SendCoins > .QLabel { /* Send Coin Entry Labels */
-/* color 56ABD8 is the default background color - powder blue - of buttons */
-background-color:#800000;
+background-color:#56ABD8;
 min-width:102px;
 font-weight:bold;
 font-size:11px;
 color:#ffffff;
 min-height:25px;
-margin-right:5px; 
+margin-right:5px;
 padding-right:5px;
 }
 

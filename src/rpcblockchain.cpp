@@ -4486,7 +4486,8 @@ bool FilterFile(int iBufferSize, int iNextSuperblock, std::string& sError)
 				double dExtraRAC = 0;
 				if (dTeamBackupProject > 0)
 				{
-					dExtraRAC = GetExtraRacFromBackupProject(sFiltered2, sCPID, dDRMode, dReqSPM, dReqSPR, dTeamBackupProject, dBackupProjectFactor);
+					// NOTE: This needs to be '3' so the sanc gives 100% of the credit before penalizing the dModifiedCredit below:
+					dExtraRAC = GetExtraRacFromBackupProject(sFiltered2, sCPID, 3, dReqSPM, dReqSPR, dTeamBackupProject, dBackupProjectFactor);
 				}
 
 				// Base GetResearcherCredit on the sum of RAH + WCG

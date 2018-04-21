@@ -1,5 +1,4 @@
 <!DOCTYPE RCC><RCC version="1.0">
-
     <qresource prefix="/icons">
         <file alias="bitcoin">res/icons/bitcoin.png</file>
     </qresource>
@@ -288,6 +287,7 @@
         <file alias="bezaleel_walletFrame_bg">res/images/bezaleel/bezaleel_walletFrame_bg.png</file>
         <file alias="splash">res/images/bezaleel/splash.png</file>
         <file alias="splash_testnet">res/images/bezaleel/splash_testnet.png</file>
+        <file alias="biblepay_logo">res/images/bezaleel/biblepay_logo.png</file>
     </qresource>
     <qresource prefix="/images/gradient">
         <file alias="about">res/images/gradient/about.png</file>
