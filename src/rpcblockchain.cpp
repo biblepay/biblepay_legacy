@@ -3253,32 +3253,53 @@ UniValue ContributionReport()
     CBlock block;
 	int nMinDepth = 1;
 	double dTotal = 0;
+	double dChunk = 0;
     UniValue ret(UniValue::VOBJ);
-
+	int iProcessedBlocks = 0;
+	int nStart = 1;
+	int nEnd = 1;
 	for (int ii = nMinDepth; ii <= nMaxDepth; ii++)
 	{
    			CBlockIndex* pblockindex = FindBlockByHeight(ii);
 			if (ReadBlockFromDisk(block, pblockindex, consensusParams, "CONTRIBUTIONREPORT"))
 			{
-				LogPrintf("Reading %f ",(double)ii);
-
+				iProcessedBlocks++;
+				nEnd = ii;
 				BOOST_FOREACH(CTransaction& tx, block.vtx)
 				{
 					 for (int i=0; i < (int)tx.vout.size(); i++)
 					 {
 				 		std::string sRecipient = PubKeyToAddress(tx.vout[i].scriptPubKey);
 						double dAmount = tx.vout[i].nValue/COIN;
+						bool bProcess = false;
 						if (sRecipient == consensusParams.FoundationAddress)
+						{ 
+							bProcess = true;
+						}
+						else if (pblockindex->nHeight == 24600 && dAmount == 2894609)
+						{
+							bProcess=true; // This compassion payment was sent to Robs address first by mistake; add to the audit 
+						}
+						if (bProcess)
 						{
 								dTotal += dAmount;
-						        ret.push_back(Pair("Block ", ii));
-								ret.push_back(Pair("Amount", dAmount));
-								LogPrintf("Amount %f ",dAmount);
+								dChunk += dAmount;
 						}
 					 }
 				 }
+		  		 double nBudget = CSuperblock::GetPaymentsLimit(ii) / COIN;
+				 if (iProcessedBlocks >= (BLOCKS_PER_DAY*7) || (ii == nMaxDepth-1) || (nBudget > 5000000))
+				 {
+					 iProcessedBlocks = 0;
+					 std::string sNarr = "Block " + RoundToString(nStart, 0) + " - " + RoundToString(nEnd, 0);
+					 ret.push_back(Pair(sNarr, dChunk));
+					 dChunk = 0;
+					 nStart = nEnd;
+				 }
+
 			}
 	}
+	
 	ret.push_back(Pair("Grand Total", dTotal));
 	return ret;
 }
