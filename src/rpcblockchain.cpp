@@ -79,6 +79,8 @@ UniValue ContributionReport();
 extern std::string TimestampToHRDate(double dtm);
 void GetBookStartEnd(std::string sBook, int& iStart, int& iEnd);
 extern double GetMinimumRequiredUTXOStake(double dRAC);
+bool TimerMain(std::string timer_name, int max_ms);
+bool NonObnoxiousLog(std::string sLogSection, std::string sLogKey, std::string sValue, int64_t nAllowedSpan);
 
 /* Cache */
 std::string ReadCache(std::string sSection, std::string sKey);
@@ -101,7 +103,7 @@ extern bool SignCPID(std::string sCPID, std::string& sError, std::string& out_Fu
 extern bool SubmitDistributedComputingTrigger(std::string sHex, std::string& gobjecthash, std::string& sError);
 extern std::string GetBoincAuthenticator(std::string sProjectID, std::string sProjectEmail, std::string sPasswordHash);
 bool BibleEncrypt(std::vector<unsigned char> vchPlaintext, std::vector<unsigned char> &vchCiphertext);
-
+extern void RecoverOrphanedChain(int iCondition);
 extern int GetBoincResearcherUserId(std::string sProjectId, std::string sAuthenticator);
 extern std::string GetBoincResearcherHexCodeAndCPID(std::string sProjectId, int nUserId, std::string& sCPID);
 extern std::string GetBoincUnbankedReport(std::string sProjectID);
@@ -2436,7 +2438,11 @@ UniValue exec(const UniValue& params, bool fHelp)
 	}
 	else if (sItem == "testvote")
 	{
+		LogPrintf(" Phase %f ", 1);
+
 		int64_t nAge = GetDCCFileAge();
+		LogPrintf(" Phase %f ", 2);
+
 		uint256 uDCChash = GetDCCFileHash();
 		int iNextSuperblock = 0;
 		int iLastSuperblock = GetLastDCSuperblockHeight(chainActive.Tip()->nHeight, iNextSuperblock);
@@ -2444,51 +2450,64 @@ UniValue exec(const UniValue& params, bool fHelp)
 		results.push_back(Pair("file-age", nAge));
 		results.push_back(Pair("file-hash", uDCChash.GetHex()));
 		results.push_back(Pair("contract", sContract));
+		LogPrintf(" Phase %f ", 3);
 		double nRank = MyPercentile(iLastSuperblock);
 		results.push_back(Pair("sanctuary_rank", nRank));
 		std::string sAddresses="";
 		std::string sAmounts = "";
 		uint256 uPAMHash = GetDCPAMHashByContract(sContract, iNextSuperblock);
+		LogPrintf(" Phase %f ", 4);
 		results.push_back(Pair("pam_hash", uPAMHash.GetHex()));
 		int iVotes = 0;
 		uint256 uGovObjHash = uint256S("0x0");
+		LogPrintf(" Phase %f ", 5);
 		GetDistributedComputingGovObjByHeight(iNextSuperblock, uPAMHash, iVotes, uGovObjHash, sAddresses, sAmounts);
 		std::string sError = "";
 		results.push_back(Pair("govobjhash", uGovObjHash.GetHex()));
 		results.push_back(Pair("Addresses", sAddresses));
 		results.push_back(Pair("Amounts", sAmounts));
-		
 		if (uGovObjHash == uint256S("0x0"))
 		{
 			// create the contract
 			std::string sQuorumTrigger = SerializeSanctuaryQuorumTrigger(iNextSuperblock, sContract);
 			std::string sGobjectHash = "";
+			LogPrintf(" Phase %f ", 6);
+
 			SubmitDistributedComputingTrigger(sQuorumTrigger, sGobjectHash, sError);
+			LogPrintf(" Phase %f ", 7);
+
 			results.push_back(Pair("quorum_hex", sQuorumTrigger));
 			results.push_back(Pair("quorum_gobject_trigger_hash", sGobjectHash));
 			results.push_back(Pair("quorum_error", sError));
 		}
 		results.push_back(Pair("votes_for_my_contract", iVotes));
+		LogPrintf(" Phase %f ", 8);
+
 		int iRequiredVotes = GetRequiredQuorumLevel(iNextSuperblock);
 		results.push_back(Pair("required_votes", iRequiredVotes));
 		results.push_back(Pair("last_superblock", iLastSuperblock));
 		results.push_back(Pair("next_superblock", iNextSuperblock));
+		LogPrintf(" Phase %f ", 9);
+
 		bool fTriggered = CSuperblockManager::IsSuperblockTriggered(iNextSuperblock);
 		double nTotalMagnitude = 0;
+		LogPrintf(" Phase %f ", 10);
 		int iCPIDCount = GetCPIDCount(sContract, nTotalMagnitude);
 		results.push_back(Pair("cpid_count", iCPIDCount));
 		results.push_back(Pair("total_magnitude", nTotalMagnitude));
 		results.push_back(Pair("next_superblock_triggered", fTriggered));
+		LogPrintf(" Phase %f ", 11);
 		bool bRes = VoteForDistributedComputingContract(iNextSuperblock, sContract, sError);
+		LogPrintf(" Phase %f ", 12);
 		results.push_back(Pair("vote_result", bRes));
 		results.push_back(Pair("vote_error", sError));
-
 		// Verify the Vote serialization:
 		std::string sSerialize = mnpayments.SerializeSanctuaryQuorumSignatures(iNextSuperblock, uDCChash);
 		std::string sSigs = ExtractXML(sSerialize,"<SIGS>","</SIGS>");
-		int iVSigners = VerifySanctuarySignatures(sSigs);
+		LogPrintf(" Phase %f ", 13);
+		// int iVSigners = VerifySanctuarySignatures(sSigs);
 		results.push_back(Pair("serial", sSerialize));
-		results.push_back(Pair("verified_sigs", iVSigners));
+		// results.push_back(Pair("verified_sigs", iVSigners));
 	}
 	else if (sItem == "getcpid")
 	{
@@ -2751,6 +2770,16 @@ UniValue exec(const UniValue& params, bool fHelp)
 		double dStake = GetMinimumRequiredUTXOStake(dRAC);
 		results.push_back(Pair("Total RAC", dRAC));
 		results.push_back(Pair("UTXO Target", dStake));
+	}
+	else if (sItem == "reconsiderblocks")
+	{
+		ReprocessBlocks(BLOCKS_PER_DAY);
+		results.push_back(Pair("Reprocessed Blocks", BLOCKS_PER_DAY));
+	}
+	else if (sItem == "timermain")
+	{
+		bool bInterval = TimerMain("reconsiderblocks", 3);
+		results.push_back(Pair("reconsiderblocks", bInterval));
 	}
 	else if (sItem == "datalist")
 	{
@@ -4948,7 +4977,8 @@ bool VerifyCPIDSignature(std::string sFullSig, bool bRequireEndToEndVerification
 		std::string sDCPK = GetDCCPublicKey(sCPID, true);
 		if (sDCPK != sPK) 
 		{
-			LogPrintf(" End To End CPID Verification Failed, Address does not match advertised public key for CPID %s, Advertised Addr %s, Addr %s ", sCPID.c_str(), sDCPK.c_str(), sPK.c_str());
+			std::string sCPIDError = "End To End CPID Verification Failed, Address does not match advertised public key for CPID " + sCPID + ", Advertised Addr " + sDCPK + ", Addr " + sPK;
+			NonObnoxiousLog("cpid", "VerifyCPIDSignature", sCPIDError, 300);
 			return false;
 		}
 	}
@@ -5472,6 +5502,27 @@ std::string GetCPIDByAddress(std::string sAddress, int iOffset)
 	return "";
 }
 
+void RecoverOrphanedChain(int iCondition)
+{
+	// This process is designed to recover from normal forks.
+	// Since we mark a block as Dirty when it occurs, the wallet cannot recover around a bad block unless the block is reconsidered.
+	// (This can happen if a heat-mined block is considered bad but as since has gone over the 15 min threshhold, and may want to be reconsidered).
+	// Condition 1 = Found Chain with More Work
+	// Condition 2 = Blocks marked as invalid
+	// Condition 3 = No ancestor
+	// Attempt to mark these blocks as clean and reprocess 3 days worth of blocks as long as we have not attempted this within 750 seconds:
+	if (iCondition == 2)
+	{
+		if (!TimerMain("InvalidBlock", 10)) return;
+	}
+	bool bAllowed = NonObnoxiousLog("RecoverOrphanedChain", "BlockChainTools", "1", 750);
+	if (bAllowed)
+	{
+		LogPrintf("\n Attempting to Recover Block Chain under %f condition... %f \n", (double)GetAdjustedTime(), (double)iCondition);
+		ReprocessBlocks(BLOCKS_PER_DAY * 3);
+		LogPrintf("\n Finished. %f \n", (double)GetAdjustedTime());
+	}
+}
 
 
 std::string GetGithubVersion()

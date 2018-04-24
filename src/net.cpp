@@ -1625,7 +1625,7 @@ void ThreadOpenAddedConnections()
 		// dd Seed Nodes
 		AddSeedNode("node.biblepay.org"); // Volunteers welcome to run external nodes and we will add during future releases
 		AddSeedNode("99.198.174.212");    //PlainKoin
-		AddSeedNode("dnsseed.biblepay-explorer.org");  // Alex
+		AddSeedNode("node.biblepay-explorer.org");  // Licht
 		if (!fProd) AddSeedNode("test.dnsseed.biblepay-explorer.org"); // Alex (TESTNET)
     }
 

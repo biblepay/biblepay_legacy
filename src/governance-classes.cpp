@@ -21,6 +21,7 @@
 std::vector<std::string> Split(std::string s, std::string delim);
 void GetDistributedComputingGovObjByHeight(int nHeight, uint256 uOptFilter, int& out_nVotes, uint256& out_uGovObjHash, std::string& out_PaymentAddresses, std::string& out_PaymentAmounts);
 int GetRequiredQuorumLevel(int nHeight);
+bool NonObnoxiousLog(std::string sLogSection, std::string sLogKey, std::string sValue, int64_t nAllowedSpan);
 
 
 // DECLARE GLOBAL VARIABLES FOR GOVERNANCE CLASSES
@@ -134,7 +135,9 @@ bool CGovernanceTriggerManager::AddNewTrigger(uint256 nHash)
         DBG( cout << "CGovernanceTriggerManager::AddNewTrigger Error creating superblock"
              << ", e.what() = " << e.what()
              << endl; );
-        LogPrintf("CGovernanceTriggerManager::AddNewTrigger -- Error creating superblock: %s\n", e.what());
+		std::string sErr(e.what());
+        std::string sNOL = "CGovernanceTriggerManager::AddNewTrigger -- Error creating superblock: " + sErr;
+		NonObnoxiousLog("CGovernanceTriggerManager", "AddNewTrigger", sNOL, 300);
         return false;
     }
     catch(...) {
@@ -784,14 +787,17 @@ void CSuperblock::ParsePaymentSchedule(std::string& strPaymentAddresses, std::st
 
     // IF THESE DONT MATCH, SOMETHING IS WRONG
 
-    if (vecParsed1.size() != vecParsed2.size()) {
+    if (vecParsed1.size() != vecParsed2.size()) 
+	{
         std::ostringstream ostr;
-        ostr << "CSuperblock::ParsePaymentSchedule -- Mismatched payments and amounts";
-        LogPrintf("%s\n", ostr.str());
-        throw std::runtime_error(ostr.str());
+		// 4-24-2018 - Prevent Obnoxious Repetetive Logging of this message
+		std::string sLogMe = "CSuperblock::ParsePaymentSchedule -- Mismatched payments and amounts";
+		NonObnoxiousLog("superblock", "ParsePaymentSchedule", sLogMe, 300);
+        throw std::runtime_error(sLogMe);
     }
 
-    if (vecParsed1.size() == 0) {
+    if (vecParsed1.size() == 0) 
+	{
         std::ostringstream ostr;
         ostr << "CSuperblock::ParsePaymentSchedule -- Error no payments";
         LogPrintf("%s\n", ostr.str());

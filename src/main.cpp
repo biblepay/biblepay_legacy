@@ -115,6 +115,10 @@ bool CheckProofOfLoyalty(double dWeight, uint256 hash, unsigned int nBits, const
 double GetStakeWeight(CTransaction tx, int64_t nTipTime, std::string sXML, bool bVerifySignature, std::string& sMetrics, std::string& sError);
 extern std::string SignMessage(std::string sMsg, std::string sPrivateKey);
 extern void GetMiningParams(int nPrevHeight, bool& f7000, bool& f8000, bool& f9000, bool& fTitheBlocksActive);
+extern bool NonObnoxiousLog(std::string sLogSection, std::string sLogKey, std::string sValue, int64_t nAllowedSpan);
+extern bool TimerMain(std::string timer_name, int max_ms);
+
+
 
 extern bool HasThisCPIDSolvedPriorBlocks(std::string CPID, CBlockIndex* pindexPrev);
 std::string VectorToString(std::vector<unsigned char> v);
@@ -145,6 +149,7 @@ bool fPoolMiningUseSSL = false;
 bool fCommunicatingWithPool = false;
 int iMinerThreadCount = 0;
 
+void RecoverOrphanedChain(int iCondition);
 extern void SetOverviewStatus();
 extern const CBlockIndex* GetBlockIndexByTransactionHash(const uint256 &hash);
 extern int32_t ComputeBlockVersion(const CBlockIndex* pindexPrev, const Consensus::Params& params);
@@ -978,7 +983,7 @@ bool TestLockPointValidity(const LockPoints* lp)
 bool InstantiateOneClickMiningEntries()
 {
 	WriteKey("addnode","node.biblepay.org");
-	WriteKey("addnode","biblepay-explorer.org");
+	WriteKey("addnode","node.biblepay-explorer.org");
 	WriteKey("addnode","vultr4.biblepay.org");
 	WriteKey("addnode","dnsseed.biblepay-explorer.org");
 	int iCores = GetNumCores();
@@ -2357,11 +2362,15 @@ void CheckForkWarningConditions()
         }
         else
         {
+			// 4-24-2018 - Found chain with more work - attempt recovery
             if(pindexBestInvalid->nHeight > chainActive.Height() + 6)
                 LogPrintf("%s: Warning: Found invalid chain at least ~6 blocks longer than our best chain.\nChain state database corruption likely.\n", __func__);
             else
                 LogPrintf("%s: Warning: Found invalid chain which has higher work (at least ~6 blocks worth of work) than our best chain.\nChain state database corruption likely.\n", __func__);
             fLargeWorkInvalidChainFound = true;
+			
+			RecoverOrphanedChain(1);
+
         }
     }
     else
@@ -4573,7 +4582,13 @@ static bool AcceptBlockHeader(const CBlockHeader& block, CValidationState& state
 			if (!pindex) return false;
 
             if (pindex->nStatus & BLOCK_FAILED_MASK)
+			{
+				// 4-24-2018 - This happens second - Found Chain with Blocks marked as invalid
+				
+				RecoverOrphanedChain(2);
+
                 return state.Invalid(error("%s: block is marked invalid", __func__), 0, "duplicate");
+			}
             return true;
         }
 
@@ -4583,12 +4598,19 @@ static bool AcceptBlockHeader(const CBlockHeader& block, CValidationState& state
         if (mi != mapBlockIndex.end()) pindexAncestor = (*mi).second;
 	    
         if (mi == mapBlockIndex.end())
+		{
+			// This happens first 4-24-2018
             return state.DoS(21, error("%s: prev block not found", __func__), 0, "bad-prevblk");
+		}
 	
 		// R Andrews - Biblepay - 02/20/2018 : Process ended with SIG11 Access not within a mapped region (pindexAncestor->nStatus)
 		if (!pindexAncestor || pindexAncestor==NULL)
 		{
-			return state.Invalid(error("Block has no ancestor. \n"));
+			// This happens 3rd - 4-24-2018 - Found chain with no ancestor
+			
+			RecoverOrphanedChain(3);
+
+			return state.DoS(15, error("Block has no ancestor. \n"));
         }
 
         if (pindexAncestor->nStatus & BLOCK_FAILED_MASK)
@@ -7432,6 +7454,20 @@ bool TimerMain(std::string timer_name, int max_ms)
 	return false;
 }
 
+bool NonObnoxiousLog(std::string sLogSection, std::string sLogKey, std::string sValue, int64_t nAllowedSpan)
+{
+	boost::to_upper(sLogSection);
+	boost::to_upper(sLogKey);
+	int64_t nElapsed = GetAdjustedTime() - mvApplicationCacheTimestamp[sLogSection + ";" + sLogKey];
+	WriteCache(sLogSection, sLogKey, "1", GetAdjustedTime());
+	bool bAllowed = (nElapsed > nAllowedSpan) ? true : false;
+	if (bAllowed)
+	{
+		LogPrintf("[%s], [%s]: %s (elapsed %f)", sLogSection.c_str(), sLogKey.c_str(), sValue.c_str(), (double)nElapsed);
+		mvApplicationCacheTimestamp[sLogSection + ";" + sLogKey] = GetAdjustedTime();
+	}
+	return bAllowed;
+}
 
 void WriteCache(std::string sSection, std::string sKey, std::string sValue, int64_t locktime)
 {
