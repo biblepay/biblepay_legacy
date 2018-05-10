@@ -2179,6 +2179,25 @@ UniValue exec(const UniValue& params, bool fHelp)
 		uint256 h3 = ArithToUint256(bn3);
 		results.push_back(Pair("h3", h3.GetHex()));
 	}
+	else if (sItem == "blocktohex")
+	{
+		std::string sBlock = params[1].get_str();
+		int nHeight = (int)cdbl(sBlock,0);
+		if (nHeight < 0 || nHeight > chainActive.Tip()->nHeight) throw runtime_error("Block number out of range.");
+		CBlockIndex* pblockindex = FindBlockByHeight(nHeight);
+		if (pblockindex==NULL)    throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
+		CBlock block;
+		const Consensus::Params& consensusParams = Params().GetConsensus();
+		ReadBlockFromDisk(block, pblockindex, consensusParams, "SHOWBLOCK");
+		CDataStream ssBlock(SER_NETWORK, PROTOCOL_VERSION);
+		//CBlock block1 = const_cast<CBlock&>(*block);
+		ssBlock << block;
+		std::string sBlockHex = HexStr(ssBlock.begin(), ssBlock.end());
+		CTransaction txCoinbase;
+		std::string sTxCoinbaseHex = EncodeHexTx(block.vtx[0]);
+		results.push_back(Pair("blockhex", sBlockHex));
+		results.push_back(Pair("txhex", sTxCoinbaseHex));
+	}
 	else if (sItem == "hexblocktojson")
 	{
 		std::string sHex = params[1].get_str();
@@ -4428,7 +4447,9 @@ bool FilterFile(int iBufferSize, int iNextSuperblock, std::string& sError)
 	std::string sUnbankedList = MutateToList(GetBoincUnbankedReport("pool"));
 	ClearSanctuaryMemories();
 	ClearCache("Unbanked");
-
+	LogPrintf(" Unbanked \n");
+	double dDRMode = cdbl(GetSporkValue("dr"), 0);
+	
 	for (int i = 0; i < (int)vCPIDs.size(); i++)
 	{
 		std::string sCPID1 = GetDCCElement(vCPIDs[i], 0, true);
@@ -4437,9 +4458,12 @@ bool FilterFile(int iBufferSize, int iNextSuperblock, std::string& sError)
 		if (dUnbankedIndicator==1) sCPID1 = GetDCCElement(vCPIDs[i], 0, false);
 		if (!sCPID1.empty())
 		{
+			LogPrintf("unbanked %s ", sCPID1.c_str());
 			if (!sCPID1.empty()) sConcatCPIDs += sCPID1 + ",";
 			std::string sTaskList = ReadCacheWithMaxAge("CPIDTasks", sCPID1, nMaxAge);
-			double dVerifyTasks = VerifyTasks(sCPID1, sTaskList);
+			double dVerifyTasks = 0;
+			// R ANDREWS; 5-9-2018
+			if (dDRMode == 0 || dDRMode == 2) dVerifyTasks = VerifyTasks(sCPID1, sTaskList);
 			WriteCache("TaskWeight", sCPID1, RoundToString(dVerifyTasks, 0), GetAdjustedTime());
 			if (dRosettaID > 0 && IsInList(sUnbankedList, ",", RoundToString(dRosettaID,0)))
 			{
@@ -4459,6 +4483,7 @@ bool FilterFile(int iBufferSize, int iNextSuperblock, std::string& sError)
 	// Filter each BOINC Project file down to the individual BiblePay records
 
 	bool bResult = FilterPhase1(sConcatCPIDs, sTarget, sFiltered, vCPIDs);
+	LogPrintf(" FilterPhase1 %s ",sConcatCPIDs.c_str());
 	if (!bResult)
 	{
 		LogPrintf(" \n FilterFile::FilterPhase 1 failed. \n");

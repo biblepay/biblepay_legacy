@@ -3116,7 +3116,7 @@ bool DownloadIndividualDistributedComputingFile(int iNextSuperblock, std::string
 		sError = "<ERROR>GENERAL_WEB_EXCEPTION</ERROR>";
 		return false;
 	}
-
+	LogPrintf("Gunzip %s",sPath2.c_str());
 	std::string sCommand = "gunzip " + sPath2;
     std::string result = SystemCommand2(sCommand.c_str());
 	return true;
@@ -3140,6 +3140,7 @@ bool DownloadDistributedComputingFile(int iNextSuperblock, std::string& sError)
 	std::string sPage2 = "/boinc/stats/user.gz";
 	DownloadIndividualDistributedComputingFile(iNextSuperblock, sBaseURL, sPage, "user1", sError);
 	DownloadIndividualDistributedComputingFile(iNextSuperblock, sBaseURL2, sPage2, "user2", sError);
+	LogPrintf("Filter File %f",iNextSuperblock);
 	FilterFile(50, iNextSuperblock, sError);
 	fDistributedComputingCycleDownloading = false;
 	return true;
