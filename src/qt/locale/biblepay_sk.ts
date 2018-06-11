@@ -5,7 +5,7 @@
         <source>Right-click to edit address or label</source>
         <translation>Pre úpravu adresy alebo popisu kliknite pravým tlačidlom myši</translation>
     </message>
-    <message>
+    <message> 
         <source>Create a new address</source>
         <translation>Vytvoriť novú adresu</translation>
     </message>

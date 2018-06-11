@@ -11,6 +11,7 @@
 
 
 #include "amount.h"
+#include "proposals.h"
 
 #include <QLabel>
 #include <QMainWindow>
@@ -143,6 +144,9 @@ private:
     QAction *showHelpMessageAction;
     QAction *showPrivateSendHelpAction;
 
+    QAction *openProposalsAction;
+    QAction *openFundedProposalsAction;
+
     QSystemTrayIcon *trayIcon;
     QMenu *trayIconMenu;
     QMenu *dockIconMenu;
@@ -270,6 +274,9 @@ private Q_SLOTS:
     void showMNConfEditor();
     /** Show folder with wallet backups in default file browser */
     void showBackups();
+
+    void showProposals();
+    void showFundedProposals();
 
     /** Show help message dialog */
     void showHelpMessageClicked();

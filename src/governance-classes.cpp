@@ -723,8 +723,16 @@ bool CSuperblock::IsValidBlockHeight(int nBlockHeight)
 bool CSuperblock::IsDCCSuperblock(int nHeight)
 {
 	if (!fDistributedComputingEnabled) return false;
-    return nHeight >= Params().GetConsensus().nDCCSuperblockStartBlock &&
+	if ((nHeight > F13000_CUTOVER_HEIGHT_PROD && fProd) || (nHeight > F13000_CUTOVER_HEIGHT_TESTNET && !fProd))
+	{
+		return nHeight >= Params().GetConsensus().nDCCSuperblockStartBlock &&
+            ((nHeight % Params().GetConsensus().nDCCSuperblockCycle) == 10);
+	}
+	else
+	{
+		return nHeight >= Params().GetConsensus().nDCCSuperblockStartBlock &&
             ((nHeight % Params().GetConsensus().nDCCSuperblockCycle) == 0);
+	}
 }
 
 CAmount CSuperblock::GetPaymentsLimit(int nBlockHeight)

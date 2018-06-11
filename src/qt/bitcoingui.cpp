@@ -18,6 +18,7 @@
 #include "rpcconsole.h"
 #include "utilitydialog.h"
 #include <QDesktopServices>  //Added for openURL()
+#include "proposals.h"
 
 #ifdef ENABLE_WALLET
 #include "walletframe.h"
@@ -509,6 +510,15 @@ void BitcoinGUI::createActions()
     openPeersAction->setStatusTip(tr("Show peers info"));
     openRepairAction = new QAction(QIcon(":/icons/" + theme + "/options"), tr("Wallet &Repair"), this);
     openRepairAction->setStatusTip(tr("Show wallet repair options"));
+	
+    //add submenu items to Proposals
+    openProposalsAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("Proposal &List"), this);
+    openProposalsAction->setStatusTip(tr("Show Proposal List"));
+    openFundedProposalsAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("&Funded Proposal List"), this);
+    openFundedProposalsAction->setStatusTip(tr("Show Funded Proposal List"));
+    openProposalsAction->setEnabled(false);
+    openFundedProposalsAction->setEnabled(false);
+
     openConfEditorAction = new QAction(QIcon(":/icons/" + theme + "/edit"), tr("Open Wallet &Configuration File"), this);
     openConfEditorAction->setStatusTip(tr("Open configuration file"));
     openMNConfEditorAction = new QAction(QIcon(":/icons/" + theme + "/edit"), tr("Open &Masternode Configuration File"), this);
@@ -572,7 +582,11 @@ void BitcoinGUI::createActions()
 
     // Get restart command-line parameters and handle restart
     connect(rpcConsole, SIGNAL(handleRestart(QStringList)), this, SLOT(handleRestart(QStringList)));
-    
+
+	// Proposals:
+    connect(openProposalsAction, SIGNAL(triggered()), this, SLOT(showProposals()));
+    connect(openFundedProposalsAction, SIGNAL(triggered()), this, SLOT(showFundedProposals()));
+
     // prevents an open debug window from becoming stuck/unusable on client shutdown
     connect(quitAction, SIGNAL(triggered()), rpcConsole, SLOT(hide()));
 
@@ -648,6 +662,13 @@ void BitcoinGUI::createMenuBar()
         tools->addAction(openMNConfEditorAction);
         tools->addAction(showBackupsAction);
 		tools->addAction(OneClickMiningAction);
+    }
+	
+	if(walletFrame)
+    {
+        QMenu *proposals = appMenuBar->addMenu(tr("&Proposals"));
+        proposals->addAction(openProposalsAction);
+        proposals->addAction(openFundedProposalsAction);
     }
 	
 	// BiblePay - Prayers, Jesus' Commandments, and Reading the Bible
@@ -894,6 +915,9 @@ void BitcoinGUI::createIconMenu(QMenu *pmenu)
     pmenu->addAction(openConfEditorAction);
     pmenu->addAction(openMNConfEditorAction);
     pmenu->addAction(showBackupsAction);
+    pmenu->addAction(openProposalsAction);
+    pmenu->addAction(openFundedProposalsAction);
+
 #ifndef Q_OS_MAC // This is built-in on Mac
     pmenu->addSeparator();
     pmenu->addAction(quitAction);
@@ -1065,6 +1089,20 @@ void BitcoinGUI::showBackups()
 {
     GUIUtil::showBackups();
 }
+
+
+void BitcoinGUI::showProposals()
+{
+    Proposals *proposals = new Proposals();
+    proposals->setWindowTitle ("Proposal List");
+    proposals->show(); 
+}
+
+void BitcoinGUI::showFundedProposals()
+{
+    printf("inside showFundedProposals\n");
+}
+
 
 void BitcoinGUI::showHelpMessageClicked()
 {
@@ -1433,6 +1471,15 @@ void BitcoinGUI::showEvent(QShowEvent *event)
     openRepairAction->setEnabled(true);
     aboutAction->setEnabled(true);
     optionsAction->setEnabled(true);
+	openFundedProposalsAction->setEnabled(false);
+	openFundedProposalsAction->setVisible(false);
+	openProposalsAction->setEnabled(false);
+
+	if (!fProd)
+	{
+		openProposalsAction->setEnabled(true);
+	}
+
 	sinnerAction->setEnabled(true);
 	TheLordsPrayerAction->setEnabled(true);
 	TheApostlesCreedAction->setEnabled(true);

@@ -2129,7 +2129,9 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
 	// Memorize Prayers
 
 	uiInterface.InitMessage(_("Memorizing Prayers..."));
-	MemorizeBlockChainPrayers(false);
+	// ROBERT ANDREWS - BIBLEPAY - JUNE 11th, 2018 - INCREASE BOOT TIME BY MEMORIZING PRAYERS, PODC UPDATES ON SEPARATE BACKGROUND THREAD:
+	threadGroup.create_thread(boost::bind(&MemorizeBlockChainPrayers, false));
+    //	(Old Way) : MemorizeBlockChainPrayers(false);
 
     //// debug print
     LogPrintf("mapBlockIndex.size() = %u\n",   mapBlockIndex.size());

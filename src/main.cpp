@@ -7562,32 +7562,44 @@ std::string GetMessagesFromBlock(const CBlock& block, std::string sTargetType)
 
 void MemorizeBlockChainPrayers(bool fDuringConnectBlock)
 {
-	int nMaxDepth = chainActive.Tip()->nHeight;
-    int nMinDepth = fDuringConnectBlock ? nMaxDepth - 2 : nMaxDepth - (BLOCKS_PER_DAY * 30 * 12);  // One year
-	if (nMinDepth < 0) nMinDepth = 0;
-	CBlockIndex* pindex = FindBlockByHeight(nMinDepth);
-	const Consensus::Params& consensusParams = Params().GetConsensus();
-    while (pindex && pindex->nHeight < nMaxDepth)
+	while (true)
 	{
-		if (pindex) if (pindex->nHeight < chainActive.Tip()->nHeight) pindex = chainActive.Next(pindex);
-		if (!pindex) break;
-	    
-		CBlock block;
-		if (ReadBlockFromDisk(block, pindex, consensusParams, "MemorizeBlockChainPrayers")) 
+		int nMaxDepth = chainActive.Tip()->nHeight;
+		int nTime = chainActive.Tip()->nTime;
+		int nMinDepth = fDuringConnectBlock ? nMaxDepth - 2 : nMaxDepth - (BLOCKS_PER_DAY * 30 * 12);  // One year
+		if (nMinDepth < 0) nMinDepth = 0;
+		CBlockIndex* pindex = FindBlockByHeight(nMinDepth);
+		const Consensus::Params& consensusParams = Params().GetConsensus();
+		LogPrintf("MemorizeBlockChainPrayers @ %f ",GetAdjustedTime());
+		while (pindex && pindex->nHeight < nMaxDepth)
 		{
-        	BOOST_FOREACH(const CTransaction &tx, block.vtx)
+			if (pindex) if (pindex->nHeight < chainActive.Tip()->nHeight) pindex = chainActive.Next(pindex);
+			if (!pindex) break;
+	    
+			CBlock block;
+			if (ReadBlockFromDisk(block, pindex, consensusParams, "MemorizeBlockChainPrayers")) 
 			{
-				double dTotalSent = 0;
-				std::string sPrayer = "";
-				for (unsigned int i = 0; i < tx.vout.size(); i++)
+        		BOOST_FOREACH(const CTransaction &tx, block.vtx)
 				{
-					dTotalSent += tx.vout[i].nValue / COIN;
-					sPrayer += tx.vout[i].sTxOutMessage;
+					double dTotalSent = 0;
+					std::string sPrayer = "";
+					for (unsigned int i = 0; i < tx.vout.size(); i++)
+					{
+						dTotalSent += tx.vout[i].nValue / COIN;
+						sPrayer += tx.vout[i].sTxOutMessage;
+					}
+					MemorizePrayer(sPrayer, block.GetBlockTime(), dTotalSent, 0, tx.GetHash().GetHex());
 				}
-			    MemorizePrayer(sPrayer, block.GetBlockTime(), dTotalSent, 0, tx.GetHash().GetHex());
-			}
-	  	}
+	  		}
+		}
+		LogPrintf("Finished MemorizeBlockChainPrayers @ %f ",GetAdjustedTime());
+		if (fDuringConnectBlock) break;
+		// This thread exits when prayers are memorized in order up to the best block.  After that, prayers are memorized in ConnectBlock.
+		if (nTime > (GetAdjustedTime()-(60 * 60))) break;
+		// This happens if the chain was not synced during a cold boot:
+		MilliSleep(30000);
 	}
+
 }
 
 
@@ -7653,6 +7665,15 @@ std::string SignMessage(std::string sMsg, std::string sPrivateKey)
      return SignedMessage;
 }
 
+bool IsMature(int64_t nTime, int64_t nMaturityAge)
+{
+	int64_t nNow = GetAdjustedTime();
+	int64_t nRemainder = nNow % nMaturityAge;
+	int64_t nCutoff = nNow - nRemainder;
+	bool bMature = nTime <= nCutoff;
+	return bMature;
+}
+
 void MemorizePrayer(std::string sMessage, int64_t nTime, double dAmount, int iPosition, std::string sTxID)
 {
 	if (sMessage.empty()) return;
@@ -7671,6 +7692,11 @@ void MemorizePrayer(std::string sMessage, int64_t nTime, double dAmount, int iPo
 				std::string sCPID = GetElement(sMySig, ";", 0);
 				WriteCache("UTXOWeight", sCPID, RoundToString(dAmount, 0), nTime);
 				WriteCache("CPIDTasks", sCPID, sPODC, nTime);
+				if (IsMature(nTime, 14400))
+				{
+					WriteCache("MatureUTXOWeight", sCPID, RoundToString(dAmount, 0), nTime);
+					WriteCache("MatureCPIDTasks", sCPID, sPODC, nTime);
+				}
 			}
 			else
 			{
@@ -7727,6 +7753,10 @@ void MemorizePrayer(std::string sMessage, int64_t nTime, double dAmount, int iPo
 				}
 			}
 			WriteCache(sMessageType, sAdjMessageKey, sMessageValue, nTime);
+			if (sMessageType == "DCC")
+			{
+				if (IsMature(nTime, 14400)) WriteCache("MatureDCC", sAdjMessageKey, sMessageValue, nTime);
+			}
 		}
 	}
 }

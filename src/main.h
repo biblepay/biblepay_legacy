@@ -70,6 +70,8 @@ static const int F10000_CUTOVER_HEIGHT = 25910;
 static const int F11000_CUTOVER_HEIGHT_PROD = 33440;
 static const int F11000_CUTOVER_HEIGHT_TESTNET = 1;
 static const int F12000_CUTOVER_HEIGHT_PROD = 35110;
+static const int F13000_CUTOVER_HEIGHT_PROD = 65900; // June 30, 2018=55900
+static const int F13000_CUTOVER_HEIGHT_TESTNET = 16600;
 
 /** Default for -maxorphantx, maximum number of orphan transactions kept in memory */
 static const unsigned int DEFAULT_MAX_ORPHAN_TRANSACTIONS = 100;

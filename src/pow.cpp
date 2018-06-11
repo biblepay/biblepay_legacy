@@ -173,12 +173,16 @@ unsigned int static DarkGravityWave(const CBlockIndex* pindexLast, const Consens
 	{
 		_nTargetTimespan = CountBlocks * 390;
 	}
-	else if (fProdChain && pindexLast->nHeight >= F12000_CUTOVER_HEIGHT_PROD)
+	else if (fProdChain && pindexLast->nHeight >= F12000_CUTOVER_HEIGHT_PROD && pindexLast->nHeight < F13000_CUTOVER_HEIGHT_PROD)
 	{
 		_nTargetTimespan = CountBlocks * 310;
 	}
+	else if (fProdChain && pindexLast->nHeight >= F13000_CUTOVER_HEIGHT_PROD)
+	{
+		// 5-31-2018; For June mandatory upgrade: Tighten block solve time down to 7 mins (we are running 4.5% slow)
+		_nTargetTimespan = CountBlocks * 296;
+	}
 	
-
 	if (!fProdChain && pindexLast->nHeight < 250)
 	{
 		_nTargetTimespan = CountBlocks; // One second blocks in testnet before block 1000

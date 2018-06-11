@@ -25,6 +25,7 @@
 #include "wallet/wallet.h"
 #include "wallet/rpcwallet.cpp"
 #include "masternode-payments.h"
+#include "masternodeconfig.h"
 
 #include "activemasternode.h"
 #include "masternodeman.h"
@@ -81,6 +82,8 @@ void GetBookStartEnd(std::string sBook, int& iStart, int& iEnd);
 extern double GetMinimumRequiredUTXOStake(double dRAC);
 bool TimerMain(std::string timer_name, int max_ms);
 bool NonObnoxiousLog(std::string sLogSection, std::string sLogKey, std::string sValue, int64_t nAllowedSpan);
+extern bool VoteManyForGobject(std::string govobj, std::string strVoteSignal, std::string strVoteOutcome, int iVotingLimit, 
+	 int& nSuccessful, int& nFailed, std::string& sError);
 
 /* Cache */
 std::string ReadCache(std::string sSection, std::string sKey);
@@ -102,8 +105,10 @@ extern std::string VerifyManyWorkUnits(std::string sProjectId, std::string sTask
 extern bool SignCPID(std::string sCPID, std::string& sError, std::string& out_FullSig);
 extern bool SubmitDistributedComputingTrigger(std::string sHex, std::string& gobjecthash, std::string& sError);
 extern std::string GetBoincAuthenticator(std::string sProjectID, std::string sProjectEmail, std::string sPasswordHash);
+extern double GetMatureMetric(std::string sMetricName, std::string sPrimaryKey, int64_t nMaxAge, int nHeight);
 bool BibleEncrypt(std::vector<unsigned char> vchPlaintext, std::vector<unsigned char> &vchCiphertext);
 extern void RecoverOrphanedChain(int iCondition);
+extern bool VoteForGobject(uint256 govobj, std::string sVoteOutcome, std::string& sError);
 extern int GetBoincResearcherUserId(std::string sProjectId, std::string sAuthenticator);
 extern std::string GetBoincResearcherHexCodeAndCPID(std::string sProjectId, int nUserId, std::string& sCPID);
 extern std::string GetBoincUnbankedReport(std::string sProjectID);
@@ -119,7 +124,7 @@ extern std::string GetDCCElement(std::string sData, int iElement, bool fCheckSig
 extern double GetWCGRACByCPID(std::string sCPID);
 extern std::string SerializeSanctuaryQuorumTrigger(int nEventBlockHeight, std::string sContract);
 extern double VerifyTasks(std::string sCPID, std::string sTasks);
-
+extern std::string GetActiveProposals();
 
 extern std::string GetSporkValue(std::string sKey);
 extern int64_t RetrieveCPIDAssociationTime(std::string cpid);
@@ -1802,10 +1807,11 @@ UniValue exec(const UniValue& params, bool fHelp)
 		std::string sValue = params[3].get_str();
 		if (sType.empty() || sPrimaryKey.empty() || sValue.empty())
 			throw runtime_error(sError);
+		sError = "";
     	std::string sResult = SendBlockchainMessage(sType, sPrimaryKey, sValue, 1, true, sError);
 		results.push_back(Pair("Sent", sValue));
 		results.push_back(Pair("TXID", sResult));
-		results.push_back(Pair("Error", sError));
+		if (!sError.empty()) results.push_back(Pair("Error", sError));
 	}
 	else if (sItem == "sendmessage")
 	{
@@ -2605,9 +2611,13 @@ UniValue exec(const UniValue& params, bool fHelp)
 		std::string sAddress = "";
 		if (params.size() == 2) sAddress = params[1].get_str();
 		double nMagnitude2 = 0;
+		LogPrintf("Step 1 %f",GetAdjustedTime());
 		std::string sCPID = FindResearcherCPIDByAddress(sAddress, out_address, nMagnitude2);
 		int iNextSuperblock = 0;
+		LogPrintf("Step 2 %f",GetAdjustedTime());
+	
 		int iLastSuperblock = GetLastDCSuperblockHeight(chainActive.Tip()->nHeight, iNextSuperblock);
+		LogPrintf("Step 3 %f",GetAdjustedTime());
 	
 		results.push_back(Pair("CPID", sCPID));
 		results.push_back(Pair("Address", out_address));
@@ -2615,7 +2625,8 @@ UniValue exec(const UniValue& params, bool fHelp)
 		
 		int64_t nTime = RetrieveCPIDAssociationTime(sCPID);
 		int64_t nAge = (GetAdjustedTime() - nTime)/(60*60);
-
+		LogPrintf("Step 4 %f",GetAdjustedTime());
+	
 		std::string sNarrAge = nAge < 24 ? "** Warning, CPID was associated less than 24 hours ago.  Magnitude may be zero until distributed grid network harvests all credit data.  Please keep crunching. **" : "";
 		results.push_back(Pair("CPID-Age (hours)",nAge));
 		if (!sNarrAge.empty())
@@ -2644,6 +2655,8 @@ UniValue exec(const UniValue& params, bool fHelp)
 					double RAC = GetBoincRACByUserId("project1", nUserId);
 					results.push_back(Pair(s1 + "_ADDRESS", sAddress));
 					results.push_back(Pair(s1 + "_RAC", RAC));
+					LogPrintf("UserID %f %f",nUserId, GetAdjustedTime());
+	
 					double dTeam = GetBoincTeamByUserId("project1", nUserId);
 					results.push_back(Pair(s1 + "_TEAM", dTeam));
 					if (dBiblepayTeam > 0)
@@ -2679,7 +2692,6 @@ UniValue exec(const UniValue& params, bool fHelp)
 		double out_OneDayBudget = 0;
 		double out_OneWeekBudget = 0;
 		double nMagnitude = GetUserMagnitude(nBudget, nTotalPaid, iLastSuperblock, out_Superblocks, out_SuperblockCount, out_HitCount, out_OneDayPaid, out_OneWeekPaid, out_OneDayBudget, out_OneWeekBudget);
-
 		results.push_back(Pair("Total Payments (One Day)", out_OneDayPaid));
 		results.push_back(Pair("Total Payments (One Week)", out_OneWeekPaid));
 		results.push_back(Pair("Total Budget (One Day)",out_OneDayBudget));
@@ -2799,6 +2811,34 @@ UniValue exec(const UniValue& params, bool fHelp)
 	{
 		bool bInterval = TimerMain("reconsiderblocks", 3);
 		results.push_back(Pair("reconsiderblocks", bInterval));
+	}
+	else if (sItem == "podcvotingreport")
+	{
+		std::string strType = "triggers";
+		int nStartTime = 0; 
+		int nNextHeight = 0;
+		GetLastDCSuperblockHeight(chainActive.Tip()->nHeight, nNextHeight);
+		LOCK2(cs_main, governance.cs);
+		std::vector<CGovernanceObject*> objs = governance.GetAllNewerThan(nStartTime);
+		BOOST_FOREACH(CGovernanceObject* pGovObj, objs)
+        {
+            if(strType == "proposals" && pGovObj->GetObjectType() != GOVERNANCE_OBJECT_PROPOSAL) continue;
+            if(strType == "triggers" && pGovObj->GetObjectType() != GOVERNANCE_OBJECT_TRIGGER) continue;
+            if(strType == "watchdogs" && pGovObj->GetObjectType() != GOVERNANCE_OBJECT_WATCHDOG) continue;
+
+			UniValue obj = pGovObj->GetJSONObject();
+			int nLocalHeight = obj["event_block_height"].get_int();
+
+            if (nLocalHeight == nNextHeight)
+			{
+				int iVotes = pGovObj->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING);
+				std::string sPAM = obj["payment_amounts"].get_str();
+				std::vector<std::string> vCPIDs = Split(sPAM.c_str(),"|");
+				results.push_back(Pair("Govobj: " + pGovObj->GetHash().GetHex(), iVotes));
+				results.push_back(Pair("CPID Count", vCPIDs.size()));
+				if (iVotes > 0) results.push_back(Pair("Amounts", sPAM));
+			}
+		}
 	}
 	else if (sItem == "datalist")
 	{
@@ -3369,9 +3409,9 @@ std::string FindResearcherCPIDByAddress(std::string sSearch, std::string& out_ad
 			boost::to_upper(strName);
 			// If we have a valid burn in the chain, prefer it
 			std::vector<std::string> vCPIDs = GetListOfDCCS(sAddress, true);
-			nTotalMagnitude += GetMagnitudeByAddress(sAddress);
 			if (vCPIDs.size() > 0)
 			{
+				nTotalMagnitude += GetMagnitudeByAddress(sAddress);
 				for (int i=0; i < (int)vCPIDs.size(); i++)
 				{
 					std::string sCPID = GetDCCElement(vCPIDs[i], 0, false);
@@ -3381,7 +3421,7 @@ std::string FindResearcherCPIDByAddress(std::string sSearch, std::string& out_ad
 						msGlobalCPID += sCPID + ";";
 						sLastCPID = sCPID;
 					}
-					if (!sSearch.empty())
+					else if (!sSearch.empty())
 					{
 						if (sSearch == sAddress && !sCPID.empty()) 
 						{
@@ -3984,7 +4024,7 @@ double GetUserMagnitude(double& nBudget, double& nTotalPaid, int& out_iLastSuper
 								{
 									out_OneDayPaid += dAmount;
 								}
-								if (Age > 0 && Age < (7*86400)) out_OneWeekPaid += dAmount;
+								if (Age > 0 && Age < (7 * 86400)) out_OneWeekPaid += dAmount;
 							}
 					  }
 					  if (nTotalBlock > (nBudget * .50) && nBudget > 0) 
@@ -3996,11 +4036,11 @@ double GetUserMagnitude(double& nBudget, double& nTotalPaid, int& out_iLastSuper
 							{
 								out_OneDayBudget += nBudget;
 							}
-							if (Age > 0 && Age < (7*86400)) 
+							if (Age > 0 && Age < (7 * 86400)) 
 							{
 								out_OneWeekBudget += nBudget;
 							}
-							if (Age > (7*86400)) 
+							if (Age > (7 * 86400)) 
 							{
 								break;
 							}
@@ -4088,21 +4128,29 @@ int GetLastDCSuperblockHeight(int nCurrentHeight, int& nNextSuperblock)
     // Compute last/next superblock
     int nLastSuperblock = 0;
     int nSuperblockStartBlock = Params().GetConsensus().nDCCSuperblockStartBlock;
-    int nSuperblockCycle = Params().GetConsensus().nDCCSuperblockCycle;
-    int nFirstSuperblockOffset = (nSuperblockCycle - nSuperblockStartBlock % nSuperblockCycle) % nSuperblockCycle;
-    int nFirstSuperblock = nSuperblockStartBlock + nFirstSuperblockOffset;
-    if(nCurrentHeight < nFirstSuperblock)
+    // int nSuperblockCycle = Params().GetConsensus().nDCCSuperblockCycle;
+    // int nFirstSuperblockOffset = (nSuperblockCycle - nSuperblockStartBlock % nSuperblockCycle) % nSuperblockCycle;
+	// 6-5-2018 - R ANDREWS - CASCADING SUPERBLOCKS 
+	// So this looks complicated, but this logic allows us to transition over the F12000-F13000 superblock interval cycle change with a broken schedule in-between
+	int nHeight = nCurrentHeight;
+	for (; nHeight > nSuperblockStartBlock; nHeight--)
 	{
-        nLastSuperblock = 0;
-        nNextSuperblock = nFirstSuperblock;
-    } 
-	else 
+		if (CSuperblock::IsDCCSuperblock(nHeight))
+		{
+			nLastSuperblock = nHeight;
+			break;
+		}
+	}
+	nHeight++;
+	for (; nHeight > nSuperblockStartBlock; nHeight++)
 	{
-        nLastSuperblock = nCurrentHeight - (nCurrentHeight % nSuperblockCycle);
-        nNextSuperblock = nLastSuperblock + nSuperblockCycle;
-    }
+		if (CSuperblock::IsDCCSuperblock(nHeight))
+		{
+			nNextSuperblock = nHeight;
+			break;
+		}
+	}
 	return nLastSuperblock;
-
 }
 
 
@@ -4315,7 +4363,7 @@ std::string GetBoincTasksByHost(int iHostID, std::string sProjectId)
 }
 
 
-bool FilterPhase1(std::string sConcatCPIDs, std::string sSourcePath, std::string sTargetPath, std::vector<std::string> vCPIDs)
+bool FilterPhase1(int iNextSuperblock, std::string sConcatCPIDs, std::string sSourcePath, std::string sTargetPath, std::vector<std::string> vCPIDs)
 {
 	boost::filesystem::path pathIn(sSourcePath);
     std::ifstream streamIn;
@@ -4358,8 +4406,8 @@ bool FilterPhase1(std::string sConcatCPIDs, std::string sSourcePath, std::string
 							if (bAddlData) sBuffer += line + "<ROW>";
 						}
 
-						double dUTXOWeight = cdbl(ReadCacheWithMaxAge("UTXOWeight", sCpid, nMaxAge), 0);
-						double dTaskWeight = cdbl(ReadCacheWithMaxAge("TaskWeight", sCpid, nMaxAge), 0);
+						double dUTXOWeight = GetMatureMetric("UTXOWeight", sCpid, nMaxAge, iNextSuperblock);
+						double dTaskWeight = GetMatureMetric("TaskWeight", sCpid, nMaxAge, iNextSuperblock);
 						double dUnbanked = cdbl(ReadCacheWithMaxAge("Unbanked", sCpid, nMaxAge), 0);
 						std::string sExtra = "<utxoweight>" + RoundToString(dUTXOWeight, 0) 
 							+ "</utxoweight>\r\n<taskweight>" 
@@ -4383,7 +4431,7 @@ bool FilterPhase1(std::string sConcatCPIDs, std::string sSourcePath, std::string
 }
 
 
-double GetExtraRacFromBackupProject(std::string sFileName, std::string sResearcherCPID, double dDRMode, double dReqSPM, double dReqSPR, double dTeamRequired,
+double GetExtraRacFromBackupProject(int iNextSuperblock, std::string sFileName, std::string sResearcherCPID, double dDRMode, double dReqSPM, double dReqSPR, double dTeamRequired,
 	double dProjectFactor)
 {
 	boost::filesystem::path pathFiltered(sFileName);
@@ -4392,8 +4440,9 @@ double GetExtraRacFromBackupProject(std::string sFileName, std::string sResearch
 	if (!streamFiltered) return 0;
 	std::string sUser = "";
 	int64_t nMaxAge = (int64_t)GetSporkDouble("podcmaximumchatterage", (60 * 60 * 24));
-	double dUTXOWeight = cdbl(ReadCacheWithMaxAge("UTXOWeight", sResearcherCPID, nMaxAge), 0);
-	double dTaskWeight = cdbl(ReadCacheWithMaxAge("TaskWeight", sResearcherCPID, nMaxAge), 0);
+	double dUTXOWeight = GetMatureMetric("UTXOWeight", sResearcherCPID, nMaxAge, iNextSuperblock);
+	double dTaskWeight = GetMatureMetric("TaskWeight", sResearcherCPID, nMaxAge, iNextSuperblock);
+	
 	double dUnbanked = cdbl(ReadCacheWithMaxAge("Unbanked", sResearcherCPID, nMaxAge), 0);
 	double dTotalRAC = 0;
 	double dTotalFound = 0;
@@ -4423,6 +4472,28 @@ double GetExtraRacFromBackupProject(std::string sFileName, std::string sResearch
 	streamFiltered.close();
 	return dTotalFound;
 }
+
+
+double GetMatureMetric(std::string sMetricName, std::string sPrimaryKey, int64_t nMaxAge, int nHeight)
+{
+	double dMetric = 0;
+	if (fProd && nHeight > F13000_CUTOVER_HEIGHT_PROD || (!fProd && nHeight > F13000_CUTOVER_HEIGHT_TESTNET))
+	{
+		// Do it the new way (Gather everything that is mature, with no maximum age)
+		// Mature means we stake a point in history (one timestamp per day) as Yesterdays point, and mature means it is older than that historical point.
+		// This should theoretically allow the sancs to come to a more perfect consensus each day for PODC elements: DCCs (Distinct CPIDs), UTXOWeights (UTXO Stake Amounts), TaskWeights (Task confirmations), and Unbanked Indicators
+		std::string sNewMetricName = "Mature" + sMetricName;
+		dMetric = cdbl(ReadCache(sNewMetricName, sPrimaryKey), 0);
+	}
+	else
+	{
+		// Do it the old fashioned way (Gather everything up to chain tip, honoring maximum age)
+		dMetric = cdbl(ReadCacheWithMaxAge(sMetricName, sPrimaryKey, nMaxAge), 0);
+	}
+	return dMetric;
+}
+		
+
 
 bool FilterFile(int iBufferSize, int iNextSuperblock, std::string& sError)
 {
@@ -4482,7 +4553,7 @@ bool FilterFile(int iBufferSize, int iNextSuperblock, std::string& sError)
 	LogPrintf("CPID List concatenated %s, unbanked %s  ",sConcatCPIDs.c_str(), sUnbankedList.c_str());
 	// Filter each BOINC Project file down to the individual BiblePay records
 
-	bool bResult = FilterPhase1(sConcatCPIDs, sTarget, sFiltered, vCPIDs);
+	bool bResult = FilterPhase1(iNextSuperblock, sConcatCPIDs, sTarget, sFiltered, vCPIDs);
 	LogPrintf(" FilterPhase1 %s ",sConcatCPIDs.c_str());
 	if (!bResult)
 	{
@@ -4495,7 +4566,7 @@ bool FilterFile(int iBufferSize, int iNextSuperblock, std::string& sError)
 	
     if (boost::filesystem::exists(sTarget2.c_str())) 
 	{
-		FilterPhase1(sConcatCPIDs, sTarget2, sFiltered2, vCPIDs);
+		FilterPhase1(iNextSuperblock, sConcatCPIDs, sTarget2, sFiltered2, vCPIDs);
     }
 
 	//  Phase II : Normalize the file for Biblepay (this process asseses the magnitude of each BiblePay Researcher relative to one another, with 100 being the leader, 0 being a researcher with no activity)
@@ -4553,8 +4624,8 @@ bool FilterFile(int iBufferSize, int iNextSuperblock, std::string& sError)
 				double dAvgCredit = cdbl(ExtractXML(sUser, "<expavg_credit>", "</expavg_credit>"), 4);
 				double dTeam = cdbl(ExtractXML(sUser, "<teamid>", "</teamid>"), 0);
 				std::string sRosettaID = ExtractXML(sUser, "<id>", "</id>");
-				double dUTXOWeight = cdbl(ReadCacheWithMaxAge("UTXOWeight", sCPID, nMaxAge), 0);
-				double dTaskWeight = cdbl(ReadCacheWithMaxAge("TaskWeight", sCPID, nMaxAge), 0);
+				double dUTXOWeight = GetMatureMetric("UTXOWeight", sCPID, nMaxAge, iNextSuperblock);
+				double dTaskWeight = GetMatureMetric("TaskWeight", sCPID, nMaxAge, iNextSuperblock);
 				double dUnbanked = cdbl(ReadCacheWithMaxAge("Unbanked", sCPID, nMaxAge), 0);
 				bool bTeamMatch = (dTeamRequired > 0) ? (dTeam == dTeamRequired) : true;
 				// If backup project enabled, add additional credit
@@ -4562,7 +4633,7 @@ bool FilterFile(int iBufferSize, int iNextSuperblock, std::string& sError)
 				if (dTeamBackupProject > 0)
 				{
 					// NOTE: This needs to be '3' so the sanc gives 100% of the credit before penalizing the dModifiedCredit below:
-					dExtraRAC = GetExtraRacFromBackupProject(sFiltered2, sCPID, 3, dReqSPM, dReqSPR, dTeamBackupProject, dBackupProjectFactor);
+					dExtraRAC = GetExtraRacFromBackupProject(iNextSuperblock, sFiltered2, sCPID, 3, dReqSPM, dReqSPR, dTeamBackupProject, dBackupProjectFactor);
 				}
 
 				// Base GetResearcherCredit on the sum of RAH + WCG
@@ -4645,8 +4716,6 @@ uint256 GetDCPAMHash(std::string sAddresses, std::string sAmounts)
 	return uint256S("0x" + sHash);
 }
 
-
-
 int GetLastDCSuperblockWithPayment(int nChainHeight)
 {
 	const Consensus::Params& consensusParams = Params().GetConsensus();
@@ -4674,8 +4743,6 @@ int GetLastDCSuperblockWithPayment(int nChainHeight)
 	}
 	return 0;
 }
-
-
 
 double GetBlockMagnitude(int nChainHeight)
 {
@@ -4745,10 +4812,12 @@ double GetPaymentByCPID(std::string CPID)
 }
 
 
-bool VoteForGobject(uint256 govobj, std::string& sError)
+bool VoteForGobject(uint256 govobj, std::string sVoteOutcome, std::string& sError)
 {
 	    vote_signal_enum_t eVoteSignal = CGovernanceVoting::ConvertVoteSignal("funding");
-        vote_outcome_enum_t eVoteOutcome = CGovernanceVoting::ConvertVoteOutcome("yes");
+		//yes, no or abstain
+
+        vote_outcome_enum_t eVoteOutcome = CGovernanceVoting::ConvertVoteOutcome(sVoteOutcome);
         int nSuccessful = 0;
         int nFailed = 0;
         std::vector<unsigned char> vchMasterNodeSignature;
@@ -4784,7 +4853,6 @@ bool VoteForGobject(uint256 govobj, std::string& sError)
         }
 		return true;
 }
-
 
 
 bool VoteForDistributedComputingContract(int nHeight, std::string sMyContract, std::string sError)
@@ -4823,7 +4891,7 @@ bool VoteForDistributedComputingContract(int nHeight, std::string sMyContract, s
 		sError = "Unable to vote for DC Contract::My local contract Amounts != foreign contract amounts.";
 		return false;
 	}
-	bool bResult = VoteForGobject(uGovObjHash, sError);
+	bool bResult = VoteForGobject(uGovObjHash, "yes", sError);
 	return bResult;
 }
 
@@ -4834,8 +4902,6 @@ int GetSanctuaryCount()
 	int iSanctuaryCount = vMasternodeRanks.size();
 	return iSanctuaryCount;
 }
-
-
 
 bool AmIMasternode()
 {
@@ -4889,11 +4955,10 @@ void GetDistributedComputingGovObjByHeight(int nHeight, uint256 uOptFilter, int&
 }
 
 
-
 int GetRequiredQuorumLevel(int nHeight)
 {
 	// This is an anti-ddos feature that prevents ddossing the distributed computing grid
-	// REQUIREDQUORUM = X - Testnet Phase 3 change
+	// REQUIREDQUORUM = 10% or 2%
 	int iSanctuaryQuorumLevel = fProd ? .10 : .02;
 	int iRequiredVotes = GetSanctuaryCount() * iSanctuaryQuorumLevel;
 	if (fProd && iRequiredVotes < 3) iRequiredVotes = 3;
@@ -4905,7 +4970,7 @@ int GetRequiredQuorumLevel(int nHeight)
 
 bool GetContractPaymentData(std::string sContract, int nBlockHeight, std::string& sPaymentAddresses, std::string& sAmounts)
 {
-	// 2-19-2018 - Proof-of-distributed-computing
+	// Proof-of-distributed-computing (Feb 19th 2018)
 	CAmount nDCPaymentsTotal = CSuperblock::GetPaymentsLimit(nBlockHeight);
 	uint256 uHash = GetDCCHash(sContract);
 	double nTotalMagnitude = 0;
@@ -4941,14 +5006,13 @@ bool GetContractPaymentData(std::string sContract, int nBlockHeight, std::string
 			double dMagnitude = cdbl(vCPID[2],2);
 			if (!sCpid.empty() && dMagnitude > 0 && !sAddress.empty())
 			{
-				// 3-23-2018
 				CBitcoinAddress cbaResearcherAddress(sAddress);
 				if (cbaResearcherAddress.IsValid()) 
 				{
 					double dOwed = PaymentPerMagnitude * dMagnitude;
 					dTotalPaid += dOwed;
 					sPaymentAddresses += sAddress + "|";
-					sAmounts += RoundToString(dOwed,2) + "|";
+					sAmounts += RoundToString(dOwed, 2) + "|";
 				}
 			}
 		}
@@ -5281,10 +5345,6 @@ std::string GetBoincUnbankedReport(std::string sProjectID)
 	return sUnbanked;
 }
 
-
-
-
-
 std::string SetBoincResearcherHexCode(std::string sProjectId, std::string sAuthCode, std::string sHexKey)
 {
 	std::string sProjectURL = "https://" + GetSporkValue(sProjectId);
@@ -5294,6 +5354,7 @@ std::string SetBoincResearcherHexCode(std::string sProjectId, std::string sAuthC
 	std::string sHexCode = ExtractXML(sResponse, "<url>","</url>");
 	return sHexCode;
 }
+
 std::string GetWorkUnitResultElement(std::string sProjectId, int nWorkUnitID, std::string sElement)
 {
  	std::string sProjectURL = "http://" + GetSporkValue(sProjectId);
@@ -5583,4 +5644,145 @@ uint256 GetDCCFileHash()
 	std::string sContract = GetDCCFileContract();
 	uint256 uhash = GetDCCHash(sContract);
 	return uhash;    
+}
+
+
+std::string GetActiveProposals()
+{
+	std::string strType = "proposals";
+    int nStartTime = GetAdjustedTime() - (86400 * 32);
+    LOCK2(cs_main, governance.cs);
+    std::vector<CGovernanceObject*> objs = governance.GetAllNewerThan(nStartTime);
+	/*
+	Bhavanis input format = <proposal>1,proposal name1,amount1,expensetype1,createtime1,yescount1,nocount1,abstaincount1,url1
+	Proposal format:   "DataString": "[[\"proposal\",{\"end_epoch\":\"1525409746\",\"name\":\"MacOS compiles - iOS version support machine\",\"payment_address\":\
+	"BE2XrQurnfzbqAGgMX9F8dXEyReML2Zr6H\",\"payment_amount\":\"270270\",\"start_epoch\":\"1525409746\",\"type\":1,\"url\":\"https://forum.biblepay.org/index.php?topic=171.0\"}]]",
+	"Hash": "3a89aed047f627edee22853b8a7b3b3fbb5b6298d42ff78a495c4e38c0107fff",
+    "CollateralHash": "6b5ca3adc9c8a4536721a79a2a40dd7d1ce682e06132bee52700bb9940d7553c",
+    "ObjectType": 1,
+	*/
+
+	std::string sXML = "";
+	int id = 0;
+	std::string sDelim = "|";
+	std::string sZero = "\0";
+    BOOST_FOREACH(CGovernanceObject* pGovObj, objs)
+    {
+            if(strType == "proposals" && pGovObj->GetObjectType() != GOVERNANCE_OBJECT_PROPOSAL) continue;
+            if(strType == "triggers" && pGovObj->GetObjectType() != GOVERNANCE_OBJECT_TRIGGER) continue;
+            if(strType == "watchdogs" && pGovObj->GetObjectType() != GOVERNANCE_OBJECT_WATCHDOG) continue;
+
+			UniValue obj = pGovObj->GetJSONObject();
+			
+			int iYes = pGovObj->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING);
+			int iNo = pGovObj->GetNoCount(VOTE_SIGNAL_FUNDING);
+			int iAbstain = pGovObj->GetAbstainCount(VOTE_SIGNAL_FUNDING);
+			id++;
+			std::string sHash = pGovObj->GetHash().GetHex();
+			std::string sCharityType = "IT";
+			std::string sEndEpoch = obj["end_epoch"].get_str();
+			std::string sProposalTime = TimestampToHRDate(cdbl(sEndEpoch,0));
+			std::string sURL = obj["url"].get_str();
+			std::string sRow = "<proposal>" + sHash + sDelim 
+				+ obj["name"].get_str() + sDelim 
+				+ obj["payment_amount"].get_str() + sDelim
+				+ sCharityType + sDelim
+				+ sProposalTime + sDelim
+				+ RoundToString(iYes,0) + sDelim
+				+ RoundToString(iNo,0) + sDelim + RoundToString(iAbstain,0) 
+				+ sDelim + sURL;
+			sXML += sRow;
+	}
+	if (fDebugMaster) LogPrintf("Proposals %s \n", sXML.c_str());
+	return sXML;
+}
+
+
+
+bool VoteManyForGobject(std::string govobj, std::string strVoteSignal, std::string strVoteOutcome, 
+	int iVotingLimit, int& nSuccessful, int& nFailed, std::string& sError)
+{
+        uint256 hash(uint256S(govobj));
+		vote_signal_enum_t eVoteSignal = CGovernanceVoting::ConvertVoteSignal(strVoteSignal);
+		if(eVoteSignal == VOTE_SIGNAL_NONE) 
+		{
+			sError = "Invalid vote signal (funding).";
+			return false;
+		}
+
+        vote_outcome_enum_t eVoteOutcome = CGovernanceVoting::ConvertVoteOutcome(strVoteOutcome);
+        if(eVoteOutcome == VOTE_OUTCOME_NONE) 
+		{
+            sError = "Invalid vote outcome (yes/no/abstain)";
+			return false;
+	    }
+
+        std::vector<CMasternodeConfig::CMasternodeEntry> mnEntries;
+        mnEntries = masternodeConfig.getEntries();
+        UniValue resultsObj(UniValue::VOBJ);
+
+        BOOST_FOREACH(CMasternodeConfig::CMasternodeEntry mne, masternodeConfig.getEntries()) 
+		{
+            std::string strError;
+            std::vector<unsigned char> vchMasterNodeSignature;
+            std::string strMasterNodeSignMessage;
+
+            CPubKey pubKeyCollateralAddress;
+            CKey keyCollateralAddress;
+            CPubKey pubKeyMasternode;
+            CKey keyMasternode;
+
+            UniValue statusObj(UniValue::VOBJ);
+
+            if(!darkSendSigner.GetKeysFromSecret(mne.getPrivKey(), keyMasternode, pubKeyMasternode))
+			{
+                nFailed++;
+                sError += "Masternode signing error, could not set key correctly. (" + mne.getAlias() + ")";
+                continue;
+            }
+
+            uint256 nTxHash;
+            nTxHash.SetHex(mne.getTxHash());
+
+            int nOutputIndex = 0;
+            if(!ParseInt32(mne.getOutputIndex(), &nOutputIndex)) 
+			{
+                continue;
+            }
+
+            CTxIn vin(COutPoint(nTxHash, nOutputIndex));
+
+            CMasternode mn;
+            bool fMnFound = mnodeman.Get(vin, mn);
+
+            if(!fMnFound) 
+			{
+                nFailed++;
+				sError += "Can't find masternode by collateral output (" + mne.getAlias() + ")";
+                continue;
+            }
+
+            CGovernanceVote vote(mn.vin, hash, eVoteSignal, eVoteOutcome);
+            if(!vote.Sign(keyMasternode, pubKeyMasternode))
+			{
+                nFailed++;
+				sError += "Failure to sign. (" + mne.getAlias() + ")";
+                continue;
+            }
+
+            CGovernanceException exception;
+            if(governance.ProcessVoteAndRelay(vote, exception)) 
+			{
+                nSuccessful++;
+				if (iVotingLimit > 0 && nSuccessful >= iVotingLimit) break;
+            }
+            else 
+			{
+                nFailed++;
+				sError += "Error (" + exception.GetMessage() + ")";
+            }
+
+        }
+
+     	return (nSuccessful > 0) ? true : false;
 }
