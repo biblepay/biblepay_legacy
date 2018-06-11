@@ -2835,7 +2835,7 @@ UniValue exec(const UniValue& params, bool fHelp)
 				std::string sPAM = obj["payment_amounts"].get_str();
 				std::vector<std::string> vCPIDs = Split(sPAM.c_str(),"|");
 				results.push_back(Pair("Govobj: " + pGovObj->GetHash().GetHex(), iVotes));
-				results.push_back(Pair("CPID Count", vCPIDs.size()));
+				results.push_back(Pair("CPID Count", ((double)vCPIDs.size())));
 				if (iVotes > 0) results.push_back(Pair("Amounts", sPAM));
 			}
 		}
@@ -4477,7 +4477,7 @@ double GetExtraRacFromBackupProject(int iNextSuperblock, std::string sFileName, 
 double GetMatureMetric(std::string sMetricName, std::string sPrimaryKey, int64_t nMaxAge, int nHeight)
 {
 	double dMetric = 0;
-	if (fProd && nHeight > F13000_CUTOVER_HEIGHT_PROD || (!fProd && nHeight > F13000_CUTOVER_HEIGHT_TESTNET))
+	if ((fProd && nHeight > F13000_CUTOVER_HEIGHT_PROD) || (!fProd && nHeight > F13000_CUTOVER_HEIGHT_TESTNET))
 	{
 		// Do it the new way (Gather everything that is mature, with no maximum age)
 		// Mature means we stake a point in history (one timestamp per day) as Yesterdays point, and mature means it is older than that historical point.
