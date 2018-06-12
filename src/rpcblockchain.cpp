@@ -4517,6 +4517,8 @@ bool FilterFile(int iBufferSize, int iNextSuperblock, std::string& sError)
 	std::string sConcatCPIDs = "";
 	std::string sUnbankedList = MutateToList(GetBoincUnbankedReport("pool"));
 	ClearSanctuaryMemories();
+	MemorizeBlockChainPrayers(false);
+
 	ClearCache("Unbanked");
 	LogPrintf(" Unbanked \n");
 	double dDRMode = cdbl(GetSporkValue("dr"), 0);
