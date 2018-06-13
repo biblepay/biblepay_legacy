@@ -206,6 +206,7 @@ extern bool fEnableReplacement;
 extern std::string msGlobalStatus;
 extern std::string msGlobalStatus2;
 extern std::string msGlobalStatus3;
+extern bool fPrayersMemorized;
 extern double mnMagnitude;
 extern double mnMagnitudeOneDay;
 extern std::string msGlobalCPID;

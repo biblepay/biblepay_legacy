@@ -988,7 +988,13 @@ recover:
 						{
 							nLastGUI = GetAdjustedTime();
 							UpdateHashesPerSec(nHashesDone);
-							if (sFullSignature.empty())
+							if (!fPrayersMemorized)
+							{
+								WriteCache("poolthread" + RoundToString(iThreadID,0), "poolinfo1", "Please wait for CPIDs to be memorized...", GetAdjustedTime());
+								MilliSleep(1000);
+								break;
+							}
+							else if (sFullSignature.empty())
 							{
 								WriteCache("poolthread" + RoundToString(iThreadID,0), "poolinfo1", "Unable to sign CPID", GetAdjustedTime());
 								MilliSleep(1000);

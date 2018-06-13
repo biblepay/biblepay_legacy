@@ -343,6 +343,10 @@ UniValue getmininginfo(const UniValue& params, bool fHelp)
 	obj.push_back(Pair("podc_sent", (double)mnPODCSent));
 	obj.push_back(Pair("podc_sent_amount", (double)mnPODCAmountSent));
 	obj.push_back(Pair("podc_average_amount_sent", (double)mnPODCAmountSent/(double)(mnPODCSent+.01)));
+	if (!fPrayersMemorized)
+	{
+		obj.push_back(Pair("prayers_memorized", fPrayersMemorized));
+	}
 	obj.push_back(Pair("miningpulse",      nBibleMinerPulse));
 	obj.push_back(Pair("poolmining",       fPoolMiningMode));
 	obj.push_back(Pair("pool_url",         sGlobalPoolURL));

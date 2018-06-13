@@ -2173,13 +2173,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     // ********************************************************* Step 13: finished
 	// Print the genesis hash for sanity
 	LogPrintf(" Genesis Hash %s \n", chainActive.Genesis()->GetBlockHash().GetHex().c_str());
-	// Initialize distributed-computing CPID
-	std::string out_address = "";
-	double nMagnitude = 0;
-	std::string sAddress = "";
-	FindResearcherCPIDByAddress(sAddress, out_address, nMagnitude);
-	mnMagnitude=nMagnitude;
-
+	
     SetRPCWarmupFinished();
 	fWalletLoaded = true;
     uiInterface.InitMessage(_("Done loading"));

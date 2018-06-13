@@ -117,6 +117,7 @@ extern std::string SignMessage(std::string sMsg, std::string sPrivateKey);
 extern void GetMiningParams(int nPrevHeight, bool& f7000, bool& f8000, bool& f9000, bool& fTitheBlocksActive);
 extern bool NonObnoxiousLog(std::string sLogSection, std::string sLogKey, std::string sValue, int64_t nAllowedSpan);
 extern bool TimerMain(std::string timer_name, int max_ms);
+std::string FindResearcherCPIDByAddress(std::string sSearch, std::string& out_address, double& nTotalMagnitude);
 
 
 
@@ -199,6 +200,7 @@ size_t nCoinCacheUsage = 5000 * 300;
 std::string msGlobalStatus = "";
 std::string msGlobalStatus2 = "";
 std::string msGlobalStatus3 = "";
+bool fPrayersMemorized = false;
 double mnMagnitude = 0;
 double mnMagnitudeOneDay = 0;
 int mnPODCTried = 0;
@@ -7595,7 +7597,20 @@ void MemorizeBlockChainPrayers(bool fDuringConnectBlock)
 		LogPrintf("Finished MemorizeBlockChainPrayers @ %f ",GetAdjustedTime());
 		if (fDuringConnectBlock) break;
 		// This thread exits when prayers are memorized in order up to the best block.  After that, prayers are memorized in ConnectBlock.
-		if (nTime > (GetAdjustedTime()-(60 * 60))) break;
+		if (!fDuringConnectBlock && (nTime > (GetAdjustedTime()-(60 * 60)))) 
+		{
+			// ** Initialize distributed-computing CPID
+			std::string out_address = "";
+			double nMagnitude = 0;
+			std::string sAddress = "";
+			// Race Condition - Reported by Snat21 & Dave_BBP - Rob Andrews - 6/13/2018
+			FindResearcherCPIDByAddress(sAddress, out_address, nMagnitude);
+			mnMagnitude=nMagnitude;
+			// ** End of Initializing distributed-computing CPID
+
+			fPrayersMemorized = true;
+			break;
+		}
 		// This happens if the chain was not synced during a cold boot:
 		MilliSleep(30000);
 	}
