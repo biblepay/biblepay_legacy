@@ -5676,7 +5676,7 @@ std::string GetActiveProposals()
 
 			UniValue obj = pGovObj->GetJSONObject();
 			
-			int iYes = pGovObj->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING);
+			int iYes = pGovObj->GetYesCount(VOTE_SIGNAL_FUNDING);
 			int iNo = pGovObj->GetNoCount(VOTE_SIGNAL_FUNDING);
 			int iAbstain = pGovObj->GetAbstainCount(VOTE_SIGNAL_FUNDING);
 			id++;

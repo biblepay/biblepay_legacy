@@ -7731,7 +7731,7 @@ void MemorizePrayer(std::string sMessage, int64_t nTime, double dAmount, int iPo
 		  boost::to_upper(sMessageType);
 		  boost::to_upper(sMessageKey);
 		  bool bRequiresSignature = (sMessageType=="SPORK") ? true : false;
-		  if (sMessageType=="NEWS") sMessageValue = sTxID;
+		  if (sMessageType == "NEWS") sMessageValue = sTxID;
 		  if (!sSporkSig.empty())
 		  {
 			  double dNonce = cdbl(sNonce, 0);

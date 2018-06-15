@@ -682,9 +682,9 @@ void BitcoinGUI::createMenuBar()
 	menuBible->addAction(ReadBibleAction);
 
 	// BiblePay News
-	QMenu *menuNews = appMenuBar->addMenu(tr("&News"));
-	menuNews->addAction(CreateNewsAction);
-	menuNews->addAction(ReadNewsAction);
+	//QMenu *menuNews = appMenuBar->addMenu(tr("&News"));
+	//menuNews->addAction(CreateNewsAction);
+	//menuNews->addAction(ReadNewsAction);
 
 	QMenu *help = appMenuBar->addMenu(tr("&Help"));
     help->addAction(showHelpMessageAction);
@@ -1488,7 +1488,7 @@ void BitcoinGUI::showEvent(QShowEvent *event)
 	JesusConciseCommandmentsAction->setEnabled(true);
 	ReadBibleAction->setEnabled(true);
 
-	if (!fProd)
+	if (false)
 	{
 		CreateNewsAction->setEnabled(true);
 		ReadNewsAction->setEnabled(true);
