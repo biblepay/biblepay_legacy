@@ -219,7 +219,7 @@ CBlock cblockGenesis;
 uint64_t nPruneTarget = 0;
 bool fAlerts = DEFAULT_ALERTS;
 bool fEnableReplacement = DEFAULT_ENABLE_REPLACEMENT;
-extern void MemorizeBlockChainPrayers(bool fDuringConnectBlock);
+extern void MemorizeBlockChainPrayers(bool fDuringConnectBlock, bool fInBackground);
 
 /** Fees smaller than this (in duffs) are considered zero fee (for relaying, mining and transaction creation) */
 CFeeRate minRelayTxFee = CFeeRate(DEFAULT_MIN_RELAY_TX_FEE);
@@ -3409,7 +3409,13 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     int64_t nTime6 = GetTimeMicros(); nTimeCallbacks += nTime6 - nTime5;
     if (fDebugMaster) LogPrint("bench", "    - Callbacks: %.2fms [%.2fs]\n", 0.001 * (nTime6 - nTime5), nTimeCallbacks * 0.000001);
 	// Note: The following feature only memorizes the new blocks prayers
-	if (!fLoadingIndex) MemorizeBlockChainPrayers(true);
+	if (!fLoadingIndex) 
+	{
+		LOCK(cs_main);
+		{
+			MemorizeBlockChainPrayers(true, false);
+		}
+	}
     return true;
 }
 
@@ -7562,7 +7568,7 @@ std::string GetMessagesFromBlock(const CBlock& block, std::string sTargetType)
 }
 
 
-void MemorizeBlockChainPrayers(bool fDuringConnectBlock)
+void MemorizeBlockChainPrayers(bool fDuringConnectBlock, bool fSubThread)
 {
 	while (true)
 	{
@@ -7572,7 +7578,7 @@ void MemorizeBlockChainPrayers(bool fDuringConnectBlock)
 		if (nMinDepth < 0) nMinDepth = 0;
 		CBlockIndex* pindex = FindBlockByHeight(nMinDepth);
 		const Consensus::Params& consensusParams = Params().GetConsensus();
-		LogPrintf("MemorizeBlockChainPrayers @ %f ",GetAdjustedTime());
+		if (fSubThread && !fPrayersMemorized) LogPrintf("MemorizeBlockChainPrayers @ %f ",GetAdjustedTime());
 		while (pindex && pindex->nHeight < nMaxDepth)
 		{
 			if (pindex) if (pindex->nHeight < chainActive.Tip()->nHeight) pindex = chainActive.Next(pindex);
@@ -7594,21 +7600,23 @@ void MemorizeBlockChainPrayers(bool fDuringConnectBlock)
 				}
 	  		}
 		}
-		LogPrintf("Finished MemorizeBlockChainPrayers @ %f ",GetAdjustedTime());
-		if (fDuringConnectBlock) break;
+		if (fSubThread && !fPrayersMemorized) LogPrintf("Finished MemorizeBlockChainPrayers @ %f ",GetAdjustedTime());
+		if (fDuringConnectBlock || !fSubThread) break;
 		// This thread exits when prayers are memorized in order up to the best block.  After that, prayers are memorized in ConnectBlock.
 		if (!fDuringConnectBlock && (nTime > (GetAdjustedTime()-(60 * 60)))) 
 		{
-			// ** Initialize distributed-computing CPID
-			std::string out_address = "";
-			double nMagnitude = 0;
-			std::string sAddress = "";
-			// Race Condition - Reported by Snat21 & Dave_BBP - Rob Andrews - 6/13/2018
-			FindResearcherCPIDByAddress(sAddress, out_address, nMagnitude);
-			mnMagnitude=nMagnitude;
-			// ** End of Initializing distributed-computing CPID
-
-			fPrayersMemorized = true;
+			if (!fPrayersMemorized && fSubThread)
+			{
+				// ** Initialize distributed-computing CPID
+				std::string out_address = "";
+				double nMagnitude = 0;
+				std::string sAddress = "";
+				// Race Condition - Reported by Snat21 & Dave_BBP - Rob Andrews - 6/13/2018
+				FindResearcherCPIDByAddress(sAddress, out_address, nMagnitude);
+				mnMagnitude=nMagnitude;
+				// ** End of Initializing distributed-computing CPID
+				fPrayersMemorized = true;
+			}
 			break;
 		}
 		// This happens if the chain was not synced during a cold boot:
