@@ -4517,7 +4517,7 @@ bool FilterFile(int iBufferSize, int iNextSuperblock, std::string& sError)
 	std::string sConcatCPIDs = "";
 	std::string sUnbankedList = MutateToList(GetBoincUnbankedReport("pool"));
 	ClearSanctuaryMemories();
-	MemorizeBlockChainPrayers(false);
+	// No need to do this, as it could cause a race condition; MemorizeBlockChainPrayers(false);
 
 	ClearCache("Unbanked");
 	LogPrintf(" Unbanked \n");
