@@ -104,7 +104,7 @@ void Proposals::ProcessVote(std::string gobject, std::string signal, std::string
 		std::string sError = "";
 		int nSuccessful = 0;
 		int nFailed = 0;
-		VoteManyForGobject(gobject, "funding", "no", 0, nSuccessful, nFailed, sError);
+		VoteManyForGobject(gobject, signal, outcome, 0, nSuccessful, nFailed, sError);
 		std::string sVoteNarr = "";
 		if (nSuccessful > 0)
 		{
@@ -113,8 +113,8 @@ void Proposals::ProcessVote(std::string gobject, std::string signal, std::string
 		}
 		else
 		{
-			sVoteNarr = "Voting Failed!  Failed to vote " + RoundToString(nFailed, 0) + "time(s).  ";
-			if (sError.empty()) sVoteNarr += " [Check that sanctuaries are registered in masternode.conf?]";
+			sVoteNarr = "Voting Failed!  Failed to vote " + RoundToString(nFailed, 0) + " time(s).  ";
+			if (sError.empty()) sVoteNarr += " (Check that sanctuaries are registered in masternode.conf?)";
 			if (!sError.empty()) sVoteNarr += " [" + sError + "]";
 		}
 		QMessageBox msgOutcome;
