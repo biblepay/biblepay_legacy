@@ -13,18 +13,10 @@ bool VoteManyForGobject(std::string govobj, std::string strVoteSignal, std::stri
 std::string RoundToString(double d, int place);
 
 
-Proposals::Proposals(QWidget *parent) :
-    QWidget(parent),
-    ui(new Ui::Proposals)
+QStringList Proposals::GetHeaders()
 {
-    ui->setupUi(this);
-
-    QString pString = ("<proposal>1,proposal name1,1000,expensetype1,10:10,20,30,5,https://forum.biblepay.org/index.php?topic=171.0<proposal>2,proposal name2,2000,expensetype2,10:20,30,10,10,https://forum.biblepay.org/index.php?topic=171.0<proposal>3,proposal name3,3000,expensetype3,10:40,45,15,0,https://forum.biblepay.org/index.php?topic=171.0<proposal>4,proposal name4,4000,expensetype4,10:50,20,30,10,https://forum.biblepay.org/index.php?topic=171.0");
-	
-	pString = ToQstring(GetActiveProposals());
-
-    QStringList pHeaders;
-    pHeaders << tr("Proposal ID")
+	QStringList pHeaders;
+	pHeaders << tr("Proposal ID")
                        << tr("Proposal Name")
                        << tr("Proposal Amount")
                        << tr("Expense Type")
@@ -33,8 +25,19 @@ Proposals::Proposals(QWidget *parent) :
                        << tr("No Ct")
                        << tr("Abstain Ct")
                        << tr("Url");
-    this->createUI(pHeaders, pString);
+	return pHeaders;
+}
 
+Proposals::Proposals(QWidget *parent) :
+    QWidget(parent),
+    ui(new Ui::Proposals)
+{
+    ui->setupUi(this);
+
+    QString pString = ToQstring(GetActiveProposals());
+
+    QStringList pHeaders = GetHeaders();
+    this->createUI(pHeaders, pString);
 }
 
 /* Input String Format
@@ -45,6 +48,7 @@ Proposals::~Proposals()
 {
     delete ui;
 }
+
 
 void Proposals::createUI(const QStringList &headers, const QString &pStr)
 {
@@ -123,6 +127,12 @@ void Proposals::ProcessVote(std::string gobject, std::string signal, std::string
 		msgOutcome.setStandardButtons(QMessageBox::Ok);
 		msgOutcome.setDefaultButton(QMessageBox::Ok);
 		msgOutcome.exec();
+
+		// Refresh
+
+	    QString pString = ToQstring(GetActiveProposals());
+	    QStringList pHeaders = GetHeaders();
+		this->createUI(pHeaders, pString);
 }
 
 void Proposals::slotVoteAgainst()

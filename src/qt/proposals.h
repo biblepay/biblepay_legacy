@@ -39,6 +39,7 @@ private:
     void createUI(const QStringList &headers, const QString &pStr);
     QVector<QVector<QString> > SplitData(const QString &pStr);
     void ProcessVote(std::string gobject, std::string signal, std::string outcome);
+	QStringList GetHeaders();
 
 
 };
