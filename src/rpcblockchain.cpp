@@ -2840,6 +2840,36 @@ UniValue exec(const UniValue& params, bool fHelp)
 			}
 		}
 	}
+	else if (sItem == "governancevotingreport")
+	{
+		std::string strType = "triggers";
+		int nStartTime = 0; 
+		int nNextHeight = 0;
+		GetLastDCSuperblockHeight(chainActive.Tip()->nHeight, nNextHeight);
+		LOCK2(cs_main, governance.cs);
+		std::vector<CGovernanceObject*> objs = governance.GetAllNewerThan(nStartTime);
+		BOOST_FOREACH(CGovernanceObject* pGovObj, objs)
+        {
+            if(strType == "proposals" && pGovObj->GetObjectType() != GOVERNANCE_OBJECT_PROPOSAL) continue;
+            if(strType == "triggers" && pGovObj->GetObjectType() != GOVERNANCE_OBJECT_TRIGGER) continue;
+            if(strType == "watchdogs" && pGovObj->GetObjectType() != GOVERNANCE_OBJECT_WATCHDOG) continue;
+
+			UniValue obj = pGovObj->GetJSONObject();
+			int nLocalHeight = obj["event_block_height"].get_int();
+			int iVotes = pGovObj->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING);
+
+            if (iVotes > 0)
+			{
+				std::string sPAM = obj["payment_amounts"].get_str();
+				std::string sPAD = obj["payment_addresses"].get_str();
+				std::string sPRO = obj["proposal_hashes"].get_str();
+				results.push_back(Pair("Height: " + RoundToString(nLocalHeight, 0) + ", Govobj: " + pGovObj->GetHash().GetHex(), iVotes));
+				results.push_back(Pair("Amounts", sPAM));
+				results.push_back(Pair("Addresses", sPAD));
+				results.push_back(Pair("Proposals", sPRO));
+			}
+		}
+	}
 	else if (sItem == "datalist")
 	{
 		if (params.size() != 2 && params.size() != 3)
@@ -5654,6 +5684,93 @@ uint256 GetDCCFileHash()
 	return uhash;    
 }
 
+bool IsGovObjPaid(std::string sGobjId)
+{
+	if (sGobjId.empty()) return false;
+	std::string strType = "triggers";
+    int nStartTime = 0; 
+	nStartTime = GetAdjustedTime() - (86400 * 64);
+   
+    std::vector<CGovernanceObject*> objs = governance.GetAllNewerThan(nStartTime);
+	std::string sDelim = "|";
+	const Consensus::Params& consensusParams = Params().GetConsensus();
+				
+    BOOST_FOREACH(CGovernanceObject* pGovObj, objs)
+    {
+            if(strType == "proposals" && pGovObj->GetObjectType() != GOVERNANCE_OBJECT_PROPOSAL) continue;
+            if(strType == "triggers" && pGovObj->GetObjectType() != GOVERNANCE_OBJECT_TRIGGER) continue;
+            if(strType == "watchdogs" && pGovObj->GetObjectType() != GOVERNANCE_OBJECT_WATCHDOG) continue;
+
+			UniValue obj = pGovObj->GetJSONObject();
+			int iAbsYes = pGovObj->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING);
+			int nHeight = obj["event_block_height"].get_int();
+			// 6-19-2018 - R ANDREWS - CHECK IF PROPOSAL WAS PAID
+			if (nHeight > 0 && iAbsYes > 0)
+			{
+				LogPrintf(" height %f ", (double)nHeight);
+				std::string sProposalHashes = obj["proposal_hashes"].get_str();
+
+				if (true) LogPrintf("IsGovObjPaid, govobj %s -- ProposalHashes %s, AbsYesCount %f, nHeight %f \n", sGobjId.c_str(), 
+					sProposalHashes.c_str(), (double)iAbsYes, (double)nHeight);
+			
+				if (Contains(sProposalHashes, sGobjId))
+				{
+					// Trigger contains	the proposal, and it has a net yes vote, lets see if it was actually paid
+					std::string sPaymentAddresses = obj["payment_addresses"].get_str();
+					std::string sPaymentAmounts = obj["payment_amounts"].get_str();
+					LogPrintf("IsGovObjPaid::Paymentaddresses %s",sPaymentAddresses.c_str());
+					CBlockIndex* pindex = FindBlockByHeight(nHeight);
+					if (!pindex) 
+					{
+						LogPrintf("Trigger @ %f Not Found.",(double)nHeight);
+						return false;
+					}
+
+					CBlock block;
+					std::string sBlockPayments = "";
+					std::string sBlockRecips = "";
+					if (ReadBlockFromDisk(block, pindex, consensusParams, "IsGovObjPaid")) 
+					{
+        				for (unsigned int i = 0; i < block.vtx[0].vout.size(); i++)
+						{
+								double dAmount = block.vtx[0].vout[i].nValue / COIN;
+								std::string sRecipient = PubKeyToAddress(block.vtx[0].vout[i].scriptPubKey);
+								sBlockPayments += RoundToString(dAmount,2) + "|";
+								sBlockRecips += sRecipient + "|";
+						}
+						// Now verify the block paid the proposals in the trigger
+						std::vector<std::string> vPAD = Split(sPaymentAddresses.c_str(), "|");
+						std::vector<std::string> vPAM = Split(sPaymentAmounts.c_str(), "|");
+						if (vPAD.size() != vPAM.size())
+						{
+							LogPrintf("IsGovObjPaid::vPAD != vPAM size.\n");
+							return false;
+						}
+						if (vPAD.size() < 1 || vPAM.size() < 1) 
+						{
+							LogPrintf("IsGovObjePaid::vPAD size < 1");
+							return false;
+						}
+						for (int i = 0; i < (int)vPAD.size(); i++)
+						{
+							if (!(Contains(sPaymentAmounts, RoundToString(cdbl(vPAM[i],2),2)) && Contains(sPaymentAddresses, vPAD[i])))
+							{
+								LogPrintf("IsGovObjPaid::Payment for %s %s not found. ",vPAM[i].c_str(), vPAD[i].c_str());
+								return false;
+							}
+						}
+						// All payments and addresses were found in this superblock; success.
+						return true;
+					}
+				}
+			}
+			// ... Iterate to next gobject
+	}
+	// Gobject Not found - Or trigger not paid
+	LogPrintf("Gobj not found.");
+	return false;
+}
+
 
 std::string GetActiveProposals()
 {
@@ -5681,25 +5798,32 @@ std::string GetActiveProposals()
             if(strType == "watchdogs" && pGovObj->GetObjectType() != GOVERNANCE_OBJECT_WATCHDOG) continue;
 
 			UniValue obj = pGovObj->GetJSONObject();
-			
-			int iYes = pGovObj->GetYesCount(VOTE_SIGNAL_FUNDING);
-			int iNo = pGovObj->GetNoCount(VOTE_SIGNAL_FUNDING);
-			int iAbstain = pGovObj->GetAbstainCount(VOTE_SIGNAL_FUNDING);
-			id++;
 			std::string sHash = pGovObj->GetHash().GetHex();
-			std::string sCharityType = "IT";
-			std::string sEndEpoch = obj["end_epoch"].get_str();
-			std::string sProposalTime = TimestampToHRDate(cdbl(sEndEpoch,0));
-			std::string sURL = obj["url"].get_str();
-			std::string sRow = "<proposal>" + sHash + sDelim 
-				+ obj["name"].get_str() + sDelim 
-				+ obj["payment_amount"].get_str() + sDelim
-				+ sCharityType + sDelim
-				+ sProposalTime + sDelim
-				+ RoundToString(iYes,0) + sDelim
-				+ RoundToString(iNo,0) + sDelim + RoundToString(iAbstain,0) 
-				+ sDelim + sURL;
-			sXML += sRow;
+			
+			// First ensure it has not been paid already
+			bool bIsPaid = IsGovObjPaid(sHash);
+
+			if (!bIsPaid)
+			{
+				int iYes = pGovObj->GetYesCount(VOTE_SIGNAL_FUNDING);
+				int iNo = pGovObj->GetNoCount(VOTE_SIGNAL_FUNDING);
+				int iAbstain = pGovObj->GetAbstainCount(VOTE_SIGNAL_FUNDING);
+				id++;
+				std::string sCharityType = "IT";
+				std::string sEndEpoch = obj["end_epoch"].get_str();
+				std::string sProposalTime = TimestampToHRDate(cdbl(sEndEpoch,0));
+				std::string sURL = obj["url"].get_str();
+				// proposal_hashes
+				std::string sRow = "<proposal>" + sHash + sDelim 
+					+ obj["name"].get_str() + sDelim 
+					+ obj["payment_amount"].get_str() + sDelim
+					+ sCharityType + sDelim
+					+ sProposalTime + sDelim
+					+ RoundToString(iYes,0) + sDelim
+					+ RoundToString(iNo,0) + sDelim + RoundToString(iAbstain,0) 
+					+ sDelim + sURL;
+				sXML += sRow;
+			}
 	}
 	if (fDebugMaster) LogPrintf("Proposals %s \n", sXML.c_str());
 	return sXML;
