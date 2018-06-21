@@ -104,10 +104,12 @@ extern bool GetContractPaymentData(std::string sContract, int nBlockHeight, std:
 extern std::string VerifyManyWorkUnits(std::string sProjectId, std::string sTaskIds);
 extern bool SignCPID(std::string sCPID, std::string& sError, std::string& out_FullSig);
 extern bool SubmitDistributedComputingTrigger(std::string sHex, std::string& gobjecthash, std::string& sError);
+extern int64_t GetHistoricalMilestoneAge(int64_t nMaturityAge, int64_t nOffset);
 extern std::string GetBoincAuthenticator(std::string sProjectID, std::string sProjectEmail, std::string sPasswordHash);
 extern double GetMatureMetric(std::string sMetricName, std::string sPrimaryKey, int64_t nMaxAge, int nHeight);
 bool BibleEncrypt(std::vector<unsigned char> vchPlaintext, std::vector<unsigned char> &vchCiphertext);
 extern void RecoverOrphanedChain(int iCondition);
+bool IsMature(int64_t nTime, int64_t nMaturityAge);
 extern bool VoteForGobject(uint256 govobj, std::string sVoteOutcome, std::string& sError);
 extern int GetBoincResearcherUserId(std::string sProjectId, std::string sAuthenticator);
 extern std::string GetBoincResearcherHexCodeAndCPID(std::string sProjectId, int nUserId, std::string& sCPID);
@@ -2870,6 +2872,28 @@ UniValue exec(const UniValue& params, bool fHelp)
 			}
 		}
 	}
+	else if (sItem == "debug0620")
+	{
+		bool b1 = IsMature(GetAdjustedTime(), 14400);
+		bool b2 = IsMature(GetAdjustedTime() - 15000, 14400);
+		results.push_back(Pair("Now", b1));
+		results.push_back(Pair("Now-15000",b2));
+		WriteCache("debug", "1", "1", GetAdjustedTime());
+		WriteCache("debug", "2", "2", GetAdjustedTime() - 15000);
+		WriteCache("debug", "3", "3", GetAdjustedTime() - 65000);
+		WriteCache("debug", "4", "4", GetAdjustedTime() - 14400 - 86400 - 25000);
+		WriteCache("debug", "3", "3b", GetAdjustedTime() - 65000);
+		
+		std::string s1 = ReadCacheWithMaxAge("debug", "1", GetHistoricalMilestoneAge(14400, 86400));
+		std::string s2 = ReadCacheWithMaxAge("debug", "2", GetHistoricalMilestoneAge(14400, 86400));
+		std::string s3 = ReadCacheWithMaxAge("debug", "3", GetHistoricalMilestoneAge(14400, 86400));
+		std::string s4 = ReadCacheWithMaxAge("debug", "4", GetHistoricalMilestoneAge(14400, 86400));
+
+		results.push_back(Pair("1", s1));
+		results.push_back(Pair("2", s2));
+		results.push_back(Pair("3", s3));
+		results.push_back(Pair("4", s4));
+	}
 	else if (sItem == "datalist")
 	{
 		if (params.size() != 2 && params.size() != 3)
@@ -4503,6 +4527,15 @@ double GetExtraRacFromBackupProject(int iNextSuperblock, std::string sFileName, 
 	return dTotalFound;
 }
 
+int64_t GetHistoricalMilestoneAge(int64_t nMaturityAge, int64_t nOffset)
+{
+	// This function returns the timestamp in history of the last PODC Quorum Cutoff (by default the quorum cutoff occurs once every 4 hours)
+	int64_t nNow = GetAdjustedTime();
+	int64_t nRemainder = nNow % nMaturityAge;
+	int64_t nLookback = nRemainder + nOffset;
+	return nLookback;
+}
+
 
 double GetMatureMetric(std::string sMetricName, std::string sPrimaryKey, int64_t nMaxAge, int nHeight)
 {
@@ -4513,7 +4546,7 @@ double GetMatureMetric(std::string sMetricName, std::string sPrimaryKey, int64_t
 		// Mature means we stake a point in history (one timestamp per day) as Yesterdays point, and mature means it is older than that historical point.
 		// This should theoretically allow the sancs to come to a more perfect consensus each day for PODC elements: DCCs (Distinct CPIDs), UTXOWeights (UTXO Stake Amounts), TaskWeights (Task confirmations), and Unbanked Indicators
 		std::string sNewMetricName = "Mature" + sMetricName;
-		dMetric = cdbl(ReadCache(sNewMetricName, sPrimaryKey), 0);
+		dMetric = cdbl(ReadCacheWithMaxAge(sNewMetricName, sPrimaryKey, GetHistoricalMilestoneAge(14400, nMaxAge)), 0);
 	}
 	else
 	{

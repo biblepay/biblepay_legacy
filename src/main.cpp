@@ -118,8 +118,7 @@ extern void GetMiningParams(int nPrevHeight, bool& f7000, bool& f8000, bool& f90
 extern bool NonObnoxiousLog(std::string sLogSection, std::string sLogKey, std::string sValue, int64_t nAllowedSpan);
 extern bool TimerMain(std::string timer_name, int max_ms);
 std::string FindResearcherCPIDByAddress(std::string sSearch, std::string& out_address, double& nTotalMagnitude);
-
-
+extern bool IsMature(int64_t nTime, int64_t nMaturityAge);
 
 extern bool HasThisCPIDSolvedPriorBlocks(std::string CPID, CBlockIndex* pindexPrev);
 std::string VectorToString(std::vector<unsigned char> v);
