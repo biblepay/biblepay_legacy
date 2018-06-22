@@ -383,19 +383,12 @@ QString TransactionTableModel::formatTxType(const TransactionRecord *wtx) const
 		return tr("PODC Update");
 	case TransactionRecord::PODCAssociation:
 		return tr("PODC Association");
-    case TransactionRecord::Generated:
-		if (wtx->IsPODCPayment) 
-		{
-			return tr("PODC Payment");
-		}
-		else if (wtx->IsSuperblockPayment)
-		{
+    case TransactionRecord::SuperBlockPayment:
 			return tr("Superblock Payment");
-		}
-		else
-		{
+	case TransactionRecord::PODCPayment:
+        return tr("PODC Payment");
+    case TransactionRecord::Generated:
 			return tr("Mined");
-		}
     case TransactionRecord::PrivateSendDenominate:
         return tr("PrivateSend Denominate");
     case TransactionRecord::PrivateSendCollateralPayment:
@@ -417,20 +410,12 @@ QVariant TransactionTableModel::txAddressDecoration(const TransactionRecord *wtx
     QString theme = GUIUtil::getThemeName();
     switch(wtx->type)
     {
-    case TransactionRecord::Generated:
-		if (wtx->IsPODCPayment)
-		{
-			return QIcon(":/icons/drkblue/key");
-		
-		}
-		else if (wtx->IsSuperblockPayment)
-		{
+    case TransactionRecord::SuperBlockPayment:
 			return QIcon(":/icons/drkblue/eye_minus");
-		}
-		else
-		{
+    case TransactionRecord::PODCPayment:
+		return QIcon(":/icons/drkblue/key");
+	case TransactionRecord::Generated:
 			return QIcon(":/icons/" + theme + "/tx_mined");
-		}
 	case TransactionRecord::PODCUpdate:
 	    return QIcon(":/icons/drkblue/key");
 	case TransactionRecord::PODCAssociation:
@@ -463,6 +448,8 @@ QString TransactionTableModel::formatTxToAddress(const TransactionRecord *wtx, b
     case TransactionRecord::RecvWithPrivateSend:
     case TransactionRecord::SendToAddress:
     case TransactionRecord::Generated:
+    case TransactionRecord::SuperBlockPayment:
+    case TransactionRecord::PODCPayment:
     case TransactionRecord::PrivateSend:
         return lookupAddress(wtx->address, tooltip) + watchAddress;
     case TransactionRecord::SendToOther:
@@ -487,6 +474,8 @@ QVariant TransactionTableModel::addressColor(const TransactionRecord *wtx) const
     case TransactionRecord::RecvWithAddress:
     case TransactionRecord::SendToAddress:
     case TransactionRecord::Generated:
+    case TransactionRecord::SuperBlockPayment:
+    case TransactionRecord::PODCPayment:
     case TransactionRecord::PrivateSend:
     case TransactionRecord::RecvWithPrivateSend:
         {

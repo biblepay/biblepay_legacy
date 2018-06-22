@@ -88,7 +88,9 @@ public:
         PrivateSend,
 		ProofOfLoyalty,
 		PODCUpdate,
-		PODCAssociation
+		PODCAssociation,
+		PODCPayment,
+		SuperBlockPayment
     };
 
     /** Number of confirmation recommended for accepting a transaction */

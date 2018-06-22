@@ -87,7 +87,18 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                 if (wtx.IsCoinBase())
                 {
                     // Generated
+                    //Check if PODC or Mined EB: 2018-06-022
+                    if (sub.IsPODCPayment) {
+                        sub.type = TransactionRecord::PODCPayment;
+                    } 
+					else if (sub.IsSuperblockPayment) 
+					{
+                        sub.type = TransactionRecord::SuperBlockPayment;  
+                    }
+                    else
+                    {
                     sub.type = TransactionRecord::Generated;
+                	}
                 }
 
                 parts.append(sub);
