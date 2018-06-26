@@ -16,7 +16,7 @@ are carried out collectively by the network. Biblepay Core is the name of the op
 source software which enables the use of this currency.
 
 For more information, as well as an immediately useable, binary version of
-the Biblepay Core software, see https://www.Biblepay.org/get-Biblepay/.
+the Biblepay Core software, see https://www.biblepay.org/#downloads
 
 
 License
