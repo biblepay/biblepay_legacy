@@ -2996,7 +2996,7 @@ bool DownloadIndividualDistributedComputingFile(int iNextSuperblock, std::string
     boost::filesystem::remove(sPath2);
 	int iMaxSize = 900000000;
     int iTimeoutSecs = 60 * 7;
-	LogPrintf("Downloading DC File NAME %s FROM URL %s ",sPath2.c_str(), sBaseURL.c_str());
+	LogPrintf("Downloading DC File NAME %s FROM URL %s ", sPath2.c_str(), sBaseURL.c_str());
 	int iIterations = 0;
 	try
 	{
