@@ -107,6 +107,8 @@ extern bool SubmitDistributedComputingTrigger(std::string sHex, std::string& gob
 extern int64_t GetHistoricalMilestoneAge(int64_t nMaturityAge, int64_t nOffset);
 extern std::string GetBoincAuthenticator(std::string sProjectID, std::string sProjectEmail, std::string sPasswordHash);
 extern double GetMatureMetric(std::string sMetricName, std::string sPrimaryKey, int64_t nMaxAge, int nHeight);
+extern std::string GetMatureString(std::string sMetricName, std::string sPrimaryKey, int64_t nMaxAge, int nHeight);
+extern int64_t GetDCCFileTimestamp();
 bool BibleEncrypt(std::vector<unsigned char> vchPlaintext, std::vector<unsigned char> &vchCiphertext);
 extern void RecoverOrphanedChain(int iCondition);
 bool IsMature(int64_t nTime, int64_t nMaturityAge);
@@ -2803,6 +2805,12 @@ UniValue exec(const UniValue& params, bool fHelp)
 		double dStake = GetMinimumRequiredUTXOStake(dRAC);
 		results.push_back(Pair("Total RAC", dRAC));
 		results.push_back(Pair("UTXO Target", dStake));
+		CAmount nStakeBalance = pwalletMain->GetUnlockedBalance();
+		results.push_back(Pair("StakeBalance", nStakeBalance/COIN));
+		if ((nStakeBalance/COIN) < dStake)
+		{
+			results.push_back(Pair("Note", "You have less stake balance available than needed for the PODC UTXO Target.  Coins must be more than 5 confirmations deep to count.  See coin control."));
+		}
 	}
 	else if (sItem == "reconsiderblocks")
 	{
@@ -4208,6 +4216,11 @@ int GetLastDCSuperblockHeight(int nCurrentHeight, int& nNextSuperblock)
 }
 
 
+std::string ToYesNo(bool bValue)
+{
+	std::string sYesNo = bValue ? "Yes" : "No";
+	return sYesNo;
+}
 
 
 uint256 PercentToBigIntBase(int iPercent)
@@ -4306,8 +4319,13 @@ std::string ExecuteDistributedComputingSanctuaryQuorumProcess()
 			int64_t nAge = GetDCCFileAge();
 			uint256 uDCChash = GetDCCFileHash();
 			sContract = GetDCCFileContract();
-			LogPrintf(" DCC hash %s  Age %f ",uDCChash.GetHex(), (float)nAge);
-			if (uDCChash == uint256S("0x0") || nAge > (60 * 60 * 4))
+			// Synchronized Sanctuary Quorum Download:  R ANDREWS - 6-26-2018
+			int64_t iFileTimestamp = GetDCCFileTimestamp();
+			// Is file older than the current quorum timestamp:
+			bool bIsOld = IsMature(iFileTimestamp, 60 * 60 * 4);
+			LogPrintf(" DCC hash %s  Age %f  FileTimeStamp %f   IsOld  %s ",uDCChash.GetHex(), (float)nAge, (float)iFileTimestamp, ToYesNo(bIsOld).c_str());
+			
+			if (uDCChash == uint256S("0x0") || bIsOld)
 			{
 				// Pull down the distributed computing file
 				LogPrintf("\n Chosen Sanctuary - pulling down the DCC file... Aggregator %f, Percentile %f \n", dAggregationRank, MyPercentile(iLastSuperblock));
@@ -4374,6 +4392,15 @@ int64_t GetDCCFileAge()
 	int64_t nTime = last_write_time(pathFiltered);
 	int64_t nAge = GetAdjustedTime() - nTime;
 	return nAge;
+}
+
+int64_t GetDCCFileTimestamp()
+{
+	std::string sDailyMagnitudeFile = GetSANDirectory2() + "magnitude";
+	boost::filesystem::path pathFiltered(sDailyMagnitudeFile);
+	if (!boost::filesystem::exists(pathFiltered)) return GetAdjustedTime() - 0;
+	int64_t nTime = last_write_time(pathFiltered);
+	return nTime;
 }
 
 
@@ -4536,6 +4563,25 @@ int64_t GetHistoricalMilestoneAge(int64_t nMaturityAge, int64_t nOffset)
 	return nLookback;
 }
 
+std::string GetMatureString(std::string sMetricName, std::string sPrimaryKey, int64_t nMaxAge, int nHeight)
+{
+	std::string sMetric = "";
+	if ((fProd && nHeight > F13000_CUTOVER_HEIGHT_PROD) || (!fProd && nHeight > F13000_CUTOVER_HEIGHT_TESTNET))
+	{
+		// Do it the new way (Gather everything that is mature, with no maximum age)
+		// Mature means we stake a point in history (one timestamp per day) as Yesterdays point, and mature means it is older than that historical point.
+		// This should theoretically allow the sancs to come to a more perfect consensus each day for PODC elements: DCCs (Distinct CPIDs), UTXOWeights (UTXO Stake Amounts), TaskWeights (Task confirmations), and Unbanked Indicators
+		std::string sNewMetricName = "Mature" + sMetricName;
+		sMetric = ReadCacheWithMaxAge(sNewMetricName, sPrimaryKey, GetHistoricalMilestoneAge(14400, nMaxAge));
+	}
+	else
+	{
+		// Do it the old fashioned way (Gather everything up to chain tip, honoring maximum age)
+		sMetric = ReadCacheWithMaxAge(sMetricName, sPrimaryKey, nMaxAge);
+	}
+	return sMetric;
+}
+
 
 double GetMatureMetric(std::string sMetricName, std::string sPrimaryKey, int64_t nMaxAge, int nHeight)
 {
@@ -4602,7 +4648,8 @@ bool FilterFile(int iBufferSize, int iNextSuperblock, std::string& sError)
 		{
 			LogPrintf("unbanked %s ", sCPID1.c_str());
 			if (!sCPID1.empty()) sConcatCPIDs += sCPID1 + ",";
-			std::string sTaskList = ReadCacheWithMaxAge("CPIDTasks", sCPID1, nMaxAge);
+			std::string sTaskList = GetMatureString("CPIDTasks", sCPID1, nMaxAge, iNextSuperblock);
+				
 			double dVerifyTasks = 0;
 			// R ANDREWS; 5-9-2018
 			if (dDRMode == 0 || dDRMode == 2) dVerifyTasks = VerifyTasks(sCPID1, sTaskList);
