@@ -5864,10 +5864,12 @@ bool IsGovObjPaid(std::string sGobjId)
 			UniValue obj = pGovObj->GetJSONObject();
 			int iAbsYes = pGovObj->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING);
 			int nHeight = obj["event_block_height"].get_int();
+			std::string sLocalHash = pGovObj->GetHash().GetHex();
+		
 			// 6-19-2018 - R ANDREWS - CHECK IF PROPOSAL WAS PAID
-			if (nHeight > 0 && iAbsYes > 0)
+			if (nHeight > 0 && iAbsYes > 0 && nHeight <= chainActive.Tip()->nHeight)
 			{
-				LogPrintf(" height %f ", (double)nHeight);
+				LogPrintf(" Hash %s , Height %f ", sLocalHash.c_str(), (double)nHeight);
 				std::string sProposalHashes = obj["proposal_hashes"].get_str();
 
 				if (true) LogPrintf("IsGovObjPaid, govobj %s -- ProposalHashes %s, AbsYesCount %f, nHeight %f \n", sGobjId.c_str(), 
@@ -5878,11 +5880,12 @@ bool IsGovObjPaid(std::string sGobjId)
 					// Trigger contains	the proposal, and it has a net yes vote, lets see if it was actually paid
 					std::string sPaymentAddresses = obj["payment_addresses"].get_str();
 					std::string sPaymentAmounts = obj["payment_amounts"].get_str();
-					LogPrintf("IsGovObjPaid::Paymentaddresses %s",sPaymentAddresses.c_str());
+					LogPrintf("IsGovObjPaid::Paymentaddresses %s", sPaymentAddresses.c_str());
+
 					CBlockIndex* pindex = FindBlockByHeight(nHeight);
-					if (!pindex) 
+					if (!pindex || sPaymentAddresses.empty() || sPaymentAmounts.empty()) 
 					{
-						LogPrintf("Trigger @ %f Not Found.",(double)nHeight);
+						LogPrintf("Trigger @ %f Not Found  or addresses empty or amounts empty",(double)nHeight);
 						return false;
 					}
 
@@ -5891,13 +5894,16 @@ bool IsGovObjPaid(std::string sGobjId)
 					std::string sBlockRecips = "";
 					if (ReadBlockFromDisk(block, pindex, consensusParams, "IsGovObjPaid")) 
 					{
-        				for (unsigned int i = 0; i < block.vtx[0].vout.size(); i++)
+						for (unsigned int i = 0; i < block.vtx[0].vout.size(); i++)
 						{
-								double dAmount = block.vtx[0].vout[i].nValue / COIN;
-								std::string sRecipient = PubKeyToAddress(block.vtx[0].vout[i].scriptPubKey);
-								sBlockPayments += RoundToString(dAmount,2) + "|";
-								sBlockRecips += sRecipient + "|";
+							double dAmount = block.vtx[0].vout[i].nValue / COIN;
+							std::string sRecipient = PubKeyToAddress(block.vtx[0].vout[i].scriptPubKey);
+							sBlockPayments += RoundToString(dAmount,2) + "|";
+							sBlockRecips += sRecipient + "|";
 						}
+
+						if (false) LogPrintf("Verifying blockpayments %s, block recips %s ",sBlockPayments.c_str(), sBlockRecips.c_str());
+
 						// Now verify the block paid the proposals in the trigger
 						std::vector<std::string> vPAD = Split(sPaymentAddresses.c_str(), "|");
 						std::vector<std::string> vPAM = Split(sPaymentAmounts.c_str(), "|");
@@ -5911,7 +5917,7 @@ bool IsGovObjPaid(std::string sGobjId)
 							LogPrintf("IsGovObjePaid::vPAD size < 1");
 							return false;
 						}
-						for (int i = 0; i < (int)vPAD.size(); i++)
+						for (int i = 0; i < (int)vPAD.size() && i < (int)vPAM.size(); i++)
 						{
 							if (!(Contains(sPaymentAmounts, RoundToString(cdbl(vPAM[i],2),2)) && Contains(sPaymentAddresses, vPAD[i])))
 							{
@@ -5971,18 +5977,21 @@ std::string GetActiveProposals()
 				id++;
 				std::string sCharityType = "IT";
 				std::string sEndEpoch = obj["end_epoch"].get_str();
-				std::string sProposalTime = TimestampToHRDate(cdbl(sEndEpoch,0));
-				std::string sURL = obj["url"].get_str();
-				// proposal_hashes
-				std::string sRow = "<proposal>" + sHash + sDelim 
-					+ obj["name"].get_str() + sDelim 
-					+ obj["payment_amount"].get_str() + sDelim
-					+ sCharityType + sDelim
-					+ sProposalTime + sDelim
-					+ RoundToString(iYes,0) + sDelim
-					+ RoundToString(iNo,0) + sDelim + RoundToString(iAbstain,0) 
-					+ sDelim + sURL;
-				sXML += sRow;
+				if (!sEndEpoch.empty())
+				{
+					std::string sProposalTime = TimestampToHRDate(cdbl(sEndEpoch,0));
+					std::string sURL = obj["url"].get_str();
+					// proposal_hashes
+					std::string sRow = "<proposal>" + sHash + sDelim 
+						+ obj["name"].get_str() + sDelim 
+						+ obj["payment_amount"].get_str() + sDelim
+						+ sCharityType + sDelim
+						+ sProposalTime + sDelim
+						+ RoundToString(iYes,0) + sDelim
+						+ RoundToString(iNo,0) + sDelim + RoundToString(iAbstain,0) 
+						+ sDelim + sURL;
+					sXML += sRow;
+				}
 			}
 	}
 	if (fDebugMaster) LogPrintf("Proposals %s \n", sXML.c_str());
