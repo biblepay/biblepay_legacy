@@ -199,6 +199,13 @@ size_t nCoinCacheUsage = 5000 * 300;
 std::string msGlobalStatus = "";
 std::string msGlobalStatus2 = "";
 std::string msGlobalStatus3 = "";
+std::string msProposalResult = "";
+int64_t nProposalStartTime = 0;
+int64_t nProposalModulus = 0;
+uint256 uTxIdFee = uint256();
+int nProposalPrepareHeight = 0;
+std::string msProposalHex = "";
+
 bool fPrayersMemorized = false;
 double mnMagnitude = 0;
 double mnMagnitudeOneDay = 0;

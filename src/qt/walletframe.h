@@ -61,6 +61,9 @@ public Q_SLOTS:
     void gotoReceiveCoinsPage();
 	/** Switch to Distributed computing page */
 	void gotoDistributedComputingPage();
+	/** Switch to Proposal Add Page */
+	void gotoProposalAddPage();
+	void gotoProposalListPage();
 
     /** Switch to send coins page */
     void gotoSendCoinsPage(QString addr = "");

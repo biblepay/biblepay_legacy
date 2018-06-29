@@ -3093,7 +3093,7 @@ bool DownloadIndividualDistributedComputingFile(int iNextSuperblock, std::string
 				double elapsed_secs = double(end - begin) / (CLOCKS_PER_SEC + .01);
 				if (elapsed_secs > iTimeoutSecs) 
 				{
-					LogPrintf(" download timed out ... \n");
+					LogPrintf(" download timed out ... (bytes written %f)  \n", (double)bytesWritten);
 					break;
 				}
 				if (false && (int)sData.size() >= iMaxSize) 

@@ -1883,7 +1883,6 @@ CAmount CWallet::GetUnlockedBalance() const
                 bool fLocked = (nAmount == (SANCTUARY_COLLATERAL * COIN));
 				if (!fLocked)
 				{
-					int64_t nAge = GetAdjustedTime() - pcoin->nTimeReceived;
 					if (nCoinDepth > 5) 
 					{
 						nTotal += nAmount;

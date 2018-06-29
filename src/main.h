@@ -206,6 +206,13 @@ extern bool fEnableReplacement;
 extern std::string msGlobalStatus;
 extern std::string msGlobalStatus2;
 extern std::string msGlobalStatus3;
+extern std::string msProposalResult;
+extern int64_t nProposalStartTime;
+extern int64_t nProposalModulus;
+extern uint256 uTxIdFee;
+extern int nProposalPrepareHeight;
+extern std::string msProposalHex;
+
 extern bool fPrayersMemorized;
 extern double mnMagnitude;
 extern double mnMagnitudeOneDay;
