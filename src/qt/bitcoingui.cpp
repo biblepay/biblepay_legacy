@@ -1473,13 +1473,7 @@ void BitcoinGUI::showEvent(QShowEvent *event)
     optionsAction->setEnabled(true);
 	openFundedProposalsAction->setEnabled(false);
 	openFundedProposalsAction->setVisible(false);
-	openProposalsAction->setEnabled(false);
-
-	if (!fProd)
-	{
-		openProposalsAction->setEnabled(true);
-	}
-
+	openProposalsAction->setEnabled(true); // Enabling List Proposals in Prod so we can test the Paid filter during this next superblock (6-28-2018) (Proposals have been tested in testnet)
 	sinnerAction->setEnabled(true);
 	TheLordsPrayerAction->setEnabled(true);
 	TheApostlesCreedAction->setEnabled(true);

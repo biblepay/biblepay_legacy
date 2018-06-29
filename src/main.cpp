@@ -119,7 +119,7 @@ extern bool NonObnoxiousLog(std::string sLogSection, std::string sLogKey, std::s
 extern bool TimerMain(std::string timer_name, int max_ms);
 std::string FindResearcherCPIDByAddress(std::string sSearch, std::string& out_address, double& nTotalMagnitude);
 extern bool IsMature(int64_t nTime, int64_t nMaturityAge);
-
+std::string GetMyPublicKeys();
 extern bool HasThisCPIDSolvedPriorBlocks(std::string CPID, CBlockIndex* pindexPrev);
 std::string VectorToString(std::vector<unsigned char> v);
 
@@ -164,8 +164,8 @@ extern std::string GetArrayElement(std::string s, std::string delim, int iPos);
 double GetDifficultyN(const CBlockIndex* blockindex, double N);
 uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight, const CBlockIndex* pindexLast, bool bRequireTxIndex, bool f7000, bool f8000, bool f9000, bool fTitheBlocksActive, unsigned int nNonce);
 extern void PurgeCacheAsOfExpiration(std::string sSection, int64_t nExpiration);
-double GetUserMagnitude(double& nBudget, double& nTotalPaid, int& out_iLastSuperblock, std::string& out_Superblocks, int& out_SuperblockCount, int& out_HitCount, double& out_OneDayPaid, double& out_OneWeekPaid, double& out_OneDayBudget, double& out_OneWeekBudget);
-double GetPaymentByCPID(std::string CPID);
+double GetUserMagnitude(std::string sListOfPublicKeys, double& nBudget, double& nTotalPaid, int& out_iLastSuperblock, std::string& out_Superblocks, int& out_SuperblockCount, int& out_HitCount, double& out_OneDayPaid, double& out_OneWeekPaid, double& out_OneDayBudget, double& out_OneWeekBudget);
+double GetPaymentByCPID(std::string CPID, int nHeight);
 bool CheckStakeSignature(std::string sBitcoinAddress, std::string sSignature, std::string strMessage, std::string& strError);
 bool VerifyCPIDSignature(std::string sFullSig, bool bRequireEndToEndVerification, std::string& sError);
 double GetSporkDouble(std::string sName, double nDefault);
@@ -4551,7 +4551,7 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIn
 				fCPIDFailed=true;
 			}
 			// Ensure this block can only be solved if this CPID was in the last superblock with a payment - but only if the header age is recent (this allows the chain to continue rolling if PODC goes down)
-			double nRecentlyPaid = GetPaymentByCPID(sCPID);
+			double nRecentlyPaid = GetPaymentByCPID(sCPID, nHeight);
 			if (nRecentlyPaid >= 0 && nRecentlyPaid < .50)
 			{
 				if (!fMining) LogPrintf(" CPID is not in prior superblock.  Contextual check block failed.  CPID %s, Payments: %f  ", sCPID.c_str(), (double)nRecentlyPaid);
@@ -7405,7 +7405,9 @@ void UpdateMagnitude()
 		double out_OneWeekPaid = 0;
 		double out_d1 = 0;
 		double out_d2 = 0;
-		mnMagnitude = GetUserMagnitude(nBudget, nTotalPaid, iLastSuperblock, out_Superblocks, out_SuperblockCount, out_HitCount, out_OneDayPaid, out_OneWeekPaid, out_d1, out_d2);
+		std::string sPK = GetMyPublicKeys();
+
+		mnMagnitude = GetUserMagnitude(sPK, nBudget, nTotalPaid, iLastSuperblock, out_Superblocks, out_SuperblockCount, out_HitCount, out_OneDayPaid, out_OneWeekPaid, out_d1, out_d2);
 }
 
 std::string GetVersionAlert()
@@ -7578,24 +7580,34 @@ void MemorizeBlockChainPrayers(bool fDuringConnectBlock, bool fSubThread)
 		CBlockIndex* pindex = FindBlockByHeight(nMinDepth);
 		const Consensus::Params& consensusParams = Params().GetConsensus();
 		if (fSubThread && !fPrayersMemorized) LogPrintf("MemorizeBlockChainPrayers @ %f ",GetAdjustedTime());
+		int64_t nMaxPaymentAge = 60 * 60 * 24 * 7;
+
 		while (pindex && pindex->nHeight < nMaxDepth)
 		{
 			if (pindex) if (pindex->nHeight < chainActive.Tip()->nHeight) pindex = chainActive.Next(pindex);
 			if (!pindex) break;
-	    
 			CBlock block;
 			if (ReadBlockFromDisk(block, pindex, consensusParams, "MemorizeBlockChainPrayers")) 
 			{
-        		BOOST_FOREACH(const CTransaction &tx, block.vtx)
-				{
+	  			for (unsigned int n = 0; n < block.vtx.size(); n++)
+       			{
 					double dTotalSent = 0;
 					std::string sPrayer = "";
-					for (unsigned int i = 0; i < tx.vout.size(); i++)
+					for (unsigned int i = 0; i < block.vtx[n].vout.size(); i++)
 					{
-						dTotalSent += tx.vout[i].nValue / COIN;
-						sPrayer += tx.vout[i].sTxOutMessage;
+						sPrayer += block.vtx[n].vout[i].sTxOutMessage;
+						double dAmount = block.vtx[n].vout[i].nValue/COIN;
+						dTotalSent += dAmount;
+						// Track Cancer Payment totals by address (so we can implement the additional CheckBlock rule: Researcher has magnitude in last 30 days) - R ANDREWS - 6-27-2018
+						// Coinbase Only, vout > 0, and Mature:
+						if (n==0 && i > 0)
+						{
+							std::string sRecipient = PubKeyToAddress(block.vtx[n].vout[i].scriptPubKey);
+							double dTally = cdbl(ReadCacheWithMaxAge("AddressPayment", sRecipient, nMaxPaymentAge), 0) + dAmount;
+							WriteCache("AddressPayment", sRecipient, RoundToString(dTally, 0), block.GetBlockTime());
+						}
 					}
-					MemorizePrayer(sPrayer, block.GetBlockTime(), dTotalSent, 0, tx.GetHash().GetHex());
+					MemorizePrayer(sPrayer, block.GetBlockTime(), dTotalSent, 0, block.vtx[n].GetHash().GetHex());
 				}
 	  		}
 		}

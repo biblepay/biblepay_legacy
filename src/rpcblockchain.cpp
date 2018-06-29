@@ -79,7 +79,7 @@ extern double GetStakeWeight(CTransaction tx, int64_t nTipTime, std::string sXML
 UniValue ContributionReport();
 extern std::string TimestampToHRDate(double dtm);
 void GetBookStartEnd(std::string sBook, int& iStart, int& iEnd);
-extern double GetMinimumRequiredUTXOStake(double dRAC);
+extern double GetMinimumRequiredUTXOStake(double dRAC, double dFactor);
 bool TimerMain(std::string timer_name, int max_ms);
 bool NonObnoxiousLog(std::string sLogSection, std::string sLogKey, std::string sValue, int64_t nAllowedSpan);
 extern bool VoteManyForGobject(std::string govobj, std::string strVoteSignal, std::string strVoteOutcome, int iVotingLimit, 
@@ -103,6 +103,7 @@ extern void GetDistributedComputingGovObjByHeight(int nHeight, uint256 uOptFilte
 extern bool GetContractPaymentData(std::string sContract, int nBlockHeight, std::string& sPaymentAddresses, std::string& sAmounts);
 extern std::string VerifyManyWorkUnits(std::string sProjectId, std::string sTaskIds);
 extern bool SignCPID(std::string sCPID, std::string& sError, std::string& out_FullSig);
+extern double GetTeamRAC();
 extern bool SubmitDistributedComputingTrigger(std::string sHex, std::string& gobjecthash, std::string& sError);
 extern int64_t GetHistoricalMilestoneAge(int64_t nMaturityAge, int64_t nOffset);
 extern std::string GetBoincAuthenticator(std::string sProjectID, std::string sProjectEmail, std::string sPasswordHash);
@@ -162,7 +163,7 @@ extern std::string RetrieveDCCWithMaxAge(std::string cpid, int64_t iMaxSeconds);
 extern double GetTaskWeight(std::string sCPID);
 
 extern double GetUTXOWeight(std::string sCPID);
-extern double GetUserMagnitude(double& nBudget, double& nTotalPaid, int& out_iLastSuperblock, std::string& out_Superblocks, int& out_SuperblockCount, int& out_HitCount, double& out_OneDayPaid, double& out_OneWeekPaid, double& out_OneDayBudget, double& out_OneWeekBudget);
+extern double GetUserMagnitude(std::string PK, double& nBudget, double& nTotalPaid, int& out_iLastSuperblock, std::string& out_Superblocks, int& out_SuperblockCount, int& out_HitCount, double& out_OneDayPaid, double& out_OneWeekPaid, double& out_OneDayBudget, double& out_OneWeekBudget);
 extern int GetMinimumResearcherParticipationLevel();
 extern int64_t GetDCCFileAge();
 extern std::string GetBoincPasswordHash(std::string sProjectPassword, std::string sProjectEmail);
@@ -177,7 +178,7 @@ extern int GetLastDCSuperblockWithPayment(int nChainHeight);
 extern double GetBlockMagnitude(int nChainHeight);
 extern int GetSanctuaryCount();
 extern bool AmIMasternode();
-extern double GetPaymentByCPID(std::string CPID);
+extern double GetPaymentByCPID(std::string CPID, int nHeight);
 
 
 
@@ -189,6 +190,7 @@ extern int MyRank(int nHeight);
 extern bool SignStake(std::string sBitcoinAddress, std::string strMessage, std::string& sError, std::string& sSignature);
 extern std::string GenerateNewAddress(std::string& sError, std::string sName);
 extern std::string GetMyPublicKeys();
+
 extern double GetMagnitudeByAddress(std::string sAddress);
 extern void ClearSanctuaryMemories();
 extern double GetMinimumMagnitude();
@@ -2276,7 +2278,7 @@ UniValue exec(const UniValue& params, bool fHelp)
 				std::string sCPID = GetElement(sMySig, ";", 0);
 				bool bSolvedPriorBlocks = HasThisCPIDSolvedPriorBlocks(sCPID, pindexPrev);
 				// Ensure this block can only be solved if this CPID was in the last superblock with a payment - but only if the header age is recent (this allows the chain to continue rolling if PODC goes down)
-				double nRecentlyPaid = GetPaymentByCPID(sCPID);
+				double nRecentlyPaid = GetPaymentByCPID(sCPID, pindexPrev->nHeight);
 				bool bRenumerationLegal = (nRecentlyPaid >= 0 && nRecentlyPaid < .50) ? false : true;
 				fLegality = (bRenumerationLegal && !bSolvedPriorBlocks);
 				if (!fLegality)
@@ -2609,6 +2611,45 @@ UniValue exec(const UniValue& params, bool fHelp)
 			}
 		}
 	}
+	else if (sItem == "getpodcpayments")
+	{
+		if (params.size() == 2)
+		{
+			std::string sAddressList = params[1].get_str();
+			int iNextSuperblock = 0;
+		
+			int iLastSuperblock = GetLastDCSuperblockHeight(chainActive.Tip()->nHeight, iNextSuperblock);
+			const Consensus::Params& consensusParams = Params().GetConsensus();
+			double nBudget = 0;
+			double nTotalPaid = 0;
+			std::string out_Superblocks = "";
+			int out_SuperblockCount = 0;
+			int out_HitCount = 0;
+			double out_OneDayPaid = 0;
+			double out_OneWeekPaid = 0;
+			double out_OneDayBudget = 0;
+			double out_OneWeekBudget = 0;
+			
+			double nMagnitude = GetUserMagnitude(sAddressList, nBudget, nTotalPaid, iLastSuperblock, out_Superblocks, out_SuperblockCount, out_HitCount, out_OneDayPaid, out_OneWeekPaid, 
+				out_OneDayBudget, out_OneWeekBudget);
+			results.push_back(Pair("Total Payments (One Day)", out_OneDayPaid));
+			results.push_back(Pair("Total Payments (One Week)", out_OneWeekPaid));
+			results.push_back(Pair("Total Budget (One Day)",out_OneDayBudget));
+			results.push_back(Pair("Total Budget (One Week)",out_OneWeekBudget));
+			results.push_back(Pair("Superblock Count (One Week)", out_SuperblockCount));
+			results.push_back(Pair("Superblock Hit Count (One Week)", out_HitCount));
+			results.push_back(Pair("Superblock List", out_Superblocks));
+			results.push_back(Pair("Last Superblock Height", iLastSuperblock));
+			nBudget = CSuperblock::GetPaymentsLimit(iLastSuperblock) / COIN;
+			results.push_back(Pair("Last Superblock Budget", nBudget));
+			results.push_back(Pair("Magnitude (One-Day)", mnMagnitudeOneDay));
+			results.push_back(Pair("Magnitude (One-Week)", nMagnitude));
+		}
+		else
+		{
+			throw runtime_error("You must specify a list of BBP Addresses delimited by semicolons.");
+		}
+	}
 	else if (sItem == "getboincinfo")
 	{
 		std::string out_address = "";
@@ -2660,7 +2701,7 @@ UniValue exec(const UniValue& params, bool fHelp)
 					results.push_back(Pair(s1 + "_ADDRESS", sAddress));
 					results.push_back(Pair(s1 + "_RAC", RAC));
 					LogPrintf("UserID %f %f",nUserId, GetAdjustedTime());
-	
+		
 					double dTeam = GetBoincTeamByUserId("project1", nUserId);
 					results.push_back(Pair(s1 + "_TEAM", dTeam));
 					if (dBiblepayTeam > 0)
@@ -2695,7 +2736,9 @@ UniValue exec(const UniValue& params, bool fHelp)
 		double out_OneWeekPaid = 0;
 		double out_OneDayBudget = 0;
 		double out_OneWeekBudget = 0;
-		double nMagnitude = GetUserMagnitude(nBudget, nTotalPaid, iLastSuperblock, out_Superblocks, out_SuperblockCount, out_HitCount, out_OneDayPaid, out_OneWeekPaid, out_OneDayBudget, out_OneWeekBudget);
+		std::string sPK = GetMyPublicKeys();
+
+		double nMagnitude = GetUserMagnitude(sPK, nBudget, nTotalPaid, iLastSuperblock, out_Superblocks, out_SuperblockCount, out_HitCount, out_OneDayPaid, out_OneWeekPaid, out_OneDayBudget, out_OneWeekBudget);
 		results.push_back(Pair("Total Payments (One Day)", out_OneDayPaid));
 		results.push_back(Pair("Total Payments (One Week)", out_OneWeekPaid));
 		results.push_back(Pair("Total Budget (One Day)",out_OneDayBudget));
@@ -2703,7 +2746,7 @@ UniValue exec(const UniValue& params, bool fHelp)
 		results.push_back(Pair("Superblock Count (One Week)", out_SuperblockCount));
 		results.push_back(Pair("Superblock Hit Count (One Week)", out_HitCount));
 		results.push_back(Pair("Superblock List", out_Superblocks));
-		double dLastPayment = GetPaymentByCPID(sCPID);
+		double dLastPayment = GetPaymentByCPID(sCPID, 0);
 		results.push_back(Pair("Last Superblock Height", iLastSuperblock));
 		nBudget = CSuperblock::GetPaymentsLimit(iLastSuperblock) / COIN;
 		results.push_back(Pair("Last Superblock Budget", nBudget));
@@ -2798,11 +2841,14 @@ UniValue exec(const UniValue& params, bool fHelp)
 		std::string sCPID = params[1].get_str();
 		double dWCGRAC = GetWCGRACByCPID(sCPID);
 		results.push_back(Pair("WCGRAC", dWCGRAC));
+		std::string sDCPK = GetDCCPublicKey(sCPID, true);
+		double dPODCPayments = cdbl(ReadCacheWithMaxAge("AddressPayment", sDCPK, GetHistoricalMilestoneAge(14400, 60 * 60 * 24 * 30)), 0);
+		results.push_back(Pair("Total PODC Payments (30 days)", dPODCPayments));
 	}
 	else if (sItem == "totalrac")
 	{
 		double dRAC = AscertainResearcherTotalRAC();
-		double dStake = GetMinimumRequiredUTXOStake(dRAC);
+		double dStake = GetMinimumRequiredUTXOStake(dRAC, 1.1);
 		results.push_back(Pair("Total RAC", dRAC));
 		results.push_back(Pair("UTXO Target", dStake));
 		CAmount nStakeBalance = pwalletMain->GetUnlockedBalance();
@@ -2811,6 +2857,17 @@ UniValue exec(const UniValue& params, bool fHelp)
 		{
 			results.push_back(Pair("Note", "You have less stake balance available than needed for the PODC UTXO Target.  Coins must be more than 5 confirmations deep to count.  See coin control."));
 		}
+		// Suggested by Capulo - Stake Breaks Table in 10% increments:
+		for (double i = .10; i <= 1.00; i += .10)
+		{
+			double dRequired = cdbl(RoundToString(GetMinimumRequiredUTXOStake(dRAC, i), 2), 2);
+			std::string sNarr = "Stake Level Required For " + RoundToString(i * 100, 0) + "% Level";
+			results.push_back(Pair(sNarr, dRequired));
+		}
+		double dTeamRAC = GetTeamRAC();
+		results.push_back(Pair("Total Team RAC", dTeamRAC));
+
+			
 	}
 	else if (sItem == "reconsiderblocks")
 	{
@@ -3578,8 +3635,6 @@ std::string GenerateNewAddress(std::string& sError, std::string sName)
 	}
 }
 
-
-
 std::string GetMyPublicKeys()
 {
 	std::string sPK = "";
@@ -3724,7 +3779,7 @@ bool AdvertiseDistributedComputingKey(std::string sProjectId, std::string sAuth,
 	}
 }
 
-double GetMinimumRequiredUTXOStake(double dRAC)
+double GetMinimumRequiredUTXOStake(double dRAC, double dFactor)
 {
 	double dReqSPM = GetSporkDouble("requiredspm", 500);
 	double dReqSPR = GetSporkDouble("requiredspr", 0);
@@ -3733,12 +3788,12 @@ double GetMinimumRequiredUTXOStake(double dRAC)
 	LogPrintf(" getminimumrequiredutxostake RAC %f, reqspm %f, reqspr %f ",dRAC, dReqSPM, dReqSPR);
 	if (dReqSPM > 0) 
 	{
-		dRequirement = dEstimatedMagnitude * dReqSPM * 1.1;
+		dRequirement = dEstimatedMagnitude * dReqSPM * dFactor;
 	}
 	else if (dReqSPR > 0)
 	{
 		// If using Stake-Per-RAC, then 
-		dRequirement = dRAC * dReqSPR * 1.1;
+		dRequirement = dRAC * dReqSPR * dFactor;
 	}
 	if (dRequirement < 10) dRequirement = 10;
 	return dRequirement;
@@ -3859,7 +3914,7 @@ bool PODCUpdate(std::string& sError, bool bForce, std::string sDebugInfo)
 				{
 					double dRAC = AscertainResearcherTotalRAC();
 					double dUTXOOverride = cdbl(GetArg("-utxooverride", "0"), 2);
-					double dUTXOAmount = GetMinimumRequiredUTXOStake(dRAC);
+					double dUTXOAmount = GetMinimumRequiredUTXOStake(dRAC, 1.1);
 					if (dUTXOOverride > 0 || dUTXOOverride < 0) dUTXOAmount = dUTXOOverride;
 					LogPrintf(" PODCUpdate::Creating UTXO, Users RAC %f for %f ",dRAC, (double)dUTXOAmount);
 					CAmount curBalance = pwalletMain->GetUnlockedBalance(); // 3-5-2018, R Andrews
@@ -4052,15 +4107,14 @@ UniValue UTXOReport(std::string sCPID)
 
 
 
-double GetUserMagnitude(double& nBudget, double& nTotalPaid, int& out_iLastSuperblock, std::string& out_Superblocks, int& out_SuperblockCount, int& out_HitCount, double& out_OneDayPaid, double& out_OneWeekPaid, double& out_OneDayBudget, double& out_OneWeekBudget)
+double GetUserMagnitude(std::string sListOfPublicKeys, double& nBudget, double& nTotalPaid, int& out_iLastSuperblock, std::string& out_Superblocks, int& out_SuperblockCount, int& out_HitCount, double& out_OneDayPaid, double& out_OneWeekPaid, double& out_OneDayBudget, double& out_OneWeekBudget)
 {
-	std::string sPK = GetMyPublicKeys();
 	// Query actual magnitude from last superblock
 	const Consensus::Params& consensusParams = Params().GetConsensus();
 	int iNextSuperblock = 0;  
 	for (int b = chainActive.Tip()->nHeight; b > 1; b--)
 	{
-		int iLastSuperblock = GetLastDCSuperblockHeight(b+1, iNextSuperblock);
+		int iLastSuperblock = GetLastDCSuperblockHeight(b + 1, iNextSuperblock);
 		if (iLastSuperblock == b)
 		{
 			out_SuperblockCount++;
@@ -4079,7 +4133,7 @@ double GetUserMagnitude(double& nBudget, double& nTotalPaid, int& out_iLastSuper
 				            std::string sRecipient = PubKeyToAddress(block.vtx[0].vout[i].scriptPubKey);
 							double dAmount = block.vtx[0].vout[i].nValue/COIN;
 							nTotalBlock += dAmount;
-							if (Contains(sPK, sRecipient))
+							if (Contains(sListOfPublicKeys, sRecipient))
 							{
 								nTotalPaid += dAmount;
 								if (Age > 0 && Age < 86400)
@@ -4888,12 +4942,29 @@ double GetBlockMagnitude(int nChainHeight)
 }
 
 
-double GetPaymentByCPID(std::string CPID)
+double GetPaymentByCPID(std::string CPID, int nHeight)
 {
-	// 2-10-2018 - R ANDREWS - BIBLEPAY - Provide ability to return last payment amount (in most recent superblock) for a given CPID
+	// 616WestWarnsworth - 6-27-2018 - Change the rule (in order to heat mine) from 'CPID with Magnitude' to 'CPID that has staked a UTXO within the last 7 days'
+	// In order for this function to pass the checkblock test, the return value must be > .50
 	std::string sDCPK = GetDCCPublicKey(CPID, true);
 	if (sDCPK.empty()) return -2;
 	if (CPID.empty()) return -3;
+
+	if ((fProd && nHeight > F13000_CUTOVER_HEIGHT_PROD) || (!fProd && nHeight > F13000_CUTOVER_HEIGHT_TESTNET))
+	{
+		// The new way - CPIDs Research address must have had a payment within the last 7 days:
+		/* Reserved:  Tracking UTXO Amount Staked in last 7 Days
+		
+		double dUTXOStakedInLast7Days = cdbl(ReadCacheWithMaxAge("MatureUTXOWeight", CPID, GetHistoricalMilestoneAge(14400, 60 * 60 * 24 * 7)), 0);
+		return dUTXOStakedInLast7Days;
+		*/
+		double dPODCPayments = cdbl(ReadCacheWithMaxAge("AddressPayment", sDCPK, GetHistoricalMilestoneAge(14400, 60 * 60 * 24 * 7)), 0);
+		return dPODCPayments;
+	}
+	// Otherwise fall through to the old way...
+
+
+	// 2-10-2018 - R ANDREWS - BIBLEPAY - Provide ability to return last payment amount (in most recent superblock) for a given CPID
 	const Consensus::Params& consensusParams = Params().GetConsensus();
 	int iNextSuperblock = 0;  
 	int iLastSuperblock = GetLastDCSuperblockHeight(chainActive.Tip()->nHeight, iNextSuperblock);
@@ -4901,9 +4972,9 @@ double GetPaymentByCPID(std::string CPID)
 	CBlock block;
 	double nTotalBlock = 0;
 	double nBudget = 0;
-	if (pindex==NULL) return -1;
+	if (pindex == NULL) return -1;
 	double nTotalPaid=0;
-	nTotalBlock=0;
+	nTotalBlock = 0;
 	if (ReadBlockFromDisk(block, pindex, consensusParams, "GetPaymentByCPID")) 
 	{
 		nBudget = CSuperblock::GetPaymentsLimit(iLastSuperblock) / COIN;
@@ -5500,6 +5571,15 @@ double GetWCGRACByCPID(std::string sCPID)
 	return dRac;
 }
 
+double GetTeamRAC()
+{
+	std::string sProjectURL = "http://" + GetSporkValue("pool");
+	std::string sRestfulURL = "Action.aspx?action=teamrac&format=xml";
+	std::string sResponse = BiblepayHTTPSPost(true, 0, "", "", "", sProjectURL, sRestfulURL, 443, "", 20, 5000, 1);
+	double dRac = cdbl(ExtractXML(sResponse,"<TEAMRAC>", "</TEAMRAC>"), 2);
+	return dRac;
+}
+
 double GetBoincTeamByUserId(std::string sProjectId, int nUserId)
 {
 	std::string sProjectURL = "http://" + GetSporkValue(sProjectId);
@@ -5784,10 +5864,12 @@ bool IsGovObjPaid(std::string sGobjId)
 			UniValue obj = pGovObj->GetJSONObject();
 			int iAbsYes = pGovObj->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING);
 			int nHeight = obj["event_block_height"].get_int();
+			std::string sLocalHash = pGovObj->GetHash().GetHex();
+		
 			// 6-19-2018 - R ANDREWS - CHECK IF PROPOSAL WAS PAID
-			if (nHeight > 0 && iAbsYes > 0)
+			if (nHeight > 0 && iAbsYes > 0 && nHeight <= chainActive.Tip()->nHeight)
 			{
-				LogPrintf(" height %f ", (double)nHeight);
+				LogPrintf(" Hash %s , Height %f ", sLocalHash.c_str(), (double)nHeight);
 				std::string sProposalHashes = obj["proposal_hashes"].get_str();
 
 				if (true) LogPrintf("IsGovObjPaid, govobj %s -- ProposalHashes %s, AbsYesCount %f, nHeight %f \n", sGobjId.c_str(), 
@@ -5798,11 +5880,12 @@ bool IsGovObjPaid(std::string sGobjId)
 					// Trigger contains	the proposal, and it has a net yes vote, lets see if it was actually paid
 					std::string sPaymentAddresses = obj["payment_addresses"].get_str();
 					std::string sPaymentAmounts = obj["payment_amounts"].get_str();
-					LogPrintf("IsGovObjPaid::Paymentaddresses %s",sPaymentAddresses.c_str());
+					LogPrintf("IsGovObjPaid::Paymentaddresses %s", sPaymentAddresses.c_str());
+
 					CBlockIndex* pindex = FindBlockByHeight(nHeight);
-					if (!pindex) 
+					if (!pindex || sPaymentAddresses.empty() || sPaymentAmounts.empty()) 
 					{
-						LogPrintf("Trigger @ %f Not Found.",(double)nHeight);
+						LogPrintf("Trigger @ %f Not Found  or addresses empty or amounts empty",(double)nHeight);
 						return false;
 					}
 
@@ -5811,13 +5894,16 @@ bool IsGovObjPaid(std::string sGobjId)
 					std::string sBlockRecips = "";
 					if (ReadBlockFromDisk(block, pindex, consensusParams, "IsGovObjPaid")) 
 					{
-        				for (unsigned int i = 0; i < block.vtx[0].vout.size(); i++)
+						for (unsigned int i = 0; i < block.vtx[0].vout.size(); i++)
 						{
-								double dAmount = block.vtx[0].vout[i].nValue / COIN;
-								std::string sRecipient = PubKeyToAddress(block.vtx[0].vout[i].scriptPubKey);
-								sBlockPayments += RoundToString(dAmount,2) + "|";
-								sBlockRecips += sRecipient + "|";
+							double dAmount = block.vtx[0].vout[i].nValue / COIN;
+							std::string sRecipient = PubKeyToAddress(block.vtx[0].vout[i].scriptPubKey);
+							sBlockPayments += RoundToString(dAmount,2) + "|";
+							sBlockRecips += sRecipient + "|";
 						}
+
+						if (false) LogPrintf("Verifying blockpayments %s, block recips %s ",sBlockPayments.c_str(), sBlockRecips.c_str());
+
 						// Now verify the block paid the proposals in the trigger
 						std::vector<std::string> vPAD = Split(sPaymentAddresses.c_str(), "|");
 						std::vector<std::string> vPAM = Split(sPaymentAmounts.c_str(), "|");
@@ -5831,7 +5917,7 @@ bool IsGovObjPaid(std::string sGobjId)
 							LogPrintf("IsGovObjePaid::vPAD size < 1");
 							return false;
 						}
-						for (int i = 0; i < (int)vPAD.size(); i++)
+						for (int i = 0; i < (int)vPAD.size() && i < (int)vPAM.size(); i++)
 						{
 							if (!(Contains(sPaymentAmounts, RoundToString(cdbl(vPAM[i],2),2)) && Contains(sPaymentAddresses, vPAD[i])))
 							{
@@ -5891,18 +5977,21 @@ std::string GetActiveProposals()
 				id++;
 				std::string sCharityType = "IT";
 				std::string sEndEpoch = obj["end_epoch"].get_str();
-				std::string sProposalTime = TimestampToHRDate(cdbl(sEndEpoch,0));
-				std::string sURL = obj["url"].get_str();
-				// proposal_hashes
-				std::string sRow = "<proposal>" + sHash + sDelim 
-					+ obj["name"].get_str() + sDelim 
-					+ obj["payment_amount"].get_str() + sDelim
-					+ sCharityType + sDelim
-					+ sProposalTime + sDelim
-					+ RoundToString(iYes,0) + sDelim
-					+ RoundToString(iNo,0) + sDelim + RoundToString(iAbstain,0) 
-					+ sDelim + sURL;
-				sXML += sRow;
+				if (!sEndEpoch.empty())
+				{
+					std::string sProposalTime = TimestampToHRDate(cdbl(sEndEpoch,0));
+					std::string sURL = obj["url"].get_str();
+					// proposal_hashes
+					std::string sRow = "<proposal>" + sHash + sDelim 
+						+ obj["name"].get_str() + sDelim 
+						+ obj["payment_amount"].get_str() + sDelim
+						+ sCharityType + sDelim
+						+ sProposalTime + sDelim
+						+ RoundToString(iYes,0) + sDelim
+						+ RoundToString(iNo,0) + sDelim + RoundToString(iAbstain,0) 
+						+ sDelim + sURL;
+					sXML += sRow;
+				}
 			}
 	}
 	if (fDebugMaster) LogPrintf("Proposals %s \n", sXML.c_str());
