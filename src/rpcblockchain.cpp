@@ -147,7 +147,7 @@ extern int GetRequiredQuorumLevel(int nHeight);
 std::string GetVersionAlert();
 UniValue GetDataList(std::string sType, int iMaxAgeInDays, int& iSpecificEntry, std::string sSearch, std::string& outEntry);
 uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight, const CBlockIndex* pindexLast, bool bRequireTxIndex, bool f7000, bool f8000, bool f9000, bool fTitheBlocksActive, unsigned int nNonce);
-void MemorizeBlockChainPrayers(bool fDuringConnectBlock, bool fSubThread);
+void MemorizeBlockChainPrayers(bool fDuringConnectBlock, bool fSubThread, bool fColdBoot);
 std::string GetVerse(std::string sBook, int iChapter, int iVerse, int iStart, int iEnd);
 std::string GetBookByName(std::string sName);
 std::string GetBook(int iBookNumber);
@@ -3017,7 +3017,7 @@ UniValue exec(const UniValue& params, bool fHelp)
 	}
 	else if (sItem == "memorizeprayers")
 	{
-		MemorizeBlockChainPrayers(false, false);
+		MemorizeBlockChainPrayers(false, false, false);
 		results.push_back(Pair("Memorized",1));
 	}
 	else if (sItem == "readverse")
@@ -4678,7 +4678,7 @@ bool FilterFile(int iBufferSize, int iNextSuperblock, std::string& sError)
 	LOCK(cs_main);
 	{
 		// This ensures that all mature CPIDs (assessed as of yesterdays single timestamp point) are memorized (IE we didnt skip over any because they were not mature 1-4 hours ago)
-		MemorizeBlockChainPrayers(false, false);
+		MemorizeBlockChainPrayers(false, false, false);
 	}
 
 	ClearCache("Unbanked");
