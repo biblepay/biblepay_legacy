@@ -4540,13 +4540,13 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIn
 			std::string sCPIDSignature = ExtractXML(block.vtx[0].vout[0].sTxOutMessage, "<cpidsig>","</cpidsig>");
 			if (sCPIDSignature.empty())
 			{
-				if (!fMining) LogPrintf(" CPID Signature empty.  Contextual Check Block Failed at height %f. \n", (double)pindexPrev->nHeight+1);
+				if (!fMining && fDebugMaster) LogPrintf(" CPID Signature empty.  Contextual Check Block Failed at height %f. \n", (double)pindexPrev->nHeight+1);
 				fCPIDFailed=true;
 			}
 			bool fCheckCPIDSignature = VerifyCPIDSignature(sCPIDSignature, true, sError);
 			if (!fCheckCPIDSignature)
 			{
-				if (!fMining) LogPrintf(" CPID Signature Check Failed.  CPID %s, Error %s \n", block.sBlockMessage.c_str(), sError.c_str());
+				if (!fMining && fDebugMaster) LogPrintf(" CPID Signature Check Failed.  CPID %s, Error %s \n", block.sBlockMessage.c_str(), sError.c_str());
 				fCPIDFailed=true;
 			}
 			// Ensure this CPID has not solved any of the last N blocks in prod or last block in testnet if header age is < 1 hour:
@@ -4554,14 +4554,14 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIn
 			bool bSolvedPriorBlocks = HasThisCPIDSolvedPriorBlocks(sCPID, pindexPrev);
 			if (bSolvedPriorBlocks)
 			{
-				if (!fMining) LogPrintf(" CPID has solved prior blocks.  Contextual check block failed.  CPID %s ",sCPID.c_str());
+				if (!fMining && fDebugMaster) LogPrintf(" CPID has solved prior blocks.  Contextual check block failed.  CPID %s ",sCPID.c_str());
 				fCPIDFailed=true;
 			}
 			// Ensure this block can only be solved if this CPID was in the last superblock with a payment - but only if the header age is recent (this allows the chain to continue rolling if PODC goes down)
 			double nRecentlyPaid = GetPaymentByCPID(sCPID, nHeight);
 			if (nRecentlyPaid >= 0 && nRecentlyPaid < .50)
 			{
-				if (!fMining) LogPrintf(" CPID is not in prior superblock.  Contextual check block failed.  CPID %s, Payments: %f  ", sCPID.c_str(), (double)nRecentlyPaid);
+				if (!fMining && fDebugMaster) LogPrintf(" CPID is not in prior superblock.  Contextual check block failed.  CPID %s, Payments: %f  ", sCPID.c_str(), (double)nRecentlyPaid);
 				fCPIDFailed=true;
 			}
 			if (fCPIDFailed)
@@ -7603,7 +7603,7 @@ void MemorizeBlockChainPrayers(bool fDuringConnectBlock, bool fSubThread, bool f
 						dTotalSent += dAmount;
 						// Track Cancer Payment totals by address (so we can implement the additional CheckBlock rule: Researcher has magnitude in last 30 days) - R ANDREWS - 6-27-2018
 						// Coinbase Only, vout > 0, and Mature:
-						if (n==0 && i > 0)
+						if (n==0 && i > 0 && block.vtx[n].vout.size() > 4)
 						{
 							std::string sRecipient = PubKeyToAddress(block.vtx[n].vout[i].scriptPubKey);
 							double dTally = cdbl(ReadCacheWithMaxAge("AddressPayment", sRecipient, nMaxPaymentAge), 0) + dAmount;
