@@ -2851,17 +2851,26 @@ UniValue exec(const UniValue& params, bool fHelp)
 		{
 			results.push_back(Pair("Note", "You have less stake balance available than needed for the PODC UTXO Target.  Coins must be more than 5 confirmations deep to count.  See coin control."));
 		}
+		// Dave_BBP - Absolute minimum required
+		double dMinRequired = cdbl(RoundToString(GetMinimumRequiredUTXOStake(dRAC, .04), 2), 2);
+		std::string sNarr1 = "Threshhold to receive 10% rewards (below this UTXO Amount rewards are lost)";
+		results.push_back(Pair(sNarr1, dMinRequired));
+		
 		// Suggested by Capulo - Stake Breaks Table in 10% increments:
-		for (double i = .10; i <= 1.00; i += .10)
+		for (double i = .00; i <= .90; i += .10)
 		{
-			double dRequired = cdbl(RoundToString(GetMinimumRequiredUTXOStake(dRAC, i), 2), 2);
-			std::string sNarr = "Stake Level Required For " + RoundToString(i * 100, 0) + "% Level";
+			double iTestLevel = i;
+			if (iTestLevel == 0) iTestLevel = .041;
+
+			double dRequired = cdbl(RoundToString(GetMinimumRequiredUTXOStake(dRAC, iTestLevel), 2), 2);
+			double iLevel = (i*100) + 10;
+			
+			std::string sNarr = "Stake Level Required For " + RoundToString(iLevel, 0) + "% Level";
 			results.push_back(Pair(sNarr, dRequired));
 		}
 		double dTeamRAC = GetTeamRAC();
 		results.push_back(Pair("Total Team RAC", dTeamRAC));
-
-			
+	
 	}
 	else if (sItem == "reconsiderblocks")
 	{
@@ -3833,6 +3842,14 @@ bool PODCUpdate(std::string& sError, bool bForce, std::string sDebugInfo)
 		return false;
 	}
 	double dDRMode = cdbl(GetSporkValue("dr"), 0);
+	// 0) Heavenly               = UTXOWeight * TaskWeight * RAC = Magnitude
+	// 1) Possessed by UTXO      = UTXOWeight * RAC = Magnitude
+	// 2) Possessed by Tasks     = TaskWeight * RAC = Magnitude  
+	// 3) The-Law                = RAC = Magnitude
+	// 4) DR (Disaster-Recovery) = Proof-Of-BibleHash Only (Heat Mining only) (Mode 1, 3, 4 are not checking tasks)
+	bool bCheckingTasks = true;
+	if (dDRMode == 1 || dDRMode == 3 || dDRMode == 4) bCheckingTasks = false;
+
 	bool bForceUTXO = false;
 	if (dDRMode > 1)
 	{
@@ -3879,6 +3896,7 @@ bool PODCUpdate(std::string& sError, bool bForce, std::string sDebugInfo)
 									sOutstanding += sTaskID + "=" + sTimestamp + ",";
 									iInserted++;
 									if (iInserted > 255 || sOutstanding.length() > 35000) break; // Don't let them blow up the blocksize
+									if (iInserted > 1 && !bCheckingTasks) break; // Don't spam the transactions if we aren't using the data
 								}
 							}
 						}

@@ -120,8 +120,6 @@ void ProposalAddDialog::on_btnSubmit_clicked()
 	if (sURL.length() < 10) sError += "You must enter a discussion URL. ";
 	std::string sExpenseType = FromQStringW(ui->cmbExpenseType->currentText());
 	if (sExpenseType.empty()) sError += "Expense Type must be chosen. ";
-	// June Mandatory
-	if (fProd) sError += "Sorry, this feature is not enabled in Prod yet.";
 	if (fProposalNeedsSubmitted) 
 	{
 		sError += "There is a proposal already being submitted (" + msProposalResult + ").  Please wait until this proposal is sent before creating a new one. ";

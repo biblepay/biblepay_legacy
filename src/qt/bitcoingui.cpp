@@ -349,7 +349,7 @@ void BitcoinGUI::createActions()
     proposalAddAction->setStatusTip(tr("Add a Proposal"));
     proposalAddAction->setToolTip(proposalAddAction->statusTip());
 	proposalAddAction->setCheckable(true);
-	// June Mandatory - Enable Proposal Add in Top Menu only
+	// Enable Proposal Add in Top Menu only
 	proposalListAction = new QAction(QIcon(":/icons/" + theme + "/edit"), tr("&Proposals"), this);
     proposalListAction->setStatusTip(tr("List Proposals"));
     proposalListAction->setToolTip(proposalListAction->statusTip());
