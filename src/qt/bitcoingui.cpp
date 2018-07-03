@@ -1671,7 +1671,7 @@ void BitcoinGUI::detectShutdown()
 
 	// Governance - Check to see if we should submit a proposal
 	nProposalModulus++;
-	if (nProposalModulus % 15 == 0)
+	if (nProposalModulus % 15 == 0 && !fLoadingIndex && fWalletLoaded)
 	{
 		nProposalModulus = 0;
 

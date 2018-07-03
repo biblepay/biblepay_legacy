@@ -222,7 +222,7 @@ void CGovernanceManager::ProcessMessage(CNode* pfrom, std::string& strCommand, C
         bool fAddToSeen = true;
         if(AddGovernanceObject(govobj, fAddToSeen, pfrom))
         {
-            LogPrintf("MNGOVERNANCEOBJECT -- %s new\n", strHash);
+            LogPrint("gobject", "MNGOVERNANCEOBJECT -- %s new\n", strHash);
             govobj.Relay();
         }
 

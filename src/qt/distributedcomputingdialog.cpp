@@ -78,7 +78,6 @@ void DistributedComputingDialog::setModel(WalletModel *model)
     if(model && model->getOptionsModel())
     {
 		UpdateMagnitudeDisplay();
-		LogPrintf(". model set .\n");
     }
 }
 

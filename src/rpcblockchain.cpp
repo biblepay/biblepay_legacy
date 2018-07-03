@@ -5895,7 +5895,7 @@ bool IsGovObjPaid(std::string sGobjId)
 					// Trigger contains	the proposal, and it has a net yes vote, lets see if it was actually paid
 					std::string sPaymentAddresses = obj["payment_addresses"].get_str();
 					std::string sPaymentAmounts = obj["payment_amounts"].get_str();
-					LogPrintf("IsGovObjPaid::Paymentaddresses %s", sPaymentAddresses.c_str());
+					if (false) LogPrintf("IsGovObjPaid::Paymentaddresses %s", sPaymentAddresses.c_str());
 
 					CBlockIndex* pindex = FindBlockByHeight(nHeight);
 					if (!pindex || sPaymentAddresses.empty() || sPaymentAmounts.empty()) 
@@ -5948,7 +5948,7 @@ bool IsGovObjPaid(std::string sGobjId)
 			// ... Iterate to next gobject
 	}
 	// Gobject Not found - Or trigger not paid
-	LogPrintf("Gobj not found.");
+	if (false) LogPrintf("Gobj not found.");
 	return false;
 }
 
