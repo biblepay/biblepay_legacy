@@ -87,7 +87,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                 if (wtx.IsCoinBase())
                 {
                     // Generated
-                    //Check if PODC or Mined EB: 2018-06-022
+                    //Check if PODC or Mined EB: 2018-06-02
                     if (sub.IsPODCPayment) {
                         sub.type = TransactionRecord::PODCPayment;
                     } 
@@ -308,7 +308,7 @@ void TransactionRecord::updateStatus(const CWalletTx &wtx)
         }
     }
     // For generated transactions, determine maturity
-    else if(type == TransactionRecord::Generated)
+    else if(type == TransactionRecord::Generated || type == TransactionRecord::PODCPayment || type == TransactionRecord::SuperBlockPayment)
     {
         if (wtx.GetBlocksToMaturity() > 0)
         {
