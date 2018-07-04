@@ -15,6 +15,7 @@
 #include "platformstyle.h"
 #include "receivecoinsdialog.h"
 #include "distributedcomputingdialog.h"
+#include "proposaladddialog.h"
 #include "sendcoinsdialog.h"
 #include "signverifymessagedialog.h"
 #include "transactiontablemodel.h"
@@ -75,7 +76,9 @@ WalletView::WalletView(const PlatformStyle *platformStyle, QWidget *parent):
     receiveCoinsPage = new ReceiveCoinsDialog(platformStyle);
     sendCoinsPage = new SendCoinsDialog(platformStyle);
 	distributedComputingPage = new DistributedComputingDialog(platformStyle);
-
+	proposalAddPage = new ProposalAddDialog(platformStyle);
+	proposalListPage = new Proposals(platformStyle);
+ 
     usedSendingAddressesPage = new AddressBookPage(platformStyle, AddressBookPage::ForEditing, AddressBookPage::SendingTab, this);
     usedReceivingAddressesPage = new AddressBookPage(platformStyle, AddressBookPage::ForEditing, AddressBookPage::ReceivingTab, this);
 
@@ -83,6 +86,8 @@ WalletView::WalletView(const PlatformStyle *platformStyle, QWidget *parent):
     addWidget(transactionsPage);
     addWidget(receiveCoinsPage);
 	addWidget(distributedComputingPage);
+	addWidget(proposalAddPage);
+	addWidget(proposalListPage);
     addWidget(sendCoinsPage);
 
     QSettings settings;
@@ -158,6 +163,8 @@ void WalletView::setWalletModel(WalletModel *walletModel)
     receiveCoinsPage->setModel(walletModel);
     sendCoinsPage->setModel(walletModel);
 	distributedComputingPage->setModel(walletModel);
+	proposalAddPage->setModel(walletModel);
+	proposalListPage->setModel(walletModel);
     usedReceivingAddressesPage->setModel(walletModel->getAddressTableModel());
     usedSendingAddressesPage->setModel(walletModel->getAddressTableModel());
 
@@ -231,6 +238,18 @@ void WalletView::gotoDistributedComputingPage()
 {
 	setCurrentWidget(distributedComputingPage);
 	distributedComputingPage->UpdateMagnitudeDisplay();
+}
+
+void WalletView::gotoProposalAddPage()
+{
+	setCurrentWidget(proposalAddPage);
+	proposalAddPage->UpdateDisplay();
+}
+
+void WalletView::gotoProposalListPage()
+{
+	setCurrentWidget(proposalListPage);
+	proposalListPage->UpdateDisplay();
 }
 
 void WalletView::gotoSendCoinsPage(QString addr)

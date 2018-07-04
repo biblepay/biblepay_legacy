@@ -12,17 +12,28 @@
 #include <QMenu>
 #include <QTableWidget>
 
+class OptionsModel;
+class PlatformStyle;
+class WalletModel;
+
+
 namespace Ui {
 class Proposals;
 }
+
+QT_BEGIN_NAMESPACE
+class QModelIndex;
+QT_END_NAMESPACE
 
 class Proposals : public QWidget
 {
     Q_OBJECT
 
 public:
-    explicit Proposals(QWidget *parent = 0);
+    explicit Proposals(const PlatformStyle *platformStyle, QWidget *parent = 0);
     ~Proposals();
+	void setModel(WalletModel *model);
+	void UpdateDisplay();
 
 private Q_SLOTS:
     void slotVoteFor();
@@ -34,7 +45,8 @@ private Q_SLOTS:
 
 private:
     Ui::Proposals *ui;
-
+	WalletModel *model;
+    
 private:
     void createUI(const QStringList &headers, const QString &pStr);
     QVector<QVector<QString> > SplitData(const QString &pStr);

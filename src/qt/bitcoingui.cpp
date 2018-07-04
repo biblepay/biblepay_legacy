@@ -83,6 +83,7 @@ std::string FromQStringW(QString qs);
 QString ToQstring(std::string s);
 bool InstantiateOneClickMiningEntries();
 std::string GetBibleHashVerseNumber(uint256, uint64_t nBlockTime, uint64_t nPrevBlockTime, int nPrevHeight, CBlockIndex* pindexPrev, int iVerseNumber);
+bool SubmitProposalToNetwork(uint256 txidFee, int64_t nStartTime, std::string sHex, std::string& sError, std::string& out_sGovObj);
 
 
 BitcoinGUI::BitcoinGUI(const PlatformStyle *platformStyle, const NetworkStyle *networkStyle, QWidget *parent) :
@@ -122,6 +123,9 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *platformStyle, const NetworkStyle *n
     receiveCoinsMenuAction(0),
 	distributedComputingAction(0),
 	distributedComputingMenuAction(0),
+	proposalAddAction(0),
+	proposalAddMenuAction(0),
+	proposalListAction(0),
     optionsAction(0),
     toggleHideAction(0),
     encryptWalletAction(0),
@@ -332,8 +336,6 @@ void BitcoinGUI::createActions()
     receiveCoinsAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_3));
 #endif
     tabGroup->addAction(receiveCoinsAction);
-
-	// 1-30-2018
     distributedComputingAction = new QAction(QIcon(":/icons/" + theme + "/key"), tr("&Distributed Computing"), this);
     distributedComputingAction->setStatusTip(tr("Set up Biblepay Distributed Computing options (help cure cancer)"));
     distributedComputingAction->setToolTip(distributedComputingAction->statusTip());
@@ -343,6 +345,18 @@ void BitcoinGUI::createActions()
 	}
     tabGroup->addAction(distributedComputingAction);
 
+    proposalAddAction = new QAction(QIcon(":/icons/" + theme + "/edit"), tr("&Proposal Add"), this);
+    proposalAddAction->setStatusTip(tr("Add a Proposal"));
+    proposalAddAction->setToolTip(proposalAddAction->statusTip());
+	proposalAddAction->setCheckable(true);
+	// Enable Proposal Add in Top Menu only
+	proposalListAction = new QAction(QIcon(":/icons/" + theme + "/edit"), tr("&Proposals"), this);
+    proposalListAction->setStatusTip(tr("List Proposals"));
+    proposalListAction->setToolTip(proposalListAction->statusTip());
+	proposalListAction->setCheckable(true);
+	
+	tabGroup->addAction(proposalAddAction);
+	tabGroup->addAction(proposalListAction);
 
     receiveCoinsMenuAction = new QAction(QIcon(":/icons/" + theme + "/receiving_addresses"), receiveCoinsAction->text(), this);
     receiveCoinsMenuAction->setStatusTip(receiveCoinsAction->statusTip());
@@ -398,6 +412,9 @@ void BitcoinGUI::createActions()
     connect(receiveCoinsAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
     connect(receiveCoinsAction, SIGNAL(triggered()), this, SLOT(gotoReceiveCoinsPage()));
 	connect(distributedComputingAction, SIGNAL(triggered()), this, SLOT(gotoDistributedComputingPage()));
+	connect(proposalAddAction, SIGNAL(triggered()), this, SLOT(gotoProposalAddPage()));
+	connect(proposalListAction, SIGNAL(triggered()), this, SLOT(gotoProposalListPage()));
+
 
     connect(receiveCoinsMenuAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
     connect(receiveCoinsMenuAction, SIGNAL(triggered()), this, SLOT(gotoReceiveCoinsPage()));
@@ -514,10 +531,16 @@ void BitcoinGUI::createActions()
     //add submenu items to Proposals
     openProposalsAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("Proposal &List"), this);
     openProposalsAction->setStatusTip(tr("Show Proposal List"));
+    openProposalsAction->setEnabled(false);
+
     openFundedProposalsAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("&Funded Proposal List"), this);
     openFundedProposalsAction->setStatusTip(tr("Show Funded Proposal List"));
-    openProposalsAction->setEnabled(false);
-    openFundedProposalsAction->setEnabled(false);
+	openFundedProposalsAction->setEnabled(false);
+
+    openAddProposalAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("Add &New Proposal"), this);
+    openAddProposalAction->setStatusTip(tr("Add New Proposal"));
+    openAddProposalAction->setEnabled(true);
+	
 
     openConfEditorAction = new QAction(QIcon(":/icons/" + theme + "/edit"), tr("Open Wallet &Configuration File"), this);
     openConfEditorAction->setStatusTip(tr("Open configuration file"));
@@ -584,8 +607,8 @@ void BitcoinGUI::createActions()
     connect(rpcConsole, SIGNAL(handleRestart(QStringList)), this, SLOT(handleRestart(QStringList)));
 
 	// Proposals:
-    connect(openProposalsAction, SIGNAL(triggered()), this, SLOT(showProposals()));
-    connect(openFundedProposalsAction, SIGNAL(triggered()), this, SLOT(showFundedProposals()));
+    connect(openProposalsAction, SIGNAL(triggered()), this, SLOT(gotoProposalListPage()));
+	connect(openAddProposalAction, SIGNAL(triggered()), this, SLOT(gotoProposalAddPage()));
 
     // prevents an open debug window from becoming stuck/unusable on client shutdown
     connect(quitAction, SIGNAL(triggered()), rpcConsole, SLOT(hide()));
@@ -723,12 +746,13 @@ void BitcoinGUI::createToolBars()
         toolbar->addAction(overviewAction);
         toolbar->addAction(sendCoinsAction);
         toolbar->addAction(historyAction);
-	if (fDistributedComputingEnabled) 
+		if (fDistributedComputingEnabled) 
         {
             toolbar->addAction(distributedComputingAction);
         }
-
-	toolbar->addAction(receiveCoinsAction);
+		toolbar->addAction(proposalAddAction);
+		toolbar->addAction(proposalListAction);
+		toolbar->addAction(receiveCoinsAction);
 		
         QSettings settings;
         if (settings.value("fShowMasternodesTab").toBool())
@@ -867,6 +891,8 @@ void BitcoinGUI::setWalletActionsEnabled(bool enabled)
 		distributedComputingAction->setEnabled(enabled);
 		distributedComputingMenuAction->setEnabled(enabled);
 	}
+	proposalAddAction->setEnabled(enabled);
+	proposalListAction->setEnabled(enabled);
 
     historyAction->setEnabled(enabled);
     QSettings settings;
@@ -1091,19 +1117,6 @@ void BitcoinGUI::showBackups()
 }
 
 
-void BitcoinGUI::showProposals()
-{
-    Proposals *proposals = new Proposals();
-    proposals->setWindowTitle ("Proposal List");
-    proposals->show(); 
-}
-
-void BitcoinGUI::showFundedProposals()
-{
-    printf("inside showFundedProposals\n");
-}
-
-
 void BitcoinGUI::showHelpMessageClicked()
 {
     helpMessageDialog->show();
@@ -1162,6 +1175,19 @@ void BitcoinGUI::gotoDistributedComputingPage()
     distributedComputingAction->setChecked(true);
     if (walletFrame) walletFrame->gotoDistributedComputingPage();
 }
+
+void BitcoinGUI::gotoProposalAddPage()
+{
+	proposalAddAction->setChecked(true);
+	if (walletFrame) walletFrame->gotoProposalAddPage();
+}
+
+void BitcoinGUI::gotoProposalListPage()
+{
+	proposalListAction->setChecked(true);
+	if (walletFrame) walletFrame->gotoProposalListPage();
+}
+
 
 void BitcoinGUI::gotoReceiveCoinsPage()
 {
@@ -1639,8 +1665,33 @@ void BitcoinGUI::detectShutdown()
 	if (fReboot2)
 	{
 		LogPrintf("\r\n ** Rebooting Wallet Now ** \r\n");
-		fReboot2=false;
+		fReboot2 = false;
         rpcConsole->walletReboot();
+	}
+
+	// Governance - Check to see if we should submit a proposal
+	nProposalModulus++;
+	if (nProposalModulus % 15 == 0 && !fLoadingIndex && fWalletLoaded)
+	{
+		nProposalModulus = 0;
+
+		if (fProposalNeedsSubmitted)
+		{
+			nProposalModulus = 0;
+			if(masternodeSync.IsSynced() && chainActive.Tip()->nHeight > (nProposalPrepareHeight + 6)) 
+			{
+				fProposalNeedsSubmitted = false;
+				std::string sError = "";
+				std::string sGovObj = "";
+				bool fSubmitted = SubmitProposalToNetwork(uTxIdFee, nProposalStartTime, msProposalHex, sError, sGovObj);
+				msProposalResult = fSubmitted ? "Submitted Proposal Successfully ( " + sGovObj + " )" : sError;
+				LogPrintf(" Proposal Submission Result:  %s  \n", msProposalResult.c_str());
+			}
+			else
+			{
+				msProposalResult = "Waiting for block " + RoundToString(nProposalPrepareHeight + 6, 0) + " to submit pending proposal. ";
+			}
+		}
 	}
 
 	// PODC - Check to see if user prefers to use Auto Unlock feature - R Andrews - Biblepay - 3/3/2018

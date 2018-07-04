@@ -123,6 +123,9 @@ private:
     QAction *receiveCoinsMenuAction;
 	QAction *distributedComputingAction;
 	QAction *distributedComputingMenuAction;
+	QAction *proposalAddAction;
+	QAction *proposalAddMenuAction;
+	QAction *proposalListAction;
 
     QAction *optionsAction;
     QAction *toggleHideAction;
@@ -145,6 +148,7 @@ private:
     QAction *showPrivateSendHelpAction;
 
     QAction *openProposalsAction;
+	QAction *openAddProposalAction;
     QAction *openFundedProposalsAction;
 
     QSystemTrayIcon *trayIcon;
@@ -232,6 +236,9 @@ private Q_SLOTS:
     void gotoSendCoinsPage(QString addr = "");
 	/** Switch to Distributed Computing page */
 	void gotoDistributedComputingPage();
+	/** Switch to Proposal Add page */
+	void gotoProposalAddPage();
+	void gotoProposalListPage();
 
     /** Show Sign/Verify Message dialog and switch to sign message tab */
     void gotoSignMessageTab(QString addr = "");
@@ -274,10 +281,7 @@ private Q_SLOTS:
     void showMNConfEditor();
     /** Show folder with wallet backups in default file browser */
     void showBackups();
-
-    void showProposals();
-    void showFundedProposals();
-
+	    
     /** Show help message dialog */
     void showHelpMessageClicked();
     /** Show PrivateSend help message dialog */

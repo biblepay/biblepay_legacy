@@ -2,6 +2,8 @@
 #include "ui_proposals.h"
 #include "secdialog.h"
 #include "ui_secdialog.h"
+#include "walletmodel.h"
+
 #include <QPainter>
 #include <QTableWidget>
 #include <QGridLayout>
@@ -18,9 +20,9 @@ QStringList Proposals::GetHeaders()
 	QStringList pHeaders;
 	pHeaders << tr("Proposal ID")
                        << tr("Proposal Name")
-                       << tr("Proposal Amount")
+                       << tr("Amount")
                        << tr("Expense Type")
-                       << tr("Create time")
+                       << tr("Created")
                        << tr("Yes Ct")
                        << tr("No Ct")
                        << tr("Abstain Ct")
@@ -28,16 +30,22 @@ QStringList Proposals::GetHeaders()
 	return pHeaders;
 }
 
-Proposals::Proposals(QWidget *parent) :
-    QWidget(parent),
+Proposals::Proposals(const PlatformStyle *platformStyle, QWidget *parent) :
     ui(new Ui::Proposals)
 {
     ui->setupUi(this);
-
-    QString pString = ToQstring(GetActiveProposals());
-
-    QStringList pHeaders = GetHeaders();
-    this->createUI(pHeaders, pString);
+    
+	/* Reserved - Use when we add buttons to this page
+	QString theme = GUIUtil::getThemeName();
+    
+    if (!platformStyle->getImagesOnButtons()) 
+	{
+        ui->btnSubmit->setIcon(QIcon());
+    } else {
+        ui->btnSubmit->setIcon(QIcon(":/icons/" + theme + "/receiving_addresses"));
+    }
+	*/
+	UpdateDisplay();
 }
 
 /* Input String Format
@@ -47,6 +55,25 @@ Proposals::Proposals(QWidget *parent) :
 Proposals::~Proposals()
 {
     delete ui;
+}
+
+
+void Proposals::setModel(WalletModel *model)
+{
+    this->model = model;
+
+    if(model && model->getOptionsModel())
+    {
+		UpdateDisplay();
+    }
+}
+
+
+void Proposals::UpdateDisplay()
+{
+    QString pString = ToQstring(GetActiveProposals());
+    QStringList pHeaders = GetHeaders();
+    this->createUI(pHeaders, pString);
 }
 
 
@@ -79,11 +106,16 @@ void Proposals::createUI(const QStringList &headers, const QString &pStr)
     ui->tableWidget->resizeColumnsToContents();
     ui->tableWidget->setContextMenuPolicy(Qt::CustomContextMenu);
 	// Column 0 width should be slimmer
-	ui->tableWidget->setColumnWidth(0, 90);
-	ui->tableWidget->setColumnWidth(1, 300);
-	ui->tableWidget->setColumnWidth(5, 90);
-	ui->tableWidget->setColumnWidth(6, 90);
-	ui->tableWidget->setColumnWidth(7, 90);
+	ui->tableWidget->setColumnWidth(0, 115);
+	ui->tableWidget->setColumnWidth(1, 150);
+	ui->tableWidget->setColumnWidth(2, 80);  //Amount
+	ui->tableWidget->setColumnWidth(3, 80);  //Expense Type
+	ui->tableWidget->setColumnWidth(4, 100); //Created
+	ui->tableWidget->setColumnWidth(5, 50);
+
+	ui->tableWidget->setColumnWidth(6, 50);
+	ui->tableWidget->setColumnWidth(7, 65);
+	ui->tableWidget->setColumnWidth(8, 120);
 
     // Connect SLOT to context menu
     connect(ui->tableWidget, SIGNAL(customContextMenuRequested(QPoint)), this, SLOT(slotCustomMenuRequested(QPoint)));
@@ -233,4 +265,3 @@ QVector<QVector<QString> > Proposals::SplitData(const QString &pStr)
         }
 		return proposalMatrix;
 }
-

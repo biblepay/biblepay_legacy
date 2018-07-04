@@ -320,10 +320,10 @@ bool CBlockTreeDB::LoadBlockIndexGuts()
     while (pcursor->Valid()) 
 	{
 		iBlock++;
-		if (iBlock % 1000 == 0)
+		if (iBlock % 10000 == 0)
 		{
 			boost::this_thread::interruption_point();
-			LogPrintf(" block %f @ %f ",(double)iBlock, (double)GetTime());
+			if (false) LogPrintf(" block %f @ %f ",(double)iBlock, (double)GetTime());
 		}
         std::pair<char, uint256> key;
         if (pcursor->GetKey(key) && key.first == DB_BLOCK_INDEX) {

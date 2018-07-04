@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>DistributedComputingDialog</class>
- <widget class="QWidget" name="DistributedComputingDialog">
+ <class>ProposalAddDialog</class>
+ <widget class="QWidget" name="ProposalAddDialog">
   <property name="geometry">
    <rect>
     <x>0</x>
@@ -39,6 +39,9 @@
          <widget class="QLineEdit" name="txtAmount">
           <property name="toolTip">
            <string>Proposal Amount</string>
+          </property>
+          <property name="inputMethodHints">
+           <set>Qt::ImhDigitsOnly</set>
           </property>
          </widget>
         </item>
@@ -91,7 +94,7 @@
         <item row="2" column="2">
          <widget class="QLabel" name="label_5">
           <property name="text">
-           <string>Biblepay - Add New Proposal&lt;br&gt;  ** NOTE: Each new proposal costs 2500 BBP  **</string>
+           <string>Biblepay - Add New Proposal - 1.0&lt;br&gt;</string>
           </property>
          </widget>
         </item>
@@ -111,7 +114,7 @@
           </property>
          </widget>
         </item>
-        <item row="9" column="2">
+        <item row="11" column="2">
          <layout class="QHBoxLayout" name="horizontalLayout">
           <item>
            <widget class="QPushButton" name="btnSubmit">
@@ -141,7 +144,7 @@
           </item>
          </layout>
         </item>
-        <item row="9" column="0">
+        <item row="11" column="0">
          <widget class="QLabel" name="label_7">
           <property name="text">
            <string/>
@@ -170,10 +173,10 @@
            <string>Address</string>
           </property>
           <property name="inputMethodHints">
-           <set>Qt::ImhHiddenText|Qt::ImhNoAutoUppercase|Qt::ImhNoPredictiveText</set>
+           <set>Qt::ImhNone</set>
           </property>
           <property name="echoMode">
-           <enum>QLineEdit::Password</enum>
+           <enum>QLineEdit::Normal</enum>
           </property>
          </widget>
         </item>
@@ -232,7 +235,7 @@
          </font>
         </property>
         <property name="text">
-         <string>Biblepay Governance System</string>
+         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p align=&quot;center&quot;&gt;&lt;span style=&quot; font-size:12pt; font-style:italic;&quot;&gt;Biblepay Governance System&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
         </property>
        </widget>
       </item>

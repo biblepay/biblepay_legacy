@@ -66,6 +66,7 @@ extern bool fDebug;
 extern bool fDebugMaster;
 extern bool fDebug10;
 extern bool fReboot2;
+extern bool fProposalNeedsSubmitted;
 extern bool fPrintToConsole;
 extern bool fPrintToDebugLog;
 extern bool fServer;

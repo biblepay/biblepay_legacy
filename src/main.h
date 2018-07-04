@@ -70,7 +70,7 @@ static const int F10000_CUTOVER_HEIGHT = 25910;
 static const int F11000_CUTOVER_HEIGHT_PROD = 33440;
 static const int F11000_CUTOVER_HEIGHT_TESTNET = 1;
 static const int F12000_CUTOVER_HEIGHT_PROD = 35110;
-static const int F13000_CUTOVER_HEIGHT_PROD = 65900; // June 30, 2018=55900
+static const int F13000_CUTOVER_HEIGHT_PROD = 57700; // July 11th, 2018
 static const int F13000_CUTOVER_HEIGHT_TESTNET = 16600;
 
 /** Default for -maxorphantx, maximum number of orphan transactions kept in memory */
@@ -206,6 +206,13 @@ extern bool fEnableReplacement;
 extern std::string msGlobalStatus;
 extern std::string msGlobalStatus2;
 extern std::string msGlobalStatus3;
+extern std::string msProposalResult;
+extern int64_t nProposalStartTime;
+extern int64_t nProposalModulus;
+extern uint256 uTxIdFee;
+extern int nProposalPrepareHeight;
+extern std::string msProposalHex;
+
 extern bool fPrayersMemorized;
 extern double mnMagnitude;
 extern double mnMagnitudeOneDay;

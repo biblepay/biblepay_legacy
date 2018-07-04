@@ -1883,7 +1883,6 @@ CAmount CWallet::GetUnlockedBalance() const
                 bool fLocked = (nAmount == (SANCTUARY_COLLATERAL * COIN));
 				if (!fLocked)
 				{
-					int64_t nAge = GetAdjustedTime() - pcoin->nTimeReceived;
 					if (nCoinDepth > 5) 
 					{
 						nTotal += nAmount;
@@ -3182,7 +3181,7 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
                 if (!SelectCoins(nValueToSelect, setCoins, nValueIn, coinControl, nCoinType, fUseInstantSend, iMinConfirms))
                 {
                     if (nCoinType == ONLY_NOT1000IFMN) {
-                        strFailReason = _("Unable to locate enough funds for this transaction that are not equal 1000 biblepay.");
+                        strFailReason = _("Unable to locate enough unlocked funds not equal to 1,550,001 biblepay.");
                     } else if (nCoinType == ONLY_NONDENOMINATED_NOT1000IFMN) {
                         strFailReason = _("Unable to locate enough PrivateSend non-denominated funds for this transaction that are not equal 1000 biblepay.");
                     } else if (nCoinType == ONLY_DENOMINATED) {
