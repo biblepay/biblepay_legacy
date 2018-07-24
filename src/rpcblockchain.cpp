@@ -4578,6 +4578,44 @@ bool FilterPhase1(int iNextSuperblock, std::string sConcatCPIDs, std::string sSo
 }
 
 
+bool FilterPhase2(int iNextSuperblock, std::string sSourcePath, std::string sTargetPath, double dTargetTeam)
+{
+	boost::filesystem::path pathIn(sSourcePath);
+    std::ifstream streamIn;
+    streamIn.open(pathIn.string().c_str());
+	if (!streamIn) return false;
+
+	FILE *outFile = fopen(sTargetPath.c_str(), "w");
+	std::string sBuffer = "";
+	// This file is used by the faucets; Find all team members who are not necessarily yet associated in the chain:
+	std::string line;
+     
+    while(std::getline(streamIn, line))
+    {
+		  sBuffer += line;
+		  if (Contains(sBuffer,"</user>"))
+		  {
+			  	 std::string sCpid = ExtractXML(sBuffer,"<cpid>","</cpid>");
+				 double dTeamID = cdbl(ExtractXML(sBuffer,"<teamid>","</teamid>"), 0);
+				 double dRac = cdbl(ExtractXML(sBuffer,"<expavg_credit>","</expavg_credit>"), 0);
+				 double dTotalRAC = cdbl(ExtractXML(sBuffer,"<total_credit>","</total_credit>"), 0);
+				 double dCreated = cdbl(ExtractXML(sBuffer,"<create_time>","</create_time>"), 0);
+				 std::string sName = ExtractXML(sBuffer,"<name>","</name>");
+				 if (dTargetTeam == dTeamID)
+				 {
+					 std::string sRow = sCpid + "," + RoundToString(dTeamID,0) + "," + RoundToString(dRac,0) + "," + RoundToString(dTotalRAC,0) + "," + RoundToString(dCreated,0) + "," + sName + "\r\n";
+					 fputs(sRow.c_str(), outFile);
+				 }
+				 sBuffer="";
+		  }
+				 
+    }
+	streamIn.close();
+    fclose(outFile);
+	return true;
+}
+
+
 double GetExtraRacFromBackupProject(int iNextSuperblock, std::string sFileName, std::string sResearcherCPID, double dDRMode, double dReqSPM, double dReqSPR, double dTeamRequired,
 	double dProjectFactor)
 {
@@ -4744,6 +4782,13 @@ bool FilterFile(int iBufferSize, int iNextSuperblock, std::string& sError)
 		LogPrintf(" \n FilterFile::FilterPhase 1 failed. \n");
 		return false;
 	}
+	std::string sTeamFile1 = GetSANDirectory2() + "team1";
+	std::string sTeamFile2 = GetSANDirectory2() + "team2";
+
+	double dTeamRequired = cdbl(GetSporkValue("team"), 0);
+	double dTeamBackupProject = cdbl(GetSporkValue("team2"), 0);
+	
+	bResult = FilterPhase2(iNextSuperblock, sTarget, sTeamFile1, dTeamRequired);
 
 	std::string sTarget2 = GetSANDirectory2() + "user2";
 	std::string sFiltered2 = GetSANDirectory2() + "filtered2";
@@ -4752,11 +4797,10 @@ bool FilterFile(int iBufferSize, int iNextSuperblock, std::string& sError)
 	{
 		FilterPhase1(iNextSuperblock, sConcatCPIDs, sTarget2, sFiltered2, vCPIDs);
     }
+	bResult = FilterPhase2(iNextSuperblock, sTarget2, sTeamFile2, dTeamBackupProject);
 
 	//  Phase II : Normalize the file for Biblepay (this process asseses the magnitude of each BiblePay Researcher relative to one another, with 100 being the leader, 0 being a researcher with no activity)
 	//  We measure users by RAC - the BOINC Decay function: expavg_credit.  This is the half-life of the users cobblestone emission over a one month period.
-	double dTeamRequired = cdbl(GetSporkValue("team"), 0);
-	double dTeamBackupProject = cdbl(GetSporkValue("team2"), 0);
 	
 	double dRAC1 = GetSumOfXMLColumnFromXMLFile(sFiltered, "<user>", "expavg_credit", dReqSPM, dReqSPR, dTeamRequired, sConcatCPIDs);
 	double dRAC2 = GetSumOfXMLColumnFromXMLFile(sFiltered2,"<user>", "expavg_credit", dReqSPM, dReqSPR, dTeamBackupProject, sConcatCPIDs);
