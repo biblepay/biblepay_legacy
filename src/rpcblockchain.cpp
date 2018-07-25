@@ -4346,13 +4346,18 @@ std::string ExecuteDistributedComputingSanctuaryQuorumProcess()
 	// If not a sanctuary, exit
 	if (!fDistributedComputingEnabled) return "";
 	if (fProd && chainActive.Tip()->nHeight < F11000_CUTOVER_HEIGHT_PROD) return "";
+	
+	// 4-3-2018 - R ANDREWS - Honor Sanctuary Aggregator Nodes
+	double dAggregationRank = cdbl(GetArg("-sanctuaryrank", "0"), 0);
+	bool bAggregator = (dAggregationRank > 0 && dAggregationRank < 10);
+	if (!AmIMasternode()) return "NOT_A_SANCTUARY";
+	
 	// This happens on sanctuaries only.  The node will check to see if the contract duration expired.
 	// When it expires, we must assemble a new contract as a sanctuary team.
 	// Since the contract is valid for 86400 seconds, we start this process one hour early (IE 82800 seconds after the last valid contract started)
-	if (!AmIMasternode()) return "NOT_A_SANCTUARY";
 	if (!chainActive.Tip()) return "INVALID_CHAIN";
 	std::string sContract = RetrieveCurrentDCContract(chainActive.Tip()->nHeight, 82800);
-	if (!sContract.empty()) return "ACTIVE_CONTRACT";
+	if (!sContract.empty() && !bAggregator) return "ACTIVE_CONTRACT";
 
 	int iNextSuperblock = 0;
 	int iLastSuperblock = GetLastDCSuperblockHeight(chainActive.Tip()->nHeight, iNextSuperblock);
@@ -4367,9 +4372,6 @@ std::string ExecuteDistributedComputingSanctuaryQuorumProcess()
 	std::string sError = "";
 		
 	bool bPending = iPendingVotes >= GetRequiredQuorumLevel(chainActive.Tip()->nHeight);
-	// 4-3-2018 - R ANDREWS - Honor Sanctuary Aggregator Nodes
-	double dAggregationRank = cdbl(GetArg("-sanctuaryrank", "0"), 0);
-	bool bAggregator = (dAggregationRank > 0 && dAggregationRank < 10);
 	
 	if (bPending && !bAggregator) 
 	{
