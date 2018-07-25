@@ -2376,8 +2376,8 @@ void CheckForkWarningConditions()
             else
                 LogPrintf("%s: Warning: Found invalid chain which has higher work (at least ~6 blocks worth of work) than our best chain.\nChain state database corruption likely.\n", __func__);
             fLargeWorkInvalidChainFound = true;
-			
-			RecoverOrphanedChain(1);
+			LogPrintf("\n ERROR: Found invalid chain with higher work (ChainState database corruption likely) \n");
+			// RecoverOrphanedChain(1);
 
         }
     }
@@ -4599,8 +4599,8 @@ static bool AcceptBlockHeader(const CBlockHeader& block, CValidationState& state
 			{
 				// 4-24-2018 - This happens second - Found Chain with Blocks marked as invalid
 				
-				RecoverOrphanedChain(2);
-
+				// RecoverOrphanedChain(2);
+				LogPrintf("\n ERROR: Found chain with blocks marked invalid \n");
                 return state.Invalid(error("%s: block is marked invalid", __func__), 0, "duplicate");
 			}
             return true;
@@ -4622,8 +4622,8 @@ static bool AcceptBlockHeader(const CBlockHeader& block, CValidationState& state
 		{
 			// This happens 3rd - 4-24-2018 - Found chain with no ancestor
 			
-			RecoverOrphanedChain(3);
-
+			// RecoverOrphanedChain(3);
+			LogPrintf("\n ERROR: Found block with no ancestor \n");
 			return state.DoS(15, error("Block has no ancestor. \n"));
         }
 
