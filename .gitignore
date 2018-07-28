@@ -117,3 +117,4 @@ biblepay-cli
 biblepayd
 biblepay-qt
 make
+!depends/Makefile

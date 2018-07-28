@@ -7,3 +7,5 @@ x86_64*
 i686*
 mips*
 arm*
+aarch64*
+!Makefile
