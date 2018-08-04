@@ -4828,7 +4828,7 @@ bool FilterFile(int iBufferSize, int iNextSuperblock, std::string& sError)
 	while(true)
 	{
 		iTries++;
-		if (iTries > 7) break;
+		if (iTries > 70) break;
 		boost::filesystem::path pathFiltered(sFiltered);
 		std::ifstream streamFiltered;
 		streamFiltered.open(pathFiltered.string().c_str());
@@ -4892,7 +4892,7 @@ bool FilterFile(int iBufferSize, int iNextSuperblock, std::string& sError)
 		if (dTotalMagnitude < 1000) break;
 		// Magnitude exceeded 1000, adjust the global factor:
 		dGlobalMagnitudeFactor -= .02;
-		LogPrintf("\n FilterFile::AssessMagnitudeLevels, Attempt #%f, GlobalMagnitudeFactor %f \n", iTries, dGlobalMagnitudeFactor);
+		LogPrintf("\n FilterFile::AssessMagnitudeLevels, Attempt #%f, GlobalMagnitudeFactor %f, Current Magnitude %f  \n", iTries, dGlobalMagnitudeFactor, dTotalMagnitude);
 	}
 	/* End of Assess Magnitude Levels */
 
