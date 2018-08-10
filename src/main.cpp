@@ -110,6 +110,9 @@ extern std::string DefaultRecAddress(std::string sType);
 extern CAmount GetRetirementAccountContributionAmount(int nPrevHeight);
 extern std::string AmountToString(const CAmount& amount);
 extern CAmount StringToAmount(std::string sValue);
+void SerializePrayersToFile(int nHeight);
+int DeserializePrayersFromFile();
+
 bool CheckProofOfLoyalty(double dWeight, uint256 hash, unsigned int nBits, const Consensus::Params& params, 
 	int64_t nBlockTime, int64_t nPrevBlockTime, int nPrevHeight, unsigned int nNonce, const CBlockIndex* pindexPrev, bool bLoadingBlockIndex);
 double GetStakeWeight(CTransaction tx, int64_t nTipTime, std::string sXML, bool bVerifySignature, std::string& sMetrics, std::string& sError);
@@ -7578,8 +7581,16 @@ std::string GetMessagesFromBlock(const CBlock& block, std::string sTargetType)
 
 void MemorizeBlockChainPrayers(bool fDuringConnectBlock, bool fSubThread, bool fColdBoot)
 {
+		int nDeserializedHeight = 0;
+		if (fColdBoot)
+		{
+			nDeserializedHeight = DeserializePrayersFromFile();
+		}
+
 		int nMaxDepth = chainActive.Tip()->nHeight;
 		int nMinDepth = fDuringConnectBlock ? nMaxDepth - 2 : nMaxDepth - (BLOCKS_PER_DAY * 30 * 12);  // One year
+		if (nDeserializedHeight > 0 && nDeserializedHeight < nMaxDepth) nMinDepth = nDeserializedHeight;
+
 		if (nMinDepth < 0) nMinDepth = 0;
 		CBlockIndex* pindex = FindBlockByHeight(nMinDepth);
 		const Consensus::Params& consensusParams = Params().GetConsensus();
@@ -7625,6 +7636,7 @@ void MemorizeBlockChainPrayers(bool fDuringConnectBlock, bool fSubThread, bool f
 			mnMagnitude=nMagnitude;
 			// ** End of Initializing distributed-computing CPID
 			fPrayersMemorized = true;
+			SerializePrayersToFile(nMaxDepth-1);
 		}
 		if (fSubThread && !fPrayersMemorized) LogPrintf("Finished MemorizeBlockChainPrayers @ %f ",GetAdjustedTime());
 }

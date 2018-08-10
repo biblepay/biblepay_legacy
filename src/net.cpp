@@ -1471,13 +1471,6 @@ void ThreadDNSAddressSeed()
 
 
 
-
-
-
-
-
-
-
 void DumpAddresses()
 {
     int64_t nStart = GetTimeMillis();
@@ -3052,13 +3045,14 @@ bool DownloadIndividualDistributedComputingFile(int iNextSuperblock, std::string
 				return false;
 			}
 			int iSize;
-			char bigbuf[4096];
+			int iBufSize = 8192;
+			char bigbuf[iBufSize];
 			clock_t begin = clock();
 			std::string sData = "";
 			FILE *outUserFile = fopen(sPath2.c_str(), "wb");
 			for(;;)
 			{
-				iSize = BIO_read(bio, bigbuf, 4096);
+				iSize = BIO_read(bio, bigbuf, iBufSize);
 				if(iSize <= 0)
 				{
 					LogPrintf("DCC download finished \n");
@@ -3069,14 +3063,14 @@ bool DownloadIndividualDistributedComputingFile(int iNextSuperblock, std::string
 				{
 					// GZ magic bytes: 31 139
 					int iPos = 0;
-					for (iPos = 0; iPos < 4096; iPos++)
+					for (iPos = 0; iPos < iBufSize; iPos++)
 					{
 						if (bigbuf[iPos] == 31) if (bigbuf[iPos + 1] == (char)0x8b)
 						{
 							break;
 						}
 					}
-					int iNewSize = 4096 - iPos;
+					int iNewSize = iBufSize - iPos;
 					char smallbuf[iNewSize];
 					for (int i=0; i < iNewSize; i++)
 					{

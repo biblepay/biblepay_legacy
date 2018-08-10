@@ -76,7 +76,8 @@ extern CTransaction CreateCoinStake(CBlockIndex* pindexLast, CScript scriptCoins
 extern bool IsStakeSigned(std::string sXML);
 extern int64_t GetStakeTargetModifierPercent(int nHeight, double nWeight);
 extern bool SubmitProposalToNetwork(uint256 txidFee, int64_t nStartTime, std::string sHex, std::string& sError, std::string& out_sGovObj);
-
+extern void SerializePrayersToFile(int nHeight);
+extern int DeserializePrayersFromFile();
 
 extern double GetStakeWeight(CTransaction tx, int64_t nTipTime, std::string sXML, bool bVerifySignature, std::string& sMetrics, std::string& sError);
 UniValue ContributionReport();
@@ -3264,6 +3265,66 @@ std::string TimestampToHRDate(double dtm)
 }
 
 
+void SerializePrayersToFile(int nHeight)
+{
+	if (nHeight < 100) return;
+	std::string sSuffix = fProd ? "_prod" : "_testnet";
+	std::string sTarget = GetSANDirectory2() + "prayers" + sSuffix;
+	FILE *outFile = fopen(sTarget.c_str(), "w");
+
+	for(map<string,string>::iterator ii=mvApplicationCache.begin(); ii!=mvApplicationCache.end(); ++ii) 
+    {
+		std::string sKey = (*ii).first;
+	   	int64_t nTimestamp = mvApplicationCacheTimestamp[(*ii).first];
+		std::string sValue = mvApplicationCache[(*ii).first];
+		std::string sRow = RoundToString(nTimestamp, 0) + "<colprayer>" + RoundToString(nHeight, 0) + "<colprayer>" + sKey + "<colprayer>" + sValue + "<rowprayer>";
+		fputs(sRow.c_str(), outFile);
+	}
+
+    fclose(outFile);
+	
+}
+
+int DeserializePrayersFromFile()
+{
+	std::string sSuffix = fProd ? "_prod" : "_testnet";
+	std::string sSource = GetSANDirectory2() + "prayers" + sSuffix;
+
+	boost::filesystem::path pathIn(sSource);
+    std::ifstream streamIn;
+    streamIn.open(pathIn.string().c_str());
+	if (!streamIn) return -1;
+	int nHeight = 0;
+	std::string line;
+	int iRows = 0;
+    while(std::getline(streamIn, line))
+    {
+		std::vector<std::string> vRows = Split(line.c_str(),"<rowprayer>");
+		for (int i = 0; i < (int)vRows.size(); i++)
+		{
+			std::vector<std::string> vCols = Split(vRows[i].c_str(),"<colprayer>");
+			if (vCols.size() > 3)
+			{
+				int64_t nTimestamp = cdbl(vCols[0], 0);
+				nHeight = cdbl(vCols[1], 0);
+				std::string sKey = vCols[2];
+				std::string sValue = vCols[3];
+				std::vector<std::string> vKeys = Split(sKey.c_str(), ";");
+				if (vKeys.size() > 1)
+				{
+					WriteCache(vKeys[0], vKeys[1], sValue, nTimestamp);
+					// LogPrintf(" processed %f rows", iRows);
+					iRows++;
+				}
+			}
+		}
+	}
+    //	LogPrintf(" Processed %f rows ", iRows);
+		
+	streamIn.close();
+	return nHeight;
+}
+
 
 UniValue GetDataList(std::string sType, int iMaxAgeInDays, int& iSpecificEntry, std::string sSearch, std::string& outEntry)
 {
@@ -3851,7 +3912,7 @@ bool PODCUpdate(std::string& sError, bool bForce, std::string sDebugInfo)
 	if (dDRMode == 1 || dDRMode == 3 || dDRMode == 4) bCheckingTasks = false;
 
 	bool bForceUTXO = false;
-	if (dDRMode > 1)
+	if (!bCheckingTasks)
 	{
 		// In this mode the sanctuaries are not checking tasks, so forcefully send a UTXO Update (to allow backup project to function)
 		sDebugInfo = "00000=00000";
@@ -6067,7 +6128,7 @@ std::string GetActiveProposals()
 				}
 			}
 	}
-	if (fDebugMaster) LogPrintf("Proposals %s \n", sXML.c_str());
+	if (fDebugMaster && false) LogPrintf("Proposals %s \n", sXML.c_str());
 	return sXML;
 }
 
