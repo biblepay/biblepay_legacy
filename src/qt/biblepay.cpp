@@ -301,7 +301,11 @@ void BitcoinCore::restart(QStringList args)
             qDebug() << __func__ << ": Shutdown finished";
             Q_EMIT shutdownResult(1);
             CExplicitNetCleanup::callCleanup();
+		    LogPrintf("Starting biblepay-qt in new process \n");
+
             QProcess::startDetached(QApplication::applicationFilePath(), args);
+			LogPrintf("Initiated  \n");
+
             qDebug() << __func__ << ": Restart initiated...";
             QApplication::quit();
         } catch (std::exception& e) {

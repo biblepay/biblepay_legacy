@@ -112,6 +112,7 @@ extern std::string AmountToString(const CAmount& amount);
 extern CAmount StringToAmount(std::string sValue);
 void SerializePrayersToFile(int nHeight);
 int DeserializePrayersFromFile();
+extern void KillBlockchainFiles();
 
 bool CheckProofOfLoyalty(double dWeight, uint256 hash, unsigned int nBits, const Consensus::Params& params, 
 	int64_t nBlockTime, int64_t nPrevBlockTime, int nPrevHeight, unsigned int nNonce, const CBlockIndex* pindexPrev, bool bLoadingBlockIndex);
@@ -4964,6 +4965,20 @@ FILE* OpenDiskFile(const CDiskBlockPos &pos, const char *prefix, bool fReadOnly)
     return file;
 }
 
+void KillBlockchainFiles()
+{
+    boost::filesystem::path pathBlocks = GetDataDir() / "blocks";
+	boost::filesystem::remove_all(pathBlocks);
+	boost::filesystem::path pathChainstate = GetDataDir() / "chainstate";
+	boost::filesystem::remove_all(pathChainstate);
+	boost::filesystem::path pathMnpayments = GetDataDir() / "mnpayments.dat";
+	if(boost::filesystem::exists(pathMnpayments)) boost::filesystem::remove(pathMnpayments); 
+	boost::filesystem::path pathGov = GetDataDir() / "governance.dat";
+	if(boost::filesystem::exists(pathGov)) boost::filesystem::remove(pathGov); 
+	boost::filesystem::path pathMncache = GetDataDir() / "mncache.dat";
+	if(boost::filesystem::exists(pathMncache)) boost::filesystem::remove(pathMncache); 
+}  
+
 FILE* OpenBlockFile(const CDiskBlockPos &pos, bool fReadOnly) {
     return OpenDiskFile(pos, "blk", fReadOnly);
 }
@@ -7585,6 +7600,7 @@ void MemorizeBlockChainPrayers(bool fDuringConnectBlock, bool fSubThread, bool f
 		if (fColdBoot)
 		{
 			nDeserializedHeight = DeserializePrayersFromFile();
+			if (chainActive.Tip()->nHeight < nDeserializedHeight && nDeserializedHeight > 0) nDeserializedHeight=0;
 		}
 
 		int nMaxDepth = chainActive.Tip()->nHeight;

@@ -102,6 +102,7 @@ extern CBlock CreateGenesisBlock(const char* pszTimestamp, const CScript& genesi
 bool fFeeEstimatesInitialized = false;
 bool fRestartRequested = false;  // true: restart false: shutdown
 std::string FindResearcherCPIDByAddress(std::string sSearch, std::string& out_address, double& nTotalMagnitude);
+void KillBlockchainFiles();
 
 static const bool DEFAULT_PROXYRANDOMIZE = true;
 static const bool DEFAULT_REST_ENABLE = false;
@@ -214,11 +215,12 @@ void PrepareShutdown()
 {
     fRequestShutdown = true; // Needed when we shutdown the wallet
     fRestartRequested = true; // Needed when we restart the wallet
-    LogPrintf("%s: In progress...\n", __func__);
+    LogPrintf("%s: Prepare Shutdown In progress...\n", __func__);
     static CCriticalSection cs_Shutdown;
     TRY_LOCK(cs_Shutdown, lockShutdown);
     if (!lockShutdown)
         return;
+	LogPrintf(" Shutdown - renaming thread ... \n");
 
     /// Note: Shutdown() must be able to handle cases in which AppInit2() failed part of the way,
     /// for example if the data directory was found to be locked.
@@ -235,7 +237,9 @@ void PrepareShutdown()
         pwalletMain->Flush(false);
 #endif
     GenerateBiblecoins(false, 0, Params());
+	LogPrintf(" Stopped miner... stopping node \n");
     StopNode();
+	LogPrintf(" stopped node... \n");
 
     // STORE DATA CACHES INTO SERIALIZED DAT FILES
     CFlatDB<CMasternodeMan> flatdb1("mncache.dat", "magicMasternodeCache");
@@ -246,6 +250,7 @@ void PrepareShutdown()
     flatdb3.Dump(governance);
     CFlatDB<CNetFulfilledRequestManager> flatdb4("netfulfilled.dat", "magicFulfilledCache");
     flatdb4.Dump(netfulfilledman);
+	LogPrintf(" dumped database files ... \n");
 
     UnregisterNodeSignals(GetNodeSignals());
 
@@ -392,7 +397,7 @@ CBlock CreateGenesisBlock(const char* pszTimestamp, const CScript& genesisOutput
  */
 CBlock CreateGenesisBlock(uint32_t nTime, uint32_t nNonce, uint32_t nBits, int32_t nVersion, const CAmount& genesisReward)
 {
-	// Luke 21:36 "Watch therefore, and pray always that you may be counted worthy[a] to escape all these things that will come to pass, and to stand before the Son of Man.”
+	// Luke 21:36 "Watch therefore, and pray always that you may be counted worthy to escape all these things that will come to pass, and to stand before the Son of Man.”
 	// Note: The verse had to be shortened to comply with the script sig rules.
     const char* pszTimestamp = "Pray always that ye may be accounted worthy to stand before the Son of Man.";
     const CScript genesisOutputScript = CScript() << ParseHex("040184710fa689ad5023690c80f3a49c8f13f8d45b8c857fbcbc8bc4a8e4d3eb4b10f4d4604fa08dce601aaf0f470216fe1b51850b4acf21b179c45070ac7b03a9") << OP_CHECKSIG;
@@ -1609,6 +1614,14 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
 	std::string s1 = RetrieveMd5("byte1");
 	std::string s2 = RetrieveMd5("BYTE");
 	LogPrintf("s1 %s, s2 %s\r\n", s1.c_str(),	s2.c_str());
+	// ******************************************************** Step 6.9 : Check if user wants an empty block chain
+	bool fEmptyChain = GetBoolArg("-erasechain", false);
+	if (fEmptyChain)
+	{
+		LogPrintf(" Killing blockchain files ... \n");
+		KillBlockchainFiles();
+		LogPrintf(" Blockchain files erased. \n");
+	}
 
 
     // ********************************************************* Step 7: load block chain

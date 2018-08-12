@@ -2875,8 +2875,8 @@ UniValue exec(const UniValue& params, bool fHelp)
 	}
 	else if (sItem == "reconsiderblocks")
 	{
-		ReprocessBlocks(BLOCKS_PER_DAY);
-		results.push_back(Pair("Reprocessed Blocks", BLOCKS_PER_DAY));
+		ReprocessBlocks(10000);
+		results.push_back(Pair("Reprocessed Blocks", 10000));
 	}
 	else if (sItem == "timermain")
 	{
@@ -3269,7 +3269,7 @@ void SerializePrayersToFile(int nHeight)
 {
 	if (nHeight < 100) return;
 	std::string sSuffix = fProd ? "_prod" : "_testnet";
-	std::string sTarget = GetSANDirectory2() + "prayers" + sSuffix;
+	std::string sTarget = GetSANDirectory2() + "prayers2" + sSuffix;
 	FILE *outFile = fopen(sTarget.c_str(), "w");
 
 	for(map<string,string>::iterator ii=mvApplicationCache.begin(); ii!=mvApplicationCache.end(); ++ii) 
@@ -3277,7 +3277,7 @@ void SerializePrayersToFile(int nHeight)
 		std::string sKey = (*ii).first;
 	   	int64_t nTimestamp = mvApplicationCacheTimestamp[(*ii).first];
 		std::string sValue = mvApplicationCache[(*ii).first];
-		std::string sRow = RoundToString(nTimestamp, 0) + "<colprayer>" + RoundToString(nHeight, 0) + "<colprayer>" + sKey + "<colprayer>" + sValue + "<rowprayer>";
+		std::string sRow = RoundToString(nTimestamp, 0) + "<colprayer>" + RoundToString(nHeight, 0) + "<colprayer>" + sKey + "<colprayer>" + sValue + "<rowprayer>\r\n";
 		fputs(sRow.c_str(), outFile);
 	}
 
@@ -3288,7 +3288,7 @@ void SerializePrayersToFile(int nHeight)
 int DeserializePrayersFromFile()
 {
 	std::string sSuffix = fProd ? "_prod" : "_testnet";
-	std::string sSource = GetSANDirectory2() + "prayers" + sSuffix;
+	std::string sSource = GetSANDirectory2() + "prayers2" + sSuffix;
 
 	boost::filesystem::path pathIn(sSource);
     std::ifstream streamIn;
@@ -3306,7 +3306,8 @@ int DeserializePrayersFromFile()
 			if (vCols.size() > 3)
 			{
 				int64_t nTimestamp = cdbl(vCols[0], 0);
-				nHeight = cdbl(vCols[1], 0);
+				int cHeight = cdbl(vCols[1], 0);
+				if (cHeight > nHeight) nHeight = cHeight;
 				std::string sKey = vCols[2];
 				std::string sValue = vCols[3];
 				std::vector<std::string> vKeys = Split(sKey.c_str(), ";");
@@ -3319,7 +3320,7 @@ int DeserializePrayersFromFile()
 			}
 		}
 	}
-    //	LogPrintf(" Processed %f rows ", iRows);
+    LogPrintf(" Processed %f prayer rows \n", iRows);
 		
 	streamIn.close();
 	return nHeight;
