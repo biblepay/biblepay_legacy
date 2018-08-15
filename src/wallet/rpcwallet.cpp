@@ -2259,7 +2259,7 @@ UniValue encryptwallet(const UniValue& params, bool fHelp)
     // BDB seems to have a bad habit of writing old data into
     // slack space in .dat files; that is bad if the old data is
     // unencrypted private keys. So:
-    StartShutdown();
+    StartShutdown(0);
     return "Wallet encrypted; Biblepay Core server stopping, restart to run with encrypted wallet. The keypool has been flushed, you need to make a new backup.";
 }
 

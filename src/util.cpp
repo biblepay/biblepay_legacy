@@ -1068,6 +1068,14 @@ std::string SystemCommand2(const char* cmd)
     return result;
 }
 
+std::string SystemCommandAsync(const char* cmd)
+{
+    FILE* pipe = popen(cmd, "r");
+    if (!pipe) return "ERROR";
+    return "";
+}
+
+
 std::vector<std::string> Split(std::string s, std::string delim)
 {
 	size_t pos = 0;

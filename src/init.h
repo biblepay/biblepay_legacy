@@ -18,8 +18,11 @@ class thread_group;
 
 extern CWallet* pwalletMain;
 
-void StartShutdown();
+void StartShutdown(int iCondition);
 bool ShutdownRequested();
+bool RebootRequested();
+std::string GetOS();
+
 /** Interrupt threads */
 void Interrupt(boost::thread_group& threadGroup);
 void Shutdown();
@@ -29,6 +32,7 @@ void InitLogging();
 void InitParameterInteraction();
 bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler);
 void PrepareShutdown();
+void PrepareShutdownLite();
 
 /** The help message mode determines what help message to show */
 enum HelpMessageMode {

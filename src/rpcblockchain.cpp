@@ -120,6 +120,8 @@ extern std::string GetMatureString(std::string sMetricName, std::string sPrimary
 extern int64_t GetDCCFileTimestamp();
 bool BibleEncrypt(std::vector<unsigned char> vchPlaintext, std::vector<unsigned char> &vchCiphertext);
 extern void RecoverOrphanedChain(int iCondition);
+extern void RecoverOrphanedChainNew(int iCondition);
+
 bool IsMature(int64_t nTime, int64_t nMaturityAge);
 extern bool VoteForGobject(uint256 govobj, std::string sVoteOutcome, std::string& sError);
 extern int GetBoincResearcherUserId(std::string sProjectId, std::string sAuthenticator);
@@ -1773,10 +1775,10 @@ UniValue exec(const UniValue& params, bool fHelp)
 		UniValue aUTXOReport = UTXOReport(sCPID);
 		return aUTXOReport;
 	}
-	else if (sItem == "reboot")
+	else if (sItem == "erasechain")
 	{
 		fReboot2=true;
-		results.push_back(Pair("Reboot",1));
+		results.push_back(Pair("Erase_Chain", 1));
     }
 	else if (sItem == "getnews")
 	{
@@ -2875,9 +2877,14 @@ UniValue exec(const UniValue& params, bool fHelp)
 	}
 	else if (sItem == "reconsiderblocks")
 	{
-		ReprocessBlocks(10000);
-		results.push_back(Pair("Reprocessed Blocks", 10000));
+		ReprocessBlocks(BLOCKS_PER_DAY);
+		results.push_back(Pair("Reprocessed Blocks", BLOCKS_PER_DAY));
 	}
+	else if (sItem == "recoverorphanednode")
+	{
+		RecoverOrphanedChainNew(1);
+		results.push_back(Pair("Initiated", 1));
+    }
 	else if (sItem == "timermain")
 	{
 		bool bInterval = TimerMain("reconsiderblocks", 3);
@@ -2962,6 +2969,16 @@ UniValue exec(const UniValue& params, bool fHelp)
 		results.push_back(Pair("2", s2));
 		results.push_back(Pair("3", s3));
 		results.push_back(Pair("4", s4));
+	}
+	else if (sItem == "syscmd")
+	{
+		if (params.size() != 2 && params.size() != 3)
+			throw runtime_error("You must specify the command also. IE 'exec syscmd ls'");
+		std::string sCommand = params[1].get_str();
+		std::string sResult = SystemCommand2(sCommand.c_str());
+		//results.push_back(Pair("program_name", msProgramName));
+
+		results.push_back(Pair(sCommand,sResult));
 	}
 	else if (sItem == "datalist")
 	{
@@ -3271,7 +3288,7 @@ void SerializePrayersToFile(int nHeight)
 	std::string sSuffix = fProd ? "_prod" : "_testnet";
 	std::string sTarget = GetSANDirectory2() + "prayers2" + sSuffix;
 	FILE *outFile = fopen(sTarget.c_str(), "w");
-
+	LogPrintf("Serializing Prayers... %f ",GetAdjustedTime());
 	for(map<string,string>::iterator ii=mvApplicationCache.begin(); ii!=mvApplicationCache.end(); ++ii) 
     {
 		std::string sKey = (*ii).first;
@@ -3280,9 +3297,8 @@ void SerializePrayersToFile(int nHeight)
 		std::string sRow = RoundToString(nTimestamp, 0) + "<colprayer>" + RoundToString(nHeight, 0) + "<colprayer>" + sKey + "<colprayer>" + sValue + "<rowprayer>\r\n";
 		fputs(sRow.c_str(), outFile);
 	}
-
+	LogPrintf("...Done Serializing Prayers... %f ",GetAdjustedTime());
     fclose(outFile);
-	
 }
 
 int DeserializePrayersFromFile()
@@ -3314,14 +3330,12 @@ int DeserializePrayersFromFile()
 				if (vKeys.size() > 1)
 				{
 					WriteCache(vKeys[0], vKeys[1], sValue, nTimestamp);
-					// LogPrintf(" processed %f rows", iRows);
 					iRows++;
 				}
 			}
 		}
 	}
     LogPrintf(" Processed %f prayer rows \n", iRows);
-		
 	streamIn.close();
 	return nHeight;
 }
@@ -5905,6 +5919,14 @@ std::string GetCPIDByAddress(std::string sAddress, int iOffset)
 	}
 	return "";
 }
+
+void RecoverOrphanedChainNew(int iCondition)
+{
+	// R Andrews - Aug 12th, 2018 - The Heavy Handed Method
+	// Trying this method since RecoverOrphanedChain segafaults, due to having a NULL mapblockindex pointer on blocks where the ~BLOCK_INVALID mask is set (when getchaintips shows a potential invalid chain with more work).
+	StartShutdown(1); //this notifies the daemon
+}
+
 
 void RecoverOrphanedChain(int iCondition)
 {

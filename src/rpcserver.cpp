@@ -246,7 +246,7 @@ UniValue stop(const UniValue& params, bool fHelp)
             "\nStop Biblepay Core server.");
     // Event loop will exit after current HTTP requests have been handled, so
     // this reply will get back to the client.
-    StartShutdown();
+    StartShutdown(0);
     return "Biblepay Core server stopping";
 }
 

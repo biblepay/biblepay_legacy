@@ -1,4 +1,5 @@
 #include "proposals.h"
+#include "bitcoinunits.h"
 #include "ui_proposals.h"
 #include "secdialog.h"
 #include "ui_secdialog.h"
@@ -260,8 +261,15 @@ QVector<QVector<QString> > Proposals::SplitData(const QString &pStr)
             proposalMatrix.append(QVector<QString>());
             QStringList proposalDetail = proposals[i].split('|');
             int detailSize = proposalDetail.size();
-            for (int j=0; j<detailSize; j++)
-                proposalMatrix [i].append (proposalDetail[j]);
+            for (int j = 0; j < detailSize; j++)
+			{
+				QString sData = proposalDetail[j];
+				if (j==2)
+				{
+					sData = BitcoinUnits::format(2, cdbl(FromQStringW(sData), 2) * 100, false, BitcoinUnits::separatorAlways);
+				}
+                proposalMatrix[i].append(sData);
+			}
         }
 		return proposalMatrix;
 }

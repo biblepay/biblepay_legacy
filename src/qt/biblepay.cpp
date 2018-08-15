@@ -297,7 +297,7 @@ void BitcoinCore::restart(QStringList args)
             qDebug() << __func__ << ": Running Restart in thread";
             threadGroup.interrupt_all();
             threadGroup.join_all();
-            PrepareShutdown();
+            PrepareShutdownLite();
             qDebug() << __func__ << ": Shutdown finished";
             Q_EMIT shutdownResult(1);
             CExplicitNetCleanup::callCleanup();
@@ -557,6 +557,8 @@ WId BitcoinApplication::getMainWinId() const
 #ifndef BITCOIN_QT_TEST
 int main(int argc, char *argv[])
 {
+	// QT Entry Point 
+	//msProgramName = argv[0];
     SetupEnvironment();
 
     /// 1. Parse command-line options. These take precedence over anything else.
@@ -730,6 +732,7 @@ int main(int argc, char *argv[])
         PrintExceptionContinue(NULL, "Runaway exception");
         app.handleRunawayException(QString::fromStdString(strMiscWarning));
     }
+
     return app.getReturnValue();
 }
 #endif // BITCOIN_QT_TEST

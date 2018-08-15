@@ -153,6 +153,7 @@ bool fPoolMiningUseSSL = false;
 bool fCommunicatingWithPool = false;
 int iMinerThreadCount = 0;
 
+void RecoverOrphanedChainNew(int iCondition);
 void RecoverOrphanedChain(int iCondition);
 extern void SetOverviewStatus();
 extern const CBlockIndex* GetBlockIndexByTransactionHash(const uint256 &hash);
@@ -2381,8 +2382,7 @@ void CheckForkWarningConditions()
                 LogPrintf("%s: Warning: Found invalid chain which has higher work (at least ~6 blocks worth of work) than our best chain.\nChain state database corruption likely.\n", __func__);
             fLargeWorkInvalidChainFound = true;
 			LogPrintf("\n ERROR: Found invalid chain with higher work (ChainState database corruption likely) \n");
-			// RecoverOrphanedChain(1);
-
+			RecoverOrphanedChainNew(1);
         }
     }
     else
@@ -2708,7 +2708,7 @@ bool AbortNode(const std::string& strMessage, const std::string& userMessage="")
     uiInterface.ThreadSafeMessageBox(
         userMessage.empty() ? _("Error: A fatal internal error occurred, see debug.log for details") : userMessage,
         "", CClientUIInterface::MSG_ERROR);
-    StartShutdown();
+    StartShutdown(0);
     return false;
 }
 
@@ -4045,25 +4045,33 @@ bool InvalidateBlock(CValidationState& state, const Consensus::Params& consensus
     return true;
 }
 
-bool ReconsiderBlock(CValidationState& state, CBlockIndex *pindex) {
+bool ReconsiderBlock(CValidationState& state, CBlockIndex *pindex) 
+{
     AssertLockHeld(cs_main);
 
     int nHeight = pindex->nHeight;
 
     // Remove the invalidity flag from this block and all its descendants.
     BlockMap::iterator it = mapBlockIndex.begin();
-    while (it != mapBlockIndex.end()) {
-        if (!it->second->IsValid() && it->second->GetAncestor(nHeight) == pindex) {
-            it->second->nStatus &= ~BLOCK_FAILED_MASK;
-            setDirtyBlockIndex.insert(it->second);
-            if (it->second->IsValid(BLOCK_VALID_TRANSACTIONS) && it->second->nChainTx && setBlockIndexCandidates.value_comp()(chainActive.Tip(), it->second)) {
-                setBlockIndexCandidates.insert(it->second);
-            }
-            if (it->second == pindexBestInvalid) {
-                // Reset invalid block marker if it was pointing to one of those.
-                pindexBestInvalid = NULL;
-            }
-        }
+    while (it != mapBlockIndex.end()) 
+	{
+        if (it->second->GetAncestor(nHeight) == pindex) 
+		{
+			if (!it->second->IsValid())
+			{
+				it->second->nStatus &= ~BLOCK_FAILED_MASK;
+				it->second->nStatus |= BLOCK_FAILED_VALID; // PODC - Dirty Blocks can become clean later
+		
+				setDirtyBlockIndex.insert(it->second);
+				if (it->second->IsValid(BLOCK_VALID_TRANSACTIONS) && it->second->nChainTx && setBlockIndexCandidates.value_comp()(chainActive.Tip(), it->second)) {
+					setBlockIndexCandidates.insert(it->second);
+				}
+				if (it->second == pindexBestInvalid) {
+					// Reset invalid block marker if it was pointing to one of those.
+					pindexBestInvalid = NULL;
+				}
+			}
+		}
         it++;
     }
 
@@ -4602,8 +4610,9 @@ static bool AcceptBlockHeader(const CBlockHeader& block, CValidationState& state
             if (pindex->nStatus & BLOCK_FAILED_MASK)
 			{
 				// 4-24-2018 - This happens second - Found Chain with Blocks marked as invalid
-				
-				// RecoverOrphanedChain(2);
+				// 8-12-2018 - R Andrews - We had a minor fork on August 10th at block 63828 and it appears 25% of our sancs took the lower diff route (due to marking a block as invalid on the high diff chain).  Forensically this block is marked as invalid and when we try 'reconsiderblock' we segfault.  The segfault appears to be because the mapblockindex pointer to the invalid block header is null.  Therefore the recoverorphanedchain will not work in this case.  So now the new plan is to prune the block index by restarting the wallet with the -eraseblockindex flag and let the client resync.  This seems to happen about twice a year so we are going to test with the heavy handed method this quarter.
+				RecoverOrphanedChainNew(2);
+
 				LogPrintf("\n ERROR: Found chain with blocks marked invalid \n");
                 return state.Invalid(error("%s: block is marked invalid", __func__), 0, "duplicate");
 			}
@@ -4625,7 +4634,6 @@ static bool AcceptBlockHeader(const CBlockHeader& block, CValidationState& state
 		if (!pindexAncestor || pindexAncestor==NULL)
 		{
 			// This happens 3rd - 4-24-2018 - Found chain with no ancestor
-			
 			// RecoverOrphanedChain(3);
 			LogPrintf("\n ERROR: Found block with no ancestor \n");
 			return state.DoS(15, error("Block has no ancestor. \n"));
@@ -7629,7 +7637,7 @@ void MemorizeBlockChainPrayers(bool fDuringConnectBlock, bool fSubThread, bool f
 						double dAmount = block.vtx[n].vout[i].nValue/COIN;
 						dTotalSent += dAmount;
 						// Track Cancer Payment totals by address (so we can implement the additional CheckBlock rule: Researcher has magnitude in last 30 days) - R ANDREWS - 6-27-2018
-						// Coinbase Only, vout > 0, and Mature:
+						// Coinbase Only, vout > 0, and in a superblock, and Mature:
 						if (n==0 && i > 0 && block.vtx[n].vout.size() > 4)
 						{
 							std::string sRecipient = PubKeyToAddress(block.vtx[n].vout[i].scriptPubKey);
@@ -7652,7 +7660,10 @@ void MemorizeBlockChainPrayers(bool fDuringConnectBlock, bool fSubThread, bool f
 			mnMagnitude=nMagnitude;
 			// ** End of Initializing distributed-computing CPID
 			fPrayersMemorized = true;
-			SerializePrayersToFile(nMaxDepth-1);
+			if (nMaxDepth > (nDeserializedHeight-1000))
+			{
+				SerializePrayersToFile(nMaxDepth-1);
+			}
 		}
 		if (fSubThread && !fPrayersMemorized) LogPrintf("Finished MemorizeBlockChainPrayers @ %f ",GetAdjustedTime());
 }

@@ -160,6 +160,7 @@ const boost::filesystem::path &GetDataDir(bool fNetSpecific = true);
 const boost::filesystem::path &GetBackupsDir();
 void ClearDatadirCache();
 std::string SystemCommand2(const char* cmd);
+std::string SystemCommandAsync(const char* cmd);
 std::string NameFromURL2(std::string sURL);
 std::string GetElement(std::string sIn, std::string sDelimiter, int iPos);
 std::string ChopLast(std::string sMyChop);

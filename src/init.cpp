@@ -166,14 +166,40 @@ CClientUIInterface uiInterface; // Declared but not defined in ui_interface.h
 //
 
 volatile bool fRequestShutdown = false;
+volatile bool fRequestRecovery = false;
 
-void StartShutdown()
+void PrepareShutdownLite()
 {
+    //StopHTTPRPC();
+    //StopREST();
+    StopRPC();
+    //StopHTTPServer();
+    StopNode();
+}
+
+void StartShutdown(int iCondition)
+{
+	if (iCondition == 1)
+	{
+		fReboot2 = true;
+		fRequestRecovery = true;
+	}
     fRequestShutdown = true;
 }
+
 bool ShutdownRequested()
 {
     return fRequestShutdown || fRestartRequested || fInternalRequestedShutdown;
+}
+
+bool RebootRequested()
+{
+	return fRequestRecovery;
+}
+
+std::string GetOS()
+{
+	return sOS;
 }
 
 class CCoinsViewErrorCatcher : public CCoinsViewBacked
@@ -320,7 +346,8 @@ void PrepareShutdown()
 void Shutdown()
 {
     // Shutdown part 1: prepare shutdown
-    if(!fRestartRequested){
+    if(!fRestartRequested)
+	{
         PrepareShutdown();
     }
    // Shutdown part 2: Stop TOR thread and delete wallet instance
@@ -332,6 +359,8 @@ void Shutdown()
     globalVerifyHandle.reset();
     ECC_Stop();
     LogPrintf("%s: done\n", __func__);
+
+
 }
 
 /**
@@ -869,7 +898,7 @@ void ThreadImport(std::vector<boost::filesystem::path> vImportFiles)
 
     if (GetBoolArg("-stopafterblockimport", DEFAULT_STOPAFTERBLOCKIMPORT)) {
         LogPrintf("Stopping after block import\n");
-        StartShutdown();
+        StartShutdown(0);
     }
 }
 
@@ -1163,6 +1192,16 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
         InitWarning(strprintf(_("Reducing -maxconnections from %d to %d, because of system limitations."), nUserMaxConnections, nMaxConnections));
 
     // ********************************************************* Step 3: parameter-to-internal-flags
+	// Step 3.1 - do this before RPC server starts since it may be blocked from listening
+	bool fEmptyChain = GetBoolArg("-erasechain", false);
+	bool fDryRun = GetBoolArg("-dryrun", false);
+	// If performing a warm reboot, we must give the OS time to close the listening ports
+	if (fEmptyChain || fDryRun)
+	{
+		LogPrintf("...Pausing until ports are closed...\n");
+		uiInterface.InitMessage(_("Waiting for ports to close..."));
+		MilliSleep(11000);
+	}
 
     fDebug = !mapMultiArgs["-debug"].empty();
 	fDebugMaster = !mapMultiArgs["-debugmaster"].empty();
@@ -1420,6 +1459,9 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     CScheduler::Function serviceLoop = boost::bind(&CScheduler::serviceQueue, &scheduler);
     threadGroup.create_thread(boost::bind(&TraceThread<CScheduler::Function>, "scheduler", serviceLoop));
 
+
+
+
     /* Start the RPC server already.  It will be started in "warmup" mode
      * and not really process calls already (but it will signify connections
      * that the server is there and will be ready later).  Warmup mode will
@@ -1615,7 +1657,6 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
 	std::string s2 = RetrieveMd5("BYTE");
 	LogPrintf("s1 %s, s2 %s\r\n", s1.c_str(),	s2.c_str());
 	// ******************************************************** Step 6.9 : Check if user wants an empty block chain
-	bool fEmptyChain = GetBoolArg("-erasechain", false);
 	if (fEmptyChain)
 	{
 		LogPrintf(" Killing blockchain files ... \n");

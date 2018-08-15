@@ -53,6 +53,16 @@ void WaitForShutdown(boost::thread_group* threadGroup)
     {
         Interrupt(*threadGroup);
         threadGroup->join_all();
+		// Restart wallet if requested
+		if (RebootRequested())
+		{
+			bool bQT = false;
+			bool bWindows = (GetOS() == "WIN");
+			std::string sProg = bQT ? "biblepay-qt" : "biblepayd";
+			sProg += " -erasechain";
+			std::string sCommand = bWindows ? sProg : "./" + sProg;
+			boost::thread t(runCommand, sCommand); // free-running thread
+		}
     }
 }
 

@@ -89,6 +89,7 @@ public Q_SLOTS:
     void walletUpgrade();
     void walletReindex();
     void walletReboot();
+	void walletEraseChain();
     /** Append the message to the message widget */
     void message(int category, const QString &message, bool html = false);
     /** Set number of connections shown in the UI */

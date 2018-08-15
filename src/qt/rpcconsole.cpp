@@ -61,6 +61,7 @@ const QString ZAPTXES1("-zapwallettxes=1");
 const QString ZAPTXES2("-zapwallettxes=2");
 const QString UPGRADEWALLET("-upgradewallet");
 const QString REINDEX("-reindex");
+const QString ERASECHAIN("-erasechain");
 const QString EMPTY("");
 QString ToQstring(std::string s);
 std::string RetrieveMd5(std::string s1);
@@ -569,6 +570,11 @@ void RPCConsole::DownloadDCC()
 void RPCConsole::walletReboot()
 {
     buildParameterlist(EMPTY);
+}
+
+void RPCConsole::walletEraseChain()
+{
+	buildParameterlist(ERASECHAIN);
 }
 
 /** Build command-line parameter list for restart */

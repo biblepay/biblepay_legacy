@@ -1664,9 +1664,9 @@ void BitcoinGUI::detectShutdown()
 {
 	if (fReboot2)
 	{
-		LogPrintf("\r\n ** Rebooting Wallet Now ** \r\n");
+		LogPrintf("\r\n ** Erasing Chain and Rebooting Wallet Now ** \r\n");
 		fReboot2 = false;
-        rpcConsole->walletReboot();
+        rpcConsole->walletEraseChain();
 	}
 
 	// Governance - Check to see if we should submit a proposal
