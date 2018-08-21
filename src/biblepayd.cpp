@@ -15,7 +15,7 @@
 #include "httpserver.h"
 #include "httprpc.h"
 #include "rpcserver.h"
-
+#include "net.h"
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/thread.hpp>
@@ -53,15 +53,15 @@ void WaitForShutdown(boost::thread_group* threadGroup)
     {
         Interrupt(*threadGroup);
         threadGroup->join_all();
-		// Restart wallet if requested
+		// Restart wallet and Erase Chain if requested
 		if (RebootRequested())
 		{
-			bool bQT = false;
+			CExplicitNetCleanup::callCleanup();
 			bool bWindows = (GetOS() == "WIN");
-			std::string sProg = bQT ? "biblepay-qt" : "biblepayd";
+			std::string sProg = "biblepayd";
 			sProg += " -erasechain";
 			std::string sCommand = bWindows ? sProg : "./" + sProg;
-			boost::thread t(runCommand, sCommand); // free-running thread
+			boost::thread t(runCommand, sCommand); // restart wallet using a free-running thread
 		}
     }
 }

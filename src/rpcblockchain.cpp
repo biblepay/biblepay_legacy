@@ -1775,9 +1775,9 @@ UniValue exec(const UniValue& params, bool fHelp)
 		UniValue aUTXOReport = UTXOReport(sCPID);
 		return aUTXOReport;
 	}
-	else if (sItem == "erasechain")
+	else if (sItem == "erasechain" || sItem == "recoverorphanednode")
 	{
-		fReboot2=true;
+		RecoverOrphanedChainNew(1);
 		results.push_back(Pair("Erase_Chain", 1));
     }
 	else if (sItem == "getnews")
@@ -2880,11 +2880,6 @@ UniValue exec(const UniValue& params, bool fHelp)
 		ReprocessBlocks(BLOCKS_PER_DAY);
 		results.push_back(Pair("Reprocessed Blocks", BLOCKS_PER_DAY));
 	}
-	else if (sItem == "recoverorphanednode")
-	{
-		RecoverOrphanedChainNew(1);
-		results.push_back(Pair("Initiated", 1));
-    }
 	else if (sItem == "timermain")
 	{
 		bool bInterval = TimerMain("reconsiderblocks", 3);
