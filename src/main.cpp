@@ -113,6 +113,7 @@ extern CAmount StringToAmount(std::string sValue);
 void SerializePrayersToFile(int nHeight);
 int DeserializePrayersFromFile();
 extern void KillBlockchainFiles();
+extern void HealthCheckup();
 
 bool CheckProofOfLoyalty(double dWeight, uint256 hash, unsigned int nBits, const Consensus::Params& params, 
 	int64_t nBlockTime, int64_t nPrevBlockTime, int nPrevHeight, unsigned int nNonce, const CBlockIndex* pindexPrev, bool bLoadingBlockIndex);
@@ -207,6 +208,10 @@ std::string msGlobalStatus3 = "";
 std::string msProposalResult = "";
 int64_t nProposalStartTime = 0;
 int64_t nProposalModulus = 0;
+int64_t nLastHealthCheckup = 0;
+int64_t nLastAcceptBlock = 0;
+int nRecoveryAttempts = 0;
+
 uint256 uTxIdFee = uint256();
 int nProposalPrepareHeight = 0;
 std::string msProposalHex = "";
@@ -230,7 +235,7 @@ CBlock cblockGenesis;
 uint64_t nPruneTarget = 0;
 bool fAlerts = DEFAULT_ALERTS;
 bool fEnableReplacement = DEFAULT_ENABLE_REPLACEMENT;
-extern void MemorizeBlockChainPrayers(bool fDuringConnectBlock, bool fInBackground, bool fColdBoot);
+extern void MemorizeBlockChainPrayers(bool fDuringConnectBlock, bool fInBackground, bool fColdBoot, bool fDuringSanctuaryQuorum);
 
 /** Fees smaller than this (in duffs) are considered zero fee (for relaying, mining and transaction creation) */
 CFeeRate minRelayTxFee = CFeeRate(DEFAULT_MIN_RELAY_TX_FEE);
@@ -2478,7 +2483,7 @@ void static InvalidBlockFound(CBlockIndex *pindex, const CValidationState &state
 	{
 		if (true)
 		{
-			pindex->nStatus |= BLOCK_FAILED_VALID;  // PODC - Dirty: Allow PODC to reorganize chain, this happens if Rosetta goes down, dirty blocks can become clean.
+			pindex->nStatus |= BLOCK_FAILED_VALID;  
 			setDirtyBlockIndex.insert(pindex);
 			setBlockIndexCandidates.erase(pindex);
 		}
@@ -3379,7 +3384,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
             pindex->nStatus |= BLOCK_HAVE_UNDO;
         }
 
-        pindex->RaiseValidity(BLOCK_VALID_SCRIPTS);
+        pindex->RaiseValidity(BLOCK_VALID_SCRIPTS); // BiblePay - Keep BLOCK_VALID_SCRIPTS dirty block index.
         setDirtyBlockIndex.insert(pindex);
     }
 
@@ -3423,7 +3428,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
 	{
 		LOCK(cs_main);
 		{
-			MemorizeBlockChainPrayers(true, false, false);
+			MemorizeBlockChainPrayers(true, false, false, false);
 		}
 	}
     return true;
@@ -3754,7 +3759,8 @@ void ReprocessBlocks(int nBlocks)
     std::map<uint256, int64_t>::iterator it = mapRejectedBlocks.begin();
     while(it != mapRejectedBlocks.end()){
         //use a window twice as large as is usual for the nBlocks we want to reset
-        if((*it).second  > GetTime() - (nBlocks*60*5)) {
+        if((*it).second  > GetTime() - (nBlocks*60*7)) 
+		{
             BlockMap::iterator mi = mapBlockIndex.find((*it).first);
             if (mi != mapBlockIndex.end() && (*mi).second) {
 
@@ -4010,14 +4016,14 @@ bool InvalidateBlock(CValidationState& state, const Consensus::Params& consensus
     // Mark the block itself as invalid.
 	if (true)
 	{
-		pindex->nStatus |= BLOCK_FAILED_VALID; // PODC - Dirty Blocks can become clean later
+		pindex->nStatus |= BLOCK_FAILED_VALID;
 		setDirtyBlockIndex.insert(pindex);
 		setBlockIndexCandidates.erase(pindex);
 	}
 	
     while (chainActive.Contains(pindex)) {
         CBlockIndex *pindexWalk = chainActive.Tip();
-        pindexWalk->nStatus |= BLOCK_FAILED_CHILD;  // PODC - Dirty Blocks can become clean later
+        pindexWalk->nStatus |= BLOCK_FAILED_CHILD;
         setDirtyBlockIndex.insert(pindexWalk);
         setBlockIndexCandidates.erase(pindexWalk);
         // ActivateBestChain considers blocks already in chainActive
@@ -4055,20 +4061,21 @@ bool ReconsiderBlock(CValidationState& state, CBlockIndex *pindex)
     BlockMap::iterator it = mapBlockIndex.begin();
     while (it != mapBlockIndex.end()) 
 	{
-        if (it->second->GetAncestor(nHeight) == pindex) 
+		if (it->second != NULL)
 		{
-			if (!it->second->IsValid())
+			if (it->second->GetAncestor(nHeight) == pindex) 
 			{
-				it->second->nStatus &= ~BLOCK_FAILED_MASK;
-				it->second->nStatus |= BLOCK_FAILED_VALID; // PODC - Dirty Blocks can become clean later
-		
-				setDirtyBlockIndex.insert(it->second);
-				if (it->second->IsValid(BLOCK_VALID_TRANSACTIONS) && it->second->nChainTx && setBlockIndexCandidates.value_comp()(chainActive.Tip(), it->second)) {
-					setBlockIndexCandidates.insert(it->second);
-				}
-				if (it->second == pindexBestInvalid) {
-					// Reset invalid block marker if it was pointing to one of those.
-					pindexBestInvalid = NULL;
+				if (!it->second->IsValid())
+				{
+					it->second->nStatus &= ~BLOCK_FAILED_MASK;
+					setDirtyBlockIndex.insert(it->second);
+					if (it->second->IsValid(BLOCK_VALID_TRANSACTIONS) && it->second->nChainTx && setBlockIndexCandidates.value_comp()(chainActive.Tip(), it->second)) {
+						setBlockIndexCandidates.insert(it->second);
+					}
+					if (it->second == pindexBestInvalid) {
+						// Reset invalid block marker if it was pointing to one of those.
+						pindexBestInvalid = NULL;
+					}
 				}
 			}
 		}
@@ -4636,11 +4643,17 @@ static bool AcceptBlockHeader(const CBlockHeader& block, CValidationState& state
 			// This happens 3rd - 4-24-2018 - Found chain with no ancestor
 			// RecoverOrphanedChain(3);
 			LogPrintf("\n ERROR: Found block with no ancestor \n");
-			return state.DoS(15, error("Block has no ancestor. \n"));
+			return state.DoS(3, error("Block has no ancestor. \n"));
         }
 
         if (pindexAncestor->nStatus & BLOCK_FAILED_MASK)
-            return state.DoS(100, error("%s: prev block invalid", __func__), REJECT_INVALID, "bad-prevblk");
+		{
+			// R Andrews - Since PODC blocks can in rare occasions turn from invalid to valid (edge cases where the heat miners CPID was not in memory and the pindex age is approaching 15 mins)
+			// We need to decide the correct DOS penalty in BiblePay
+			int nAge = GetAdjustedTime() - pindexAncestor->nTime;
+			int nDosPenalty = nAge > 7200 ? 50 : 5;
+            return state.DoS(nDosPenalty, error("%s: prev block invalid", __func__), REJECT_INVALID, "bad-prevblk");
+		}
 
 		// Alex873434:Valgrind (Starting without testnet3 folder causes SIG11 process termination because the following line has no mapBlockIndex iterator)- fixing by reordering the call
 		if (!CheckBlockHeader(block, state, true, block.GetBlockTime(), pindexAncestor ? pindexAncestor->nTime : 0, pindexAncestor ? pindexAncestor->nHeight : 0, pindexAncestor))
@@ -4706,7 +4719,7 @@ static bool AcceptBlock(const CBlock& block, CValidationState& state, const CCha
 		{
 			if (true)
 			{
-				pindex->nStatus |= BLOCK_FAILED_VALID; // PODC - Dirty Blocks can become clean later
+				pindex->nStatus |= BLOCK_FAILED_VALID; // PODC - Dirty Blocks can become clean later 8-22-2018
 				setDirtyBlockIndex.insert(pindex);
 			}
         }
@@ -4745,6 +4758,7 @@ static bool AcceptBlock(const CBlock& block, CValidationState& state, const CCha
 		}
 	}
 
+	nLastAcceptBlock = GetAdjustedTime();
     return true;
 }
 
@@ -7602,7 +7616,7 @@ std::string GetMessagesFromBlock(const CBlock& block, std::string sTargetType)
 }
 
 
-void MemorizeBlockChainPrayers(bool fDuringConnectBlock, bool fSubThread, bool fColdBoot)
+void MemorizeBlockChainPrayers(bool fDuringConnectBlock, bool fSubThread, bool fColdBoot, bool fDuringSanctuaryQuorum)
 {
 		int nDeserializedHeight = 0;
 		if (fColdBoot)
@@ -7613,6 +7627,8 @@ void MemorizeBlockChainPrayers(bool fDuringConnectBlock, bool fSubThread, bool f
 
 		int nMaxDepth = chainActive.Tip()->nHeight;
 		int nMinDepth = fDuringConnectBlock ? nMaxDepth - 2 : nMaxDepth - (BLOCKS_PER_DAY * 30 * 12);  // One year
+		if (fDuringSanctuaryQuorum) nMinDepth = nMaxDepth - (BLOCKS_PER_DAY * 14); // Two Weeks
+
 		if (nDeserializedHeight > 0 && nDeserializedHeight < nMaxDepth) nMinDepth = nDeserializedHeight;
 
 		if (nMinDepth < 0) nMinDepth = 0;
@@ -7828,7 +7844,41 @@ void MemorizePrayer(std::string sMessage, int64_t nTime, double dAmount, int iPo
 }
 
 
-
+void HealthCheckup()
+{
+	int64_t nAge = GetTime() - nLastHealthCheckup;
+	
+	if (nAge > 600 && fProd && !fLoadingIndex)
+	{
+		nLastHealthCheckup = GetTime();
+		int64_t nLastAcceptBlockAge = GetAdjustedTime() - nLastAcceptBlock;
+		double dPOWDifficulty = GetDifficulty(chainActive.Tip()) * 10;
+		double dLowPOWDifficultyThreshhold = 100;
+		int64_t nLastBlockAge =  GetAdjustedTime() - chainActive.Tip()->GetBlockTime();
+		LogPrintf(" CheckingHealth... LastBlockAge %f, LastAcceptBlockAge %f, Diff %f ... ",nLastBlockAge, nLastAcceptBlockAge, dPOWDifficulty);
+		if ((nLastBlockAge > (60*60) && nLastAcceptBlockAge > (30*60)) || (dPOWDifficulty < dLowPOWDifficultyThreshhold && nLastAcceptBlockAge > (30*60)))
+		{
+			nRecoveryAttempts++;
+			if (nRecoveryAttempts == 1)
+			{
+				LogPrintf("\nHealthCheckup::Attempting Recovery method 1: Reprocessing 24 hours of blocks... Please wait... \n");
+				// On the first attempt, try to recover the node by replaying the last day of blocks and reconsidering bad blocks within 24 hours
+				ReprocessBlocks(BLOCKS_PER_DAY);
+			}
+			else if (nRecoveryAttempts > 1)
+			{
+				// If we still don't recover, we erase the chain and reboot
+				LogPrintf("\nHealthCheckup::Attempting Recovery method 2: Erasing chain... Rebooting... \n");
+				RecoverOrphanedChainNew(1);
+			}
+		}
+		else if (nLastBlockAge < (60*15) && dPOWDifficulty > dLowPOWDifficultyThreshhold)
+		{
+			LogPrintf("\nHealthCheckup::Healthy.\n");
+			nRecoveryAttempts = 0;
+		}
+	}
+}
 
 
 bool SendMessages(CNode* pto)

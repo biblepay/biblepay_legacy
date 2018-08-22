@@ -97,7 +97,7 @@ CWallet* pwalletMain = NULL;
 void initkjv();
 uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight, const CBlockIndex* pindexLast, bool bRequireTxIndex, bool f7000, bool f8000, bool f9000, bool fTitheBlocksActive, unsigned int nNonce);
 std::string RetrieveMd5(std::string s1);
-void MemorizeBlockChainPrayers(bool fDuringConnectBlock, bool fSubThread, bool fColdBoot);
+void MemorizeBlockChainPrayers(bool fDuringConnectBlock, bool fSubThread, bool fColdBoot, bool fDuringSanctuaryQuorum);
 extern CBlock CreateGenesisBlock(const char* pszTimestamp, const CScript& genesisOutputScript, uint32_t nTime, uint32_t nNonce, uint32_t nBits, int32_t nVersion, const CAmount& genesisReward);
 bool fFeeEstimatesInitialized = false;
 bool fRestartRequested = false;  // true: restart false: shutdown
@@ -2184,9 +2184,8 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
 
 	uiInterface.InitMessage(_("Memorizing Prayers..."));
 	// ROBERT ANDREWS - BIBLEPAY - JUNE 11th, 2018 - INCREASE BOOT TIME BY MEMORIZING PRAYERS, PODC UPDATES ON SEPARATE BACKGROUND THREAD:
-	// DISABLING DUE TO LONG LOAD ISSUES; 	threadGroup.create_thread(boost::bind(&MemorizeBlockChainPrayers, false, true));
-
-    MemorizeBlockChainPrayers(false, false, true);
+	
+    MemorizeBlockChainPrayers(false, false, true, false);
 
     //// debug print
     LogPrintf("mapBlockIndex.size() = %u\n",   mapBlockIndex.size());

@@ -150,7 +150,7 @@ extern int GetRequiredQuorumLevel(int nHeight);
 std::string GetVersionAlert();
 UniValue GetDataList(std::string sType, int iMaxAgeInDays, int& iSpecificEntry, std::string sSearch, std::string& outEntry);
 uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight, const CBlockIndex* pindexLast, bool bRequireTxIndex, bool f7000, bool f8000, bool f9000, bool fTitheBlocksActive, unsigned int nNonce);
-void MemorizeBlockChainPrayers(bool fDuringConnectBlock, bool fSubThread, bool fColdBoot);
+void MemorizeBlockChainPrayers(bool fDuringConnectBlock, bool fSubThread, bool fColdBoot, bool fDuringSancQuorum);
 std::string GetVerse(std::string sBook, int iChapter, int iVerse, int iStart, int iEnd);
 std::string GetBookByName(std::string sName);
 std::string GetBook(int iBookNumber);
@@ -1170,6 +1170,7 @@ struct CompareBlocksByHeight
     {
         /* Make sure that unequal blocks with the same height do not compare
            equal. Use the pointers themselves to make a distinction. */
+		if (a == NULL || b == NULL) return false;
 
         if (a->nHeight != b->nHeight)
           return (a->nHeight > b->nHeight);
@@ -1225,12 +1226,19 @@ UniValue getchaintips(const UniValue& params, bool fHelp)
        of another block.  */
     std::set<const CBlockIndex*, CompareBlocksByHeight> setTips;
     BOOST_FOREACH(const PAIRTYPE(const uint256, CBlockIndex*)& item, mapBlockIndex)
-        setTips.insert(item.second);
+	{
+		if (item.second != NULL) setTips.insert(item.second);
+	}
     BOOST_FOREACH(const PAIRTYPE(const uint256, CBlockIndex*)& item, mapBlockIndex)
     {
-        const CBlockIndex* pprev = item.second->pprev;
-        if (pprev)
-            setTips.erase(pprev);
+		if (item.second != NULL)
+		{
+			if (item.second->pprev != NULL)
+			{
+				const CBlockIndex* pprev = item.second->pprev;
+				if (pprev) setTips.erase(pprev);
+			}
+		}
     }
 
     // Always report the currently active tip.
@@ -3039,7 +3047,7 @@ UniValue exec(const UniValue& params, bool fHelp)
 	}
 	else if (sItem == "memorizeprayers")
 	{
-		MemorizeBlockChainPrayers(false, false, false);
+		MemorizeBlockChainPrayers(false, false, false, false);
 		results.push_back(Pair("Memorized",1));
 	}
 	else if (sItem == "readverse")
@@ -4802,12 +4810,15 @@ bool FilterFile(int iBufferSize, int iNextSuperblock, std::string& sError)
 
 	std::string sConcatCPIDs = "";
 	std::string sUnbankedList = MutateToList(GetBoincUnbankedReport("pool"));
-	ClearSanctuaryMemories();
-	// 6-15-2018 R ANDREWS
-	LOCK(cs_main);
+	if (true)
 	{
-		// This ensures that all mature CPIDs (assessed as of yesterdays single timestamp point) are memorized (IE we didnt skip over any because they were not mature 1-4 hours ago)
-		MemorizeBlockChainPrayers(false, false, false);
+		ClearSanctuaryMemories();
+		// 6-15-2018 R ANDREWS
+		LOCK(cs_main);
+		{
+			// This ensures that all mature CPIDs (assessed as of yesterdays single timestamp point) are memorized (IE we didnt skip over any because they were not mature 1-4 hours ago)
+			MemorizeBlockChainPrayers(false, false, false, true);
+		}
 	}
 
 	ClearCache("Unbanked");

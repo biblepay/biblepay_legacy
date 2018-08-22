@@ -72,6 +72,7 @@
 #endif
 
 bool AddSeedNode(std::string sNode);
+void HealthCheckup();
 
 extern std::string BiblepayHttpPost(bool bPost, int iThreadID, std::string sActionName, std::string sDistinctUser, std::string sPayload, std::string sBaseURL, 
 	std::string sPage, int iPort, std::string sSolution);
@@ -1491,6 +1492,11 @@ void DumpData()
         DumpBanlist();
         CNode::SetBannedSetDirty(false);
     }
+	HealthCheckup();
+
+	LogPrintf(" \n Dumping Data \n");
+
+
 }
 
 void static ProcessOneShot()
@@ -2038,7 +2044,9 @@ void StartNode(boost::thread_group& threadGroup, CScheduler& scheduler)
     threadGroup.create_thread(boost::bind(&TraceThread<void (*)()>, "msghand", &ThreadMessageHandler));
 
     // Dump network addresses
-    scheduler.scheduleEvery(&DumpData, DUMP_ADDRESSES_INTERVAL);
+	// scheduler.scheduleEvery(&DumpData, DUMP_ADDRESSES_INTERVAL);  R Andrews: ToDo - Update Constant in next version after testing.  This calls HealthCheckup();
+	scheduler.scheduleEvery(&DumpData, 150);
+
 }
 
 bool StopNode()
