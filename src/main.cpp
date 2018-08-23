@@ -3846,6 +3846,12 @@ static void PruneBlockIndexCandidates() {
     while (it != setBlockIndexCandidates.end() && setBlockIndexCandidates.value_comp()(*it, chainActive.Tip())) {
         setBlockIndexCandidates.erase(it++);
     }
+	if (setBlockIndexCandidates.empty())
+	{
+		LogPrintf("\nYour block index is corrupted.  Please delete chainstate and blocks and restart the wallet.\n");
+		RecoverOrphanedChainNew(1);
+	}
+
     // Either the current tip or a successor of it we're working towards is left in setBlockIndexCandidates.
     assert(!setBlockIndexCandidates.empty());
 }
