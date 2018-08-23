@@ -1483,7 +1483,7 @@ void DumpAddresses()
            addrman.size(), GetTimeMillis() - nStart);
 }
 
-void DumpData()
+void DumpData(int iType)
 {
     DumpAddresses();
 
@@ -1492,11 +1492,11 @@ void DumpData()
         DumpBanlist();
         CNode::SetBannedSetDirty(false);
     }
-	HealthCheckup();
-
-	LogPrintf(" \n Dumping Data \n");
-
-
+	if (iType == 1) 
+	{
+		LogPrintf(" Performing health checkup %f... ", iType);
+		HealthCheckup();
+	}
 }
 
 void static ProcessOneShot()
@@ -2045,9 +2045,10 @@ void StartNode(boost::thread_group& threadGroup, CScheduler& scheduler)
 
     // Dump network addresses
 	// scheduler.scheduleEvery(&DumpData, DUMP_ADDRESSES_INTERVAL);  R Andrews: ToDo - Update Constant in next version after testing.  This calls HealthCheckup();
-	scheduler.scheduleEvery(&DumpData, 150);
-
+	scheduler.scheduleEvery(boost::bind(&DumpData, boost::cref(1)), 180);
+	
 }
+
 
 bool StopNode()
 {
@@ -2063,7 +2064,7 @@ bool StopNode()
 
     if (fAddressesInitialized)
     {
-        DumpData();
+        DumpData(0);
         fAddressesInitialized = false;
     }
 

@@ -7846,36 +7846,44 @@ void MemorizePrayer(std::string sMessage, int64_t nTime, double dAmount, int iPo
 
 void HealthCheckup()
 {
+	if (nLastHealthCheckup == 0)
+	{
+		nLastHealthCheckup = 1;
+		return;
+	}
 	int64_t nAge = GetTime() - nLastHealthCheckup;
 	
-	if (nAge > 600 && fProd && !fLoadingIndex)
+	if (nAge > 600 && fProd && !fLoadingIndex && fWalletLoaded)
 	{
 		nLastHealthCheckup = GetTime();
 		int64_t nLastAcceptBlockAge = GetAdjustedTime() - nLastAcceptBlock;
-		double dPOWDifficulty = GetDifficulty(chainActive.Tip()) * 10;
-		double dLowPOWDifficultyThreshhold = 100;
-		int64_t nLastBlockAge =  GetAdjustedTime() - chainActive.Tip()->GetBlockTime();
-		LogPrintf(" CheckingHealth... LastBlockAge %f, LastAcceptBlockAge %f, Diff %f ... ",nLastBlockAge, nLastAcceptBlockAge, dPOWDifficulty);
-		if ((nLastBlockAge > (60*60) && nLastAcceptBlockAge > (30*60)) || (dPOWDifficulty < dLowPOWDifficultyThreshhold && nLastAcceptBlockAge > (30*60)))
+		if (chainActive.Tip() != NULL)
 		{
-			nRecoveryAttempts++;
-			if (nRecoveryAttempts == 1)
+			double dPOWDifficulty = GetDifficulty(chainActive.Tip()) * 10;
+			double dLowPOWDifficultyThreshhold = 100;
+			int64_t nLastBlockAge =  GetAdjustedTime() - chainActive.Tip()->GetBlockTime();
+			LogPrintf(" CheckingHealth... LastBlockAge %f, LastAcceptBlockAge %f, Diff %f ... ",nLastBlockAge, nLastAcceptBlockAge, dPOWDifficulty);
+			if ((nLastBlockAge > (60*60) && nLastAcceptBlockAge > (30*60)) || (dPOWDifficulty < dLowPOWDifficultyThreshhold && nLastAcceptBlockAge > (30*60)))
 			{
-				LogPrintf("\nHealthCheckup::Attempting Recovery method 1: Reprocessing 24 hours of blocks... Please wait... \n");
-				// On the first attempt, try to recover the node by replaying the last day of blocks and reconsidering bad blocks within 24 hours
-				ReprocessBlocks(BLOCKS_PER_DAY);
+				nRecoveryAttempts++;
+				if (nRecoveryAttempts == 1)
+				{
+					LogPrintf("\nHealthCheckup::Attempting Recovery method 1: Reprocessing 24 hours of blocks... Please wait... \n");
+					// On the first attempt, try to recover the node by replaying the last day of blocks and reconsidering bad blocks within 24 hours
+					ReprocessBlocks(BLOCKS_PER_DAY);
+				}
+				else if (nRecoveryAttempts > 1)
+				{
+					// If we still don't recover, we erase the chain and reboot
+					LogPrintf("\nHealthCheckup::Attempting Recovery method 2: Erasing chain... Rebooting... \n");
+					RecoverOrphanedChainNew(1);
+				}
 			}
-			else if (nRecoveryAttempts > 1)
+			else if (nLastBlockAge < (60*15) && dPOWDifficulty > dLowPOWDifficultyThreshhold)
 			{
-				// If we still don't recover, we erase the chain and reboot
-				LogPrintf("\nHealthCheckup::Attempting Recovery method 2: Erasing chain... Rebooting... \n");
-				RecoverOrphanedChainNew(1);
+				LogPrintf("\nHealthCheckup::Healthy.\n");
+				nRecoveryAttempts = 0;
 			}
-		}
-		else if (nLastBlockAge < (60*15) && dPOWDifficulty > dLowPOWDifficultyThreshhold)
-		{
-			LogPrintf("\nHealthCheckup::Healthy.\n");
-			nRecoveryAttempts = 0;
 		}
 	}
 }
