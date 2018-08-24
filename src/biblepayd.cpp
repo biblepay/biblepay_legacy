@@ -56,6 +56,7 @@ void WaitForShutdown(boost::thread_group* threadGroup)
 		// Restart wallet and Erase Chain if requested
 		if (RebootRequested())
 		{
+			LogPrintf("Cleaning sockets...\n");
 			CExplicitNetCleanup::callCleanup();
 			bool bWindows = (GetOS() == "WIN");
 			std::string sProg = "biblepayd";

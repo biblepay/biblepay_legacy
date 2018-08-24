@@ -1807,7 +1807,7 @@ void BitcoinGUI::unsubscribeFromCoreSignals()
 /** Get restart command-line parameters and request restart */
 void BitcoinGUI::handleRestart(QStringList args)
 {
-    if (!ShutdownRequested())
+    if (!ShutdownRequested() || RebootRequested())
         Q_EMIT requestedRestart(args);
 }
 
