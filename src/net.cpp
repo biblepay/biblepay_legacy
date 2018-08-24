@@ -2045,7 +2045,8 @@ void StartNode(boost::thread_group& threadGroup, CScheduler& scheduler)
 
     // Dump network addresses
 	// scheduler.scheduleEvery(&DumpData, DUMP_ADDRESSES_INTERVAL);  R Andrews: ToDo - Update Constant in next version after testing.  This calls HealthCheckup();
-	scheduler.scheduleEvery(boost::bind(&DumpData, boost::cref(1)), 180);
+	int iDumpType = 1;
+	scheduler.scheduleEvery(boost::bind(&DumpData, boost::cref(iDumpType)), 180);
 	
 }
 
