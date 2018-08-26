@@ -7860,18 +7860,18 @@ void HealthCheckup()
 		return;
 	}
 	int64_t nAge = GetTime() - nLastHealthCheckup;
-	
-	if (nAge > 600 && fProd && !fLoadingIndex && fWalletLoaded)
+	double dLowPOWDifficultyThreshhold = 100;
+			
+	if (nAge > (60 * 15) && fProd && !fLoadingIndex && fWalletLoaded)
 	{
 		nLastHealthCheckup = GetTime();
 		int64_t nLastAcceptBlockAge = GetAdjustedTime() - nLastAcceptBlock;
 		if (chainActive.Tip() != NULL)
 		{
 			double dPOWDifficulty = GetDifficulty(chainActive.Tip()) * 10;
-			double dLowPOWDifficultyThreshhold = 100;
 			int64_t nLastBlockAge =  GetAdjustedTime() - chainActive.Tip()->GetBlockTime();
 			LogPrintf(" CheckingHealth... LastBlockAge %f, LastAcceptBlockAge %f, Diff %f ... ",nLastBlockAge, nLastAcceptBlockAge, dPOWDifficulty);
-			if ((nLastBlockAge > (60*60) && nLastAcceptBlockAge > (30*60)) || (dPOWDifficulty < dLowPOWDifficultyThreshhold && nLastAcceptBlockAge > (30*60)))
+			if ((nLastBlockAge > (60 * 60) && nLastAcceptBlockAge > (60 * 60)) || (dPOWDifficulty < dLowPOWDifficultyThreshhold && nLastAcceptBlockAge > (60 * 60)))
 			{
 				nRecoveryAttempts++;
 				if (nRecoveryAttempts == 1)
@@ -7880,14 +7880,14 @@ void HealthCheckup()
 					// On the first attempt, try to recover the node by replaying the last day of blocks and reconsidering bad blocks within 24 hours
 					ReprocessBlocks(BLOCKS_PER_DAY);
 				}
-				else if (nRecoveryAttempts > 1)
+				else if (nRecoveryAttempts > 2)
 				{
 					// If we still don't recover, we erase the chain and reboot
 					LogPrintf("\nHealthCheckup::Attempting Recovery method 2: Erasing chain... Rebooting... \n");
 					RecoverOrphanedChainNew(1);
 				}
 			}
-			else if (nLastBlockAge < (60*15) && dPOWDifficulty > dLowPOWDifficultyThreshhold)
+			else if (nLastBlockAge < (60 * 60) && dPOWDifficulty > dLowPOWDifficultyThreshhold)
 			{
 				LogPrintf("\nHealthCheckup::Healthy.\n");
 				nRecoveryAttempts = 0;
