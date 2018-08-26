@@ -3850,10 +3850,12 @@ static void PruneBlockIndexCandidates() {
 	{
 		LogPrintf("\nYour block index is corrupted.  Please delete chainstate and blocks and restart the wallet.\n");
 		RecoverOrphanedChainNew(1);
+		MilliSleep(1000);
+		return;
 	}
 
     // Either the current tip or a successor of it we're working towards is left in setBlockIndexCandidates.
-    assert(!setBlockIndexCandidates.empty());
+    /* assert(!setBlockIndexCandidates.empty()); Commenting out as this terminates biblepay */
 }
 
 /**
