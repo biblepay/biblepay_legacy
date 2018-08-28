@@ -15,6 +15,7 @@
 
 #include <QApplication>
 #include <QClipboard>
+#include <QUrl>
 
 QString ToQstring(std::string s);
 std::string FromQStringW(QString qs);
@@ -67,6 +68,16 @@ SendCoinsEntry::SendCoinsEntry(const PlatformStyle *platformStyle, QWidget *pare
     connect(ui->deleteButton, SIGNAL(clicked()), this, SLOT(deleteClicked()));
     connect(ui->deleteButton_is, SIGNAL(clicked()), this, SLOT(deleteClicked()));
     connect(ui->deleteButton_s, SIGNAL(clicked()), this, SLOT(deleteClicked()));
+	// IPFS
+	connect(ui->btnAttach, SIGNAL(clicked()), this, SLOT(attachFile()));
+	const CChainParams& chainparams = Params();
+	if (chainparams.NetworkIDString()=="main")
+	{
+		ui->btnAttach->setVisible(false);
+		ui->txtFile->setVisible(false);
+		ui->lblatt->setVisible(false);
+	}
+
 	// Initialize Repentance Combo
 	initRepentanceDropDown();
 
@@ -176,9 +187,17 @@ void SendCoinsEntry::clear()
     ui->payTo_s->clear();
     ui->memoTextLabel_s->clear();
     ui->payAmount_s->clear();
-
+	ui->txtFile->clear();
     // update the display unit, to not use the default ("BTC")
     updateDisplayUnit();
+}
+
+void SendCoinsEntry::attachFile()
+{
+    QString filename = GUIUtil::getOpenFileName(this, tr("Select a file to attach to this transaction"), "", "", NULL);
+    if(filename.isEmpty()) return;
+    QUrl fileUri = QUrl::fromLocalFile(filename);
+    ui->txtFile->setText(fileUri.toString());
 }
 
 void SendCoinsEntry::deleteClicked()
@@ -242,7 +261,7 @@ SendCoinsRecipient SendCoinsEntry::getValue()
 	recipient.fRepent = (ui->checkboxRepent->checkState() == Qt::Checked);
 	recipient.txtMessage = ui->txtMessage->text();
 	recipient.txtRepent = ui->comboRepent->currentText();
-    
+    recipient.ipfshash = ui->txtFile->text();
     return recipient;
 }
 

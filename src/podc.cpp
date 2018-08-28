@@ -430,7 +430,6 @@ double Round(double d, int place)
 }
 
 
-
 std::string strReplace(std::string& str, const std::string& oldStr, const std::string& newStr)
 {
   size_t pos = 0;

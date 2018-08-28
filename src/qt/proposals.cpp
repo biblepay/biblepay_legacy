@@ -9,11 +9,14 @@
 #include <QTableWidget>
 #include <QGridLayout>
 
+#include <QUrl>
+
 QString ToQstring(std::string s);
 std::string FromQStringW(QString qs);
 std::string GetActiveProposals();
 bool VoteManyForGobject(std::string govobj, std::string strVoteSignal, std::string strVoteOutcome, 	int iVotingLimit, int& nSuccessful, int& nFailed, std::string& sError);
 std::string RoundToString(double d, int place);
+QString ToQstring(std::string s);
 
 
 QStringList Proposals::GetHeaders()

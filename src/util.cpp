@@ -1102,6 +1102,17 @@ std::string int_to_hex( T i )
   return stream.str();
 }
 
+std::string GetFileNameFromPath(std::string sPath)
+{
+	sPath = strReplace(sPath, "/", "\\");
+	std::vector<std::string> vRows = Split(sPath.c_str(), "\\");
+	std::string sFN = "";
+	for (int i = 0; i < (int)vRows.size(); i++)
+	{
+		sFN = vRows[i];
+	}
+	return sFN;
+}
 
 std::string DoubleToHexStr(double d, int iPlaces)
 {

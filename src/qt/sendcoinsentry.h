@@ -59,6 +59,7 @@ Q_SIGNALS:
 
 private Q_SLOTS:
     void deleteClicked();
+	void attachFile();
     void on_payTo_textChanged(const QString &address);
     void on_addressBookButton_clicked();
     void on_pasteButton_clicked();

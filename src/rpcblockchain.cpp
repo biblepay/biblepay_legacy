@@ -57,7 +57,11 @@ std::string GetTxNews(uint256 hash, std::string& sHeadline);
 extern UniValue GetLeaderboard(int nHeight);
 extern double MyPercentile(int nHeight);
 extern double GetSporkDouble(std::string sName, double nDefault);
+extern std::vector<char> ReadAllBytes(char const* filename);
+std::string GetFileNameFromPath(std::string sPath);
+
 extern std::string AssociateDCAccount(std::string sProjectId, std::string sBoincEmail, std::string sBoincPassword, std::string sUnbankedPublicKey, bool fForce);
+extern std::string SubmitToIPFS(std::string sPath, std::string& sError);
 extern double AscertainResearcherTotalRAC();
 extern std::vector<std::string> GetListOfDCCS(std::string sSearch, bool fRequireSig);
 extern bool VerifyCPIDSignature(std::string sFullSig, bool bRequireEndToEndVerification, std::string& sError);
@@ -72,6 +76,7 @@ std::string PrepareHTTPPost(bool bPost, std::string sPage, std::string sHostHead
 std::string GetDomainFromURL(std::string sURL);
 std::string BiblepayHTTPSPost(bool bPost, int iThreadID, std::string sActionName, std::string sDistinctUser, std::string sPayload, std::string sBaseURL, std::string sPage, int iPort,
 	std::string sSolution, int iTimeoutSecs, int iMaxSize, int iBreakOnError = 0);
+std::string BiblepayIPFSPost(std::string sFN, std::string sPayload);
 extern CTransaction CreateCoinStake(CBlockIndex* pindexLast, CScript scriptCoinstakeKey, CAmount nTargetValue, int iMinConfirms, std::string& sXML, std::string& sError);
 extern bool IsStakeSigned(std::string sXML);
 extern int64_t GetStakeTargetModifierPercent(int nHeight, double nWeight);
@@ -1692,7 +1697,7 @@ CTransaction CreateCoinStake(CBlockIndex* pindexLast, CScript scriptCoinstakeKey
     std::string strError;
     vector<CRecipient> vecSend;
     int nChangePosRet = -1;
-    CRecipient recipient = {scriptCoinstakeKey, nTargetValue, false, false, false, false, "", "", ""};
+    CRecipient recipient = {scriptCoinstakeKey, nTargetValue, false, false, false, false, "", "", "", ""};
 	recipient.Message = "<polweight>" + RoundToString(nTargetValue/COIN,2) + "</polweight>";
 				
     vecSend.push_back(recipient);
@@ -1922,15 +1927,15 @@ UniValue exec(const UniValue& params, bool fHelp)
 				CBlock block;
 				if (ReadBlockFromDisk(block, pindex, consensusParams, "GETSUBSIDY")) 
 				{
-        				results.push_back(Pair("subsidy", block.vtx[0].vout[0].nValue/COIN));
-						std::string sRecipient = PubKeyToAddress(block.vtx[0].vout[0].scriptPubKey);
-						results.push_back(Pair("recipient", sRecipient));
-						std::string sBlockVersion = ExtractXML(block.vtx[0].vout[0].sTxOutMessage,"<VER>","</VER>");
-						std::string sBlockVersion2 = strReplace(sBlockVersion, ".", "");
-						double dBlockVersion = cdbl(sBlockVersion2, 0);
-						results.push_back(Pair("blockversion", sBlockVersion));
-						results.push_back(Pair("blockversion2", dBlockVersion));
-						results.push_back(Pair("minerguid", ExtractXML(block.vtx[0].vout[0].sTxOutMessage,"<MINERGUID>","</MINERGUID>")));
+        			results.push_back(Pair("subsidy", block.vtx[0].vout[0].nValue/COIN));
+					std::string sRecipient = PubKeyToAddress(block.vtx[0].vout[0].scriptPubKey);
+					results.push_back(Pair("recipient", sRecipient));
+					std::string sBlockVersion = ExtractXML(block.vtx[0].vout[0].sTxOutMessage,"<VER>","</VER>");
+					std::string sBlockVersion2 = strReplace(sBlockVersion, ".", "");
+					double dBlockVersion = cdbl(sBlockVersion2, 0);
+					results.push_back(Pair("blockversion", sBlockVersion));
+					results.push_back(Pair("blockversion2", dBlockVersion));
+					results.push_back(Pair("minerguid", ExtractXML(block.vtx[0].vout[0].sTxOutMessage,"<MINERGUID>","</MINERGUID>")));
 				}
 			}
 		}
@@ -1977,7 +1982,7 @@ UniValue exec(const UniValue& params, bool fHelp)
 						  if (nAmount <= 0)    throw JSONRPCError(RPC_TYPE_ERROR, "Invalid amount for send");
 						  totalAmount += nAmount;
 						  bool fSubtractFeeFromAmount = false;
-					      CRecipient recipient = {scriptPubKey, nAmount, fSubtractFeeFromAmount, false, false, false, "", "", ""};
+					      CRecipient recipient = {scriptPubKey, nAmount, fSubtractFeeFromAmount, false, false, false, "", "", "", ""};
 						  vecSend.push_back(recipient);
 					}
 				}
@@ -2180,6 +2185,26 @@ UniValue exec(const UniValue& params, bool fHelp)
 		std::string sResponse = BiblepayHTTPSPost(true, 0,"POST","USER_A","PostSpeed","https://pool.biblepay.org","Action.aspx", 443, "SOLUTION", 20, 5000);
 		results.push_back(Pair("Test",sResponse));
 	}
+	else if (sItem == "ipfsadd")
+	{
+		if (params.size() < 2)
+			throw runtime_error("You must specify source IPFS filename.");
+		std::string sPath = params[1].get_str();
+		std::string sFN = GetFileNameFromPath(sPath);
+		std::vector<char> v = ReadAllBytes(sPath.c_str());
+		std::vector<unsigned char> uData(v.begin(), v.end());
+		std::string s64 = EncodeBase64(&uData[0], uData.size());
+		std::string sData = BiblepayIPFSPost(sFN, s64);
+		std::string sHash = ExtractXML(sData,"<HASH>","</HASH>");
+		std::string sLink = ExtractXML(sData,"<LINK>","</LINK>");
+		std::string sError = ExtractXML(sData,"<ERROR>","</ERROR>");
+		results.push_back(Pair("IPFS Hash", sHash));
+		results.push_back(Pair("Path", sPath));
+		results.push_back(Pair("File", sFN));
+		results.push_back(Pair("Link", sLink));
+		if (!sError.empty()) 
+			results.push_back(Pair("Error", sError));
+	}
 	else if (sItem == "hp")
 	{
 		// This is a simple test to show the POL effect on the hashtarget:		
@@ -2257,7 +2282,6 @@ UniValue exec(const UniValue& params, bool fHelp)
 			pindexPrev->nHeight, NULL, false, f7000, f8000, f9000, fTitheBlocksActive, block.nNonce);
 		results.push_back(Pair("biblehash", hash.GetHex()));
 		results.push_back(Pair("subsidy", block.vtx[0].vout[0].nValue/COIN));
-		
 		results.push_back(Pair("blockversion", ExtractXML(block.vtx[0].vout[0].sTxOutMessage,"<VER>","</VER>")));
 		std::string sMsg = "";
 		for (unsigned int i = 0; i < block.vtx[0].vout.size(); i++)
@@ -3176,7 +3200,7 @@ std::string AddBlockchainMessages(std::string sAddress, std::string sType, std::
 		if (bLastStep) sChunk += "</BCM>";
 		double dLegAmount = dUTXOAmount / ((double)iParts);
 		CAmount caLegAmount = dLegAmount * COIN;
-	    CRecipient recipient = {scriptPubKey, caLegAmount, fSubtractFeeFromAmount, false, false, false, "", "", ""};
+	    CRecipient recipient = {scriptPubKey, caLegAmount, fSubtractFeeFromAmount, false, false, false, "", "", "", ""};
 		s1 += sChunk;
 		recipient.Message = s1;
 		LogPrintf("\r\n AddBlockChainMessage::Creating TXID Amount %f, MsgLength %f, StepLen %f, BasicParts %f, Parts %f, vout %f, ResumePos %f, ChunkLen %f, with Chunk %s \r\n", 
@@ -6359,3 +6383,35 @@ int GetNextSuperblock()
     }
 	return nNextSuperblock;
 }
+
+
+std::vector<char> ReadAllBytes(char const* filename)
+{
+    ifstream ifs(filename, ios::binary|ios::ate);
+    ifstream::pos_type pos = ifs.tellg();
+    std::vector<char>  result(pos);
+    ifs.seekg(0, ios::beg);
+    ifs.read(&result[0], pos);
+    return result;
+}
+
+std::string SubmitToIPFS(std::string sPath, std::string& sError)
+{
+	sPath = strReplace(sPath, "file://", "");
+	if (!boost::filesystem::exists(sPath)) 
+	{
+		sError = "IPFS File not found.";
+		return "";
+	}
+
+	std::string sFN = GetFileNameFromPath(sPath);
+	std::vector<char> v = ReadAllBytes(sPath.c_str());
+	std::vector<unsigned char> uData(v.begin(), v.end());
+	std::string s64 = EncodeBase64(&uData[0], uData.size());
+	std::string sData = BiblepayIPFSPost(sFN, s64);
+	std::string sHash = ExtractXML(sData,"<HASH>","</HASH>");
+	std::string sLink = ExtractXML(sData,"<LINK>","</LINK>");
+	sError = ExtractXML(sData,"<ERROR>","</ERROR>");
+	return sHash;
+}	
+

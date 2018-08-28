@@ -60,10 +60,10 @@
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QInputDialog>
+#include <QUrl>
 
 #if QT_VERSION < 0x050000
 #include <QTextDocument>
-#include <QUrl>
 #else
 #include <QUrlQuery>
 #endif

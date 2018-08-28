@@ -254,23 +254,19 @@ public:
         };
 		*/
 
-		
-		
-		
-		checkpointData = (CCheckpointData) 
-		{
+		checkpointData = (CCheckpointData) {
             boost::assign::map_list_of
             (    1, uint256S("0x18b37b60b422ea27d57ceea9dd794b5f74c561565ecc03e85a22ecdf74cbb33a"))
-       		,
-            1511964848, // * UNIX timestamp of last checkpoint block
+			(50000, uint256S("0x182cd59a2e10f9d4e26bfe05661bb82d20b98afb60b627a6e65b576777073bbb")),
+		    1511964848, // * UNIX timestamp of last checkpoint block
             54664,     // * total number of transactions between genesis and last checkpoint
                         //   (the tx=... number in the SetBestChain debug.log lines)
             500         // * estimated number of transactions per day after checkpoint
         };
-	
-
+		
     }
 };
+
 static CTestNetParams testNetParams;
 
 /**
@@ -340,13 +336,15 @@ public:
 
         nFulfilledRequestExpireTime = 5*60; // fulfilled requests expire in 5 minutes
 
-        checkpointData = (CCheckpointData){
+        checkpointData = (CCheckpointData)
+		{
             boost::assign::map_list_of
-            ( 0, uint256S("0x0")),
+            ( 0, uint256S("0x0"))
+			,
             0,
-            0,
-            0
-        };
+			0,
+			0        
+		};
         // Regtest Biblepay addresses start with 'y'
         base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,140);
         // Regtest Biblepay script addresses start with '8' or '9'

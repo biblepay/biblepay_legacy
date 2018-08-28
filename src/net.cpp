@@ -78,6 +78,7 @@ extern std::string BiblepayHttpPost(bool bPost, int iThreadID, std::string sActi
 	std::string sPage, int iPort, std::string sSolution);
 extern std::string BiblepayHTTPSPost(bool bPost, int iThreadID, std::string sActionName, std::string sDistinctUser, std::string sPayload, std::string sBaseURL, std::string sPage, int iPort,
 	std::string sSolution, int iTimeoutSecs, int iMaxSize, int iBreakOnError = 0);
+extern std::string BiblepayIPFSPost(std::string sFN, std::string sPayload);
 
 extern std::string SQL(std::string sCommand, std::string sAddress, std::string sArguments, std::string& sError);
 extern std::string PrepareHTTPPost(bool bPost, std::string sPage, std::string sHostHeader, const string& sMsg, const map<string,string>& mapRequestHeaders);
@@ -2895,8 +2896,6 @@ std::string GetHTTPContent(const CService& addrConnect, std::string getdata, int
 	}
 }
 
-
-
 std::string GetDomainFromURL(std::string sURL)
 {
 	std::string sDomain = "";
@@ -2904,13 +2903,16 @@ std::string GetDomainFromURL(std::string sURL)
 	{
 		sDomain = sURL.substr(8,sURL.length()-8);
 	}
-	if(sURL.find("http://") != string::npos)
+	else if(sURL.find("http://") != string::npos)
 	{
 		sDomain = sURL.substr(7,sURL.length()-7);
 	}
+	else
+	{
+		sDomain = sURL;
+	}
 	return sDomain;
 }
-
 
 
 std::string PrepareHTTPPost(bool bPost, std::string sPage, std::string sHostHeader, const string& sMsg, const map<string,string>& mapRequestHeaders)
@@ -3146,6 +3148,83 @@ bool DownloadDistributedComputingFile(int iNextSuperblock, std::string& sError)
 	return true;
 }
 
+
+std::string BiblepayIPFSPost(std::string sFileName, std::string sPayload)
+{
+		int iTimeoutSecs = 30;
+		int iMaxSize = 900000;
+	    map<string, string> mapRequestHeaders;
+		mapRequestHeaders["Agent"] = FormatFullVersion();
+		mapRequestHeaders["Filename"] = sFileName;
+		const CChainParams& chainparams = Params();
+		mapRequestHeaders["NetworkID"] = chainparams.NetworkIDString();
+		BIO* bio;
+		SSL_CTX* ctx;
+		SSL_library_init();
+		ctx = SSL_CTX_new(SSLv23_client_method());
+		if (ctx == NULL) 
+			return "<ERROR>CTX_IS_NULL</ERROR>";
+		bio = BIO_new_ssl_connect(ctx);
+		std::string sDomain = GetDomainFromURL("ipfs.biblepay.org");
+		int iPort = 443;
+		std::string sDomainWithPort = sDomain + ":" + RoundToString(iPort, 0);
+		BIO_set_conn_hostname(bio, sDomainWithPort.c_str());
+		if(BIO_do_connect(bio) <= 0)
+			return "<ERROR>BIO_FAILURE while connecting " + sDomainWithPort + "</ERROR>";
+		CService addrConnect;
+		if (sDomain.empty()) return "<ERROR>DOMAIN_MISSING</ERROR>";
+		CService addrIP(sDomain, iPort, true);
+    	if (addrIP.IsValid())
+		{
+			addrConnect = addrIP;
+		}
+		else
+		{ 
+			return "<ERROR>DNS_ERROR</ERROR>"; 
+		}
+		
+		std::string sPost = PrepareHTTPPost(true, "ipfs.bible", sDomain, sPayload, mapRequestHeaders);
+		const char* write_buf = sPost.c_str();
+		if(BIO_write(bio, write_buf, strlen(write_buf)) <= 0)
+		{
+		return "<ERROR>FAILED_HTTPS_POST</ERROR>";
+		}
+		int size;
+		char buf[1024];
+		clock_t begin = clock();
+		std::string sData = "";
+		for(;;)
+		{
+			size = BIO_read(bio, buf, 1023);
+			if(size <= 0)
+			{
+				break;
+			}
+			buf[size] = 0;
+			string MyData(buf);
+			sData += MyData;
+			clock_t end = clock();
+			double elapsed_secs = double(end - begin) / (CLOCKS_PER_SEC + .01);
+			if (elapsed_secs > iTimeoutSecs) break;
+			if (sData.find("</html>") != string::npos) break;
+			if (sData.find("</HTML>") != string::npos) break;
+			if (sData.find("<EOF>") != string::npos) break;
+			if (sData.find("Content-Length:") != string::npos)
+			{
+				double dMaxSize = cdbl(ExtractXML(sData,"Content-Length: ","\n"),0);
+				std::size_t foundPos = sData.find("Content-Length:");
+				if (dMaxSize > 0)
+				{
+					iMaxSize = dMaxSize + (int)foundPos + 16;
+				}
+			}
+			if ((int)sData.size() >= (iMaxSize-1)) break;
+		}
+		BIO_free_all(bio);
+		return sData;
+}
+
+
 std::string BiblepayHTTPSPost(bool bPost, int iThreadID, std::string sActionName, std::string sDistinctUser, std::string sPayload, std::string sBaseURL, 
 	std::string sPage, int iPort, std::string sSolution, int iTimeoutSecs, int iMaxSize, int iBreakOnError)
 {
@@ -3183,7 +3262,7 @@ std::string BiblepayHTTPSPost(bool bPost, int iThreadID, std::string sActionName
 			CService addrConnect;
 			if (sDomain.empty()) return "<ERROR>DOMAIN_MISSING</ERROR>";
 			CService addrIP(sDomain, 443, true);
-     		if (addrIP.IsValid())
+            if (addrIP.IsValid())
 			{
 				addrConnect = addrIP;
 			}

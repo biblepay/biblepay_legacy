@@ -945,7 +945,7 @@ void SendCoinsDialog::coinControlUpdateLabels()
 	CoinControlDialog::fTithe = false;
 	CoinControlDialog::fPrayer = false;
 	CoinControlDialog::fRepent = false;
-
+	
     for(int i = 0; i < ui->entries->count(); ++i)
     {
         SendCoinsEntry *entry = qobject_cast<SendCoinsEntry*>(ui->entries->itemAt(i)->widget());

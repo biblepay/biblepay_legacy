@@ -4626,8 +4626,7 @@ static bool AcceptBlockHeader(const CBlockHeader& block, CValidationState& state
 			{
 				// 4-24-2018 - This happens second - Found Chain with Blocks marked as invalid
 				// 8-12-2018 - R Andrews - We had a minor fork on August 10th at block 63828 and it appears 25% of our sancs took the lower diff route (due to marking a block as invalid on the high diff chain).  Forensically this block is marked as invalid and when we try 'reconsiderblock' we segfault.  The segfault appears to be because the mapblockindex pointer to the invalid block header is null.  Therefore the recoverorphanedchain will not work in this case.  So now the new plan is to prune the block index by restarting the wallet with the -eraseblockindex flag and let the client resync.  This seems to happen about twice a year so we are going to test with the heavy handed method this quarter.
-				RecoverOrphanedChainNew(2);
-
+				// RecoverOrphanedChainNew(2);
 				LogPrintf("\n ERROR: Found chain with blocks marked invalid \n");
                 return state.Invalid(error("%s: block is marked invalid", __func__), 0, "duplicate");
 			}
