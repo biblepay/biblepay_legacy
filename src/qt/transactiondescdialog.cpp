@@ -17,7 +17,7 @@
 
 QString ToQstring(std::string s);
 std::string ReadCache(std::string section, std::string key);
-void WriteCache(std::string section, std::string key, std::string value, int64_t locktime);
+void WriteCache(std::string section, std::string key, std::string value, int64_t locktime, bool IgnoreCase=true);
 
 
 TransactionDescDialog::TransactionDescDialog(const QModelIndex &idx, QWidget *parent) :
@@ -35,13 +35,40 @@ TransactionDescDialog::TransactionDescDialog(const QModelIndex &idx, QWidget *pa
     ui->detailText->setHtml(desc);
 	connect(ui->btnClose, SIGNAL(clicked()), this, SLOT(on_btnCloseClicked()));
 	connect(ui->btnOpen, SIGNAL(clicked()), this, SLOT(on_btnOpenClicked()));
+	connect(ui->detailText, SIGNAL(TransactionDescDialog::clicked()), 	this, SLOT(on_detailTextClicked(int a, int b)));
+	connect(ui->detailText, SIGNAL(TransactionDescDialog::anchorAt()), this, SLOT(on_AnchorClicked()));
+	std::string sURL = ReadCache("ipfs", "openlink");
+	ui->btnOpen->setVisible(!sURL.empty());
 }
 
+void TransactionDescDialog::on_AnchorClicked()
+{
+	//		QString QTextEdit::anchorAt ( const QPoint & pos, AnchorAttribute attr )
+	std::string sURL = ReadCache("ipfs", "openlink");
+	LogPrintf("URL %s",sURL.c_str());
+	if (!sURL.empty())
+	{
+		QUrl pUrl(ToQstring(sURL));
+		QDesktopServices::openUrl(pUrl);
+	}
+}
+
+void TransactionDescDialog::on_detailTextClicked(int a, int b)
+{
+	std::string sURL = ReadCache("ipfs", "openlink");
+	LogPrintf("URL %s",sURL.c_str());
+	if (!sURL.empty())
+	{
+		QUrl pUrl(ToQstring(sURL));
+		QDesktopServices::openUrl(pUrl);
+	}
+}
 
 void TransactionDescDialog::on_btnCloseClicked()
 {
     close();
 }
+
 void TransactionDescDialog::on_btnOpenClicked()
 {
 	std::string sURL = ReadCache("ipfs", "openlink");

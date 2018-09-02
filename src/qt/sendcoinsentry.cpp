@@ -20,7 +20,7 @@
 QString ToQstring(std::string s);
 std::string FromQStringW(QString qs);
 std::string GetSin(int iSinNumber, std::string& out_Description);
-
+bool Contains(std::string data, std::string instring);
 
 
 SendCoinsEntry::SendCoinsEntry(const PlatformStyle *platformStyle, QWidget *parent) :
@@ -197,7 +197,19 @@ void SendCoinsEntry::attachFile()
     QString filename = GUIUtil::getOpenFileName(this, tr("Select a file to attach to this transaction"), "", "", NULL);
     if(filename.isEmpty()) return;
     QUrl fileUri = QUrl::fromLocalFile(filename);
-    ui->txtFile->setText(fileUri.toString());
+	std::string sFN = FromQStringW(fileUri.toString());
+	// 8-30-2018 
+	bool bFromWindows = Contains(sFN, "file:///C:") || Contains(sFN, "file:///D:") || Contains(sFN, "file:///E:");
+	if (!bFromWindows)
+	{
+		sFN = strReplace(sFN, "file://", "");  // This leaves the full unix path
+	}
+	else
+	{
+		sFN = strReplace(sFN, "file:///", "");  // This leaves the windows drive letter
+	}
+	
+    ui->txtFile->setText(ToQstring(sFN));
 }
 
 void SendCoinsEntry::deleteClicked()

@@ -507,8 +507,11 @@ UniValue masternodelist(const UniValue& params, bool fHelp)
                 if (strFilter !="" && strAddress.find(strFilter) == std::string::npos &&
                     strOutpoint.find(strFilter) == std::string::npos) continue;
                 obj.push_back(Pair(strOutpoint, strAddress));
-            } else if (strMode == "full") {
+            } else if (strMode == "full") 
+			{
                 std::ostringstream streamFull;
+				std::string sIsValid = mn.IsValidForPayment() ? "Yes" : "No";
+				
                 streamFull << std::setw(18) <<
                                mn.GetStatus() << " " <<
                                mn.nProtocolVersion << " " <<
@@ -516,7 +519,7 @@ UniValue masternodelist(const UniValue& params, bool fHelp)
                                (int64_t)mn.lastPing.sigTime << " " << std::setw(8) <<
                                (int64_t)(mn.lastPing.sigTime - mn.sigTime) << " " << std::setw(10) <<
                                mn.GetLastPaidTime() << " "  << std::setw(6) <<
-                               mn.GetLastPaidBlock() << " " <<
+                               mn.GetLastPaidBlock() << " " << " " << sIsValid << " " <<
                                mn.addr.ToString();
                 std::string strFull = streamFull.str();
                 if (strFilter !="" && strFull.find(strFilter) == std::string::npos &&

@@ -53,6 +53,10 @@
 
 #include <math.h>
 
+#include <fstream>
+
+using std::ofstream;
+
 // Dump addresses to peers.dat every 15 minutes (900s)
 #define DUMP_ADDRESSES_INTERVAL 900
 
@@ -86,6 +90,13 @@ extern std::string GetDomainFromURL(std::string sURL);
 extern bool DownloadDistributedComputingFile(int iNextSuperblock, std::string& sError);
 bool FilterFile(int iBufferSize, int iNextSuperblock, std::string& sError);
 std::string GetSporkValue(std::string sKey);
+
+vector<string> dns_lookup(const string &host_name, int ipv=4); //ipv: default=4
+bool is_ipv6_address(const string& str);
+bool is_ipv4_address(const string& str);
+int ipfs_socket_connect(string ip_address, int port);
+int ipfs_http_get(const string& request, const string& ip_address, int port, const string& fname, double dTimeoutSecs);
+extern int ipfs_download(const string& url, const string& filename, double dTimeoutSecs);
 
 using namespace std;
 
@@ -2880,6 +2891,7 @@ std::string GetHTTPContent(const CService& addrConnect, std::string getdata, int
 			double elapsed_secs = double(end - begin) / (CLOCKS_PER_SEC+.01);
 			if (elapsed_secs > iTimeoutSecs) break;
 		    if (strLine.find("<END>") != string::npos) break;
+			if (strLine.find("<eof>") != string::npos) break;
 			if (strLine.find("</html>") != string::npos) break;
 			if (strLine.find("</HTML>") != string::npos) break;
 		}
@@ -3336,5 +3348,217 @@ std::string BiblepayHTTPSPost(bool bPost, int iThreadID, std::string sActionName
 	{
 		return "<ERROR>GENERAL_WEB_EXCEPTION</ERROR>";
 	}
+}
+
+
+/*                                                                          IPFS                                                                 */
+
+
+vector<string> dns_lookup(const string &host_name, int ipv) //ipv: default=4
+{
+    vector<string> output;
+    struct addrinfo hints, *res, *p;
+    int status, ai_family;
+    char ip_address[INET6_ADDRSTRLEN];
+ 
+    ai_family = ipv==6 ? AF_INET6 : AF_INET; 
+    ai_family = ipv==0 ? AF_UNSPEC : ai_family; // AF_UNSPEC (any), or chosen
+    memset(&hints, 0, sizeof hints);
+    hints.ai_family = ai_family; 
+    hints.ai_socktype = SOCK_STREAM;
+ 
+    if ((status = getaddrinfo(host_name.c_str(), NULL, &hints, &res)) != 0) 
+	{
+        return output;
+    }
+ 
+    for(p = res;p != NULL; p = p->ai_next) 
+	{
+        void *addr;
+        if (p->ai_family == AF_INET) 
+		{ // IPv4
+            struct sockaddr_in *ipv4 = (struct sockaddr_in *)p->ai_addr;
+            addr = &(ipv4->sin_addr);
+        } else { // IPv6
+            struct sockaddr_in6 *ipv6 = (struct sockaddr_in6 *)p->ai_addr;
+            addr = &(ipv6->sin6_addr);
+        }
+        inet_ntop(p->ai_family, addr, ip_address, sizeof ip_address);
+        output.push_back(ip_address);
+    }
+    freeaddrinfo(res);
+    return output;
+}
+
+string ipfs_header_value(const string& full_header, const string& header_name)
+{
+    size_t pos = full_header.find(header_name);
+    string r;
+    if (pos!=string::npos)
+    {
+        size_t begin = full_header.find_first_not_of(": ", pos + header_name.length());
+        size_t until = full_header.find_first_of("\r\n\t ", begin + 1);
+        if (begin!=string::npos && until!=string::npos)
+        {
+            r = full_header.substr(begin,until-begin);
+        }
+    }
+    return r;
+}
+
+int ipfs_http_get(const string& request, const string& ip_address, int port, const string& fname, double dTimeoutSecs)
+{
+    char buffer[65535];
+	int bytes_total=0;
+	int bytes_expected=99999999;
+    int mode = 0;
+	SOCKET socketnumber;
+	CService addrConnect(ip_address, port, true);
+    if (!addrConnect.IsValid()) return -4;
+	bool proxyConnectionFailed = false;
+   
+	if (!ConnectSocket(addrConnect, socketnumber, dTimeoutSecs * 1000, &proxyConnectionFailed))
+	{
+		return -3;
+	}
+
+	ofstream fd(fname.c_str());
+	if (!fd.good()) return -1;
+	
+	int iOffset = 0;
+	LogPrintf(" sending %s ",ip_address.c_str());
+
+    ::send(socketnumber, request.c_str(), request.length(), MSG_NOSIGNAL | MSG_DONTWAIT);
+	double begin = clock();
+    while (bytes_total < bytes_expected)
+	{
+		    char tempbuffer[4096];
+			int iTempBytesRec = ::recv(socketnumber, tempbuffer, sizeof(tempbuffer), MSG_DONTWAIT);
+			if (iTempBytesRec > 0)
+			{
+				for (int k = 0; k < iTempBytesRec; k++)
+				{
+					buffer[iOffset + k] = tempbuffer[k];
+				}
+				iOffset += iTempBytesRec;
+			}
+		                
+			double elapsed_secs = double(clock() - begin) / (CLOCKS_PER_SEC + .01);
+			if (elapsed_secs > dTimeoutSecs) break;
+			if (iOffset > 255 || (iOffset+bytes_total > bytes_expected-1))
+			{
+				if (mode == 1) 
+				{
+					fd.write(buffer, iOffset);
+					bytes_total += iOffset;
+					//	LogPrintf(" . rec %f  bytestotal %f . ", iOffset, bytes_total);
+					iOffset = 0;
+					memset(buffer, 0, sizeof(buffer));
+				}
+				else if (mode == 0)
+				{
+					string sHeader(buffer);
+					std::string CL = ExtractXML(sHeader, "Content-Length:","\n");
+					int ContentSize = (int)cdbl(CL, 0);
+					if (ContentSize > 0)
+					{
+						// Find offset
+						int body_start = sHeader.find("\r\n\r\n");
+						bytes_expected  = ContentSize + body_start + 3;
+						bytes_total += iOffset;
+						// LogPrintf(" data %s bytes expected %f  elapsed %f bodystart %f   bytestotal %f ....... ",CL.c_str(), bytes_expected, elapsed_secs, body_start, bytes_total);
+						mode=1;
+						// Write first chunk
+						int iFirstByte = body_start + 4;
+						int iFirstChunk = iOffset - iFirstByte;
+						char tempbuffer[iFirstChunk];
+						for (int j = 0; j < iFirstChunk; j++)
+						{
+							tempbuffer[j] = buffer[j + iFirstByte];
+						}
+						fd.write(tempbuffer, iFirstChunk);
+						memset(buffer, 0, sizeof(buffer));
+						iOffset = 0;
+					}
+			}
+		}
+    }
+    ::close(socketnumber);
+    fd.close();
+	if (bytes_total >= bytes_expected && bytes_total > 0 && bytes_expected > 0) return 1;
+	return -2;
+}
+
+
+
+bool is_ipv6_address(const string& str)
+{
+    struct sockaddr_in6 sa;
+    return inet_pton(AF_INET6, str.c_str(), &(sa.sin6_addr))!=0;
+}
+
+bool is_ipv4_address(const string& str)
+{
+    struct sockaddr_in sa;
+    return inet_pton(AF_INET, str.c_str(), &(sa.sin_addr))!=0;
+}
+
+int ipfs_download(const string& url, const string& filename, double dTimeoutSecs)
+{
+    int ipv=0;
+	int port = 0;
+    string protocol, domain, path, query, url_port;
+    vector<string> ip_addresses;
+    int offset = 0;
+    size_t pos1,pos2,pos3,pos4;
+    offset = offset==0 && url.compare(0, 8, "https://")==0 ? 8 : offset;
+    offset = offset==0 && url.compare(0, 7, "http://" )==0 ? 7 : offset;
+    pos1 = url.find_first_of('/', offset+1 );
+    path = pos1==string::npos ? "" : url.substr(pos1);
+    domain = string( url.begin()+offset, pos1 != string::npos ? url.begin()+pos1 : url.end() );
+    path = (pos2 = path.find("#"))!=string::npos ? path.substr(0,pos2) : path;
+    url_port = (pos3 = domain.find(":"))!=string::npos ? domain.substr(pos3+1) : "";
+    domain = domain.substr(0, pos3!=string::npos ? pos3 : domain.length());
+    protocol = offset > 0 ? url.substr(0,offset-3) : "";
+    query = (pos4 = path.find("?"))!=string::npos ? path.substr(pos4+1) : "";
+    path = pos4!=string::npos ? path.substr(0,pos4) : path;
+ 
+    if (query.length()>0)
+    {
+        path.reserve( path.length() + 1 + query.length() );
+        path.append("?").append(query);
+    }
+    if (url_port.length()==0 && protocol.length()>0)
+    {
+        url_port = protocol=="http" ? "80" : "443";
+    }
+    if (domain.length()>0 && !is_ipv6_address(domain))
+    {
+        if (is_ipv4_address(domain))
+        {
+            ip_addresses.push_back(domain);
+        }
+        else
+        {
+            ip_addresses = dns_lookup(domain, ipv=4);
+        }
+    }
+	int r = -1;
+    if (ip_addresses.size() > 0)
+    {
+        stringstream(url_port) >> port;
+        stringstream request;
+        request << "GET " << path << " HTTP/1.1\r\n";
+        request << "Host: " << domain << "\r\n\r\n";
+		int ix = ip_addresses.size();
+
+        for(int i = 0; i < ix; i++)
+        {
+            r = ipfs_http_get(request.str(), ip_addresses[i], port, filename, dTimeoutSecs);
+			if (r==1) return r;
+        }
+    }
+
+	return r;
 }
 

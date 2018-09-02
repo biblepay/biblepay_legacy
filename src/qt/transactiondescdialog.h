@@ -33,7 +33,8 @@ private:
 private Q_SLOTS:
     void on_btnCloseClicked();
     void on_btnOpenClicked();
-   
+	void on_detailTextClicked(int a, int b);
+	void on_AnchorClicked();
 };
 
 #endif // BITCOIN_QT_TRANSACTIONDESCDIALOG_H

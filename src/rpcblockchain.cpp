@@ -59,16 +59,24 @@ extern double MyPercentile(int nHeight);
 extern double GetSporkDouble(std::string sName, double nDefault);
 extern std::vector<char> ReadAllBytes(char const* filename);
 std::string GetFileNameFromPath(std::string sPath);
-
+extern UniValue GetIPFSList(int iMaxDays, std::string& out_Files);
+extern UniValue GetSancIPFSQualityReport();
+bool ipfs_download(const string& url, const string& filename, double dTimeoutSecs);
+extern int CheckSanctuaryIPFSHealth(std::string sAddress);
 extern std::string AssociateDCAccount(std::string sProjectId, std::string sBoincEmail, std::string sBoincPassword, std::string sUnbankedPublicKey, bool fForce);
 extern std::string SubmitToIPFS(std::string sPath, std::string& sError);
+extern std::string GetUndownloadedIPFSHash();
+extern std::string GetIPFromAddress(std::string sAddress);
+
 extern double AscertainResearcherTotalRAC();
 extern std::vector<std::string> GetListOfDCCS(std::string sSearch, bool fRequireSig);
 extern bool VerifyCPIDSignature(std::string sFullSig, bool bRequireEndToEndVerification, std::string& sError);
-extern double GetSumOfXMLColumnFromXMLFile(std::string sFileName, std::string sObjectName, std::string sElementName, double dReqSPM, double dReqSPR, double dTeamRequired, std::string sConcatCpids);
+extern double GetSumOfXMLColumnFromXMLFile(std::string sFileName, std::string sObjectName, std::string sElementName, double dReqSPM, double dReqSPR, double dTeamRequired, std::string sConcatCpids, 
+	double dRACThreshhold, std::string sTeamBlacklist);
 extern uint256 GetDCCHash(std::string sContract);
 extern UniValue UTXOReport(std::string sCPID);
 extern uint256 GetDCCFileHash();
+extern bool CheckTeam(double dUserTeam, double dProjectTeam, std::string sTeamBlacklist);
 std::string SignMessage(std::string sMsg, std::string sPrivateKey);
 extern double CAmountToRetirementDouble(CAmount Amount);
 void GetMiningParams(int nPrevHeight, bool& f7000, bool& f8000, bool& f9000, bool& fTitheBlocksActive);
@@ -96,7 +104,7 @@ extern bool VoteManyForGobject(std::string govobj, std::string strVoteSignal, st
 
 /* Cache */
 std::string ReadCache(std::string sSection, std::string sKey);
-void WriteCache(std::string section, std::string key, std::string value, int64_t locktime);
+void WriteCache(std::string section, std::string key, std::string value, int64_t locktime, bool IgnoreCase=true);
 void ClearCache(std::string sSection);
 std::string ReadCacheWithMaxAge(std::string sSection, std::string sKey, int64_t nMaxAge);
 void PurgeCacheAsOfExpiration(std::string sSection, int64_t nExpiration);
@@ -2185,6 +2193,17 @@ UniValue exec(const UniValue& params, bool fHelp)
 		std::string sResponse = BiblepayHTTPSPost(true, 0,"POST","USER_A","PostSpeed","https://pool.biblepay.org","Action.aspx", 443, "SOLUTION", 20, 5000);
 		results.push_back(Pair("Test",sResponse));
 	}
+	else if (sItem == "ipfsget")
+	{
+		if (params.size() < 3)
+			throw runtime_error("You must specify source IPFS hash and target filename.");
+		std::string sHash = params[1].get_str();
+		std::string sPath = params[2].get_str();
+		std::string sFN = GetFileNameFromPath(sPath);
+		std::string sURL = "http://ipfs.biblepay.org:8080/ipfs/" + sHash;
+		int i = ipfs_download(sURL, sPath, 15);
+		results.push_back(Pair("Results", i));
+	}
 	else if (sItem == "ipfsadd")
 	{
 		if (params.size() < 2)
@@ -3003,9 +3022,23 @@ UniValue exec(const UniValue& params, bool fHelp)
 			throw runtime_error("You must specify the command also. IE 'exec syscmd ls'");
 		std::string sCommand = params[1].get_str();
 		std::string sResult = SystemCommand2(sCommand.c_str());
-		//results.push_back(Pair("program_name", msProgramName));
-
 		results.push_back(Pair(sCommand,sResult));
+	}
+	else if (sItem == "ipfslist")
+	{
+		std::string sFiles = "";
+		UniValue uvIPFS = GetIPFSList(7, sFiles);
+		return uvIPFS;
+	}
+	else if (sItem == "ipfsquality")
+	{
+		UniValue a = GetSancIPFSQualityReport();
+		return a;
+	}
+	else if (sItem == "mnsporktest14")
+	{
+		bool bSpork14 = sporkManager.IsSporkActive(SPORK_14_REQUIRE_SENTINEL_FLAG);
+		results.push_back(Pair("spork14", bSpork14));
 	}
 	else if (sItem == "datalist")
 	{
@@ -3367,6 +3400,91 @@ int DeserializePrayersFromFile()
 	return nHeight;
 }
 
+std::string GetIPFromAddress(std::string sAddress)
+{
+	std::vector<std::string> vAddr = Split(sAddress.c_str(),":");
+	if (vAddr.size() < 2) return "";
+	return vAddr[0];
+}
+
+int CheckSanctuaryIPFSHealth(std::string sAddress)
+{
+	std::string sIP = GetIPFromAddress(sAddress);
+	std::string sHash = "QmU3cpfPbqzZQTDtMswsF5VP7hzduhvacqNTuEaEsV3wBX";
+	//TODO: Make Spork
+	std::string sSporkHash = GetSporkValue("ipfshealthhash");
+	std::string sURL = "http://" + sIP + ":8080/ipfs/" + sHash;
+	std::string sHealthFN = GetSANDirectory2() + "checkhealth.dat";
+	int i = ipfs_download(sURL, sHealthFN, 5);
+	LogPrintf(" Checking %s, Result %i ",sAddress.c_str(), i);
+	return i;
+}
+
+UniValue GetSancIPFSQualityReport()
+{
+	UniValue ret(UniValue::VOBJ);
+    std::vector<CMasternode> vMasternodes = mnodeman.GetFullMasternodeVector();
+    BOOST_FOREACH(CMasternode& mn, vMasternodes) 
+	{
+		std::string strOutpoint = mn.vin.prevout.ToStringShort();
+		std::string sStatus = mn.GetStatus();
+		if (sStatus == "ENABLED")
+		{
+			int iQuality = CheckSanctuaryIPFSHealth(mn.addr.ToString());
+			//std::string sRow = sStatus + "; " 				+  CBitcoinAddress(mn.pubKeyCollateralAddress.GetID()).ToString()				+ " - " + TimestampToHRDate(mn.lastPing.sigTime)			+ " - " + mn.addr.ToString() + " - Q" + RoundToString(iQuality, 0);
+			std::string sNarr = iQuality == 1 ? "UP" : "DOWN";
+			std::string sRow = mn.addr.ToString() + ": " + sNarr;
+			ret.push_back(Pair(mn.addr.ToString(), sNarr));
+		}
+	}
+	return ret;
+}
+
+std::string GetUndownloadedIPFSHash()
+{
+	double dPODSDuration = GetSporkDouble("podsfileleaseduration", 7);
+	std::string sFiles = "";
+	GetIPFSList((int)dPODSDuration, sFiles);
+	std::vector<std::string> vHashes = Split(sFiles.c_str(),";");
+	for (int i = 0; i < (int)vHashes.size(); i++)
+	{
+		std::string sHash = vHashes[i];
+		if (!sHash.empty())
+		{
+			double dDownloaded = cdbl(ReadCache("ipfs_downloaded", sHash), 0);
+			if (dDownloaded == 0) return sHash;
+		}
+	}
+	return "";
+}
+
+
+UniValue GetIPFSList(int iMaxAgeInDays, std::string& out_Files)
+{
+	UniValue ret(UniValue::VOBJ);
+	std::string sType = "IPFS";
+	int64_t nMinStamp = GetAdjustedTime() - (86400 * iMaxAgeInDays);
+	std::string sFiles = ""; // TODO:  Make this a map of files for PODS; for now this is OK for a proof-of-concept
+    for(map<string,string>::iterator ii=mvApplicationCache.begin(); ii!=mvApplicationCache.end(); ++ii) 
+    {
+		std::string sKey = (*ii).first;
+	   	if (sKey.length() > sType.length())
+		{
+			if (sKey.substr(0,sType.length())==sType)
+			{
+				std::string sPrimaryKey = sKey.substr(sType.length() + 1, sKey.length() - sType.length());
+		     	int64_t nTimestamp = mvApplicationCacheTimestamp[(*ii).first];
+				if (nTimestamp > nMinStamp)
+				{
+					std::string sValue = mvApplicationCache[(*ii).first];
+					ret.push_back(Pair(sPrimaryKey, sValue));
+					sFiles += sValue + ";";
+				}
+			}
+		}
+	}
+	return ret;
+}
 
 UniValue GetDataList(std::string sType, int iMaxAgeInDays, int& iSpecificEntry, std::string sSearch, std::string& outEntry)
 {
@@ -4722,7 +4840,7 @@ bool FilterPhase2(int iNextSuperblock, std::string sSourcePath, std::string sTar
 
 
 double GetExtraRacFromBackupProject(int iNextSuperblock, std::string sFileName, std::string sResearcherCPID, double dDRMode, double dReqSPM, double dReqSPR, double dTeamRequired,
-	double dProjectFactor)
+	double dProjectFactor, double dRACThreshhold, std::string sTeamBlacklist)
 {
 	boost::filesystem::path pathFiltered(sFileName);
 	std::ifstream streamFiltered;
@@ -4748,9 +4866,9 @@ double GetExtraRacFromBackupProject(int iNextSuperblock, std::string sFileName, 
 				double dAvgCredit = cdbl(ExtractXML(sUser, "<expavg_credit>", "</expavg_credit>"), 4);
 				double dTeam = cdbl(ExtractXML(sUser, "<teamid>", "</teamid>"), 0);
 				// std::string sBackupProjectUserID = ExtractXML(sUser, "<id>", "</id>");
-				double dModifiedCredit = GetResearcherCredit(dDRMode, dAvgCredit, dUTXOWeight, dTaskWeight, dUnbanked, dTotalRAC, dReqSPM, dReqSPR) * dProjectFactor;
+				double dModifiedCredit = GetResearcherCredit(dDRMode, dAvgCredit, dUTXOWeight, dTaskWeight, dUnbanked, dTotalRAC, dReqSPM, dReqSPR, dRACThreshhold) * dProjectFactor;
 				if (fDebugMaster) LogPrintf(" CPID %s, ExtraRAC %f, Team %f, TeamReq %f  ", sCPID.c_str(), dModifiedCredit, dTeam, dTeamRequired);
-				bool bTeamMatch = (dTeamRequired > 0) ? (dTeam == dTeamRequired) : true;
+				bool bTeamMatch = CheckTeam(dTeam, dTeamRequired, sTeamBlacklist);
 				if (bTeamMatch)
 				{
 					dTotalFound += dModifiedCredit;
@@ -4831,7 +4949,8 @@ bool FilterFile(int iBufferSize, int iNextSuperblock, std::string& sError)
     int64_t nMaxAge = (int64_t)GetSporkDouble("podcmaximumchatterage", (60 * 60 * 24));
 	double dReqSPM = GetSporkDouble("requiredspm", 500);
 	double dReqSPR = GetSporkDouble("requiredspr", 0);
-
+	double dRACThreshhold = GetSporkDouble("racthreshhold", 0);
+	std::string sTeamBlacklist = GetSporkValue("teamblacklist");
 	std::string sConcatCPIDs = "";
 	std::string sUnbankedList = MutateToList(GetBoincUnbankedReport("pool"));
 	if (true)
@@ -4858,10 +4977,8 @@ bool FilterFile(int iBufferSize, int iNextSuperblock, std::string& sError)
 		if (dUnbankedIndicator==1) sCPID1 = GetDCCElement(vCPIDs[i], 0, false);
 		if (!sCPID1.empty())
 		{
-			LogPrintf("unbanked %s ", sCPID1.c_str());
 			if (!sCPID1.empty()) sConcatCPIDs += sCPID1 + ",";
 			std::string sTaskList = GetMatureString("CPIDTasks", sCPID1, nMaxAge, iNextSuperblock);
-				
 			double dVerifyTasks = 0;
 			// R ANDREWS; 5-9-2018
 			if (dDRMode == 0 || dDRMode == 2) dVerifyTasks = VerifyTasks(sCPID1, sTaskList);
@@ -4910,8 +5027,8 @@ bool FilterFile(int iBufferSize, int iNextSuperblock, std::string& sError)
 	//  Phase II : Normalize the file for Biblepay (this process asseses the magnitude of each BiblePay Researcher relative to one another, with 100 being the leader, 0 being a researcher with no activity)
 	//  We measure users by RAC - the BOINC Decay function: expavg_credit.  This is the half-life of the users cobblestone emission over a one month period.
 	
-	double dRAC1 = GetSumOfXMLColumnFromXMLFile(sFiltered, "<user>", "expavg_credit", dReqSPM, dReqSPR, dTeamRequired, sConcatCPIDs);
-	double dRAC2 = GetSumOfXMLColumnFromXMLFile(sFiltered2,"<user>", "expavg_credit", dReqSPM, dReqSPR, dTeamBackupProject, sConcatCPIDs);
+	double dRAC1 = GetSumOfXMLColumnFromXMLFile(sFiltered, "<user>", "expavg_credit", dReqSPM, dReqSPR, dTeamRequired, sConcatCPIDs, dRACThreshhold, sTeamBlacklist);
+	double dRAC2 = GetSumOfXMLColumnFromXMLFile(sFiltered2,"<user>", "expavg_credit", dReqSPM, dReqSPR, dTeamBackupProject, sConcatCPIDs, dRACThreshhold, sTeamBlacklist);
 	double dTotalRAC = dRAC1 + dRAC2;
 	LogPrintf(" \n Proj1 RAC %f, Proj2 RAC %f, Total RAC %f \n", dRAC1, dRAC2, dTotalRAC);
 	if (dTotalRAC < 10)
@@ -4948,6 +5065,7 @@ bool FilterFile(int iBufferSize, int iNextSuperblock, std::string& sError)
 		sDCC = "";
 		double dBackupProjectFactor = cdbl(GetSporkValue("project2factor"), 2);
 		double dDRMode = cdbl(GetSporkValue("dr"), 0);
+		std::string sTeamBlacklist = GetSporkValue("teamblacklist");
 		dTotalMagnitude = 0;
 		iRows = 0;
 
@@ -4962,25 +5080,27 @@ bool FilterFile(int iBufferSize, int iNextSuperblock, std::string& sError)
 				std::string sRosettaID = ExtractXML(sUser, "<id>", "</id>");
 				double dUTXOWeight = GetMatureMetric("UTXOWeight", sCPID, nMaxAge, iNextSuperblock);
 				double dTaskWeight = GetMatureMetric("TaskWeight", sCPID, nMaxAge, iNextSuperblock);
+				
 				double dUnbanked = cdbl(ReadCacheWithMaxAge("Unbanked", sCPID, nMaxAge), 0);
-				bool bTeamMatch = (dTeamRequired > 0) ? (dTeam == dTeamRequired) : true;
+				bool bTeamMatch = CheckTeam(dTeam, dTeamRequired, sTeamBlacklist);
+			
 				// If backup project enabled, add additional credit
 				double dExtraRAC = 0;
 				if (dTeamBackupProject > 0)
 				{
 					// NOTE: This needs to be '3' so the sanc gives 100% of the credit before penalizing the dModifiedCredit below:
-					dExtraRAC = GetExtraRacFromBackupProject(iNextSuperblock, sFiltered2, sCPID, 3, dReqSPM, dReqSPR, dTeamBackupProject, dBackupProjectFactor);
+					dExtraRAC = GetExtraRacFromBackupProject(iNextSuperblock, sFiltered2, sCPID, 3, dReqSPM, dReqSPR, dTeamBackupProject, dBackupProjectFactor, dRACThreshhold, sTeamBlacklist);
 				}
 
 				// Base GetResearcherCredit on the sum of RAH + WCG
-				double dModifiedCredit = GetResearcherCredit(dDRMode, dAvgCredit + dExtraRAC, dUTXOWeight, dTaskWeight, dUnbanked, dTotalRAC, dReqSPM, dReqSPR);
+				double dModifiedCredit = GetResearcherCredit(dDRMode, dAvgCredit + dExtraRAC, dUTXOWeight, dTaskWeight, dUnbanked, dTotalRAC, dReqSPM, dReqSPR, dRACThreshhold);
 
 				if (bTeamMatch)
 				{
 					bool fRequireSig = dUnbanked == 1 ? false : true;
 					std::string BPK = GetDCCPublicKey(sCPID, fRequireSig);
 					double dMagnitude = (dModifiedCredit / dTotalRAC) * 999 * dGlobalMagnitudeFactor;
-					double dUTXO = GetUTXOLevel(dUTXOWeight, dTotalRAC, dAvgCredit + dExtraRAC, dReqSPM, dReqSPR);
+					double dUTXO = GetUTXOLevel(dUTXOWeight, dTotalRAC, dAvgCredit + dExtraRAC, dReqSPM, dReqSPR, dRACThreshhold);
 					std::string sRow = BPK + "," + sCPID + "," + RoundToString(dMagnitude, 3) + "," + sRosettaID + "," + RoundToString(dTeam, 0) 
 						+ "," + RoundToString(dUTXOWeight, 0) + "," + RoundToString(dTaskWeight, 0) 
 						+ "," + RoundToString(dTotalRAC, 0) + "," 
@@ -5001,7 +5121,6 @@ bool FilterFile(int iBufferSize, int iNextSuperblock, std::string& sError)
 		LogPrintf("\n FilterFile::AssessMagnitudeLevels, Attempt #%f, GlobalMagnitudeFactor %f, Current Magnitude %f  \n", iTries, dGlobalMagnitudeFactor, dTotalMagnitude);
 	}
 	/* End of Assess Magnitude Levels */
-
 
     // Phase 3: Create the Daily Magnitude Contract and hash it
 	FILE *outMagFile = fopen(sDailyMagnitudeFile.c_str(),"w");
@@ -5839,6 +5958,26 @@ std::string AssociateDCAccount(std::string sProjectId, std::string sBoincEmail, 
 }
 
 
+bool CheckTeam(double dUserTeam, double dProjectTeam, std::string sTeamBlacklist)
+{
+	// First, if blacklists are enabled, if user team is in blacklist, reject the users RAC
+	if (!sTeamBlacklist.empty())
+	{
+		std::vector<std::string> vTeams = Split(sTeamBlacklist.c_str(), ";");
+		for (int i = 0; i < (int)vTeams.size(); i++)
+		{
+			double dBlacklistedTeam = cdbl(vTeams[i], 0);
+			if (dBlacklistedTeam != 0 && dUserTeam != 0 && dBlacklistedTeam == dUserTeam)
+			{
+				return false;
+			}
+		}
+	}
+	// Next, if BiblePay team is required, verify the team matches
+	bool bTeamMatch = (dProjectTeam > 0) ? (dUserTeam == dProjectTeam) : true;
+	return bTeamMatch;
+}
+
 
 std::vector<std::string> GetListOfDCCS(std::string sSearch, bool fRequireSig)
 {
@@ -5872,7 +6011,8 @@ std::vector<std::string> GetListOfDCCS(std::string sSearch, bool fRequireSig)
 }
 
 
-double GetSumOfXMLColumnFromXMLFile(std::string sFileName, std::string sObjectName, std::string sElementName, double dReqSPM, double dReqSPR, double dTeamRequired, std::string sConcatCPIDs)
+double GetSumOfXMLColumnFromXMLFile(std::string sFileName, std::string sObjectName, std::string sElementName, double dReqSPM, double dReqSPR, double dTeamRequired, std::string sConcatCPIDs, 
+	double dRACThreshhold, std::string sTeamBlacklist)
 {
 	boost::filesystem::path pathIn(sFileName);
     std::ifstream streamIn;
@@ -5899,12 +6039,12 @@ double GetSumOfXMLColumnFromXMLFile(std::string sFileName, std::string sObjectNa
 		boost::to_upper(sCPID);
 		if (Contains(sConcatCPIDs, sCPID))
 		{
-			bool bTeamMatch = (dTeamRequired > 0) ? (dTeam == dTeamRequired) : true;
+			bool bTeamMatch = CheckTeam(dTeam, dTeamRequired, sTeamBlacklist);
 			if (bTeamMatch)
 			{
 				std::string sValue = ExtractXML(sData, "<" + sElementName + ">","</" + sElementName + ">");
 				double dAvgCredit = cdbl(sValue,2);
-				double dModifiedCredit = GetResearcherCredit(dDRMode, dAvgCredit, dUTXOWeight, dTaskWeight, dUnbanked, 0, dReqSPM, dReqSPR);
+				double dModifiedCredit = GetResearcherCredit(dDRMode, dAvgCredit, dUTXOWeight, dTaskWeight, dUnbanked, 0, dReqSPM, dReqSPR, dRACThreshhold);
 				dTotal += dModifiedCredit;
 				// LogPrintf(" Adding %f from RAC of %f Grand Total %f \n", dModifiedCredit, dAvgCredit, dTotal);
 			}
@@ -6397,7 +6537,7 @@ std::vector<char> ReadAllBytes(char const* filename)
 
 std::string SubmitToIPFS(std::string sPath, std::string& sError)
 {
-	sPath = strReplace(sPath, "file://", "");
+	// sPath = strReplace(sPath, "file://", "");
 	if (!boost::filesystem::exists(sPath)) 
 	{
 		sError = "IPFS File not found.";

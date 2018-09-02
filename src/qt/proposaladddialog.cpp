@@ -55,11 +55,7 @@ ProposalAddDialog::ProposalAddDialog(const PlatformStyle *platformStyle, QWidget
 	ui->cmbExpenseType->addItem("PR");
 	ui->cmbExpenseType->addItem("P2P");
 	ui->cmbExpenseType->addItem("IT");
-
-    // context menu signals
- 
-    connect(ui->btnSubmit, SIGNAL(clicked()), this, SLOT(clicked()));
-}
+ }
 
 
 void ProposalAddDialog::UpdateDisplay()

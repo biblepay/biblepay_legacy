@@ -344,6 +344,21 @@ public:
 		return false;
     }
 
+	bool IsIPFSAttachment() const
+	{
+		if (vout.size() > 0)
+		{
+			std::string sData = "";
+			for (unsigned int i = 0; i < vout.size(); ++i)
+			{
+				sData += vout[i].sTxOutMessage;
+			}
+			std::string sIPFSHash = ExtractXML(sData, "<ipfshash>", "</ipfshash>");
+			if (sIPFSHash.length() == 46) return true;
+		}
+		return false;
+	}
+
     friend bool operator==(const CTransaction& a, const CTransaction& b)
     {
         return a.hash == b.hash;

@@ -50,12 +50,7 @@ DistributedComputingDialog::DistributedComputingDialog(const PlatformStyle *plat
 	ui->cmbProjectName->clear();
  	ui->cmbProjectName->addItem(ToQstring(sProject));
 	// Populate the CPIDs and Magnitude
-
 	UpdateMagnitudeDisplay();
-
-    // context menu signals
- 
-    connect(ui->btnAssociate, SIGNAL(clicked()), this, SLOT(clicked()));
 }
 
 

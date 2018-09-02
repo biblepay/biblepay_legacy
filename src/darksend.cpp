@@ -2494,7 +2494,8 @@ void ThreadCheckDarkSendPool()
         // try to sync from all available nodes, one step at a time
         masternodeSync.ProcessTick();
 
-        if(masternodeSync.IsBlockchainSynced() && !ShutdownRequested()) {
+        if(masternodeSync.IsBlockchainSynced() && !ShutdownRequested()) 
+		{
 
             nTick++;
 
@@ -2506,17 +2507,21 @@ void ThreadCheckDarkSendPool()
             if(nTick % MASTERNODE_MIN_MNP_SECONDS == 15)
                 activeMasternode.ManageState();
 
-            if(nTick % 60 == 0) {
+            if(nTick % 60 == 0) 
+			{
                 mnodeman.ProcessMasternodeConnections();
                 mnodeman.CheckAndRemove();
                 mnpayments.CheckAndRemove();
                 instantsend.CheckAndRemove();
             }
-            if(fMasterNode && (nTick % (60 * 5) == 0)) {
+
+            if(fMasterNode && (nTick % (60 * 5) == 0)) 
+			{
                 mnodeman.DoFullVerificationStep();
             }
 
-            if(nTick % (60 * 5) == 0) {
+            if(nTick % (60 * 5) == 0) 
+			{
                 governance.DoMaintenance();
             }
 

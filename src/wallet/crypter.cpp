@@ -173,13 +173,13 @@ void PrintStratisKeyDebugInfo()
 	std::string sKey1(reinterpret_cast<char*>(chKeyBiblePay));
 	std::string sIV1(reinterpret_cast<char*>(chIVBiblePay));
 	std::string sRow = "chKeyBiblePay: ";
-	for (int i = 0; i < sKey1.length(); i++)
+	for (int i = 0; i < (int)sKey1.length(); i++)
 	{
 		int ichar = (int)sKey1[i];
 		sRow += RoundToString(ichar,0) + ",";
 	}
 	sRow += "  chIVBiblePay: ";
-	for (int i = 0; i < sIV1.length(); i++)
+	for (int i = 0; i < (int)sIV1.length(); i++)
 	{
 		int ichar = (int)sIV1[i];
 		sRow += RoundToString(ichar,0) + ",";

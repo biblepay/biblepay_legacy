@@ -65,7 +65,7 @@ const QString ERASECHAIN("-erasechain");
 const QString EMPTY("");
 QString ToQstring(std::string s);
 std::string RetrieveMd5(std::string s1);
-void WriteCache(std::string section, std::string key, std::string value, int64_t locktime);
+void WriteCache(std::string section, std::string key, std::string value, int64_t locktime, bool IgnoreCase=true);
 
 const struct {
     const char *url;
@@ -286,7 +286,6 @@ RPCConsole::RPCConsole(const PlatformStyle *platformStyle, QWidget *parent) :
     connect(ui->btnClearTrafficGraph, SIGNAL(clicked()), ui->trafficGraph, SLOT(clear()));
     
     // Wallet Repair Buttons
-    // connect(ui->btn_salvagewallet, SIGNAL(clicked()), this, SLOT(walletSalvage()));
     // Disable salvage option in GUI, it's way too powerful and can lead to funds loss
     ui->btn_salvagewallet->setEnabled(false);
     connect(ui->btn_rescan, SIGNAL(clicked()), this, SLOT(walletRescan()));

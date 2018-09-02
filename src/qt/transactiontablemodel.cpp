@@ -377,18 +377,18 @@ QString TransactionTableModel::formatTxType(const TransactionRecord *wtx) const
         return tr("Sent to");
     case TransactionRecord::SendToSelf:
 		return tr("Payment to yourself");
-	case TransactionRecord::ProofOfLoyalty:
-		return fProofOfLoyaltyEnabled ? tr("Proof of Loyalty") : tr("Payment to Self");
 	case TransactionRecord::PODCUpdate:
 		return tr("PODC Update");
 	case TransactionRecord::PODCAssociation:
 		return tr("PODC Association");
     case TransactionRecord::SuperBlockPayment:
-			return tr("Superblock Payment");
+		return tr("Superblock Payment");
 	case TransactionRecord::PODCPayment:
         return tr("PODC Payment");
+	case TransactionRecord::IPFSAttachment:
+		return tr("IPFS Attachment");
     case TransactionRecord::Generated:
-			return tr("Mined");
+		return tr("Mined");
     case TransactionRecord::PrivateSendDenominate:
         return tr("PrivateSend Denominate");
     case TransactionRecord::PrivateSendCollateralPayment:
@@ -408,27 +408,30 @@ QString TransactionTableModel::formatTxType(const TransactionRecord *wtx) const
 QVariant TransactionTableModel::txAddressDecoration(const TransactionRecord *wtx) const
 {
     QString theme = GUIUtil::getThemeName();
+	bool bContainsAttachment = wtx->IsIPFSAttachment;
     switch(wtx->type)
     {
-    case TransactionRecord::SuperBlockPayment:
-			return QIcon(":/icons/drkblue/eye_minus");
-    case TransactionRecord::PODCPayment:
-		return QIcon(":/icons/drkblue/key");
-	case TransactionRecord::Generated:
-			return QIcon(":/icons/" + theme + "/tx_mined");
-	case TransactionRecord::PODCUpdate:
-	    return QIcon(":/icons/drkblue/key");
-	case TransactionRecord::PODCAssociation:
-		return QIcon(":/icons/drkblue/key");
-	case TransactionRecord::RecvWithPrivateSend:
-    case TransactionRecord::RecvWithAddress:
-    case TransactionRecord::RecvFromOther:
-        return QIcon(":/icons/" + theme + "/tx_input");
-    case TransactionRecord::SendToAddress:
-    case TransactionRecord::SendToOther:
-        return QIcon(":/icons/" + theme + "/tx_output");
-    default:
-        return QIcon(":/icons/" + theme + "/tx_inout");
+		case TransactionRecord::SuperBlockPayment:
+				return QIcon(":/icons/drkblue/eye_minus");
+		case TransactionRecord::PODCPayment:
+			return QIcon(":/icons/drkblue/key");
+		case TransactionRecord::Generated:
+				return QIcon(":/icons/" + theme + "/tx_mined");
+		case TransactionRecord::PODCUpdate:
+			return QIcon(":/icons/drkblue/key");
+		case TransactionRecord::IPFSAttachment:
+			return QIcon(":/icons/drkblue/edit");
+		case TransactionRecord::PODCAssociation:
+			return QIcon(":/icons/drkblue/key");
+		case TransactionRecord::RecvWithPrivateSend:
+		case TransactionRecord::RecvWithAddress:
+		case TransactionRecord::RecvFromOther:
+			return bContainsAttachment ? QIcon(":/icons/" + theme + "/edit") : QIcon(":/icons/" + theme + "/tx_input");
+		case TransactionRecord::SendToAddress:
+		case TransactionRecord::SendToOther:
+			return bContainsAttachment ? QIcon(":/icons/" + theme + "/edit") : QIcon(":/icons/" + theme + "/tx_output");
+		default:
+			return bContainsAttachment ? QIcon(":/icons/" + theme + "/edit") : QIcon(":/icons/" + theme + "/tx_inout");
     }
 }
 
@@ -439,28 +442,25 @@ QString TransactionTableModel::formatTxToAddress(const TransactionRecord *wtx, b
         // Mark transactions involving watch-only addresses by adding " (watch-only)"
         watchAddress = wtx->involvesWatchAddress ? QString(" (") + tr("watch-only") + QString(")") : "";
     }
-
-    switch(wtx->type)
+	switch(wtx->type)
     {
-    case TransactionRecord::RecvFromOther:
-        return QString::fromStdString(wtx->address) + watchAddress;
-    case TransactionRecord::RecvWithAddress:
-    case TransactionRecord::RecvWithPrivateSend:
-    case TransactionRecord::SendToAddress:
-    case TransactionRecord::Generated:
-    case TransactionRecord::SuperBlockPayment:
-    case TransactionRecord::PODCPayment:
-    case TransactionRecord::PrivateSend:
-        return lookupAddress(wtx->address, tooltip) + watchAddress;
-    case TransactionRecord::SendToOther:
-        return QString::fromStdString(wtx->address) + watchAddress;
-	case TransactionRecord::ProofOfLoyalty:
-		return fProofOfLoyaltyEnabled ? tr("Proof of Loyalty") : tr("Payment to Self");
-	case TransactionRecord::PODCUpdate:
-		return fDistributedComputingEnabled ? tr("PODC Update") : tr("Payment to Self");
-	case TransactionRecord::PODCAssociation:
-		return tr("PODC Association");
-    case TransactionRecord::SendToSelf:
+		case TransactionRecord::RecvFromOther:
+			return QString::fromStdString(wtx->address) + watchAddress;
+		case TransactionRecord::RecvWithAddress:
+		case TransactionRecord::RecvWithPrivateSend:
+		case TransactionRecord::SendToAddress:
+		case TransactionRecord::Generated:
+		case TransactionRecord::SuperBlockPayment:
+		case TransactionRecord::PODCPayment:
+		case TransactionRecord::PrivateSend:
+			return lookupAddress(wtx->address, tooltip) + watchAddress;
+		case TransactionRecord::SendToOther:
+			return QString::fromStdString(wtx->address) + watchAddress;
+		case TransactionRecord::PODCUpdate:
+			return fDistributedComputingEnabled ? tr("PODC Update") : tr("Payment to Self");
+		case TransactionRecord::PODCAssociation:
+			return tr("PODC Association");
+		case TransactionRecord::SendToSelf:
     default:
         return tr("(n/a)") + watchAddress;
     }

@@ -16,6 +16,12 @@
 CMasternodeMan mnodeman;
 
 const std::string CMasternodeMan::SERIALIZATION_VERSION_STRING = "CMasternodeMan-Version-4";
+std::string GetUndownloadedIPFSHash();
+std::string GetIPFromAddress(std::string sAddress);
+double GetSporkDouble(std::string sName, double nDefault);
+int ipfs_download(const string& url, const string& filename, double dTimeoutSecs);
+int CheckSanctuaryIPFSHealth(std::string sAddress);
+void WriteCache(std::string section, std::string key, std::string value, int64_t locktime, bool IgnoreCase=true);
 
 struct CompareLastPaidBlock
 {
@@ -1040,8 +1046,10 @@ void CMasternodeMan::DoFullVerificationStep()
     sort(vSortedByAddr.begin(), vSortedByAddr.end(), CompareByAddr());
 
     it = vecMasternodeRanks.begin() + nOffset;
-    while(it != vecMasternodeRanks.end()) {
-        if(it->second.IsPoSeVerified() || it->second.IsPoSeBanned()) {
+    while(it != vecMasternodeRanks.end()) 
+	{
+        if(it->second.IsPoSeVerified() || it->second.IsPoSeBanned()) 
+		{
             LogPrint("masternode", "CMasternodeMan::DoFullVerificationStep -- Already %s%s%s masternode %s address %s, skipping...\n",
                         it->second.IsPoSeVerified() ? "verified" : "",
                         it->second.IsPoSeVerified() && it->second.IsPoSeBanned() ? " and " : "",
@@ -1054,7 +1062,10 @@ void CMasternodeMan::DoFullVerificationStep()
         }
         LogPrint("masternode", "CMasternodeMan::DoFullVerificationStep -- Verifying masternode %s rank %d/%d address %s\n",
                     it->second.vin.prevout.ToStringShort(), it->first, nRanksTotal, it->second.addr.ToString());
-        if(SendVerifyRequest((CAddress)it->second.addr, vSortedByAddr)) {
+
+		// R ANDREWS - 9-1-2018 - Verify IPFS POSE
+        if(SendVerifyRequest((CAddress)it->second.addr, vSortedByAddr)) 
+		{
             nCount++;
             if(nCount >= MAX_POSE_CONNECTIONS) break;
         }
@@ -1126,17 +1137,52 @@ void CMasternodeMan::CheckSameAddr()
 
 bool CMasternodeMan::SendVerifyRequest(const CAddress& addr, const std::vector<CMasternode*>& vSortedByAddr)
 {
-    if(netfulfilledman.HasFulfilledRequest(addr, strprintf("%s", NetMsgType::MNVERIFY)+"-request")) {
+    if(netfulfilledman.HasFulfilledRequest(addr, strprintf("%s", NetMsgType::MNVERIFY)+"-request")) 
+	{
         // we already asked for verification, not a good idea to do this too often, skip it
         LogPrint("masternode", "CMasternodeMan::SendVerifyRequest -- too many requests, skipping... addr=%s\n", addr.ToString());
         return false;
     }
 
     CNode* pnode = ConnectNode(addr, NULL, true);
-    if(pnode == NULL) {
+    if(pnode == NULL) 
+	{
         LogPrintf("CMasternodeMan::SendVerifyRequest -- can't connect to node to verify it, addr=%s\n", addr.ToString());
         return false;
     }
+	else
+	{
+		double dPODSMode = GetSporkDouble("podsmode", 0);
+		if (dPODSMode > 0)
+		{
+			// Proof-of-Document-Storage is enabled; Verify this sanctuary is running IPFS by downloading one IPFS document
+			int iHealth = CheckSanctuaryIPFSHealth(addr.ToString());
+			if (iHealth != 1)
+			{
+				LogPrintf(" Sanc::SendVerifyRequest::PODS::PODS Failed for Sanc %s ", addr.ToString().c_str());
+				return false;
+			}
+			else if (iHealth == 1)
+			{
+				// Since this is a known good PODS sanctuary, get our next missing file (missing in our repo) queued for download into our repo
+				std::string sHash = GetUndownloadedIPFSHash();
+				if (!sHash.empty())
+				{
+					std::string sIP = GetIPFromAddress(addr.ToString());
+					std::string sURL = "http://" + sIP + ":8080/ipfs/" + sHash;
+					// Mark as downloaded so we don't keep trying the same file if it fails		
+					int iStatus = ipfs_download(sURL, GetSANDirectory2() + sHash, 15);
+					WriteCache("ipfs_downloaded", sHash, RoundToString(iStatus, 0), GetAdjustedTime());
+					// If we are in strict mode (1), do not vote on this Sanc payment if we can't download the file
+					if (iStatus != 1 && dPODSMode == 1) 
+					{
+						LogPrintf(" Sanc::SendVerifyRequest::DownloadPODSFile::PODS Failed for Sanc %s ", addr.ToString().c_str());
+						return false;
+					}
+				}
+			}
+		}
+	}
 
     netfulfilledman.AddFulfilledRequest(addr, strprintf("%s", NetMsgType::MNVERIFY)+"-request");
     // use random nonce, store it and require node to reply with correct one later

@@ -64,7 +64,7 @@ int64_t GetStakeTargetModifierPercent(int nHeight, double nWeight);
 bool IsStakeSigned(std::string sXML);
 void ClearCache(std::string sSection);
 std::string ReadCache(std::string sSection, std::string sKey);
-void WriteCache(std::string section, std::string key, std::string value, int64_t locktime);
+void WriteCache(std::string section, std::string key, std::string value, int64_t locktime, bool IgnoreCase=true);
 bool PODCUpdate(std::string& sError, bool bForce, std::string sDebugInfo);
 std::string GetSporkValue(std::string sKey);
 bool SignCPID(std::string sCPID, std::string& sError, std::string& out_FullSig);
@@ -183,48 +183,6 @@ CBlockTemplate* CreateNewBlock(const CChainParams& chainparams, const CScript& s
         // -blockversion=N to test forking scenarios
         if (chainparams.MineBlocksOnDemand())
             pblock->nVersion = GetArg("-blockversion", pblock->nVersion);
-
-		// *****************************************  BIBLEPAY - Proof-Of-Loyalty - 01/19/2018 ***************************************************
-
-		/*
-
-		std::string sXML = "";
-		std::string sError = "";
-		
-		if (fProofOfLoyaltyEnabled && dProofOfLoyaltyPercentage > 0)
-		{
-				CTransaction txPOL = CreateCoinStake(pindexPrev, scriptPubKeyIn, dProofOfLoyaltyPercentage, BLOCKS_PER_DAY, sXML, sError);
-				if (!sError.empty()) 
-				{
-					sGlobalPOLError = sError;
-				}
-				if (!sXML.empty())
-				{
-					pblock->vtx.push_back(txPOL);
-					LogPrintf("CreateNewBlock::Created Proof-Of-Loyalty Block for %f BBP with sig %s \n",dProofOfLoyaltyPercentage, sXML.c_str());
-					sGlobalPOLError = "";
-				}
-		}
-		else
-		{
-				if (!fDistributedComputingEnabled)
-				{
-					CTransaction txPOL = CreateCoinStake(pindexPrev, scriptPubKeyIn, .01, BLOCKS_PER_DAY, sXML, sError);
-					if (!sError.empty()) 
-					{
-						sGlobalPOLError = sError;
-					}
-					if (!sXML.empty())
-					{
-						pblock->vtx.push_back(txPOL);
-						sGlobalPOLError = "";
-					}
-				}
-		}
-
-		*/
-
-		// **************************************** End of Biblepay - Proof-Of-Loyalty ***********************************************************
 
 		// BIBLEPAY - Add Memory Pool Transactions to Block
         int64_t nLockTimeCutoff = (STANDARD_LOCKTIME_VERIFY_FLAGS & LOCKTIME_MEDIAN_TIME_PAST)
@@ -873,12 +831,12 @@ recover:
 				// UpdateHashesPerSec(nHashesDone);
 				goto recover;
             }
-			if (!sErr.empty())
+			if (!sErr.empty() || sFullSignature.empty())
 			{
 				std::string sMsg = "Unable to mine... Cant sign block template with CPID " + msGlobalCPID + " - Error " + sErr;
-				LogPrintf("Unable to mine... %s ", sMsg.c_str());
 				nHashesDone++;
 				WriteCache("poolthread" + RoundToString(iThreadID,0), "poolinfo1", sMsg, GetAdjustedTime());
+				MilliSleep(60000);
 			}
             CBlock *pblock = &pblocktemplate->block;
             IncrementExtraNonce(pblock, pindexPrev, nExtraNonce);
@@ -969,7 +927,12 @@ recover:
 						{
 							// Found a solution
 							SetThreadPriority(THREAD_PRIORITY_NORMAL);
-							ProcessBlockFound(pblock, chainparams);
+							bool bAccepted = ProcessBlockFound(pblock, chainparams);
+							if (!bAccepted)
+							{
+								std::string sCPIDSignature = ExtractXML(pblock->vtx[0].vout[0].sTxOutMessage, "<cpidsig>","</cpidsig>");
+								if (sCPIDSignature.empty()) MilliSleep(60000);
+							}
 							coinbaseScript->KeepScript();
 							// In regression test mode, stop mining after a block is found. This
 							// allows developers to controllably generate a block on demand.

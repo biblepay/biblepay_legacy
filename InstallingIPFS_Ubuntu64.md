@@ -9,3 +9,14 @@ tar xvfz ip*.tar.gz
 Start for first time:
 ipfs init
 ipfs daemon
+
+
+Note: For Biblepay integration with sanctuaries please follow these instructions after installing IPFS:
+Edit IPFS config to expose IPFS gateway for Biblepay integration:
+
+cd ~/.ipfs
+nano config
+scroll down to line 47 (the line reads:  "Gateway:" /ip4/127.0.0.1/tcp/8080)
+
+Edit the line to be:
+"Gateway": "/ip4/your_sanc_public_ip/tcp/8080"

@@ -45,7 +45,7 @@ QString ToQstring(std::string s);
 std::string FromQStringW(QString qs);
 std::string GetTxNews(uint256 hash, std::string& sHeadline);
 std::string ReadCache(std::string section, std::string key);
-void WriteCache(std::string section, std::string key, std::string value, int64_t locktime);
+void WriteCache(std::string section, std::string key, std::string value, int64_t locktime, bool IgnoreCase);
 
 /** "Help message" or "About" dialog box */
 HelpMessageDialog::HelpMessageDialog(QWidget *parent, HelpMode helpMode, int iPrayer, uint256 txid, std::string sPreview) :

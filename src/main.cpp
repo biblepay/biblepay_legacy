@@ -162,7 +162,7 @@ extern int32_t ComputeBlockVersion(const CBlockIndex* pindexPrev, const Consensu
 extern std::string RetrieveTxOutInfo(const CBlockIndex* pindex, int iLookback, int iTxOffset, int ivOutOffset, int iDataType);
 UniValue GetDataList(std::string sType, int iMaxAgeInDays, int& iSpecificEntry, std::string sSearch, std::string& outEntry);
 double GetDifficulty(const CBlockIndex* blockindex);
-void MemorizePrayer(std::string sMessage, int64_t nTime, double dAmount, int iPos, std::string sTxID);
+void MemorizePrayer(std::string sMessage, int64_t nTime, double dAmount, int iPos, std::string sTxID, int nHeight);
 std::string PubKeyToAddress(const CScript& scriptPubKey);
 std::string GetSin(int iSinNumber, std::string& out_Description);
 std::string TimestampToHRDate(double dtm);
@@ -182,7 +182,7 @@ std::string GetBoincResearcherHexCodeAndCPID(std::string sProjectId, int nUserId
 std::string GetDCCElement(std::string sData, int iElement, bool fCheckSignature);
 
 extern std::string ReadCache(std::string sSection, std::string sKey);
-extern void WriteCache(std::string section, std::string key, std::string value, int64_t locktime);
+extern void WriteCache(std::string section, std::string key, std::string value, int64_t locktime, bool IgnoreCase=true);
 extern void ClearCache(std::string sSection);
 extern std::string ReadCacheWithMaxAge(std::string sSection, std::string sKey, int64_t nMaxAge);
 
@@ -4531,33 +4531,32 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIn
 		 return false;
 	}
 
-	// Rob A., Biblepay, 02-10-2018, Check Proof-Of-Loyalty
-	if (fProofOfLoyaltyEnabled && fCheckPOW)
+	// Rob A. - BiblePay - 8-29-2018
+	if (fDistributedComputingEnabled && ((nHeight > F14000_CUTOVER_HEIGHT_PROD && fProd)  ||  (nHeight > F14000_CUTOVER_HEIGHT_TESTNET && !fProd)))
 	{
+		// Verify the block is signed by a CPID
 		std::string sError = "";
-		std::string sMetrics = "";
-		int64_t nAncestorTime = (pindexPrev==NULL) ? 0 : pindexPrev->nTime;
-		int nAncestorHeight = (pindexPrev==NULL) ? 0 : pindexPrev->nHeight;
-
-		// Check Stake Signature, and retrieve stake weight
-		double dStakeWeight = 0;
-		if (block.vtx.size() > 1)
-			 dStakeWeight = GetStakeWeight(block.vtx[1], block.GetBlockTime(), block.vtx[0].vout[0].sTxOutMessage, true, sMetrics, sError);
-	    bool bPass = CheckProofOfLoyalty(dStakeWeight, 
-			block.GetHash(), block.nBits, consensusParams, 
-			block.GetBlockTime(), nAncestorTime, nAncestorHeight, 
-			block.nNonce, pindexPrev, false);
-		if (!bPass)
+		std::string sCPIDSignature = ExtractXML(block.vtx[0].vout[0].sTxOutMessage, "<cpidsig>","</cpidsig>");
+		if (sCPIDSignature.empty())
 		{
-			LogPrintf("ContextualCheckBlock::ERROR - CheckProofOfLoyalty failed at height %f \n",(double)nHeight);
-			return false;
+		    return state.DoS(1, error("%s: CPID Signature empty. ", __func__), REJECT_INVALID, "cpid-empty");
+		}
+		bool fCheckCPIDSignature = VerifyCPIDSignature(sCPIDSignature, false, sError);
+		if (!fCheckCPIDSignature)
+		{
+			return state.DoS(1, error("%s: CPID Signature Check Failed.  CPID %s, Error %s", __func__, block.sBlockMessage.c_str(), sError.c_str()), REJECT_INVALID, "cpid-signature-invalid");
+		}
+		// Ensure this CPID has not solved any of the last N blocks in prod or last block in testnet if header age is < 1 hour:
+		std::string sCPID = GetElement(sCPIDSignature, ";", 0);
+		bool bSolvedPriorBlocks = HasThisCPIDSolvedPriorBlocks(sCPID, pindexPrev);
+		if (bSolvedPriorBlocks)
+		{
+			return state.DoS(1, error("%s: CPID %s has solved prior blocks. ", __func__, sCPID.c_str()), REJECT_INVALID, "cpid-solved-prior-blocks");
 		}
 	}
-
-
-	// Rob A. - Biblepay - 2/8/2018 - Contextual check CPID signature on each block to prevent botnet from forming - level 2
-	if (fDistributedComputingEnabled && nHeight > F11000_CUTOVER_HEIGHT_PROD && !fMining)
+	else if (fDistributedComputingEnabled && nHeight > F11000_CUTOVER_HEIGHT_PROD)
 	{
+		// Rob A. - Biblepay - 2/8/2018 - Contextual check CPID signature on each block to prevent botnet from forming - level 2
 		int64_t nHeaderAge = GetAdjustedTime() - pindexPrev->nTime;
 		bool bActiveRACCheck = nHeaderAge < (60 * 15) ? true : false;
 		if (bActiveRACCheck)
@@ -4567,13 +4566,12 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIn
 			std::string sCPIDSignature = ExtractXML(block.vtx[0].vout[0].sTxOutMessage, "<cpidsig>","</cpidsig>");
 			if (sCPIDSignature.empty())
 			{
-				if (!fMining && fDebugMaster) LogPrintf(" CPID Signature empty.  Contextual Check Block Failed at height %f. \n", (double)pindexPrev->nHeight+1);
-				fCPIDFailed=true;
+				return state.DoS(1, error("%s: [Legacy] CPID-Signature empty. ", __func__), REJECT_INVALID, "cpid-empty");
 			}
 			bool fCheckCPIDSignature = VerifyCPIDSignature(sCPIDSignature, true, sError);
 			if (!fCheckCPIDSignature)
 			{
-				if (!fMining && fDebugMaster) LogPrintf(" CPID Signature Check Failed.  CPID %s, Error %s \n", block.sBlockMessage.c_str(), sError.c_str());
+				if (fDebugMaster) LogPrintf(" CPID Signature Check Failed.  CPID %s, Error %s \n", block.sBlockMessage.c_str(), sError.c_str());
 				fCPIDFailed=true;
 			}
 			// Ensure this CPID has not solved any of the last N blocks in prod or last block in testnet if header age is < 1 hour:
@@ -4581,21 +4579,20 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIn
 			bool bSolvedPriorBlocks = HasThisCPIDSolvedPriorBlocks(sCPID, pindexPrev);
 			if (bSolvedPriorBlocks)
 			{
-				if (!fMining && fDebugMaster) LogPrintf(" CPID has solved prior blocks.  Contextual check block failed.  CPID %s ",sCPID.c_str());
+				if (fDebugMaster) LogPrintf(" CPID has solved prior blocks.  Contextual check block failed.  CPID %s ",sCPID.c_str());
 				fCPIDFailed=true;
 			}
 			// Ensure this block can only be solved if this CPID was in the last superblock with a payment - but only if the header age is recent (this allows the chain to continue rolling if PODC goes down)
 			double nRecentlyPaid = GetPaymentByCPID(sCPID, nHeight);
 			if (nRecentlyPaid >= 0 && nRecentlyPaid < .50)
 			{
-				if (!fMining && fDebugMaster) LogPrintf(" CPID is not in prior superblock.  Contextual check block failed.  CPID %s, Payments: %f  ", sCPID.c_str(), (double)nRecentlyPaid);
+				if (fDebugMaster) LogPrintf(" CPID is not in prior superblock.  Contextual check block failed.  CPID %s, Payments: %f  ", sCPID.c_str(), (double)nRecentlyPaid);
 				fCPIDFailed=true;
 			}
 			if (fCPIDFailed)
 			{
 				return false;
 			}
-			
 		}
 	}
 
@@ -7532,11 +7529,14 @@ bool NonObnoxiousLog(std::string sLogSection, std::string sLogKey, std::string s
 	return bAllowed;
 }
 
-void WriteCache(std::string sSection, std::string sKey, std::string sValue, int64_t locktime)
+void WriteCache(std::string sSection, std::string sKey, std::string sValue, int64_t locktime, bool IgnoreCase)
 {
 	if (sSection.empty() || sKey.empty()) return;
-	boost::to_upper(sSection);
-	boost::to_upper(sKey);
+	if (IgnoreCase)
+	{
+		boost::to_upper(sSection);
+		boost::to_upper(sKey);
+	}
 	std::string temp_value = mvApplicationCache[sSection + ";" + sKey];
 	if (temp_value.empty())
 	{
@@ -7553,8 +7553,6 @@ void WriteCache(std::string sSection, std::string sKey, std::string sValue, int6
 	}
 	mvApplicationCacheTimestamp[sSection + ";" + sKey] = locktime;
 }
-
-
 
 void PurgeCacheAsOfExpiration(std::string sSection, int64_t nExpiration)
 {
@@ -7668,7 +7666,7 @@ void MemorizeBlockChainPrayers(bool fDuringConnectBlock, bool fSubThread, bool f
 							WriteCache("AddressPayment", sRecipient, RoundToString(dTally, 0), block.GetBlockTime());
 						}
 					}
-					MemorizePrayer(sPrayer, block.GetBlockTime(), dTotalSent, 0, block.vtx[n].GetHash().GetHex());
+					MemorizePrayer(sPrayer, block.GetBlockTime(), dTotalSent, 0, block.vtx[n].GetHash().GetHex(), pindex->nHeight);
 				}
 	  		}
 		}
@@ -7763,10 +7761,15 @@ bool IsMature(int64_t nTime, int64_t nMaturityAge)
 	return bMature;
 }
 
-void MemorizePrayer(std::string sMessage, int64_t nTime, double dAmount, int iPosition, std::string sTxID)
+void MemorizePrayer(std::string sMessage, int64_t nTime, double dAmount, int iPosition, std::string sTxID, int nHeight)
 {
 	if (sMessage.empty()) return;
 	int64_t nAge = GetAdjustedTime() - nTime;
+	std::string sIPFSHash = ExtractXML(sMessage, "<ipfshash>", "</ipfshash>");
+	if (!sIPFSHash.empty())
+	{
+		WriteCache("IPFS", sIPFSHash, RoundToString(nHeight, 0), nTime, false);
+	}
 	std::string sPODC = ExtractXML(sMessage, "<PODC_TASKS>", "</PODC_TASKS>");
 	if (!sPODC.empty())
 	{

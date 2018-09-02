@@ -50,7 +50,7 @@ using namespace std;
 std::string BiblepayHTTPSPost(bool bPost, int iThreadID, std::string sActionName, std::string sDistinctUser, std::string sPayload, std::string sBaseURL, std::string sPage, int iPort, std::string sSolution, int iTimeoutSecs, int iMaxSize, int iBreakOnError);
 CBlockIndex* FindBlockByHeight(int nHeight);
 bool DownloadDistributedComputingFile(int iNextSuperblock, std::string& sError);
-void WriteCache(std::string section, std::string key, std::string value, int64_t locktime);
+void WriteCache(std::string section, std::string key, std::string value, int64_t locktime, bool IgnoreCase=true);
 std::string SendBlockchainMessage(std::string sType, std::string sPrimaryKey, std::string sValue, double dStorageFee, bool fSign, std::string& sError);
 std::string DefaultRecAddress(std::string sType);
 std::string AddBlockchainMessages(std::string sAddress, std::string sType, std::string sPrimaryKey, std::string sHTML, CAmount nAmount, std::string& sError);
@@ -181,7 +181,7 @@ std::string MutateToList(std::string sData)
 	return sList;
 }
 
-double GetResearcherCredit(double dDRMode, double dAvgCredit, double dUTXOWeight, double dTaskWeight, double dUnbanked, double dTotalRAC, double dReqSPM, double dReqSPR)
+double GetResearcherCredit(double dDRMode, double dAvgCredit, double dUTXOWeight, double dTaskWeight, double dUnbanked, double dTotalRAC, double dReqSPM, double dReqSPR, double dRACThreshhold)
 {
 
 	// Rob Andrews - BiblePay - 02-21-2018 - Add ability to run in distinct modes (via sporks):
@@ -194,12 +194,12 @@ double GetResearcherCredit(double dDRMode, double dAvgCredit, double dUTXOWeight
 				
 	if (dDRMode == 0)
 	{
-		dModifiedCredit = dAvgCredit * EnforceLimits(GetUTXOLevel(dUTXOWeight, dTotalRAC, dAvgCredit, dReqSPM, dReqSPR) / 100) * EnforceLimits(dTaskWeight / 100);
+		dModifiedCredit = dAvgCredit * EnforceLimits(GetUTXOLevel(dUTXOWeight, dTotalRAC, dAvgCredit, dReqSPM, dReqSPR, dRACThreshhold) / 100) * EnforceLimits(dTaskWeight / 100);
 		if (dUnbanked == 1) dModifiedCredit = dAvgCredit * 1 * 1;
 	}
 	else if (dDRMode == 1)
 	{
-		dModifiedCredit = dAvgCredit * EnforceLimits(GetUTXOLevel(dUTXOWeight, dTotalRAC, dAvgCredit, dReqSPM, dReqSPR) / 100);
+		dModifiedCredit = dAvgCredit * EnforceLimits(GetUTXOLevel(dUTXOWeight, dTotalRAC, dAvgCredit, dReqSPM, dReqSPR, dRACThreshhold) / 100);
 		if (dUnbanked==1) dModifiedCredit = dAvgCredit * 1 * 1;
 	}
 	else if (dDRMode == 2)
@@ -218,7 +218,7 @@ double GetResearcherCredit(double dDRMode, double dAvgCredit, double dUTXOWeight
 	return dModifiedCredit;
 }
 
-double GetUTXOLevel(double dUTXOWeight, double dTotalRAC, double dAvgCredit, double dRequiredSPM, double dRequiredSPR)
+double GetUTXOLevel(double dUTXOWeight, double dTotalRAC, double dAvgCredit, double dRequiredSPM, double dRequiredSPR, double dRACThreshhold)
 {
 	double dEstimatedMagnitude = (dAvgCredit / (dTotalRAC + .01)) * 1000;
 	if (dTotalRAC == 0 && dRequiredSPR == 0) return 100; //This happens in Phase 1 of the Magnitude Calculation
@@ -232,6 +232,10 @@ double GetUTXOLevel(double dUTXOWeight, double dTotalRAC, double dAvgCredit, dou
 	{
 		// If using Stake-Per-RAC, then 
 		dRequirement = dAvgCredit * dRequiredSPR;
+	}
+	if (dRACThreshhold > 0)
+	{
+		if (dAvgCredit < dRACThreshhold) return 100; // Their RAC is less than the threshhold, so they receive 100% UTXO
 	}
 	double dAchievementPercent = (dUTXOWeight / (dRequirement + .01)) * 100;
 	double dSnappedAchievement = SnapToGrid(dAchievementPercent);
