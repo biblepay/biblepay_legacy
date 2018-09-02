@@ -83,6 +83,7 @@ extern std::string BiblepayHttpPost(bool bPost, int iThreadID, std::string sActi
 extern std::string BiblepayHTTPSPost(bool bPost, int iThreadID, std::string sActionName, std::string sDistinctUser, std::string sPayload, std::string sBaseURL, std::string sPage, int iPort,
 	std::string sSolution, int iTimeoutSecs, int iMaxSize, int iBreakOnError = 0);
 extern std::string BiblepayIPFSPost(std::string sFN, std::string sPayload);
+std::string GetIPFromAddress(std::string sAddress);
 
 extern std::string SQL(std::string sCommand, std::string sAddress, std::string sArguments, std::string& sError);
 extern std::string PrepareHTTPPost(bool bPost, std::string sPage, std::string sHostHeader, const string& sMsg, const map<string,string>& mapRequestHeaders);
@@ -90,10 +91,6 @@ extern std::string GetDomainFromURL(std::string sURL);
 extern bool DownloadDistributedComputingFile(int iNextSuperblock, std::string& sError);
 bool FilterFile(int iBufferSize, int iNextSuperblock, std::string& sError);
 std::string GetSporkValue(std::string sKey);
-
-vector<string> dns_lookup(const string &host_name, int ipv=4); //ipv: default=4
-bool is_ipv6_address(const string& str);
-bool is_ipv4_address(const string& str);
 int ipfs_socket_connect(string ip_address, int port);
 int ipfs_http_get(const string& request, const string& ip_address, int port, const string& fname, double dTimeoutSecs);
 extern int ipfs_download(const string& url, const string& filename, double dTimeoutSecs);
@@ -3354,42 +3351,6 @@ std::string BiblepayHTTPSPost(bool bPost, int iThreadID, std::string sActionName
 /*                                                                          IPFS                                                                 */
 
 
-vector<string> dns_lookup(const string &host_name, int ipv) //ipv: default=4
-{
-    vector<string> output;
-    struct addrinfo hints, *res, *p;
-    int status, ai_family;
-    char ip_address[INET6_ADDRSTRLEN];
- 
-    ai_family = ipv==6 ? AF_INET6 : AF_INET; 
-    ai_family = ipv==0 ? AF_UNSPEC : ai_family; // AF_UNSPEC (any), or chosen
-    memset(&hints, 0, sizeof hints);
-    hints.ai_family = ai_family; 
-    hints.ai_socktype = SOCK_STREAM;
- 
-    if ((status = getaddrinfo(host_name.c_str(), NULL, &hints, &res)) != 0) 
-	{
-        return output;
-    }
- 
-    for(p = res;p != NULL; p = p->ai_next) 
-	{
-        void *addr;
-        if (p->ai_family == AF_INET) 
-		{ // IPv4
-            struct sockaddr_in *ipv4 = (struct sockaddr_in *)p->ai_addr;
-            addr = &(ipv4->sin_addr);
-        } else { // IPv6
-            struct sockaddr_in6 *ipv6 = (struct sockaddr_in6 *)p->ai_addr;
-            addr = &(ipv6->sin6_addr);
-        }
-        inet_ntop(p->ai_family, addr, ip_address, sizeof ip_address);
-        output.push_back(ip_address);
-    }
-    freeaddrinfo(res);
-    return output;
-}
-
 string ipfs_header_value(const string& full_header, const string& header_name)
 {
     size_t pos = full_header.find(header_name);
@@ -3490,19 +3451,6 @@ int ipfs_http_get(const string& request, const string& ip_address, int port, con
 }
 
 
-
-bool is_ipv6_address(const string& str)
-{
-    struct sockaddr_in6 sa;
-    return inet_pton(AF_INET6, str.c_str(), &(sa.sin6_addr))!=0;
-}
-
-bool is_ipv4_address(const string& str)
-{
-    struct sockaddr_in sa;
-    return inet_pton(AF_INET, str.c_str(), &(sa.sin_addr))!=0;
-}
-
 int ipfs_download(const string& url, const string& filename, double dTimeoutSecs)
 {
     int ipv=0;
@@ -3532,18 +3480,18 @@ int ipfs_download(const string& url, const string& filename, double dTimeoutSecs
     {
         url_port = protocol=="http" ? "80" : "443";
     }
-    if (domain.length()>0 && !is_ipv6_address(domain))
-    {
-        if (is_ipv4_address(domain))
-        {
+
+	// DNS
+	CService addrIP(domain, (int)cdbl(url_port, 0), true);
+    if (addrIP.IsValid())
+	{
+		domain = GetIPFromAddress(addrIP.ToString());
+		LogPrintf(" domain %s ",domain.c_str());
+	}
+	
+    if (domain.length() > 0)
             ip_addresses.push_back(domain);
-        }
-        else
-        {
-            ip_addresses = dns_lookup(domain, ipv=4);
-        }
-    }
-	int r = -1;
+    int r = -1;
     if (ip_addresses.size() > 0)
     {
         stringstream(url_port) >> port;
