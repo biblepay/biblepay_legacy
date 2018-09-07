@@ -74,6 +74,7 @@ SendCoinsEntry::SendCoinsEntry(const PlatformStyle *platformStyle, QWidget *pare
 	if (chainparams.NetworkIDString()=="main")
 	{
 		ui->btnAttach->setVisible(false);
+		ui->lblIPFSFee->setVisible(false);
 		ui->txtFile->setVisible(false);
 		ui->lblatt->setVisible(false);
 	}

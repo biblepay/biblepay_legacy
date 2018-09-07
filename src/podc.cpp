@@ -181,35 +181,35 @@ std::string MutateToList(std::string sData)
 	return sList;
 }
 
-double GetResearcherCredit(double dDRMode, double dAvgCredit, double dUTXOWeight, double dTaskWeight, double dUnbanked, double dTotalRAC, double dReqSPM, double dReqSPR, double dRACThreshhold)
+double GetResearcherCredit(double dDRMode, double dAvgCredit, double dUTXOWeight, double dTaskWeight, double dUnbanked, double dTotalRAC, double dReqSPM, double dReqSPR, double dRACThreshhold, 
+	double dTeamPercent)
 {
-
 	// Rob Andrews - BiblePay - 02-21-2018 - Add ability to run in distinct modes (via sporks):
-	// 0) Heavenly               = UTXOWeight * TaskWeight * RAC = Magnitude
-	// 1) Possessed by UTXO      = UTXOWeight * RAC = Magnitude
-	// 2) Possessed by Tasks     = TaskWeight * RAC = Magnitude  
+	// 0) Heavenly               = UTXOWeight * TaskWeight * RAC * TeamPercent = Magnitude
+	// 1) Possessed by UTXO      = UTXOWeight * RAC * TeamPercent = Magnitude
+	// 2) Possessed by Tasks     = TaskWeight * RAC * TeamPercent = Magnitude  
 	// 3) The-Law                = RAC = Magnitude
 	// 4) DR (Disaster-Recovery) = Proof-Of-BibleHash Only (Heat Mining only)
 	double dModifiedCredit = 0;
 				
 	if (dDRMode == 0)
 	{
-		dModifiedCredit = dAvgCredit * EnforceLimits(GetUTXOLevel(dUTXOWeight, dTotalRAC, dAvgCredit, dReqSPM, dReqSPR, dRACThreshhold) / 100) * EnforceLimits(dTaskWeight / 100);
+		dModifiedCredit = dAvgCredit * EnforceLimits(GetUTXOLevel(dUTXOWeight, dTotalRAC, dAvgCredit, dReqSPM, dReqSPR, dRACThreshhold) / 100) * EnforceLimits(dTaskWeight / 100) * dTeamPercent;
 		if (dUnbanked == 1) dModifiedCredit = dAvgCredit * 1 * 1;
 	}
 	else if (dDRMode == 1)
 	{
-		dModifiedCredit = dAvgCredit * EnforceLimits(GetUTXOLevel(dUTXOWeight, dTotalRAC, dAvgCredit, dReqSPM, dReqSPR, dRACThreshhold) / 100);
+		dModifiedCredit = dAvgCredit * EnforceLimits(GetUTXOLevel(dUTXOWeight, dTotalRAC, dAvgCredit, dReqSPM, dReqSPR, dRACThreshhold) / 100) * dTeamPercent;
 		if (dUnbanked==1) dModifiedCredit = dAvgCredit * 1 * 1;
 	}
 	else if (dDRMode == 2)
 	{
-		dModifiedCredit = dAvgCredit * EnforceLimits(dTaskWeight/100);
+		dModifiedCredit = dAvgCredit * EnforceLimits(dTaskWeight/100) * dTeamPercent;
 		if (dUnbanked == 1) dModifiedCredit = dAvgCredit * 1 * 1;
 	}
 	else if (dDRMode == 3)
 	{
-		dModifiedCredit = dAvgCredit;
+		dModifiedCredit = dAvgCredit * dTeamPercent;
 	}
 	else if (dDRMode == 4)
 	{
@@ -239,8 +239,7 @@ double GetUTXOLevel(double dUTXOWeight, double dTotalRAC, double dAvgCredit, dou
 	}
 	double dAchievementPercent = (dUTXOWeight / (dRequirement + .01)) * 100;
 	double dSnappedAchievement = SnapToGrid(dAchievementPercent);
-	LogPrintf(" EstimatedMag %f, UTXORequirement %f, AchievementPecent %f, SnappedAchivement %f \n", dEstimatedMagnitude,
-		dRequirement, dAchievementPercent, dSnappedAchievement);
+	// LogPrintf(" EstimatedMag %f, UTXORequirement %f, AchievementPecent %f, SnappedAchivement %f \n", dEstimatedMagnitude, dRequirement, dAchievementPercent, dSnappedAchievement);
 	return dSnappedAchievement;
 }
 

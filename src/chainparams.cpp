@@ -68,6 +68,7 @@ public:
         consensus.BIP34Hash = uint256S("0x0000039f2a2d9bc85cb7b5e34b5221bf3e840d142a400cb9f3cf1850dcc7a9cc");
         consensus.powLimit = uint256S("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
 		consensus.FoundationAddress = "BB2BwSbDCqCqNsfc7FgWFJn4sRgnUt4tsM";
+		consensus.FoundationPODSAddress = "BScSypUZVEEY4TMz1ehyyPcS5wrnMM7WPB";
         consensus.nPowTargetTimespan = 24 * 60 * 60; // Biblepay: 1 day
         consensus.nPowTargetSpacing = 7 * 60; // Biblepay: 7 minutes
 		
@@ -173,6 +174,7 @@ public:
 	    consensus.nSuperblockStartBlock = 201; // NOTE: Should satisfy nSuperblockStartBlock > nBudgetPaymentsStartBlock
         consensus.nBudgetProposalEstablishingTime = 60 * 20; //Possibly 8 in the future
 		consensus.FoundationAddress = "yadZnJ3hD3FRC8CiLZEVNqejvQFgNtu5ci";
+		consensus.FoundationPODSAddress = "yiqFGdxM2vzKCk74GrjevEGNTC2rLqKFeg";
         consensus.nSuperblockCycle = BLOCKS_PER_DAY * 7; // Superblocks can be issued weekly on testnet
 		consensus.nDCCSuperblockStartBlock = 470;
 		consensus.nDCCSuperblockCycle = 99; // Daily
@@ -296,6 +298,7 @@ public:
         consensus.BIP34Height = 1; 
         consensus.BIP34Hash = uint256();
 		consensus.FoundationAddress = "yedEtKvuw9CMBKdzGNVM1ezzMMy2ibtXDR";
+		consensus.FoundationPODSAddress = "yiqFGdxM2vzKCk74GrjevEGNTC2rLqKFeg";
 		consensus.nDCCSuperblockStartBlock = 2001;
 		consensus.nDCCSuperblockCycle = BLOCKS_PER_DAY * 1; // Daily
     

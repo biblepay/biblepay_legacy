@@ -34,6 +34,8 @@
 std::string GetSin(int iSinNumber, std::string& out_Description);
 QString ToQstring(std::string s);
 std::string FromQStringW(QString qs);
+double GetSporkDouble(std::string sName, double nDefault);
+int64_t GetFileSize(std::string sPath);
 
 SendCoinsDialog::SendCoinsDialog(const PlatformStyle *platformStyle, QWidget *parent) :
     QDialog(parent),
@@ -343,7 +345,8 @@ void SendCoinsDialog::send(QList<SendCoinsRecipient> recipients, QString strFee,
     }
 
     CAmount txFee = currentTransaction.getTransactionFee();
-
+	CAmount aIPFSFee = 0;
+	double dTotalFileSize = 0;
     // Format confirmation message
     QStringList formatted;
     Q_FOREACH(const SendCoinsRecipient &rcp, currentTransaction.getRecipients())
@@ -380,12 +383,23 @@ void SendCoinsDialog::send(QList<SendCoinsRecipient> recipients, QString strFee,
         }
 
         formatted.append(recipientElement);
+
+		// IPFS
+		if (!rcp.ipfshash.isEmpty())
+		{
+			int64_t nFileSize = GetFileSize(FromQStringW(rcp.ipfshash));
+			dTotalFileSize += (double)nFileSize;
+			double dCostPerByte = GetSporkDouble("ipfscostperbyte", .0002);
+			aIPFSFee += dCostPerByte * nFileSize * COIN;
+		}
+
+
     }
 
     QString questionString = tr("Are you sure you want to send?");
     questionString.append("<br /><br />%1");
 
-    if(txFee > 0)
+    if(txFee > 0 || aIPFSFee > 0)
     {
         // append fee string if a fee is required
         questionString.append("<hr /><span style='color:#aa0000;'>");
@@ -397,6 +411,16 @@ void SendCoinsDialog::send(QList<SendCoinsRecipient> recipients, QString strFee,
 
         // append transaction size
         questionString.append(" (" + QString::number((double)currentTransaction.getTransactionSize() / 1000) + " kB)");
+
+		// append document storage fee 
+		if (aIPFSFee > 0)
+		{
+			questionString.append("<br><span style='color:#aa0000;'>");
+			questionString.append(BitcoinUnits::formatHtmlWithUnit(model->getOptionsModel()->getDisplayUnit(), aIPFSFee));
+			questionString.append("</span> ");
+			questionString.append(tr("are added as PODS fee "));
+			questionString.append(" (" + QString::number(dTotalFileSize / 1000) + " kB)");
+		}
     }
 
     // add total amount in all subdivision units

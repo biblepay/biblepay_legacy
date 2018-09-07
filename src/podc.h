@@ -20,7 +20,7 @@ std::string PackPODC(std::string sBlock, int iTaskLength, int iTimeLength);
 std::string UnpackPODC(std::string sBlock, int iTaskLength, int iTimeLength);
 std::string FilterBoincData(std::string sData, std::string sRootElement, std::string sEndElement, std::string sExtra);
 std::string MutateToList(std::string sData);
-double GetResearcherCredit(double dDRMode, double dAvgCredit, double dUTXOWeight, double dTaskWeight, double dUnbanked, double dTotalRAC, double dReqSPM, double dReqSPR, double dRACThreshhold);
+double GetResearcherCredit(double dDRMode, double dAvgCredit, double dUTXOWeight, double dTaskWeight, double dUnbanked, double dTotalRAC, double dReqSPM, double dReqSPR, double dRACThreshhold, double dTeamPercent);
 double GetUTXOLevel(double dUTXOWeight, double dTotalRAC, double dAvgCredit, double dRequiredSPM, double dRequiredSPR, double dRACThreshhold);
 double SnapToGrid(double dPercent);
 double EnforceLimits(double dValue);

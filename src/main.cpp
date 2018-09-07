@@ -162,7 +162,7 @@ extern int32_t ComputeBlockVersion(const CBlockIndex* pindexPrev, const Consensu
 extern std::string RetrieveTxOutInfo(const CBlockIndex* pindex, int iLookback, int iTxOffset, int ivOutOffset, int iDataType);
 UniValue GetDataList(std::string sType, int iMaxAgeInDays, int& iSpecificEntry, std::string sSearch, std::string& outEntry);
 double GetDifficulty(const CBlockIndex* blockindex);
-void MemorizePrayer(std::string sMessage, int64_t nTime, double dAmount, int iPos, std::string sTxID, int nHeight);
+void MemorizePrayer(std::string sMessage, int64_t nTime, double dAmount, int iPos, std::string sTxID, int nHeight, double dFoundationDonation);
 std::string PubKeyToAddress(const CScript& scriptPubKey);
 std::string GetSin(int iSinNumber, std::string& out_Description);
 std::string TimestampToHRDate(double dtm);
@@ -7652,10 +7652,11 @@ void MemorizeBlockChainPrayers(bool fDuringConnectBlock, bool fSubThread, bool f
        			{
 					double dTotalSent = 0;
 					std::string sPrayer = "";
+					double dFoundationDonation = 0;
 					for (unsigned int i = 0; i < block.vtx[n].vout.size(); i++)
 					{
 						sPrayer += block.vtx[n].vout[i].sTxOutMessage;
-						double dAmount = block.vtx[n].vout[i].nValue/COIN;
+						double dAmount = block.vtx[n].vout[i].nValue / COIN;
 						dTotalSent += dAmount;
 						// Track Cancer Payment totals by address (so we can implement the additional CheckBlock rule: Researcher has magnitude in last 30 days) - R ANDREWS - 6-27-2018
 						// Coinbase Only, vout > 0, and in a superblock, and Mature:
@@ -7665,8 +7666,13 @@ void MemorizeBlockChainPrayers(bool fDuringConnectBlock, bool fSubThread, bool f
 							double dTally = cdbl(ReadCacheWithMaxAge("AddressPayment", sRecipient, nMaxPaymentAge), 0) + dAmount;
 							WriteCache("AddressPayment", sRecipient, RoundToString(dTally, 0), block.GetBlockTime());
 						}
+						std::string sPK = PubKeyToAddress(block.vtx[n].vout[i].scriptPubKey);
+						if (sPK == consensusParams.FoundationAddress || sPK == consensusParams.FoundationPODSAddress)
+						{
+							dFoundationDonation += dAmount;
+						}
 					}
-					MemorizePrayer(sPrayer, block.GetBlockTime(), dTotalSent, 0, block.vtx[n].GetHash().GetHex(), pindex->nHeight);
+					MemorizePrayer(sPrayer, block.GetBlockTime(), dTotalSent, 0, block.vtx[n].GetHash().GetHex(), pindex->nHeight, dFoundationDonation);
 				}
 	  		}
 		}
@@ -7761,7 +7767,7 @@ bool IsMature(int64_t nTime, int64_t nMaturityAge)
 	return bMature;
 }
 
-void MemorizePrayer(std::string sMessage, int64_t nTime, double dAmount, int iPosition, std::string sTxID, int nHeight)
+void MemorizePrayer(std::string sMessage, int64_t nTime, double dAmount, int iPosition, std::string sTxID, int nHeight, double dFoundationDonation)
 {
 	if (sMessage.empty()) return;
 	int64_t nAge = GetAdjustedTime() - nTime;
@@ -7769,6 +7775,9 @@ void MemorizePrayer(std::string sMessage, int64_t nTime, double dAmount, int iPo
 	if (!sIPFSHash.empty())
 	{
 		WriteCache("IPFS", sIPFSHash, RoundToString(nHeight, 0), nTime, false);
+		WriteCache("IPFSFEE" + RoundToString(nTime, 0), sIPFSHash, RoundToString(dFoundationDonation, 0), nTime);
+		std::string sIPFSSize = ExtractXML(sMessage, "<ipfssize>", "</ipfssize>");
+		WriteCache("IPFSSIZE" + RoundToString(nTime, 0), sIPFSHash, sIPFSSize, nTime);
 	}
 	std::string sPODC = ExtractXML(sMessage, "<PODC_TASKS>", "</PODC_TASKS>");
 	if (!sPODC.empty())
@@ -7807,7 +7816,7 @@ void MemorizePrayer(std::string sMessage, int64_t nTime, double dAmount, int iPo
 		  std::string sSporkSig         = ExtractXML(sMessage,"<SPORKSIG>","</SPORKSIG>");
 		  boost::to_upper(sMessageType);
 		  boost::to_upper(sMessageKey);
-		  bool bRequiresSignature = (sMessageType=="SPORK") ? true : false;
+		  bool bRequiresSignature = (sMessageType=="SPORK" || sMessageType=="PRAYER") ? true : false;
 		  if (sMessageType == "NEWS") sMessageValue = sTxID;
 		  if (!sSporkSig.empty())
 		  {
@@ -7862,9 +7871,9 @@ void HealthCheckup()
 		return;
 	}
 	int64_t nAge = GetTime() - nLastHealthCheckup;
-	double dLowPOWDifficultyThreshhold = 100;
+	double dLowPOWDifficultyThreshhold = 50;
 			
-	if (nAge > (60 * 15) && fProd && !fLoadingIndex && fWalletLoaded)
+	if (nAge > (60 * 30) && fProd && !fLoadingIndex && fWalletLoaded)
 	{
 		nLastHealthCheckup = GetTime();
 		int64_t nLastAcceptBlockAge = GetAdjustedTime() - nLastAcceptBlock;

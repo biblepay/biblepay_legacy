@@ -350,7 +350,7 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionReco
 	{
 		sIPFSLink = "https://ipfs.io/ipfs/" + sIPFSHash;
 		std::string sAltLink = "http://ipfs.biblepay.org:8080/ipfs/" + sIPFSHash;
-		WriteCache("ipfs", "openlink", sIPFSLink, GetAdjustedTime());
+		WriteCache("ipfs", "openlink", sAltLink, GetAdjustedTime());
 		strHTML += "<br><br><font color=green>IPFS Document: <a href='" + QString::fromStdString(sIPFSLink) + "'>" + QString::fromStdString(sIPFSLink) + "</a> &nbsp;</font></b><br>";
 		strHTML += "<br><br><font color=green>IPFS Alternate Link: <a href='" + QString::fromStdString(sAltLink) + "'>" + QString::fromStdString(sAltLink) + "</a> &nbsp;</font></b><br>";
 	}

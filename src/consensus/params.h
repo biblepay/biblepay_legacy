@@ -54,6 +54,7 @@ struct Params {
     int nMajorityRejectBlockOutdated;
     int nMajorityWindow;
 	std::string FoundationAddress;
+	std::string FoundationPODSAddress;
     /** Block height and hash at which BIP34 becomes active */
     int BIP34Height;
     uint256 BIP34Hash;

@@ -32,6 +32,8 @@ std::string PubKeyToAddress(const CScript& scriptPubKey);
 extern QString ToQstring(std::string s);
 extern std::string FromQStringW(QString qs);
 std::string SubmitToIPFS(std::string sPath, std::string& sError);
+double GetSporkDouble(std::string sName, double nDefault);
+int64_t GetFileSize(std::string sPath);
 
 
 WalletModel::WalletModel(const PlatformStyle *platformStyle, CWallet *wallet, OptionsModel *optionsModel, QObject *parent) :
@@ -332,7 +334,19 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
 						Q_EMIT message(tr("Send Coins"), qErr, CClientUIInterface::MSG_ERROR);
 						return TransactionCreationFailed;
 					}
-					sMessages += "<PACK><MT>ATTACHMENT</MT><MK>OUT_TX</MK><MV>" + sIPHash + "</MV><ipfshash>" + sIPHash + "</ipfshash></PACK>";
+					// At this point, the file is good, Biblepay can add it to IPFS and we know the size.  Now we can calculate the cost and add the PODS fee.
+					int64_t nFileSize = GetFileSize(FromQStringW(rcp.ipfshash));
+					double dCostPerByte = GetSporkDouble("ipfscostperbyte", .0002);
+					CAmount aIPFSFee = dCostPerByte * nFileSize * COIN;
+					const Consensus::Params& consensusParams = Params().GetConsensus();
+					CScript spkFoundation = GetScriptForDestination(CBitcoinAddress(consensusParams.FoundationPODSAddress).Get());
+		            CRecipient recFoundation = {spkFoundation, aIPFSFee, false, true, rcp.fPrayer, rcp.fRepent, FromQStringW(rcp.txtMessage), FromQStringW(rcp.txtRepent), FromQStringW(""), FromQStringW(rcp.ipfshash) };
+					std::string sAddrF = PubKeyToAddress(spkFoundation);
+					setAddress.insert(ToQstring(sAddrF));
+            		++nAddresses;
+					LogPrintf(" \r\n Created IPFS Fee vout for bbp %f to address %s ", (double)(aIPFSFee/COIN), sAddrF.c_str());
+					vecSend.push_back(recFoundation);
+					sMessages += "<PACK><MT>ATTACHMENT</MT><MK>OUT_TX</MK><MV>" + sIPHash + "</MV><ipfshash>" + sIPHash + "</ipfshash><ipfssize>" + RoundToString(nFileSize, 0) + "</ipfssize></PACK>";
 					LogPrintf("Attaching %s ",sMessages.c_str());
 				}
 			}

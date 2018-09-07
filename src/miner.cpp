@@ -68,6 +68,7 @@ void WriteCache(std::string section, std::string key, std::string value, int64_t
 bool PODCUpdate(std::string& sError, bool bForce, std::string sDebugInfo);
 std::string GetSporkValue(std::string sKey);
 bool SignCPID(std::string sCPID, std::string& sError, std::string& out_FullSig);
+bool HasThisCPIDSolvedPriorBlocks(std::string CPID, CBlockIndex* pindexPrev);
 
 
 class ScoreCompare
@@ -931,7 +932,9 @@ recover:
 							if (!bAccepted)
 							{
 								std::string sCPIDSignature = ExtractXML(pblock->vtx[0].vout[0].sTxOutMessage, "<cpidsig>","</cpidsig>");
-								if (sCPIDSignature.empty()) MilliSleep(60000);
+								std::string sCPID = GetElement(sCPIDSignature, ";", 0);
+								bool bSolvedPriorBlocks = HasThisCPIDSolvedPriorBlocks(sCPID, pindexPrev);
+								if (sCPIDSignature.empty() || bSolvedPriorBlocks) MilliSleep(fProd ? 30000: 120000);
 							}
 							coinbaseScript->KeepScript();
 							// In regression test mode, stop mining after a block is found. This
