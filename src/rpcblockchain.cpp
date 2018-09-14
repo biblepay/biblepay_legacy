@@ -2327,8 +2327,8 @@ UniValue exec(const UniValue& params, bool fHelp)
 		}
 		std::string sMySig = ExtractXML(sMsg,"<cpidsig>","</cpidsig>");
 		std::string sErr2 = "";
-		bool fSigChecked = VerifyCPIDSignature(sMySig, true, sErr2);
-		results.push_back(Pair("cpid_sig_valid", fSigChecked));
+		bool fSigValid = VerifyCPIDSignature(sMySig, true, sErr2);
+		results.push_back(Pair("cpid_sig_valid", fSigValid));
 		// 4-5-2018 Ensure it is legal for this CPID to solve this block
 
 		bool fLegality = true;
@@ -2338,19 +2338,27 @@ UniValue exec(const UniValue& params, bool fHelp)
 		
 		if (bActiveRACCheck)
 		{
-			if (fSigChecked)
+			if (fSigValid)
 			{
 				// Ensure this CPID has not solved any of the last N blocks in prod or last block in testnet if header age is < 1 hour:
 				std::string sCPID = GetElement(sMySig, ";", 0);
 				bool bSolvedPriorBlocks = HasThisCPIDSolvedPriorBlocks(sCPID, pindexPrev);
-				// Ensure this block can only be solved if this CPID was in the last superblock with a payment - but only if the header age is recent (this allows the chain to continue rolling if PODC goes down)
-				double nRecentlyPaid = GetPaymentByCPID(sCPID, pindexPrev->nHeight);
-				bool bRenumerationLegal = (nRecentlyPaid >= 0 && nRecentlyPaid < .50) ? false : true;
-				fLegality = (bRenumerationLegal && !bSolvedPriorBlocks);
-				if (!fLegality)
+				bool f14000 = (fDistributedComputingEnabled && ((pindexPrev->nHeight > F14000_CUTOVER_HEIGHT_PROD && fProd)  ||  (pindexPrev->nHeight > F14000_CUTOVER_HEIGHT_TESTNET && !fProd)));
+				if (f14000)
 				{
-					if (!bRenumerationLegal) sLegalityNarr = "CPID_HAS_NO_MAGNITUDE";
-					if (bSolvedPriorBlocks)  sLegalityNarr = "CPID_SOLVED_RECENT_BLOCK";
+					if (bSolvedPriorBlocks) sLegalityNarr="CPID_SOLVED_RECENT_BLOCK";
+				}
+				else
+				{
+					// Ensure this block can only be solved if this CPID was in the last superblock with a payment - but only if the header age is recent (this allows the chain to continue rolling if PODC goes down)
+					double nRecentlyPaid = GetPaymentByCPID(sCPID, pindexPrev->nHeight);
+					bool bRenumerationLegal = (nRecentlyPaid >= 0 && nRecentlyPaid < .50) ? false : true;
+					fLegality = (bRenumerationLegal && !bSolvedPriorBlocks);
+					if (!fLegality)
+					{
+						if (!bRenumerationLegal) sLegalityNarr = "CPID_HAS_NO_MAGNITUDE";
+						if (bSolvedPriorBlocks)  sLegalityNarr = "CPID_SOLVED_RECENT_BLOCK";
+					}
 				}
 			}
 			else
@@ -2358,9 +2366,7 @@ UniValue exec(const UniValue& params, bool fHelp)
 				fLegality = false;
 				sLegalityNarr = "CPID_SIGNATURE_INVALID";
 			}
-			
 		}
-
 		results.push_back(Pair("cpid_legal", fLegality));
 		results.push_back(Pair("cpid_legality_narr", sLegalityNarr));
 		results.push_back(Pair("blockmessage", sMsg));
@@ -3426,8 +3432,13 @@ void SerializePrayersToFile(int nHeight)
 		std::string sKey = (*ii).first;
 	   	int64_t nTimestamp = mvApplicationCacheTimestamp[(*ii).first];
 		std::string sValue = mvApplicationCache[(*ii).first];
-		std::string sRow = RoundToString(nTimestamp, 0) + "<colprayer>" + RoundToString(nHeight, 0) + "<colprayer>" + sKey + "<colprayer>" + sValue + "<rowprayer>\r\n";
-		fputs(sRow.c_str(), outFile);
+		bool bSkip = false;
+		if (sKey.length() > 7 && sKey.substr(0,7)=="MESSAGE" && (sValue == "" || sValue==" ")) bSkip = true;
+		if (!bSkip)
+		{
+			std::string sRow = RoundToString(nTimestamp, 0) + "<colprayer>" + RoundToString(nHeight, 0) + "<colprayer>" + sKey + "<colprayer>" + sValue + "<rowprayer>\r\n";
+			fputs(sRow.c_str(), outFile);
+		}
 	}
 	LogPrintf("...Done Serializing Prayers... %f ",GetAdjustedTime());
     fclose(outFile);
@@ -6834,48 +6845,20 @@ UniValue GetBusinessObject(std::string sType, std::string sPrimaryKey, std::stri
 
 void TestRSA()
 {
-	//int BUFFER_SIZE=512;
-	//unsigned char str[BUFFER_SIZE] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-
-	//unsigned char *ciphertext, *plaintext;
-	//int len, olen;
-	//olen = len = strlen((const char*)str) + 1;
-	//printf("Begin to encrypt...\n");
 	std::string sPath = GetSANDirectory2() + "rsafile";
 	std::string sPathEnc = GetSANDirectory2() + "rsafile_enc";
 	std::string sPathDec = GetSANDirectory2() + "reafile_dec";
-    int cipher_len = 0;
+    // int cipher_len = 0;
 	std::string sError = "";
-	// Generate a new KeyPair
 	std::string sPubKeyPath = GetSANDirectory2() + "keypath_client_pub";
 	std::string sPriKeyPath = GetSANDirectory2() + "keypath_client_pri";
 	RSA_GENERATE_KEYPAIR(sPubKeyPath, sPriKeyPath);
-	//ciphertext = RSA_ENCRYPT_CHAR(sPubKeyPath, str, len, cipher_len, sError);
 	RSA_Encrypt_File(sPubKeyPath, sPath, sPathEnc, sError);
-	//LogPrintf(" Errors phase 0 %s ", sError.c_str());
-	//printf("Begin to decrypt..\n");
-	int ciphertext_size = cipher_len;
-	int plaintext_len = 0;
-	//plaintext = RSA_DECRYPT_CHAR(sPriKeyPath, ciphertext, ciphertext_size, plaintext_len, sError);
-	//LogPrintf(" rsa_decrypt  ciphersize %f  plaintextsize %f  ", ciphertext_size, plaintext_len);
-	//LogPrintf(" Errors phase 1 %s ", sError.c_str());
 	RSA_Decrypt_File(sPriKeyPath, sPathEnc, sPathDec, sError);
-	//LogPrintf(" Errors phase 2 %s ", sError.c_str());
-	//if (ciphertext_size > 0)
-	//{
-	//	if (strncmp((const char *)plaintext, (const char *)str, olen)) 
-	//		printf("\nFailed for the plaintext: {%s}\n", str);
-	//	else 
-	//		printf("\nOk, Decrypted string = {%s}\n", plaintext);
-	//}
-
 	std::string sData = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 	LogPrintf(" Errors phase 3 %s ", sError.c_str());
 	std::string sEnc = RSA_Encrypt_String(sPubKeyPath, sData, sError);
-	LogPrintf(" Errors phase 3.5 %s ", sError.c_str());
 	std::string sDec = RSA_Decrypt_String(sPriKeyPath, sEnc, sError);
-	LogPrintf(" Errors phase 4 %s ", sError.c_str());
 	LogPrintf(" Status Decoded %s , error %s ", sDec.c_str(), sError.c_str());
-	
 }
 

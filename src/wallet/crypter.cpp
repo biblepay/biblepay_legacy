@@ -485,8 +485,8 @@ end:
 
 unsigned char *RSA_ENCRYPT_CHAR(std::string sPubKeyPath, unsigned char *plaintext, int plaintext_length, int& cipher_len, std::string& sError)
 {
-	EVP_CIPHER_CTX ctx;
-	EVP_CIPHER_CTX_init(&ctx);
+	EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
+	EVP_CIPHER_CTX_init(ctx);
 	EVP_PKEY *pkey;
 	unsigned char iv[EVP_MAX_IV_LENGTH];
 	unsigned char *encrypted_key;
@@ -503,14 +503,14 @@ unsigned char *RSA_ENCRYPT_CHAR(std::string sPubKeyPath, unsigned char *plaintex
 	}
 	encrypted_key = (unsigned char*)malloc(EVP_PKEY_size(pkey));
 	encrypted_key_length = EVP_PKEY_size(pkey);
-	if (!EVP_SealInit(&ctx, EVP_des_ede_cbc(), &encrypted_key, &encrypted_key_length, iv, &pkey, 1))
+	if (!EVP_SealInit(ctx, EVP_des_ede_cbc(), &encrypted_key, &encrypted_key_length, iv, &pkey, 1))
 	{
 		fprintf(stdout, "EVP_SealInit: failed.\n");
 	}
 	eklen_n = htonl(encrypted_key_length);
 	int size_header = sizeof(eklen_n) + encrypted_key_length + EVP_CIPHER_iv_length(EVP_des_ede_cbc());
 	/* compute max ciphertext len, see man EVP_CIPHER */
-	int max_cipher_len = plaintext_length + EVP_CIPHER_CTX_block_size(&ctx) - 1;
+	int max_cipher_len = plaintext_length + EVP_CIPHER_CTX_block_size(ctx) - 1;
 	ciphertext = (unsigned char*)malloc(size_header + max_cipher_len);
 	/* Write out the encrypted key length, then the encrypted key, then the iv (the IV length is fixed by the cipher we have chosen). */
 	int pos = 0;
@@ -524,7 +524,7 @@ unsigned char *RSA_ENCRYPT_CHAR(std::string sPubKeyPath, unsigned char *plaintex
 	 * Also we have our updated position, we can skip the header via ciphertext + pos */
 	int total_len = 0;
 	int bytes_processed = 0;
-	if (!EVP_SealUpdate(&ctx, ciphertext + pos, &bytes_processed, plaintext, plaintext_length))
+	if (!EVP_SealUpdate(ctx, ciphertext + pos, &bytes_processed, plaintext, plaintext_length))
 	{
 		fprintf(stdout, "EVP_SealUpdate: failed.\n");
 	}
@@ -532,7 +532,7 @@ unsigned char *RSA_ENCRYPT_CHAR(std::string sPubKeyPath, unsigned char *plaintex
 	LogPrintf(" precipherlen %f ", bytes_processed);
 	total_len += bytes_processed;
 	pos += bytes_processed;
-	if (!EVP_SealFinal(&ctx, ciphertext + pos, &bytes_processed))
+	if (!EVP_SealFinal(ctx, ciphertext + pos, &bytes_processed))
 	{
 		fprintf(stdout, "RSA_Encrypt::EVP_SealFinal: failed.\n");
 	}
@@ -540,7 +540,7 @@ unsigned char *RSA_ENCRYPT_CHAR(std::string sPubKeyPath, unsigned char *plaintex
 	cipher_len = total_len;
 	EVP_PKEY_free(pkey);
 	free(encrypted_key);
-	EVP_CIPHER_CTX_cleanup(&ctx);
+	EVP_CIPHER_CTX_free(ctx);
 	return ciphertext;
 }
 
@@ -564,8 +564,8 @@ void RSA_Encrypt_File(std::string sPubKeyPath, std::string sSourcePath, std::str
 
 unsigned char *RSA_DECRYPT_CHAR(std::string sPriKeyPath, unsigned char *ciphertext, int ciphrtext_size, int& plaintxt_len, std::string& sError)
 {
-	EVP_CIPHER_CTX ctx;
-	EVP_CIPHER_CTX_init(&ctx);
+	EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
+	EVP_CIPHER_CTX_init(ctx);
 	EVP_PKEY *pkey;
 	unsigned char *encrypted_key;
 	unsigned int encrypted_key_length;
@@ -592,20 +592,20 @@ unsigned char *RSA_DECRYPT_CHAR(std::string sPriKeyPath, unsigned char *cipherte
 	pos += EVP_CIPHER_iv_length(EVP_des_ede_cbc());
 	int total_len = 0;
 	// Now we have our encrypted_key and the iv we can decrypt the reamining
-	if (!EVP_OpenInit(&ctx, EVP_des_ede_cbc(), encrypted_key, encrypted_key_length, iv, pkey))
+	if (!EVP_OpenInit(ctx, EVP_des_ede_cbc(), encrypted_key, encrypted_key_length, iv, pkey))
 	{
 		fprintf(stderr, "RSADecrypt::EVP_OpenInit: failed.\n");
 		sError = "EVP_OpenInit Failed.";
 		return plaintext;
 	}
-	if (!EVP_OpenUpdate(&ctx, plaintext, &bytes_processed, ciphertext + pos, ciphrtext_size))
+	if (!EVP_OpenUpdate(ctx, plaintext, &bytes_processed, ciphertext + pos, ciphrtext_size))
 	{
 		fprintf(stderr, "RSA::Decrypt::EVP_OpenUpdate: failed.\n");
 		sError = "EVP_OpenUpdate failed.";
 		return plaintext;
 	}
 	total_len += bytes_processed;
-	if (!EVP_OpenFinal(&ctx, plaintext + total_len, &bytes_processed))
+	if (!EVP_OpenFinal(ctx, plaintext + total_len, &bytes_processed))
 	{
 		fprintf(stderr, "RSA::Decrypt::EVP_OpenFinal warning: failed.\n");
 	}
@@ -614,7 +614,7 @@ unsigned char *RSA_DECRYPT_CHAR(std::string sPriKeyPath, unsigned char *cipherte
 	EVP_PKEY_free(pkey);
 	free(encrypted_key);
 
-	EVP_CIPHER_CTX_cleanup(&ctx);
+	EVP_CIPHER_CTX_free(ctx);
 	plaintxt_len = total_len;
 	return plaintext;
 }

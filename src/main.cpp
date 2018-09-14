@@ -7659,14 +7659,18 @@ void MemorizeBlockChainPrayers(bool fDuringConnectBlock, bool fSubThread, bool f
 						sPrayer += block.vtx[n].vout[i].sTxOutMessage;
 						double dAmount = block.vtx[n].vout[i].nValue / COIN;
 						dTotalSent += dAmount;
-						// Track Cancer Payment totals by address (so we can implement the additional CheckBlock rule: Researcher has magnitude in last 30 days) - R ANDREWS - 6-27-2018
-						// Coinbase Only, vout > 0, and in a superblock, and Mature:
-						if (n==0 && i > 0 && block.vtx[n].vout.size() > 4)
+
+						// As of F14000, we no longer need to tally cancer payments by public key, remove this to respect anonymity
+						if (!(fDistributedComputingEnabled && ((pindex->nHeight > F14000_CUTOVER_HEIGHT_PROD && fProd)  ||  (pindex->nHeight > F14000_CUTOVER_HEIGHT_TESTNET && !fProd))))
 						{
-							std::string sRecipient = PubKeyToAddress(block.vtx[n].vout[i].scriptPubKey);
-							double dTally = cdbl(ReadCacheWithMaxAge("AddressPayment", sRecipient, nMaxPaymentAge), 0) + dAmount;
-							WriteCache("AddressPayment", sRecipient, RoundToString(dTally, 0), block.GetBlockTime());
+							if (n==0 && i > 0 && block.vtx[n].vout.size() > 4)
+							{
+								std::string sRecipient = PubKeyToAddress(block.vtx[n].vout[i].scriptPubKey);
+								double dTally = cdbl(ReadCacheWithMaxAge("AddressPayment", sRecipient, nMaxPaymentAge), 0) + dAmount;
+								WriteCache("AddressPayment", sRecipient, RoundToString(dTally, 0), block.GetBlockTime());
+							}
 						}
+						// The following 3 lines are used for PODS (Proof of document storage); allowing persistence of paid documents in IPFS
 						std::string sPK = PubKeyToAddress(block.vtx[n].vout[i].scriptPubKey);
 						if (sPK == consensusParams.FoundationAddress || sPK == consensusParams.FoundationPODSAddress)
 						{
@@ -7768,127 +7772,169 @@ bool IsMature(int64_t nTime, int64_t nMaturityAge)
 	return bMature;
 }
 
-bool IsBusinessObject(std::string sType)
+
+struct TxMessage
 {
-	//ToDo:  Refactor the MemorizePrayer;  Require signature on every blockchain object by default.
-	if (sType=="CONTACT") return true;
+  std::string sMessageType;
+  std::string sMessageKey;
+  std::string sMessageValue;
+  std::string sSig;
+  std::string sNonce;
+  std::string sSporkSig;
+  std::string sIPFSHash;
+  std::string sBOSig;
+  std::string sBOSigner;
+  std::string sTimestamp;
+  std::string sIPFSSize;
+  std::string sCPIDSig;
+  std::string sCPID;
+  std::string sPODCTasks;
+  std::string sTxId;
+  double      nNonce;
+  bool        fNonceValid;
+  bool        fPrayersMustBeSigned;
+  bool        fSporkSigValid;
+  bool        fBOSigValid;
+  bool        fPassedSecurityCheck;
+  int64_t     nAge;
+  int64_t     nTime;
+};
+
+void MemorizeUTXOWeight(TxMessage t, double dAmount)
+{
+	if (t.sPODCTasks.empty()) return;
+	double nMaximumChatterAge = GetSporkDouble("podcmaximumchatterage", (60 * 60 * 24));
+	if (t.nAge < nMaximumChatterAge)
+	{
+		std::string sError = "";
+		bool fSigValid = VerifyCPIDSignature(t.sCPIDSig, true, sError);
+		if (fSigValid)
+		{
+			WriteCache("UTXOWeight", t.sCPID, RoundToString(dAmount, 0), t.nTime);
+			WriteCache("CPIDTasks", t.sCPID, t.sPODCTasks, t.nTime);
+			if (IsMature(t.nTime, 14400))
+			{
+				WriteCache("MatureUTXOWeight", t.sCPID, RoundToString(dAmount, 0), t.nTime);
+				WriteCache("MatureCPIDTasks", t.sCPID, t.sPODCTasks, t.nTime);
+			}
+		}
+	}
+
+}
+
+bool CheckSporkSig(TxMessage t)
+{
+	std::string sError = "";
+	const CChainParams& chainparams = Params();
+	bool fSigValid = CheckStakeSignature(chainparams.GetConsensus().FoundationAddress, t.sSporkSig, t.sMessageValue + t.sNonce, sError);
+    bool bValid = (fSigValid && t.fNonceValid);
+	if (!bValid)
+	{
+		if (fDebugMaster) LogPrintf(" CheckSporkSig:SigFailed - Type %s, Nonce %f, Time %f, Bad spork Sig %s on message %s on TXID %s \n", t.sMessageType.c_str(), t.nNonce, t.nTime, 
+			               t.sSporkSig.c_str(), t.sMessageValue.c_str(), t.sTxId.c_str());
+	}
+	return bValid;
+}
+
+bool CheckBusinessObjectSig(TxMessage t)
+{
+	if (!t.sBOSig.empty() && !t.sBOSigner.empty())
+	{	
+		std::string sError = "";
+		bool fBOSigValid = CheckStakeSignature(t.sBOSigner, t.sBOSig, t.sMessageValue + t.sNonce, sError);
+   		if (!fBOSigValid)
+		{
+			if (fDebugMaster) LogPrintf(" MemorizePrayers::BO_SignatureFailed - Type %s, Nonce %f, Time %f, Bad BO Sig %s on message %s on TXID %s \n", 
+				t.sMessageType.c_str(),	t.nNonce, t.nTime, t.sBOSig.c_str(), t.sMessageValue.c_str(), t.sTxId.c_str());
+	   	}
+		return fBOSigValid;
+	}
 	return false;
 }
+
+TxMessage GetTxMessage(std::string sMessage, int64_t nTime, int iPosition, std::string sTxId)
+{
+	TxMessage t;
+	t.sMessageType = ExtractXML(sMessage,"<MT>","</MT>");
+	t.sMessageKey  = ExtractXML(sMessage,"<MK>","</MK>");
+	t.sMessageValue= ExtractXML(sMessage,"<MV>","</MV>");
+	t.sSig         = ExtractXML(sMessage,"<MS>","</MS>");
+	t.sNonce       = ExtractXML(sMessage,"<NONCE>","</NONCE>");
+	t.nNonce       = cdbl(t.sNonce, 0);
+	t.sSporkSig    = ExtractXML(sMessage,"<SPORKSIG>","</SPORKSIG>");
+	t.sIPFSHash    = ExtractXML(sMessage,"<IPFSHASH>", "</IPFSHASH>");
+	t.sBOSig       = ExtractXML(sMessage,"<BOSIG>", "</BOSIG>");
+	t.sBOSigner    = ExtractXML(sMessage,"<BOSIGNER>", "</BOSIGNER>");
+	t.sIPFSHash    = ExtractXML(sMessage,"<ipfshash>", "</ipfshash>");
+	t.sIPFSSize    = ExtractXML(sMessage,"<ipfssize>", "</ipfssize>");
+	t.sCPIDSig     = ExtractXML(sMessage,"<cpidsig>","</cpidsig>");
+	t.sCPID        = GetElement(t.sCPIDSig, ";", 0);
+	t.sPODCTasks   = ExtractXML(sMessage, "<PODC_TASKS>", "</PODC_TASKS>");
+	t.sTxId        = sTxId;
+	t.nTime        = nTime;
+    boost::to_upper(t.sMessageType);
+	boost::to_upper(t.sMessageKey);
+	t.sTimestamp = TimestampToHRDate((double)nTime + iPosition);
+	t.fNonceValid = (!(t.nNonce > (nTime+(60 * 60)) || t.nNonce < (nTime-(60 * 60))));
+	t.nAge = GetAdjustedTime() - nTime;
+	t.fPrayersMustBeSigned = (GetSporkDouble("prayersmustbesigned", 0) == 1);
+
+	if (t.sMessageType == "PRAYER" && (!(Contains(t.sMessageKey, "(") ))) t.sMessageKey += " (" + t.sTimestamp + ")";
+	if (t.sMessageType == "SPORK" || (t.sMessageType == "PRAYER" && t.fPrayersMustBeSigned))
+	{
+		t.fSporkSigValid = CheckSporkSig(t);
+		if (!t.fSporkSigValid) t.sMessageValue  = "";
+		t.fPassedSecurityCheck = t.fSporkSigValid;
+	}
+	else if (t.sMessageType == "PRAYER" && !t.fPrayersMustBeSigned)
+	{
+		// We allow unsigned prayers, as long as abusers don't deface the system (if they do, we set the spork requiring signed prayers and we manually remove the offensive prayers using a signed update)
+		t.fPassedSecurityCheck = true; 
+	}
+	else if (t.sMessageType == "ATTACHMENT" || t.sMessageType=="CPIDTASKS")
+	{
+		t.fPassedSecurityCheck = true;
+	}
+	else if (t.sMessageType == "REPENT")
+	{
+		t.fPassedSecurityCheck = true;
+	}
+	else if (t.sMessageType == "MESSAGE")
+	{
+		// these are sent by our users to each other
+		t.fPassedSecurityCheck = true;
+	}
+	else if (t.sMessageType == "DCC")
+	{
+		if (IsMature(nTime, 14400) && !t.sMessageValue.empty()) WriteCache("MatureDCC", t.sMessageKey, t.sMessageValue, nTime);
+		// These are checked in the memory pool (since we have some unbanked CPIDs who didn't sign the CPID from the wallet)
+		t.fPassedSecurityCheck = true;
+	}
+	else
+	{
+		// We assume this is a business object
+		t.fBOSigValid = CheckBusinessObjectSig(t);
+		if (!t.fBOSigValid) t.sMessageValue = "";
+		t.fPassedSecurityCheck = t.fBOSigValid;
+	}
+	return t;
+}
+
 
 void MemorizePrayer(std::string sMessage, int64_t nTime, double dAmount, int iPosition, std::string sTxID, int nHeight, double dFoundationDonation)
 {
 	if (sMessage.empty()) return;
-	int64_t nAge = GetAdjustedTime() - nTime;
-	std::string sIPFSHash = ExtractXML(sMessage, "<ipfshash>", "</ipfshash>");
-	if (!sIPFSHash.empty())
+	TxMessage t = GetTxMessage(sMessage, nTime, iPosition, sTxID);
+	if (!t.sIPFSHash.empty())
 	{
-		WriteCache("IPFS", sIPFSHash, RoundToString(nHeight, 0), nTime, false);
-		WriteCache("IPFSFEE" + RoundToString(nTime, 0), sIPFSHash, RoundToString(dFoundationDonation, 0), nTime);
-		std::string sIPFSSize = ExtractXML(sMessage, "<ipfssize>", "</ipfssize>");
-		WriteCache("IPFSSIZE" + RoundToString(nTime, 0), sIPFSHash, sIPFSSize, nTime);
+		WriteCache("IPFS", t.sIPFSHash, RoundToString(nHeight, 0), nTime, false);
+		WriteCache("IPFSFEE" + RoundToString(nTime, 0), t.sIPFSHash, RoundToString(dFoundationDonation, 0), nTime);
+		WriteCache("IPFSSIZE" + RoundToString(nTime, 0), t.sIPFSHash, t.sIPFSSize, nTime);
 	}
-	std::string sPODC = ExtractXML(sMessage, "<PODC_TASKS>", "</PODC_TASKS>");
-	if (!sPODC.empty())
+	MemorizeUTXOWeight(t, dAmount);
+	if (t.fPassedSecurityCheck && !t.sMessageType.empty() && !t.sMessageKey.empty() && !t.sMessageValue.empty())
 	{
-		double nMaximumChatterAge = GetSporkDouble("podcmaximumchatterage", (60 * 60 * 24));
-		if (nAge < nMaximumChatterAge)
-		{
-			std::string sErr2 = "";
-			std::string sMySig = ExtractXML(sMessage,"<cpidsig>","</cpidsig>");
-			bool fSigChecked = VerifyCPIDSignature(sMySig, true, sErr2);
-			if (fSigChecked)
-			{
-				std::string sCPID = GetElement(sMySig, ";", 0);
-				WriteCache("UTXOWeight", sCPID, RoundToString(dAmount, 0), nTime);
-				WriteCache("CPIDTasks", sCPID, sPODC, nTime);
-				if (IsMature(nTime, 14400))
-				{
-					WriteCache("MatureUTXOWeight", sCPID, RoundToString(dAmount, 0), nTime);
-					WriteCache("MatureCPIDTasks", sCPID, sPODC, nTime);
-				}
-			}
-			else
-			{
-				if (fDebugMaster && false) LogPrintf("\n Time %f SigFailure %s SigLen %f ", (double)nTime, sMySig.c_str(), (double)sMySig.length());
-			}
-		}
-		return;
-	}
-    if (Contains(sMessage,"<MT>"))
-	{
-		  std::string sMessageType      = ExtractXML(sMessage,"<MT>","</MT>");
-  		  std::string sMessageKey       = ExtractXML(sMessage,"<MK>","</MK>");
-		  std::string sMessageValue     = ExtractXML(sMessage,"<MV>","</MV>");
-		  std::string sSig              = ExtractXML(sMessage,"<MS>","</MS>");
-		  std::string sNonce            = ExtractXML(sMessage,"<NONCE>","</NONCE>");
-		  std::string sSporkSig         = ExtractXML(sMessage,"<SPORKSIG>","</SPORKSIG>");
-		  std::string sIPFSHash         = ExtractXML(sMessage,"<IPFSHASH>", "</IPFSHASH>");
-		  std::string sBOSig            = ExtractXML(sMessage,"<BOSIG>", "</BOSIG>");
-		  std::string sBOSigner         = ExtractXML(sMessage,"<BOSIGNER>", "</BOSIGNER>");
-		  double dNonce = cdbl(sNonce, 0);
-			 
-		  boost::to_upper(sMessageType);
-		  boost::to_upper(sMessageKey);
-		  bool bRequiresSignature = (sMessageType=="SPORK" || sMessageType=="PRAYER") ? true : false;
-		  
-		  if (sMessageType == "NEWS") sMessageValue = sTxID;
-		  if (!sSporkSig.empty() && bRequiresSignature)
-		  {
-			  bool bSigInvalid = false;
-			  if (dNonce > (nTime+(60 * 60)) || dNonce < (nTime-(60 * 60))) bSigInvalid = true;
-			  std::string sError = "";
-			  const CChainParams& chainparams = Params();
-			  bool fSigValid = CheckStakeSignature(chainparams.GetConsensus().FoundationAddress, sSporkSig, sMessageValue + sNonce, sError);
-    		  bool bValid = (fSigValid && !bSigInvalid);
-			  if (!bValid)
-			  {
-					if (fDebugMaster) LogPrintf(" MemorizePrayers::CPIDSignatureFailed - Type %s, Nonce %f, Time %f, Bad spork Sig %s on message %s on TXID %s \n", sMessageType.c_str(),
-						(double)dNonce, (double)nTime, sSporkSig.c_str(), sMessageValue.c_str(), sTxID.c_str());
-					sMessageValue = "";
-			  }
-			  if (!bValid && bRequiresSignature) sMessageValue = "";
-		}
-		else
-		{
-			  if (bRequiresSignature) sMessageValue = "";
-		}
-		
-   	    bool bRequiresBOSignature = IsBusinessObject(sMessageType);
-		if (!sBOSig.empty() && !sBOSigner.empty() && bRequiresBOSignature)
-		{	
-			  std::string sError = "";
-			  bool fBOSigValid = CheckStakeSignature(sBOSigner, sBOSig, sMessageValue + sNonce, sError);
-    		  if (!fBOSigValid)
-			  {
-					if (fDebugMaster) LogPrintf(" MemorizePrayers::BO_SignatureFailed - Type %s, Nonce %f, Time %f, Bad BO Sig %s on message %s on TXID %s \n", sMessageType.c_str(),
-						(double)dNonce, (double)nTime, sBOSig.c_str(), sMessageValue.c_str(), sTxID.c_str());
-					sMessageValue = "";
-			  }
-		}
-		else
-		{
-			if (bRequiresBOSignature) sMessageValue="";
-		}
-
-		if (!sMessageType.empty() && !sMessageKey.empty() && !sMessageValue.empty())
-		{
-			std::string sTimestamp = TimestampToHRDate((double)nTime + iPosition);
-			// Were using the Block time here because tx time returns seconds past epoch, and adjusting the time by the vout position (so the user can see what time the prayer was accepted in the block).
-			std::string sAdjMessageKey = sMessageKey;
-			bool bDCC = (sMessageType == "DCC" || sMessageType == "SPORK" || sMessageType == "CONTACT");
-			if (!bDCC)
-			{
-				if (!(Contains(sMessageKey, "(") && Contains(sMessageKey,")")))
-				{
-			       sAdjMessageKey = sMessageKey + " (" + sTimestamp + ")";
-				}
-			}
-			WriteCache(sMessageType, sAdjMessageKey, sMessageValue, nTime);
-			if (sMessageType == "DCC")
-			{
-				if (IsMature(nTime, 14400)) WriteCache("MatureDCC", sAdjMessageKey, sMessageValue, nTime);
-			}
-		}
+		WriteCache(t.sMessageType, t.sMessageKey, t.sMessageValue, nTime);
 	}
 }
 
@@ -8340,7 +8386,7 @@ std::string DefaultRecAddress(std::string sType)
 		}
     }
 
-	// IPFS-PODS (9-9-2018) R ANDREWS - Add ability to link PODS Record Types to Addresses
+	// IPFS-PODS (9-9-2018) R ANDREWS - One biblepay public key is associated with each type of signed business object
 	if (!sType.empty())
 	{
 		std::string sError = "";
