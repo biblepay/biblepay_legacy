@@ -260,16 +260,16 @@
          <item>
           <widget class="QSpinBox" name="privateSendAmount">
            <property name="minimum">
-            <number>2</number>
-           </property>
-           <property name="maximum">
             <number>2000</number>
            </property>
+           <property name="maximum">
+            <number>2000000</number>
+           </property>
            <property name="singleStep">
-            <number>10</number>
+            <number>10000</number>
            </property>
            <property name="value">
-            <number>1000</number>
+            <number>1000000</number>
            </property>
           </widget>
          </item>
