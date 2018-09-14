@@ -3,21 +3,34 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "crypter.h"
-
 #include "script/script.h"
 #include "script/standard.h"
 #include "util.h"
 #include <openssl/md5.h>
-
 #include <string>
 #include <vector>
 #include <boost/foreach.hpp>
 #include <openssl/aes.h>
 #include <openssl/evp.h>
 
+#include <arpa/inet.h> /* For htonl() */
+#include <iostream>
+#include <fstream>
+
+#include <openssl/pem.h> // For RSA Key Export
+
 unsigned char chKeyBiblePay[256];
 unsigned char chIVBiblePay[256];
 bool fKeySetBiblePay;
+// RSA
+const unsigned int RSA_KEYLEN = 2048;
+const unsigned int KEY_SERVER_PRI = 0;
+const unsigned int KEY_SERVER_PUB = 1;
+const unsigned int KEY_CLIENT_PUB = 2;
+const unsigned int KEY_AES        = 3;
+const unsigned int KEY_AES_IV     = 4;
+const unsigned int KEY_CLIENT_PRI = 5;
+// END RSA
 
 
 bool CCrypter::SetKeyFromPassphrase(const SecureString& strKeyData, const std::vector<unsigned char>& chSalt, const unsigned int nRounds, const unsigned int nDerivationMethod)
@@ -129,7 +142,6 @@ bool LoadBibleKey(std::string biblekey, std::string salt)
     return true;
 }
 
-
 std::vector<unsigned char> StringToVector(std::string sData)
 {
         std::vector<unsigned char> v(sData.begin(), sData.end());
@@ -193,7 +205,6 @@ bool BibleEncrypt(std::vector<unsigned char> vchPlaintext, std::vector<unsigned 
     int nLen = vchPlaintext.size();
     int nCLen = nLen + AES_BLOCK_SIZE, nFLen = 0;
     vchCiphertext = std::vector<unsigned char> (nCLen);
-	//EVP_CIPHER_CTX ctx;
     EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
     bool fOk = true;
     EVP_CIPHER_CTX_init(ctx);
@@ -223,7 +234,6 @@ bool BibleDecrypt(const std::vector<unsigned char>& vchCiphertext,std::vector<un
     vchPlaintext.resize(nPLen + nFLen);
     return true;
 }
-
 
 
 static bool EncryptSecret(const CKeyingMaterial& vMasterKey, const CKeyingMaterial &vchPlaintext, const uint256& nIV, std::vector<unsigned char> &vchCiphertext)
@@ -334,6 +344,342 @@ static bool DecryptKey(const CKeyingMaterial& vMasterKey, const std::vector<unsi
     key.Set(vchSecret.begin(), vchSecret.end(), vchPubKey.IsCompressed());
     return key.VerifyPubKey(vchPubKey);
 }
+
+/* R ANDREWS - BIBLEPAY - 9/13/2018 - ADD SUPPORT FOR RSA */
+
+
+int RSA_WRITE_KEY_TO_FILE(FILE *file, int key, EVP_PKEY *rKey)
+{
+	switch(key) 
+	{
+		case KEY_SERVER_PRI:
+			 if(!PEM_write_PrivateKey(file, rKey, NULL, NULL, 0, 0, NULL))         return -1;
+			 break;
+		case KEY_CLIENT_PRI:
+			 if(!PEM_write_PrivateKey(file, rKey, NULL, NULL, 0, 0, NULL))         return -1;
+			 break;
+		case KEY_SERVER_PUB:
+			 if(!PEM_write_PUBKEY(file, rKey))                                     return -1;
+			 break;
+		case KEY_CLIENT_PUB:
+			 if(!PEM_write_PUBKEY(file, rKey))                                     return -1;
+			 break;
+		default:
+			return -1;
+	}
+	return 1;
+}
+
+
+std::vector<char> ReadAllBytes(char const* filename)
+{
+    std::ifstream ifs(filename, std::ios::binary|std::ios::ate);
+    std::ifstream::pos_type pos = ifs.tellg();
+    std::vector<char>  result(pos);
+    ifs.seekg(0, std::ios::beg);
+    ifs.read(&result[0], pos);
+    return result;
+}
+
+int RSA_GENERATE_KEYPAIR(std::string sPublicKeyPath, std::string sPrivateKeyPath)
+{
+	if (sPublicKeyPath.empty() || sPrivateKeyPath.empty()) return -1;
+    EVP_PKEY *remotePublicKey = NULL;
+	EVP_PKEY_CTX *context = EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, NULL);
+	if(EVP_PKEY_keygen_init(context) <= 0) return -1;
+	if(EVP_PKEY_CTX_set_rsa_keygen_bits(context, RSA_KEYLEN) <= 0) return -1;
+	if(EVP_PKEY_keygen(context, &remotePublicKey) <= 0) return -1;
+	EVP_PKEY_CTX_free(context);
+    FILE *outFile = fopen(sPublicKeyPath.c_str(), "w");
+	RSA_WRITE_KEY_TO_FILE(outFile, KEY_CLIENT_PUB, remotePublicKey);
+	fclose(outFile);
+	FILE *outFile2 = fopen(sPrivateKeyPath.c_str(), "w");
+	RSA_WRITE_KEY_TO_FILE(outFile2, KEY_CLIENT_PRI, remotePublicKey);
+	fclose(outFile2);
+	return 1;
+}
+
+EVP_PKEY *RSA_LOAD_PUBKEY(const char *file)
+{
+	RSA *rsa_pkey = NULL;
+	BIO *rsa_pkey_file = NULL;
+	EVP_PKEY *pkey = EVP_PKEY_new();
+	// Create a new BIO file structure to be used with PEM file
+	rsa_pkey_file = BIO_new(BIO_s_file());
+	if (rsa_pkey_file == NULL)
+	{
+		fprintf(stderr, "RSA_LOAD_PUBKEY::Error creating a new BIO file.\n");
+		goto end;
+	}
+	
+	// Read PEM file using BIO's file structure
+	if (BIO_read_filename(rsa_pkey_file, file) <= 0)
+	{
+		fprintf(stderr, "RSA_LOAD_PUBKEY::Error opening %s\n",file);
+		goto end;
+	}
+
+	// Read RSA based PEM file into rsa_pkey structure
+	if (!PEM_read_bio_RSA_PUBKEY(rsa_pkey_file, &rsa_pkey, NULL, NULL))
+	{
+		fprintf(stderr, "Error loading RSA Public Key File.\n");
+		goto end;
+	}
+
+	// Populate pkey with the rsa key. rsa_pkey is owned by pkey, therefore if we free pkey, rsa_pkey will be freed  too
+    if (!EVP_PKEY_assign_RSA(pkey, rsa_pkey))
+    {
+        fprintf(stderr, "Error assigning EVP_PKEY_assign_RSA: failed.\n");
+        goto end;
+    }
+
+end:
+	if (rsa_pkey_file != NULL)
+		BIO_free(rsa_pkey_file);
+	if (pkey == NULL)
+	{
+		fprintf(stderr, "RSA_LOAD_PUBKEY::Error unable to load %s\n", file);
+	}
+	return(pkey);
+}
+
+EVP_PKEY *RSA_LOAD_PRIVKEY(const char *file)
+{
+	RSA *rsa_pkey = NULL;
+	BIO *rsa_pkey_file = NULL;
+	EVP_PKEY *pkey = EVP_PKEY_new();
+	// Create a new BIO file structure to be used with PEM file
+	rsa_pkey_file = BIO_new(BIO_s_file());
+	if (rsa_pkey_file == NULL)
+	{
+		fprintf(stderr, "Error creating a new BIO file.\n");
+		goto end;
+	}
+	// Read PEM file using BIO's file structure
+	if (BIO_read_filename(rsa_pkey_file, file) <= 0)
+	{
+		fprintf(stderr, "Error opening %s\n",file);
+		goto end;
+	}
+	// Read RSA based PEM file into rsa_pkey structure
+	if (!PEM_read_bio_RSAPrivateKey(rsa_pkey_file, &rsa_pkey, NULL, NULL))
+	{
+		fprintf(stderr, "Error loading RSA Private Key File.\n");
+		goto end;
+	}
+	// Populate pkey with the rsa key. rsa_pkey is owned by pkey,
+	// therefore if we free pkey, rsa_pkey will be freed  too
+    if (!EVP_PKEY_assign_RSA(pkey, rsa_pkey))
+    {
+        fprintf(stderr, "Error assigning EVP_PKEY_assign_RSA: failed.\n");
+        goto end;
+    }
+
+end:
+	if (rsa_pkey_file != NULL)
+		BIO_free(rsa_pkey_file);
+	if (pkey == NULL)
+	{
+		fprintf(stderr, "RSA_Load_Private_Key::Error unable to load %s\n", file);
+	}
+	return(pkey);
+}
+
+unsigned char *RSA_ENCRYPT_CHAR(std::string sPubKeyPath, unsigned char *plaintext, int plaintext_length, int& cipher_len, std::string& sError)
+{
+	EVP_CIPHER_CTX ctx;
+	EVP_CIPHER_CTX_init(&ctx);
+	EVP_PKEY *pkey;
+	unsigned char iv[EVP_MAX_IV_LENGTH];
+	unsigned char *encrypted_key;
+	int encrypted_key_length;
+	uint32_t eklen_n;
+	unsigned char *ciphertext;
+	// Load RSA Public Key File (usually this is a PEM ASCII file with boundaries or armor)
+	pkey = RSA_LOAD_PUBKEY(sPubKeyPath.c_str());
+	if (pkey == NULL)
+	{
+	    ciphertext = (unsigned char*)malloc(1);
+		sError = "Error loading public key.";
+		return ciphertext;
+	}
+	encrypted_key = (unsigned char*)malloc(EVP_PKEY_size(pkey));
+	encrypted_key_length = EVP_PKEY_size(pkey);
+	if (!EVP_SealInit(&ctx, EVP_des_ede_cbc(), &encrypted_key, &encrypted_key_length, iv, &pkey, 1))
+	{
+		fprintf(stdout, "EVP_SealInit: failed.\n");
+	}
+	eklen_n = htonl(encrypted_key_length);
+	int size_header = sizeof(eklen_n) + encrypted_key_length + EVP_CIPHER_iv_length(EVP_des_ede_cbc());
+	/* compute max ciphertext len, see man EVP_CIPHER */
+	int max_cipher_len = plaintext_length + EVP_CIPHER_CTX_block_size(&ctx) - 1;
+	ciphertext = (unsigned char*)malloc(size_header + max_cipher_len);
+	/* Write out the encrypted key length, then the encrypted key, then the iv (the IV length is fixed by the cipher we have chosen). */
+	int pos = 0;
+	memcpy(ciphertext + pos, &eklen_n, sizeof(eklen_n));
+	pos += sizeof(eklen_n);
+	memcpy(ciphertext + pos, encrypted_key, encrypted_key_length);
+	pos += encrypted_key_length;
+	memcpy(ciphertext + pos, iv, EVP_CIPHER_iv_length(EVP_des_ede_cbc()));
+	pos += EVP_CIPHER_iv_length(EVP_des_ede_cbc());
+	/* Process the plaintext data and write the encrypted data to the ciphertext. cipher_len is filled with the length of ciphertext generated, len is the size of plaintext in bytes
+	 * Also we have our updated position, we can skip the header via ciphertext + pos */
+	int total_len = 0;
+	int bytes_processed = 0;
+	if (!EVP_SealUpdate(&ctx, ciphertext + pos, &bytes_processed, plaintext, plaintext_length))
+	{
+		fprintf(stdout, "EVP_SealUpdate: failed.\n");
+	}
+
+	LogPrintf(" precipherlen %f ", bytes_processed);
+	total_len += bytes_processed;
+	pos += bytes_processed;
+	if (!EVP_SealFinal(&ctx, ciphertext + pos, &bytes_processed))
+	{
+		fprintf(stdout, "RSA_Encrypt::EVP_SealFinal: failed.\n");
+	}
+	total_len += bytes_processed;
+	cipher_len = total_len;
+	EVP_PKEY_free(pkey);
+	free(encrypted_key);
+	EVP_CIPHER_CTX_cleanup(&ctx);
+	return ciphertext;
+}
+
+void RSA_Encrypt_File(std::string sPubKeyPath, std::string sSourcePath, std::string sEncryptPath, std::string& sError)
+{
+	std::vector<char> vMessage = ReadAllBytes(sSourcePath.c_str());
+	std::vector<unsigned char> uData(vMessage.begin(), vMessage.end());
+	unsigned char *ciphertext;
+	int cipher_len = 0;
+	unsigned char *long_ciphertext = (unsigned char *)malloc(uData.size() + 10000);
+	memcpy(long_ciphertext, &uData[0], uData.size());
+	size_t messageLength = uData.size() + 10000;
+	ciphertext = RSA_ENCRYPT_CHAR(sPubKeyPath, long_ciphertext, messageLength, cipher_len, sError);
+	if (sError.empty())
+	{
+		std::ofstream fd(sEncryptPath.c_str());
+		fd.write((const char*)ciphertext, cipher_len);
+		fd.close();
+	}
+}
+
+unsigned char *RSA_DECRYPT_CHAR(std::string sPriKeyPath, unsigned char *ciphertext, int ciphrtext_size, int& plaintxt_len, std::string& sError)
+{
+	EVP_CIPHER_CTX ctx;
+	EVP_CIPHER_CTX_init(&ctx);
+	EVP_PKEY *pkey;
+	unsigned char *encrypted_key;
+	unsigned int encrypted_key_length;
+	uint32_t eklen_n;
+	unsigned char iv[EVP_MAX_IV_LENGTH];
+	int bytes_processed = 0;
+	// the length of udata is at most ciphertextlen + ciphers block size.
+	int ciphertext_len = ciphrtext_size + EVP_CIPHER_block_size(EVP_des_ede_cbc());
+	unsigned char *plaintext = (unsigned char *)malloc(ciphertext_len);
+	pkey = RSA_LOAD_PRIVKEY(sPriKeyPath.c_str());
+	if (pkey==NULL)
+	{
+		sError = "No private key provided.";
+		return plaintext;
+	}
+	encrypted_key = (unsigned char*)malloc(EVP_PKEY_size(pkey));
+	int pos = 0;
+	memcpy(&eklen_n, ciphertext + pos, sizeof(eklen_n));
+	pos += sizeof(eklen_n);
+	encrypted_key_length = ntohl(eklen_n);
+	memcpy(encrypted_key, ciphertext + pos, encrypted_key_length);
+	pos += encrypted_key_length;
+	memcpy(iv, ciphertext + pos, EVP_CIPHER_iv_length(EVP_des_ede_cbc()));
+	pos += EVP_CIPHER_iv_length(EVP_des_ede_cbc());
+	int total_len = 0;
+	// Now we have our encrypted_key and the iv we can decrypt the reamining
+	if (!EVP_OpenInit(&ctx, EVP_des_ede_cbc(), encrypted_key, encrypted_key_length, iv, pkey))
+	{
+		fprintf(stderr, "RSADecrypt::EVP_OpenInit: failed.\n");
+		sError = "EVP_OpenInit Failed.";
+		return plaintext;
+	}
+	if (!EVP_OpenUpdate(&ctx, plaintext, &bytes_processed, ciphertext + pos, ciphrtext_size))
+	{
+		fprintf(stderr, "RSA::Decrypt::EVP_OpenUpdate: failed.\n");
+		sError = "EVP_OpenUpdate failed.";
+		return plaintext;
+	}
+	total_len += bytes_processed;
+	if (!EVP_OpenFinal(&ctx, plaintext + total_len, &bytes_processed))
+	{
+		fprintf(stderr, "RSA::Decrypt::EVP_OpenFinal warning: failed.\n");
+	}
+	total_len += bytes_processed;
+
+	EVP_PKEY_free(pkey);
+	free(encrypted_key);
+
+	EVP_CIPHER_CTX_cleanup(&ctx);
+	plaintxt_len = total_len;
+	return plaintext;
+}
+
+void RSA_Decrypt_File(std::string sPrivKeyPath, std::string sSourcePath, std::string sDecryptPath, std::string sError)
+{
+	std::vector<char> vMessage = ReadAllBytes(sSourcePath.c_str());
+	std::vector<unsigned char> uData(vMessage.begin(), vMessage.end());
+	size_t messageLength = uData.size();
+	int plaintextsize = 0;
+	unsigned char *decrypted;
+	decrypted = RSA_DECRYPT_CHAR(sPrivKeyPath, &uData[0], messageLength, plaintextsize, sError);
+	if (sError.empty())
+	{
+		if (plaintextsize < 10000)
+		{
+			sError = "RSA_Decrypt_File::Encrypted file is corrupted.";
+			return;
+		}
+		unsigned char *short_plaintext = (unsigned char *)malloc(plaintextsize - 10000);
+		memcpy(short_plaintext, decrypted, plaintextsize - 10000);
+		std::ofstream fd(sDecryptPath.c_str());
+		fd.write((const char*)short_plaintext, plaintextsize - 10000);
+		fd.close();
+	}
+}
+
+
+std::string RSA_Encrypt_String(std::string sPubKeyPath, std::string sData, std::string& sError)
+{
+	std::string sEncPath =  GetSANDirectory2() + "temp";
+	std::ofstream fd(sEncPath.c_str());
+	fd.write(sData.c_str(), sizeof(char)*sData.size());
+	fd.close();
+	std::string sTargPath = GetSANDirectory2() + "temp_enc";
+	RSA_Encrypt_File(sPubKeyPath, sEncPath, sTargPath, sError);
+	if (!sError.empty()) return "";
+	std::vector<char> vOut = ReadAllBytes(sTargPath.c_str());
+	std::string sResults(vOut.begin(), vOut.end());
+	return sResults;
+}
+
+std::string RSA_Decrypt_String(std::string sPrivKeyPath, std::string sData, std::string& sError)
+{
+	std::string sEncPath =  GetSANDirectory2() + "temp_dec";
+	std::ofstream fd(sEncPath.c_str());
+	fd.write(sData.c_str(), sizeof(char)*sData.size());
+
+	fd.close();
+	std::string sTargPath = GetSANDirectory2() + "temp_dec_unenc";
+	RSA_Decrypt_File(sPrivKeyPath, sEncPath, sTargPath, sError);
+	if (!sError.empty()) return "";
+	std::vector<char> vOut = ReadAllBytes(sTargPath.c_str());
+	std::string sResults(vOut.begin(), vOut.end());
+	return sResults;
+}
+
+
+/* END OF RSA SUPPORT - BIBLEPAY */
+
+
+
+
 
 bool CCryptoKeyStore::SetCrypted()
 {
@@ -496,611 +842,5 @@ bool CCryptoKeyStore::EncryptKeys(CKeyingMaterial& vMasterKeyIn)
 }
 
 
-
-
-
-/*
-void static TradingThread(int iThreadID)
-{
-	// September 17, 2017 - Robert Andrew (BiblePay)
-	LogPrintf("Trading Thread started \n");
-	//int64_t nLastTrade = GetAdjustedTime();
-	RenameThread("biblepay-trading");
-	bEngineActive=true;
-	int iCall=0;
-    try 
-	{
-        while (true) 
-		{
-			// Thread dies off after 5 minutes of inactivity
-			if ((GetAdjustedTime() - nLastTradingActivity) > (5*60)) break;
-			MilliSleep(1000);
-			iCall++;
-			if (iCall > 30)
-			{
-				iCall=0;
-				std::string sError = ProcessEscrow();
-				if (!sError.empty()) LogPrintf("TradingThread::Process Escrow %s \n",sError.c_str());
-			    CancelOrders(true);
-				sError = GetTrades();
-				if (!sError.empty()) LogPrintf("TradingThread::GetTrades %s \n",sError.c_str());
-			}
-
-		}
-		bEngineActive=false;
-    }
-    catch (const boost::thread_interrupted&)
-    {
-        LogPrintf("\nTrading Thread -- terminated\n");
-        bEngineActive=false;
-        throw;
-    }
-    catch (const std::runtime_error &e)
-    {
-        LogPrintf("\nTrading Thread -- runtime error: %s\n", e.what());
-        bEngineActive=false;
-		throw;
-    }
-}
-
-
-static boost::thread_group* tradingThreads = NULL;
-void StartTradingThread()
-{
-	if (bEngineActive) return;
-	
-	nLastTradingActivity = GetAdjustedTime();
-    if (tradingThreads != NULL)
-    {
-		LogPrintf(" exiting \n");
-        tradingThreads->interrupt_all();
-        delete tradingThreads;
-        tradingThreads = NULL;
-    }
-
-    tradingThreads = new boost::thread_group();
-	int iThreadID = 0;
-	tradingThreads->create_thread(boost::bind(&TradingThread, boost::cref(iThreadID)));
-	LogPrintf(" Starting Trading Thread \n" );
-}
-
-*/
-
-/*
-UniValue GetOrderBook(std::string sSymbol)
-{
-	StartTradingThread();
-	std::string sTrades = GetTrades();
-
-	// Generate the Order Book by sorting two maps: one for the sell side, one for the buy side:
-	vector<pair<int64_t, uint256> > vSellSide;
-	vSellSide.reserve(mapTradeTxes.size());
-	vector<pair<int64_t, uint256> > vBuySide;
-	vBuySide.reserve(mapTradeTxes.size());
-   
-    BOOST_FOREACH(const PAIRTYPE(uint256, CTradeTx)& item, mapTradeTxes)
-    {
-		CTradeTx trade = item.second;
-		uint256 hash = trade.GetHash();
-		int64_t	rank = trade.Price * 100;
-		if (trade.Action=="SELL" && trade.EscrowTXID.empty())
-		{
-			vSellSide.push_back(make_pair(rank, hash));
-		}
-		else if (trade.Action=="BUY" && trade.EscrowTXID.empty())
-		{
-			vBuySide.push_back(make_pair(rank, hash));
-		}
-    }
-    sort(vSellSide.begin(), vSellSide.end());
-	sort(vBuySide.begin(), vBuySide.end());
-	// Go forward through sell side and backward through buy side simultaneously to make a market:
-	int iMaxDisplayRows=30;
-	std::string Sell[iMaxDisplayRows];
-	std::string Buy[iMaxDisplayRows];
-	int iSellRows = 0;
-	int iBuyRows = 0;
-	int iTotalRows = 0;
-	double dTotalSell = 0;
-	double dTotalBuy = 0;
-    
-    BOOST_FOREACH(const PAIRTYPE(int64_t, uint256)& item, vSellSide)
-    {
-		CTradeTx trade = GetOrderByHash(item.second);
-		if (trade.Total > 0 && trade.EscrowTXID.empty())
-		{
-			dTotalSell += (trade.Quantity * trade.Price);
-			Sell[iSellRows] = GetOrderText(trade,dTotalSell);
-			iSellRows++;
-			if (iSellRows > iMaxDisplayRows) break;
-		}
-    }
-	BOOST_REVERSE_FOREACH(const PAIRTYPE(int64_t, uint256)& item, vBuySide)
-    {
-		CTradeTx trade = GetOrderByHash(item.second);
-		if (trade.Total > 0 && trade.EscrowTXID.empty())
-		{
-			dTotalBuy += (trade.Quantity * trade.Price);
-			Buy[iBuyRows] = GetOrderText(trade,dTotalBuy);
-			iBuyRows++;
-			if (iBuyRows >= iMaxDisplayRows) break;
-		}
-    }
-
-    UniValue ret(UniValue::VOBJ);
-	iTotalRows = (iSellRows >= iBuyRows) ? iSellRows : iBuyRows;
-	std::string sHeader = "[S]Price Quantity  Amount   Total       (" + sSymbol + ")  Price  Quantity Amount     Total   [B]";
-	ret.push_back(Pair("0",sHeader));
-
-	for (int i = 0; i <= iTotalRows; i++)
-	{
-		if (Sell[i].empty()) Sell[i]= rPad(" ", 40);
-		if (Buy[i].empty())  Buy[i] = rPad(" ", 40);
-		std::string sConsolidatedRow = Sell[i] + " |" + sSymbol + "| " + Buy[i];
-		ret.push_back(Pair(RoundToString(i,0), sConsolidatedRow));
-	}
-	return ret;
-	
-}
-
-
-
-std::string RelayTrade(CTradeTx& t, std::string Type)
-{
-	std::string sArgs="hash=" + t.GetHash().GetHex() + ",address=" + t.Address + ",time=" + RoundToString(t.TradeTime,0) + ",quantity=" + RoundToString(t.Quantity,0)
-		+ ",action=" + t.Action + ",symbol=" + t.Symbol + ",price=" + RoundToString(t.Price,4) + ",escrowtxid=" + t.EscrowTXID + ",vout=" + RoundToString(t.VOUT,0) + ",txid=";
-	std::string out_Error = "";
-	std::string sResponse = SQL(Type, t.Address, sArgs, out_Error);
-	// For Buy, Sell or Cancel, refresh the trading engine time so the thread does not die:
-	nLastTradingActivity = GetAdjustedTime();
-	return out_Error;
-}
-
-UniValue GetTradeHistory()
-{
-	std::string out_Error = "";
-	std::string sAddress = DefaultRecAddress("Trading");
-	std::string sRes = SQL("execution_history", sAddress, "txid=", out_Error);
-	std::string sEsc = ExtractXML(sRes,"<TRADEHISTORY>","</TRADEHISTORY>");
-	std::vector<std::string> vEscrow = Split(sEsc.c_str(),"<TRADEH>");
-    UniValue ret(UniValue::VOBJ);
-	for (int i = 0; i < (int)vEscrow.size(); i++)
-	{
-		std::string sE = vEscrow[i];
-		if (!sE.empty())
-		{
-			std::string Symbol = ExtractXML(sE,"<SYMBOL>","</SYMBOL>");
-			std::string Action = ExtractXML(sE,"<ACTION>","</ACTION>");
-			double Amount = cdbl(ExtractXML(sE,"<AMOUNT>","</AMOUNT>"),4);
-			double Quantity = cdbl(ExtractXML(sE,"<QUANTITY>","</QUANTITY>"),4);
-			std::string sHash = ExtractXML(sE,"<HASH>","</HASH>");
-			double Total = cdbl(ExtractXML(sE,"<TOTAL>","</TOTAL>"),4);
-			std::string sExecuted=ExtractXML(sE,"<EXECUTED>","</EXECUTED>");
-			//uint256 hash = uint256S("0x" + sHash);
-		  	if (!Symbol.empty() && Amount > 0)
-			{
-				std::string sActNarr = (Action == "BUY") ? "BOT" : "SOLD";
-				std::string sNarr = sActNarr + " " + RoundToString(Quantity,0) 
-					+ " " + Symbol + " @ " + RoundToString(Amount,4) + " TOTAL " + RoundToString(Total,2) + "BBP ORDER " + sHash + ".";
-			 	ret.push_back(Pair(sExecuted, sNarr));
-			}
-		}
-	}
-	return ret;
-}
-
-std::string ExtXML(std::string sXML, std::string sField)
-{
-	std::string sValue = ExtractXML(sXML,"<" + sField + ">","</" + sField + ">");
-	return sValue;
-}
-
-std::string ProcessEscrow()
-{
-	std::string out_Error = "";
-	std::string sAddress = DefaultRecAddress("Trading");
-	std::string sRes = SQL("process_escrow", sAddress, "txid=", out_Error);
-	std::string sEsc = ExtractXML(sRes,"<ESCROWS>","</ESCROWS>");
-	std::vector<std::string> vEscrow = Split(sEsc.c_str(),"<ROW>");
-	for (int i = 0; i < (int)vEscrow.size(); i++)
-	{
-		std::string sE = vEscrow[i];
-		if (!sE.empty())
-		{
-			std::string Symbol = ExtractXML(sE,"<SYMBOL>","</SYMBOL>");
-			std::string EscrowAddress = ExtractXML(sE,"<ESCROW_ADDRESS>","</ESCROW_ADDRESS>");
-			double Amount = cdbl(ExtractXML(sE,"<AMOUNT>","</AMOUNT>"),4);
-			std::string sHash = ExtractXML(sE,"<HASH>","</HASH>");
-			uint256 hash = uint256S("0x" + sHash);
-		    CTradeTx trade = GetOrderByHash(hash);
-			// Ensure this matches our Trading Tx before sending escrow, and Escrow has not already been staked
-			LogPrintf(" Orig trade address %s  Orig Trade Amount %f  esc amt %f  ",trade.Address.c_str(),trade.Total, Amount);
-			AddDebugMessage("PREPARING ESCROW FOR " + RoundToString(Amount,2) + " " + Symbol + " FOR SANCTUARY " + EscrowAddress + " OLD ESCTXID " + trade.EscrowTXID);
-			if (trade.Address==sAddress && trade.EscrowTXID.empty())
-			{
-				if ((trade.Action=="BUY" && (Amount > (trade.Total-1) && Amount < (trade.Total+1))) || 
-					(trade.Action=="SELL" && (Amount > (trade.Quantity-1) && Amount < (trade.Quantity+1))))
-				{
-					if (!Symbol.empty() && !EscrowAddress.empty() && Amount > 0)
-					{
-						// Send Escrow in, and remember txid.  Sanctuary will send us our escrow back using this as a 'dependent' TXID if the trade is not executed by piggybacking the escrow refund on the back of the escrow transmission.
-						// If the trade is executed, the trade will be processed using a depends-on identifier so the collateral is not lost, by spending its output to the other trader after receiving the recipients escrow.  The recipients collateral will be sent to us by piggybacking the collateral on the back of the same txid the GodNode received.
-						CComplexTransaction cct("");
-						std::string sColor = (trade.Action == "BUY") ? "" : "401";
-						std::string sScript = cct.GetScriptForAssetColor(sColor);
-						CBitcoinAddress address(EscrowAddress);
-						if (address.IsValid())	
-						{
-							CAmount nAmount = 0;
-							nAmount = (sColor=="401") ? Amount * (RETIREMENT_COIN) * 100 : Amount * COIN;
-							CWalletTx wtx;
-							// Ensure the Escrow held by market maker holds correct color for each respective leg
-							SendColoredEscrow(address.Get(), nAmount, false, wtx, sScript);
-							std::string TXID = wtx.GetHash().GetHex();
-							std::string sMsg = "Sent " + RoundToString(Amount/COIN,2) + " for escrow on txid " + TXID;
-							AddDebugMessage(sMsg);
-							LogPrintf("\n Sent %f RetirementCoins for Escrow %s \n", (double)Amount,TXID.c_str());
-							trade.EscrowTXID = TXID;
-							CTransaction tx;
-							uint256 hashBlock;
-							if (GetTransaction(wtx.GetHash(), tx, Params().GetConsensus(), hashBlock, true))
-							{
-								 for (int i=0; i < (int)tx.vout.size(); i++)
-								 {
-				 					if (tx.vout[i].nValue == nAmount)
-									{
-										trade.VOUT = i;
-										std::string sErr = RelayTrade(trade, "escrow");
-									}
-								 }
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-	return out_Error;
-}
-
-std::string GetTrades()
-{
-	std::string out_Error = "";
-	std::string sAddress=DefaultRecAddress("Trading");
-	std::string sRes = SQL("trades", sAddress, "txid=", out_Error);
-	std::string sTrades = ExtractXML(sRes,"<TRADES>","</TRADES>");
-	std::vector<std::string> vTrades = Split(sTrades.c_str(),"<ROW>");
-	LogPrintf("TradeList %s ",sTrades.c_str());
-	AddDebugMessage("Listing " + RoundToString(vTrades.size(),0) + " trades");
-
-	for (int i = 0; i < (int)vTrades.size(); i++)
-	{
-		std::string sTrade = vTrades[i];
-		if (!sTrade.empty())
-		{
-			int64_t time = cdbl(ExtractXML(sTrade,"<TIME>","</TIME>"),0);
-			std::string action = ExtractXML(sTrade,"<ACTION>","</ACTION>");
-			std::string symbol = ExtractXML(sTrade,"<SYMBOL>","</SYMBOL>");
-			std::string address = ExtractXML(sTrade,"<ADDRESS>","</ADDRESS>");
-			int64_t quantity = cdbl(ExtractXML(sTrade,"<QUANTITY>","</QUANTITY>"),0);
-			std::string escrow_txid = ExtractXML(sTrade,"<ESCROWTXID>","</ESCROWTXID>");
-			double price = cdbl(ExtractXML(sTrade,"<PRICE>","</PRICE>"),4);
-			if (!symbol.empty() && !address.empty())
-			{
-				CTradeTx ttx(time,action,symbol,quantity,price,address);
-				ttx.EscrowTXID = escrow_txid;
-				uint256 uHash = ttx.GetHash();
-				int iTradeCount = mapTradeTxes.count(uHash);
-				if (iTradeCount > 0) mapTradeTxes.erase(uHash);
-				mapTradeTxes.insert(std::make_pair(uHash, ttx));
-			}
-		}
-	}
-	return out_Error;
-
-}
-
-std::string GetOrderText(CTradeTx& trade, double runningTotal)
-{
-	// This is the order book format 
-	// Sell Side: PricePerBBP, Quantity, BBPAmount, BBPTotal ........ SYMBOL (RBBP) ............... Buy Side: PricePerBBP, Quantity, BBPAmount, BBPTotal
-	//            1.251        1000      1251.00      1251.00                                                  .25          1000      250.00      250.00
-	std::string sOB = rPad(RoundToString(trade.Price,4),6)
-		+ "  " + rPad(RoundToString(trade.Quantity,0),8)
-		+ "  " + rPad(RoundToString(trade.Quantity*trade.Price,2),8)
-		+ "  " + rPad(RoundToString(runningTotal,2),12);
-	return sOB;
-}
-
-CTradeTx GetOrderByHash(uint256 uHash)
-{
-	CTradeTx trade;
-	int iTradeCount = mapTradeTxes.count(uHash);
-	if (iTradeCount==0) return trade;
-	trade = mapTradeTxes.find(uHash)->second;
-	return trade;
-}
-
-void CancelOrders(bool bClear)
-{
-		map<uint256, CTradeTx> uDelete;
-		BOOST_FOREACH(PAIRTYPE(const uint256, CTradeTx)& item, mapTradeTxes)
-		{
-			CTradeTx ttx = item.second;
-			uint256 hash = ttx.GetHash();
-			if (bClear && ttx.EscrowTXID.empty())
-			{
-				uDelete.insert(std::make_pair(hash, ttx));
-			}
-			if (ttx.Action=="CANCEL" && ttx.EscrowTXID.empty())
-			{
-				uDelete.insert(std::make_pair(hash, ttx));
-				RelayTrade(ttx, "cancel"); // Cancel order on the network
-			}
-			int64_t tradeAge = GetAdjustedTime() - ttx.TradeTime;
-			if (tradeAge > (60*60*12) && ttx.EscrowTXID.empty())
-			{
-				uDelete.insert(std::make_pair(hash, ttx));
-			}
-		}
-		BOOST_FOREACH(PAIRTYPE(const uint256, CTradeTx)& item, uDelete)
-		{
-			uint256 h = item.first;
-			mapTradeTxes.erase(h);
-		}
-}
-
-
-else if ((sItem == "order" || sItem=="trade") && !fProd)
-	{
-		// Buy/Sell Qty Symbol [PriceInQtyOfBBP]
-		// Rob A - BiblePay - Ensure Trading System honors NetworkID
-		std::string sAddress=DefaultRecAddress("Trading");
-		if (params.size() != 5) 
-			throw runtime_error("You must specify Buy/Sell/Cancel Qty Symbol [Price].  Example: exec buy 1000 RBBP 1.25 (Meaning: I offer to buy Qty 1000 RBBP (Retirement BiblePay Coins) for 1.25 BBP EACH (TOTALING=1.25*1000 BBP).");
-		std::string sAction = params[1].get_str();
-		boost::to_upper(sAction);
-		double dQty = cdbl(params[2].get_str(),0);
-		std::string sSymbol = params[3].get_str();
-		boost::to_upper(sSymbol);
-		if (sSymbol != "RBBP")
-		{
-			throw runtime_error("Sorry, Only symbol RBBP is currently supported.");
-		}	
-
-		double dPrice = cdbl(params[4].get_str(),4);
-		if (dPrice < .01 || dPrice > 9999)
-		{
-			throw runtime_error("Sorry, price is out of range.");
-		}
-		if (dQty < 1 || dQty > 9999999)
-		{
-			throw runtime_error("Sorry, quantity is out of range.");
-		}
-		CTradeTx ttx(GetAdjustedTime(),sAction,sSymbol,dQty,dPrice,sAddress);
-		results.push_back(Pair("Action",sAction));
-		results.push_back(Pair("Symbol",sSymbol));
-		results.push_back(Pair("Qty",dQty));
-		results.push_back(Pair("Price",dPrice));
-		results.push_back(Pair("Rec Address",sAddress));
-		// If cancel, remove tx by tx hash
-		uint256 uHash = ttx.GetHash();
-		int iTradeCount = mapTradeTxes.count(uHash);
-		// Note, the Trade class will validate the Action (BUY/SELL/CANCEL), and will validate the Symbol (RBBP/BBP)
-		if (sAction=="CANCEL") 
-		{
-			// Cancel all trades for Address + Symbol + Action
-			CancelOrders(false);
-			results.push_back(Pair("Canceling Order",uHash.GetHex()));
-		}
-		else if (sAction == "BUY" || sAction == "SELL")
-		{
-			if (iTradeCount==0) mapTradeTxes.insert(std::make_pair(uHash, ttx));
-			results.push_back(Pair("Placing Order",uHash.GetHex()));
-		}
-		else
-		{
-			results.push_back(Pair("Unknown Action",sAction));
-		}
-		if (!ttx.Error.empty()) results.push_back(Pair("Error",ttx.Error));
-		// Relay changes to network - and relay once every 5 mins in case a new node comes online.
-		if (!fProd)
-		{
-			std::string sErr = RelayTrade(ttx, "order");
-			if (!sErr.empty()) results.push_back(Pair("Relayed",sErr));
-		}
-	}
-	else if (sItem == "orderbook" && !fProd)
-	{
-		CancelOrders(true);
-		UniValue r = GetOrderBook("RBBP");
-		return r;
-	}
-	else if (sItem == "starttradingengine" && !fProd)
-	{
-		StartTradingThread();
-		results.push_back(Pair("Started",1));
-	}
-	else if ((sItem == "listorders" || sItem == "orderlist") && !fProd)
-	{
-		CancelOrders(true);
-
-		std::string sError = GetTrades();
-		results.push_back(Pair("#",0));
-		if (!sError.empty()) results.push_back(Pair("Error",sError));
-		int i = 0;
-		BOOST_FOREACH(PAIRTYPE(const uint256, CTradeTx)& item, mapTradeTxes)
-		{
-			CTradeTx ttx = item.second;
-			uint256 hash = ttx.GetHash();
-			if (ttx.Total > 0 && ttx.EscrowTXID.empty())
-			{
-				i++;
-				results.push_back(Pair("#",i));
-				results.push_back(Pair("Address",ttx.Address));
-				results.push_back(Pair("Hash",hash.GetHex()));
-				results.push_back(Pair("Symbol",ttx.Symbol));
-				results.push_back(Pair("Action",ttx.Action));
-				results.push_back(Pair("Qty",ttx.Quantity));
-				results.push_back(Pair("BBP_Price",ttx.Price));
-			}
-		}
-
-	}
-	else if (sItem == "tradehistory")
-	{
-		UniValue aTH = GetTradeHistory();
-		return aTH;
-	}
-	else if (sItem == "testtrade")
-	{
-		//extern std::map<uint256, CTradeTx> mapTradeTxes;
-		uint256 uTradeHash = uint256S("0x1234");
-		int iTradeCount = mapTradeTxes.count(uTradeHash);
-		// Insert
-		std::string sIP = "127.0.0.1";
-		CTradeTx ttx(0,"BUY","BBP",10,1000,sIP);
-        if (iTradeCount==0) mapTradeTxes.insert(std::make_pair(uTradeHash, ttx));
-		// Report on this trade
-		results.push_back(Pair("Quantity",ttx.Quantity));
-		results.push_back(Pair("Symbol",ttx.Symbol));
-		results.push_back(Pair("Action",ttx.Action));
-		results.push_back(Pair("Map Length",iTradeCount));
-		uint256 h = ttx.GetHash();
-		results.push_back(Pair("Hash",h.GetHex()));
-	}
-	
-	else if (sItem == "sendto402k")
-	{
-	    LOCK2(cs_main, pwalletMain->cs_wallet);
-		CAmount nAmount = AmountFromValue(params[1].get_str());
-	    CBitcoinAddress address(params[2].get_str());
-		if (!address.IsValid())	
-		{
-			results.push_back(Pair("InvalidAddress",1));
-		}
-		else
-		{
-			results.push_back(Pair("Destination Address",address.ToString()));
-			bool fSubtractFeeFromAmount = false;
-			EnsureWalletIsUnlocked();
-			std::string sAddress=DefaultRecAddress("Trading");
-			results.push_back(Pair("DefRecAddr",sAddress));
-			CWalletTx wtx;
-			std::string sOutboundColor="";
-			CComplexTransaction cct("");
-			std::string sScript = cct.GetScriptForAssetColor("401");
-			SendColoredEscrow(address.Get(), nAmount, fSubtractFeeFromAmount, wtx, sScript);
-			results.push_back(Pair("txid",wtx.GetHash().GetHex()));
-		}
-	}
-	else if (sItem == "sendto401k")
-	{
-		//sendto401k amount destination
-	    LOCK2(cs_main, pwalletMain->cs_wallet);
-		CAmount nAmount = AmountFromValue(params[1].get_str())/10;
-	    CBitcoinAddress address(params[2].get_str());
-		if (!address.IsValid())	
-		{
-			results.push_back(Pair("InvalidAddress",1));
-		}
-		else
-		{
-			results.push_back(Pair("Destination Address",address.ToString()));
-			bool fSubtractFeeFromAmount = false;
-			EnsureWalletIsUnlocked();
-			std::string sAddress=DefaultRecAddress("Trading");
-			results.push_back(Pair("DefRecAddr",sAddress));
-			// Complex order type
-			CWalletTx wtx;
-			std::string sExpectedRecipient = sAddress;
-			std::string sExpectedColor = "";
-			CAmount nExpectedAmount = nAmount;
-			std::string sOutboundColor="401";
-			results.push_back(Pair("OutboundColor",sOutboundColor));
-			CComplexTransaction cct("");
-			std::string sScriptComplexOrder = cct.GetScriptForComplexOrder("OCO", sOutboundColor, nExpectedAmount, sExpectedRecipient, sExpectedColor);
-			results.push_back(Pair("XML",sScriptComplexOrder));
-			cct.Color = sOutboundColor;
-			SendColoredEscrow(address.Get(), nAmount, fSubtractFeeFromAmount, wtx, sScriptComplexOrder);
-			results.push_back(Pair("txid",wtx.GetHash().GetHex()));
-		}
-	}
-
-	else if (sItem == "deprecated_createescrowtransaction")
-	{
-
-			results.push_back(Pair("deprecated","Please use createrawtransaction."));
-		    LOCK(cs_main);
-			std::string sXML = params[1].get_str();
-			CMutableTransaction rawTx;
-			// Process Inputs
-			std::string sInputs = ExtractXML(sXML,"<INPUTS>","</INPUTS>");
-			std::vector<std::string> vInputs = sInputs.c_str(),"<ROW>");
-			for (int i = 0; i < (int)vInputs.size(); i++)
-			{
-				std::string sInput = vInputs[i];
-				if (!sInput.empty())
-				{
-					std::string sTxId = ExtractXML(sInput,"<TXID>","</TXID>");
-					int nOutput = (int)cdbl(ExtractXML(sInput, "<VOUT>","</VOUT>"),0);
-					int64_t nLockTime = (int64_t)cdbl(ExtractXML(sInput,"<LOCKTIME>","</LOCKTIME>"),0);
-					uint256 txid = uint256S("0x" + sTxId);
-					uint32_t nSequence = (nLockTime ? std::numeric_limits<uint32_t>::max() - 1 : std::numeric_limits<uint32_t>::max());
-					CTxIn in(COutPoint(txid, nOutput), CScript(), nSequence);
-					rawTx.vin.push_back(in);
-					LogPrintf("ADDING TXID %s ", sTxId.c_str());
-
-				}
-			}
-		std::string sRecipients = ExtractXML(sXML,"<RECIPIENTS>","</RECIPIENTS>");
-		std::vector<std::string> vRecips = sRecipients.c_str(),"<ROW>");
-		for (int i = 0; i < (int)vRecips.size(); i++)
-		{
-			std::string sRecip = vRecips[i];
-			if (!sRecip.empty())
-			{
-				std::string sRecipient = ExtractXML(sRecip, "<RECIPIENT>","</RECIPIENT>");
-				double dAmount = cdbl(ExtractXML(sRecip,"<AMOUNT>","</AMOUNT>"),4);
-				std::string sData = ExtractXML(sRecip,"<DATA>","</DATA>");
-				std::string sColor = ExtractXML(sRecip,"<COLOR>","</COLOR>");
-				if (!sData.empty())
-				{
-				     std::vector<unsigned char> data = ParseHexV(sData,"Data");
-					 CTxOut out(0, CScript() << OP_RETURN << data);
-					 rawTx.vout.push_back(out);
-				}
-				else if (!sRecipient.empty())
-				{
- 					  CBitcoinAddress address(sRecipient);
-					  CScript scriptPubKey = GetScriptForDestination(address.Get());
-					  CAmount nAmount = sColor=="401" ? dAmount * COIN : dAmount * COIN; 
-			          CTxOut out(nAmount, scriptPubKey);
-					  rawTx.vout.push_back(out);
-	    			  CComplexTransaction cct("");
-					  std::string sAssetColorScript = cct.GetScriptForAssetColor(sColor); 
-					  rawTx.vout[rawTx.vout.size()-1]age = sAssetColorScript;
-					  LogPrintf("CreateEscrowTx::Adding Recip %s, amount %f, color %s, dAmount %f ", sRecipient.c_str(),(double)nAmount,sAssetColorScript.c_str(), (double)dAmount);
-				}
-			}
-		}
-		return EncodeHexTx(rawTx);
-
-			else if (sItem == "generatetemplekey")
-	{
-	    // Generate the Temple Keypair
-	    CKey key;
-		key.MakeNewKey(false);
-		CPrivKey vchPrivKey = key.GetPrivKey();
-		std::string sOutPrivKey = HexStr<CPrivKey::iterator>(vchPrivKey.begin(), vchPrivKey.end());
-		std::string sOutPubKey = HexStr(key.GetPubKey());
-		results.push_back(Pair("Private", sOutPrivKey));
-		results.push_back(Pair("Public", sOutPubKey));
-	}
-
-	    }
-
-
-*/
 
 

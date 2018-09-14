@@ -57,10 +57,21 @@ std::string GetTxNews(uint256 hash, std::string& sHeadline);
 extern UniValue GetLeaderboard(int nHeight);
 extern double MyPercentile(int nHeight);
 extern double GetSporkDouble(std::string sName, double nDefault);
-extern std::vector<char> ReadAllBytes(char const* filename);
+
 std::string GetFileNameFromPath(std::string sPath);
 extern UniValue GetIPFSList(int iMaxDays, std::string& out_Files);
 extern UniValue GetSancIPFSQualityReport();
+extern UniValue GetBusinessObjectByFieldValue(std::string sType, std::string sFieldName, std::string sSearchValue);
+void TestRSA();
+int RSA_GENERATE_KEYPAIR(std::string sPublicKeyPath, std::string sPrivateKeyPath);
+unsigned char *RSA_ENCRYPT_CHAR(std::string sPubKeyPath, unsigned char *plaintext, int plaintext_length, int& cipher_len, std::string& sError);
+void RSA_Encrypt_File(std::string sPubKeyPath, std::string sSourcePath, std::string sEncryptPath, std::string& sError);
+unsigned char *RSA_DECRYPT_CHAR(std::string sPriKeyPath, unsigned char *ciphertext, int ciphrtext_size, int& plaintxt_len, std::string& sError);
+void RSA_Decrypt_File(std::string sPriKeyPath, std::string sSourcePath, std::string sDecryptPath, std::string sError);
+std::string RSA_Encrypt_String(std::string sPubKeyPath, std::string sData, std::string& sError);
+std::string RSA_Decrypt_String(std::string sPrivKeyPath, std::string sData, std::string& sError);
+std::vector<char> ReadAllBytes(char const* filename);
+
 bool ipfs_download(const string& url, const string& filename, double dTimeoutSecs);
 extern int CheckSanctuaryIPFSHealth(std::string sAddress);
 extern std::string AssociateDCAccount(std::string sProjectId, std::string sBoincEmail, std::string sBoincPassword, std::string sUnbankedPublicKey, bool fForce);
@@ -68,6 +79,10 @@ extern std::string SubmitToIPFS(std::string sPath, std::string& sError);
 extern std::string GetUndownloadedIPFSHash();
 extern std::string GetIPFromAddress(std::string sAddress);
 extern int64_t GetFileSize(std::string sPath);
+extern std::string StoreBusinessObject(UniValue& oBusinessObject, std::string& sError);
+extern UniValue GetBusinessObject(std::string sType, std::string sPrimaryKey, std::string& sError);
+extern UniValue GetBusinessObjectList(std::string sType);
+extern bool is_email_valid(const std::string& e);
 
 extern double AscertainResearcherTotalRAC();
 extern std::vector<std::string> GetListOfDCCS(std::string sSearch, bool fRequireSig);
@@ -213,6 +228,7 @@ extern double GetMinimumMagnitude();
 extern std::string GetDCCPublicKey(const std::string& cpid, bool fRequireSig);
 extern bool VoteForDistributedComputingContract(int nHeight, std::string sMyContract, std::string sError);
 extern int GetLastDCSuperblockHeight(int nCurrentHeight, int& nNextSuperblock);
+
 
 
 
@@ -3028,6 +3044,74 @@ UniValue exec(const UniValue& params, bool fHelp)
 		bool bSpork14 = sporkManager.IsSporkActive(SPORK_14_REQUIRE_SENTINEL_FLAG);
 		results.push_back(Pair("spork14", bSpork14));
 	}
+	
+	else if (sItem == "botestharnessjsontest")
+	{
+		std::string sQ = "\"";
+		std::string sJson = "[[" + sQ + "contact" + sQ + ",{" + sQ + "field1" + sQ + ":" + sQ + "value1" + sQ + ", " + sQ + "field2" + sQ + ":" + sQ + "value2" + sQ + "}]]";
+		UniValue objResult(UniValue::VOBJ);
+		objResult.read(sJson);
+		std::vector<UniValue> arr1 = objResult.getValues();
+		std::vector<UniValue> arr2 = arr1.at( 0 ).getValues();
+		UniValue obj(UniValue::VOBJ);
+		obj = arr2.at( 1 );
+		results.push_back(Pair("json", sJson));
+		results.push_back(Pair("field1", obj["field1"].get_str()));
+		results.push_back(Pair("field2", obj["field2"].get_str()));
+	}
+	else if (sItem == "bolist")
+	{
+		if (params.size() != 2)
+			throw runtime_error("You must specify business object type: IE 'exec bolist contact'.  ");
+		std::string sType = params[1].get_str();
+		UniValue aBOList = GetBusinessObjectList(sType);
+		return aBOList;
+	}
+	else if (sItem == "bosearch")
+	{
+		if (params.size() != 4)
+			throw runtime_error("You must specify business object type, search field name, and search field value: IE 'exec bosearch contact email rob@biblepay.org'.  ");
+
+		std::string sType = params[1].get_str();
+		std::string sFieldName = params[2].get_str();
+		std::string sSearchValue = params[3].get_str();
+		UniValue aBO = GetBusinessObjectByFieldValue(sType, sFieldName, sSearchValue);
+		results.push_back(Pair(sType + " - " + sFieldName, aBO));
+	}
+	else if (sItem == "emailbbp")
+	{
+		if (params.size() != 3)
+			throw runtime_error("You must specify e-mail address and amount: IE 'exec emailbbp rob@biblepay.org 5'.  ");
+
+		std::string sEmail = params[1].get_str();
+		UniValue aBO = GetBusinessObjectByFieldValue("contact", "email", sEmail);
+		if (aBO.size() == 0)
+			throw runtime_error("No BBP recipient found with e-mail " + sEmail + ".");
+		std::string sAddress = aBO["receiving_address"].get_str();
+
+		CBitcoinAddress address(sAddress);
+		if (!address.IsValid())
+			throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Destination Biblepay address");
+		// Amount
+		CAmount nAmount = AmountFromValue(params[2]);
+		if (nAmount <= 0)
+			throw JSONRPCError(RPC_TYPE_ERROR, "Invalid amount for send");
+
+		// Wallet comments
+		CWalletTx wtx;
+        bool fSubtractFeeFromAmount = false;
+		bool fUseInstantSend = false;
+		bool fUsePrivateSend = false;
+		bool fUseSanctuaryFunds = false;
+	    EnsureWalletIsUnlocked();
+		SendMoney(address.Get(), nAmount, fSubtractFeeFromAmount, wtx, fUseInstantSend, fUsePrivateSend, fUseSanctuaryFunds);
+		return wtx.GetHash().GetHex();
+	}
+	else if (sItem == "testrsa")
+	{
+		TestRSA();
+		results.push_back(Pair("rsa", 1));
+	}
 	else if (sItem == "datalist")
 	{
 		if (params.size() != 2 && params.size() != 3)
@@ -3447,6 +3531,63 @@ std::string GetUndownloadedIPFSHash()
 }
 
 
+UniValue GetBusinessObjectByFieldValue(std::string sType, std::string sFieldName, std::string sSearchValue)
+{
+	UniValue ret(UniValue::VOBJ);
+	boost::to_upper(sType);
+	boost::to_upper(sSearchValue);
+    for(map<string,string>::iterator ii=mvApplicationCache.begin(); ii!=mvApplicationCache.end(); ++ii) 
+    {
+		std::string sKey = (*ii).first;
+	   	if (sKey.length() > sType.length())
+		{
+			if (sKey.substr(0,sType.length())==sType)
+			{
+				std::string sPrimaryKey = sKey.substr(sType.length() + 1, sKey.length() - sType.length());
+				std::string sIPFSHash = mvApplicationCache[(*ii).first];
+				std::string sError = "";
+				UniValue o = GetBusinessObject(sType, sPrimaryKey, sError);
+				if (o.size() > 0)
+				{
+					std::string sBOValue = o[sFieldName].get_str();
+					boost::to_upper(sBOValue);
+					if (sBOValue == sSearchValue)
+						return o;
+				}
+			}
+		}
+	}
+	return ret;
+}
+
+
+UniValue GetBusinessObjectList(std::string sType)
+{
+	UniValue ret(UniValue::VOBJ);
+	boost::to_upper(sType);
+	
+    for(map<string,string>::iterator ii=mvApplicationCache.begin(); ii!=mvApplicationCache.end(); ++ii) 
+    {
+		std::string sKey = (*ii).first;
+	   	if (sKey.length() > sType.length())
+		{
+			if (sKey.substr(0,sType.length())==sType)
+			{
+				std::string sPrimaryKey = sKey.substr(sType.length() + 1, sKey.length() - sType.length());
+				std::string sIPFSHash = mvApplicationCache[(*ii).first];
+				std::string sError = "";
+				LogPrintf("PK %s Hash %s ",sPrimaryKey.c_str(), sIPFSHash.c_str());
+				UniValue o = GetBusinessObject(sType, sPrimaryKey, sError);
+				if (o.size() > 0)
+				{
+					ret.push_back(Pair(sPrimaryKey + " (" + sIPFSHash + ")", o));
+				}
+			}
+		}
+	}
+	return ret;
+}
+
 UniValue GetIPFSList(int iMaxAgeInDays, std::string& out_Files)
 {
 	UniValue ret(UniValue::VOBJ);
@@ -3850,8 +3991,8 @@ std::string GenerateNewAddress(std::string& sError, std::string sName)
 			return "";
 		}
 		CKeyID keyID = newKey.GetID();
-		std::string strAccount = "";
-		pwalletMain->SetAddressBook(keyID, strAccount, sName);
+		pwalletMain->SetAddressBook(keyID, sName, "receive"); //receive == visible in address book, hidden = non-visible
+		LogPrintf(" created new address %s ", CBitcoinAddress(keyID).ToString().c_str());
 		return CBitcoinAddress(keyID).ToString();
 	}
 }
@@ -6447,14 +6588,10 @@ bool SubmitProposalToNetwork(uint256 txidFee, int64_t nStartTime, std::string sH
 			sError = "Must wait for client to sync with masternode network. ";
 			return false;
         }
-		//  gobject submit 0 1 dStartStamp sHex sPrepareTxId
         // ASSEMBLE NEW GOVERNANCE OBJECT FROM USER PARAMETERS
-
         uint256 hashParent = uint256();
-        //std::string strRevision = "1";
         int nRevision = 1;
 	    CGovernanceObject govobj(hashParent, nRevision, nStartTime, txidFee, sHex);
-
         DBG( cout << "gobject: submit "
              << " strData = " << govobj.GetDataAsString()
              << ", hash = " << govobj.GetHash().GetHex()
@@ -6522,21 +6659,19 @@ int GetNextSuperblock()
 	return nNextSuperblock;
 }
 
-
-std::vector<char> ReadAllBytes(char const* filename)
-{
-    ifstream ifs(filename, ios::binary|ios::ate);
-    ifstream::pos_type pos = ifs.tellg();
-    std::vector<char>  result(pos);
-    ifs.seekg(0, ios::beg);
-    ifs.read(&result[0], pos);
-    return result;
-}
-
 int64_t GetFileSize(std::string sPath)
 {
 	if (!boost::filesystem::exists(sPath)) return 0;
 	return (int64_t)boost::filesystem::file_size(sPath);
+}
+
+std::string SubmitBusinessObjectToIPFS(std::string sJSON, std::string& sError)
+{
+	std::string sBOPath = GetSANDirectory2() + "bo";
+	FILE *outBO = fopen(sBOPath.c_str(), "w");
+    fputs(sJSON.c_str(), outBO);
+	fclose(outBO);
+	return SubmitToIPFS(sBOPath, sError);
 }
 
 std::string SubmitToIPFS(std::string sPath, std::string& sError)
@@ -6546,7 +6681,6 @@ std::string SubmitToIPFS(std::string sPath, std::string& sError)
 		sError = "IPFS File not found.";
 		return "";
 	}
-
 	std::string sFN = GetFileNameFromPath(sPath);
 	std::vector<char> v = ReadAllBytes(sPath.c_str());
 	std::vector<unsigned char> uData(v.begin(), v.end());
@@ -6557,4 +6691,195 @@ std::string SubmitToIPFS(std::string sPath, std::string& sError)
 	sError = ExtractXML(sData,"<ERROR>","</ERROR>");
 	return sHash;
 }	
+
+std::string SendBusinessObject(std::string sType, std::string sPrimaryKey, std::string sValue, double dStorageFee, std::string sSignKey, bool fSign, std::string& sError)
+{
+	const Consensus::Params& consensusParams = Params().GetConsensus();
+    std::string sAddress = consensusParams.FoundationAddress;
+    CBitcoinAddress address(sAddress);
+    if (!address.IsValid())
+	{
+		sError = "Invalid Destination Address";
+		return sError;
+	}
+    CAmount nAmount = AmountFromValue(dStorageFee);
+	CAmount nMinimumBalance = AmountFromValue(dStorageFee);
+    CWalletTx wtx;
+	boost::to_upper(sPrimaryKey); // Following same pattern
+	boost::to_upper(sType);
+	std::string sNonceValue = RoundToString(GetAdjustedTime(), 0);
+	// Add immunity to replay attacks (Add message nonce)
+ 	std::string sMessageType      = "<MT>" + sType  + "</MT>";  
+    std::string sMessageKey       = "<MK>" + sPrimaryKey   + "</MK>";
+	std::string sMessageValue     = "<MV>" + sValue + "</MV>";
+	std::string sNonce            = "<NONCE>" + sNonceValue + "</NONCE>";
+	std::string sBOSignKey        = "<BOSIGNER>" + sSignKey + "</BOSIGNER>";
+	std::string sMessageSig = "";
+	LogPrintf(" signing business object %s key %s ",sPrimaryKey.c_str(), sSignKey.c_str());
+
+	if (fSign)
+	{
+		std::string sSignature = "";
+		bool bSigned = SignStake(sSignKey, sValue + sNonceValue, sError, sSignature);
+		if (bSigned) 
+		{
+			sMessageSig = "<BOSIG>" + sSignature + "</BOSIG>";
+			WriteCache("contact", sSignKey, sValue, GetAdjustedTime());
+		}
+	}
+	std::string s1 = sMessageType + sMessageKey + sMessageValue + sNonce + sBOSignKey + sMessageSig;
+	wtx.sTxMessageConveyed = s1;
+	LOCK2(cs_main, pwalletMain->cs_wallet);
+	{
+		SendMoneyToDestinationWithMinimumBalance(address.Get(), nAmount, nMinimumBalance, wtx, sError);
+	}
+	if (!sError.empty()) return "";
+    return wtx.GetHash().GetHex().c_str();
+}
+
+bool is_email_valid(const std::string& e)
+{
+	return (Contains(e, "@") && Contains(e,".") && e.length() > MINIMUM_EMAIL_LENGTH) ? true : false;
+}
+
+std::string StoreBusinessObject(UniValue& oBusinessObject, std::string& sError)
+{
+	std::string sJson = oBusinessObject.write(0,0);
+	std::string sAddress = DefaultRecAddress(BUSINESS_OBJECTS);
+	std::string sPrimaryKey = oBusinessObject["objecttype"].get_str();
+	std::string sIPFSHash = SubmitBusinessObjectToIPFS(sJson, sError);
+	LogPrintf("IPFSHash %s ",sIPFSHash.c_str());
+	if (sError.empty())
+	{
+		double dStorageFee = 1;
+		std::string sTxId = "";
+		sTxId = SendBusinessObject("contact", sAddress, sIPFSHash, dStorageFee, sAddress, true, sError);
+		return sTxId;
+	}
+	return "";
+}
+
+std::string GetJSONFromIPFS(std::string sHash, std::string& sError)
+{
+	std::string sURL = "http://ipfs.biblepay.org:8080/ipfs/" + sHash;
+	std::string sPath = GetSANDirectory2() + sHash;
+	int i = ipfs_download(sURL, sPath, 15);
+	if (i != 1) 
+	{
+		sError = "IPFS Download error.";
+		return "";
+	}
+	boost::filesystem::path pathIn(sPath);
+    std::ifstream streamIn;
+    streamIn.open(pathIn.string().c_str());
+	if (!streamIn) 
+	{
+		sError = "FileSystem Error.";
+		return "";
+	}
+	std::string sLine = "";
+	std::string sJson = "";
+    while(std::getline(streamIn, sLine))
+    {
+		sJson += sLine;
+	}
+	streamIn.close();
+	return sJson;
+}
+
+UniValue GetBusinessObject(std::string sType, std::string sPrimaryKey, std::string& sError)
+{
+	LogPrintf(" getting business object %s ",sPrimaryKey.c_str());
+	UniValue o(UniValue::VOBJ);
+	std::string sIPFSHash = ReadCache(sType, sPrimaryKey);
+
+	if (sIPFSHash.empty()) 
+	{
+		o.push_back(Pair("objecttype", "0"));
+		sError = "Object not found";
+		return o;
+	}
+	std::string sJson = GetJSONFromIPFS(sIPFSHash, sError);
+	LogPrintf(" json %s ",sJson.c_str());
+
+	if (!sError.empty()) return o;
+	try  
+	{
+	    UniValue o(UniValue::VOBJ);
+	    o.read(sJson);
+		LogPrintf("objecttype %s ",o["objecttype"].get_str().c_str());
+		return o;
+    }
+    catch(std::exception& e) 
+	{
+        std::ostringstream ostr;
+        ostr << "BusinessObject::LoadData Error parsing JSON" << ", e.what() = " << e.what();
+        DBG( cout << ostr.str() << endl; );
+        LogPrintf( ostr.str().c_str() );
+        sError = e.what();
+		return o;
+    }
+    catch(...) 
+	{
+        std::ostringstream ostr;
+        ostr << "BusinessObject::LoadData Unknown Error parsing JSON";
+        DBG( cout << ostr.str() << endl; );
+        LogPrintf( ostr.str().c_str() );
+		sError = "Unknown error while parsing JSON business object";
+		return o;
+    }
+	return o;
+}
+
+
+void TestRSA()
+{
+	int BUFFER_SIZE=512;
+	unsigned char str[BUFFER_SIZE] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+
+	unsigned char *ciphertext, *plaintext;
+	int len, olen;
+	olen = len = strlen((const char*)str) + 1;
+	printf("Begin to encrypt...\n");
+	std::string sPath = GetSANDirectory2() + "rsafile";
+	std::string sPathEnc = GetSANDirectory2() + "rsafile_enc";
+	std::string sPathDec = GetSANDirectory2() + "reafile_dec";
+    int cipher_len = 0;
+	std::string sError = "";
+	// Generate a new KeyPair
+	std::string sPubKeyPath = GetSANDirectory2() + "keypath_client_pub";
+	std::string sPriKeyPath = GetSANDirectory2() + "keypath_client_pri";
+	RSA_GENERATE_KEYPAIR(sPubKeyPath, sPriKeyPath);
+	ciphertext = RSA_ENCRYPT_CHAR(sPubKeyPath, str, len, cipher_len, sError);
+	RSA_Encrypt_File(sPubKeyPath, sPath, sPathEnc, sError);
+	LogPrintf(" Errors phase 0 %s ", sError.c_str());
+	printf("Begin to decrypt..\n");
+	int ciphertext_size = cipher_len;
+	int plaintext_len = 0;
+	plaintext = RSA_DECRYPT_CHAR(sPriKeyPath, ciphertext, ciphertext_size, plaintext_len, sError);
+	LogPrintf(" rsa_decrypt  ciphersize %f  plaintextsize %f  ", ciphertext_size, plaintext_len);
+	LogPrintf(" Errors phase 1 %s ", sError.c_str());
+	RSA_Decrypt_File(sPriKeyPath, sPathEnc, sPathDec, sError);
+	LogPrintf(" Errors phase 2 %s ", sError.c_str());
+	if (ciphertext_size > 0)
+	{
+		if (strncmp((const char *)plaintext, (const char *)str, olen)) 
+			printf("\nFailed for the plaintext: {%s}\n", str);
+		else 
+			printf("\nOk, Decrypted string = {%s}\n", plaintext);
+	}
+
+	std::string sData = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+
+	LogPrintf(" Errors phase 3 %s ", sError.c_str());
+	
+	std::string sEnc = RSA_Encrypt_String(sPubKeyPath, sData, sError);
+	LogPrintf(" Errors phase 3.5 %s ", sError.c_str());
+	
+	std::string sDec = RSA_Decrypt_String(sPriKeyPath, sEnc, sError);
+	LogPrintf(" Errors phase 4 %s ", sError.c_str());
+	
+	LogPrintf(" Status Decoded %s , error %s ", sDec.c_str(), sError.c_str());
+	
+}
 

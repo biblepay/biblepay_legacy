@@ -15,6 +15,7 @@ class uint256;
 const unsigned int WALLET_CRYPTO_KEY_SIZE = 32;
 const unsigned int WALLET_CRYPTO_SALT_SIZE = 8;
 
+
 /**
  * Private key encryption is done based on a CMasterKey,
  * which holds a salt and random encryption key.
@@ -74,7 +75,7 @@ private:
     unsigned char chKey[WALLET_CRYPTO_KEY_SIZE];
     unsigned char chIV[WALLET_CRYPTO_KEY_SIZE];
     bool fKeySet;
-
+	
 public:
     bool SetKeyFromPassphrase(const SecureString &strKeyData, const std::vector<unsigned char>& chSalt, const unsigned int nRounds, const unsigned int nDerivationMethod);
     bool Encrypt(const CKeyingMaterial& vchPlaintext, std::vector<unsigned char> &vchCiphertext);
@@ -137,8 +138,8 @@ protected:
 
     //! will encrypt previously unencrypted keys
     bool EncryptKeys(CKeyingMaterial& vMasterKeyIn);
-
     bool Unlock(const CKeyingMaterial& vMasterKeyIn, bool fForMixingOnly = false);
+	
 
 public:
 
@@ -149,6 +150,14 @@ public:
     std::string VectorToString(std::vector<unsigned char> v);
 	std::string ExtractXML(std::string XMLdata, std::string key, std::string key_end);
 	std::string PubKeyToAddress(const CScript& scriptPubKey);
+	int RSA_GENERATE_KEYPAIR(std::string sPublicKeyPath, std::string sPrivateKeyPath);
+	unsigned char *RSA_ENCRYPT_CHAR(std::string sPubKeyPath, unsigned char *plaintext, int plaintext_length, int& cipher_len, std::string& sError);
+	void RSA_Encrypt_File(std::string sPubKeyPath, std::string sSourcePath, std::string sEncryptPath, std::string& sError);
+	unsigned char *RSA_DECRYPT_CHAR(std::string sPriKeyPath, unsigned char *ciphertext, int ciphrtext_size, int& plaintxt_len, std::string& sError);
+	void RSA_Decrypt_File(std::string sPriKeyPath, std::string sSourcePath, std::string sDecryptPath, std::string sError);
+	std::string RSA_Encrypt_String(std::string sPubKeyPath, std::string sData, std::string& sError);
+	std::string RSA_Decrypt_String(std::string sPrivKeyPath, std::string sData, std::string& sError);
+	std::vector<char> ReadAllBytes(char const* filename);
 
     CCryptoKeyStore() : fUseCrypto(false), fDecryptionThoroughlyChecked(false), fOnlyMixingAllowed(false)
     {

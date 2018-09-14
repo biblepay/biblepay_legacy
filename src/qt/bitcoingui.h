@@ -125,6 +125,7 @@ private:
 	QAction *distributedComputingMenuAction;
 	QAction *proposalAddAction;
 	QAction *proposalAddMenuAction;
+	QAction *contactAddMenuAction;
 	QAction *proposalListAction;
 
     QAction *optionsAction;
@@ -239,6 +240,8 @@ private Q_SLOTS:
 	/** Switch to Proposal Add page */
 	void gotoProposalAddPage();
 	void gotoProposalListPage();
+	/** Switch to Contact Add page */
+	void gotoContactAddPage();
 
     /** Show Sign/Verify Message dialog and switch to sign message tab */
     void gotoSignMessageTab(QString addr = "");

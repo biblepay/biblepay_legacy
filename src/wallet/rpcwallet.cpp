@@ -450,6 +450,12 @@ static void SendColoredEscrow(const CTxDestination &address, CAmount nValue, boo
 
 static void SendMoneyToDestinationWithMinimumBalance(const CTxDestination& address, CAmount nValue, CAmount nMinimumBalanceRequired, CWalletTx& wtxNew, std::string& sError)
 {
+	if (pwalletMain->IsLocked())
+	{
+		sError = "Wallet Unlock Required";
+		return;
+	}
+   
     if (pwalletMain->GetBalance() < nMinimumBalanceRequired || nValue > pwalletMain->GetBalance()) 
 	{
 		sError = "Insufficient funds";

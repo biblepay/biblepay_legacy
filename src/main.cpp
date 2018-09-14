@@ -114,6 +114,7 @@ void SerializePrayersToFile(int nHeight);
 int DeserializePrayersFromFile();
 extern void KillBlockchainFiles();
 extern void HealthCheckup();
+std::string GenerateNewAddress(std::string& sError, std::string sName);
 
 bool CheckProofOfLoyalty(double dWeight, uint256 hash, unsigned int nBits, const Consensus::Params& params, 
 	int64_t nBlockTime, int64_t nPrevBlockTime, int nPrevHeight, unsigned int nNonce, const CBlockIndex* pindexPrev, bool bLoadingBlockIndex);
@@ -7767,6 +7768,13 @@ bool IsMature(int64_t nTime, int64_t nMaturityAge)
 	return bMature;
 }
 
+bool IsBusinessObject(std::string sType)
+{
+	//ToDo:  Refactor the MemorizePrayer;  Require signature on every blockchain object by default.
+	if (sType=="CONTACT") return true;
+	return false;
+}
+
 void MemorizePrayer(std::string sMessage, int64_t nTime, double dAmount, int iPosition, std::string sTxID, int nHeight, double dFoundationDonation)
 {
 	if (sMessage.empty()) return;
@@ -7814,13 +7822,18 @@ void MemorizePrayer(std::string sMessage, int64_t nTime, double dAmount, int iPo
 		  std::string sSig              = ExtractXML(sMessage,"<MS>","</MS>");
 		  std::string sNonce            = ExtractXML(sMessage,"<NONCE>","</NONCE>");
 		  std::string sSporkSig         = ExtractXML(sMessage,"<SPORKSIG>","</SPORKSIG>");
+		  std::string sIPFSHash         = ExtractXML(sMessage,"<IPFSHASH>", "</IPFSHASH>");
+		  std::string sBOSig            = ExtractXML(sMessage,"<BOSIG>", "</BOSIG>");
+		  std::string sBOSigner         = ExtractXML(sMessage,"<BOSIGNER>", "</BOSIGNER>");
+		  double dNonce = cdbl(sNonce, 0);
+			 
 		  boost::to_upper(sMessageType);
 		  boost::to_upper(sMessageKey);
 		  bool bRequiresSignature = (sMessageType=="SPORK" || sMessageType=="PRAYER") ? true : false;
+		  
 		  if (sMessageType == "NEWS") sMessageValue = sTxID;
-		  if (!sSporkSig.empty())
+		  if (!sSporkSig.empty() && bRequiresSignature)
 		  {
-			  double dNonce = cdbl(sNonce, 0);
 			  bool bSigInvalid = false;
 			  if (dNonce > (nTime+(60 * 60)) || dNonce < (nTime-(60 * 60))) bSigInvalid = true;
 			  std::string sError = "";
@@ -7829,8 +7842,8 @@ void MemorizePrayer(std::string sMessage, int64_t nTime, double dAmount, int iPo
     		  bool bValid = (fSigValid && !bSigInvalid);
 			  if (!bValid)
 			  {
-					if (fDebugMaster) LogPrintf(" MemorizePrayers::CPIDSignatureFailed - Nonce %f, Time %f , Bad spork Sig %s on message %s on TXID %s \n", (double)dNonce, (double)nTime, sSporkSig.c_str(),
-						sMessageValue.c_str(), sTxID.c_str());
+					if (fDebugMaster) LogPrintf(" MemorizePrayers::CPIDSignatureFailed - Type %s, Nonce %f, Time %f, Bad spork Sig %s on message %s on TXID %s \n", sMessageType.c_str(),
+						(double)dNonce, (double)nTime, sSporkSig.c_str(), sMessageValue.c_str(), sTxID.c_str());
 					sMessageValue = "";
 			  }
 			  if (!bValid && bRequiresSignature) sMessageValue = "";
@@ -7839,13 +7852,30 @@ void MemorizePrayer(std::string sMessage, int64_t nTime, double dAmount, int iPo
 		{
 			  if (bRequiresSignature) sMessageValue = "";
 		}
-		  
+		
+   	    bool bRequiresBOSignature = IsBusinessObject(sMessageType);
+		if (!sBOSig.empty() && !sBOSigner.empty() && bRequiresBOSignature)
+		{	
+			  std::string sError = "";
+			  bool fBOSigValid = CheckStakeSignature(sBOSigner, sBOSig, sMessageValue + sNonce, sError);
+    		  if (!fBOSigValid)
+			  {
+					if (fDebugMaster) LogPrintf(" MemorizePrayers::BO_SignatureFailed - Type %s, Nonce %f, Time %f, Bad BO Sig %s on message %s on TXID %s \n", sMessageType.c_str(),
+						(double)dNonce, (double)nTime, sBOSig.c_str(), sMessageValue.c_str(), sTxID.c_str());
+					sMessageValue = "";
+			  }
+		}
+		else
+		{
+			if (bRequiresBOSignature) sMessageValue="";
+		}
+
 		if (!sMessageType.empty() && !sMessageKey.empty() && !sMessageValue.empty())
 		{
 			std::string sTimestamp = TimestampToHRDate((double)nTime + iPosition);
 			// Were using the Block time here because tx time returns seconds past epoch, and adjusting the time by the vout position (so the user can see what time the prayer was accepted in the block).
 			std::string sAdjMessageKey = sMessageKey;
-			bool bDCC = (sMessageType == "DCC" || sMessageType == "SPORK");
+			bool bDCC = (sMessageType == "DCC" || sMessageType == "SPORK" || sMessageType == "CONTACT");
 			if (!bDCC)
 			{
 				if (!(Contains(sMessageKey, "(") && Contains(sMessageKey,")")))
@@ -7873,7 +7903,7 @@ void HealthCheckup()
 	int64_t nAge = GetTime() - nLastHealthCheckup;
 	double dLowPOWDifficultyThreshhold = 50;
 			
-	if (nAge > (60 * 30) && fProd && !fLoadingIndex && fWalletLoaded)
+	if (nAge > (60 * 60 * 24) && fProd && !fLoadingIndex && fWalletLoaded)
 	{
 		nLastHealthCheckup = GetTime();
 		int64_t nLastAcceptBlockAge = GetAdjustedTime() - nLastAcceptBlock;
@@ -8309,6 +8339,15 @@ std::string DefaultRecAddress(std::string sType)
 			}
 		}
     }
+
+	// IPFS-PODS (9-9-2018) R ANDREWS - Add ability to link PODS Record Types to Addresses
+	if (!sType.empty())
+	{
+		std::string sError = "";
+		sDefaultRecAddress = GenerateNewAddress(sError, sType);
+		if (sError.empty()) return sDefaultRecAddress;
+	}
+	
 	return sDefaultRecAddress;
 }
 
