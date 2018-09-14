@@ -6834,13 +6834,13 @@ UniValue GetBusinessObject(std::string sType, std::string sPrimaryKey, std::stri
 
 void TestRSA()
 {
-	int BUFFER_SIZE=512;
-	unsigned char str[BUFFER_SIZE] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+	//int BUFFER_SIZE=512;
+	//unsigned char str[BUFFER_SIZE] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 
-	unsigned char *ciphertext, *plaintext;
-	int len, olen;
-	olen = len = strlen((const char*)str) + 1;
-	printf("Begin to encrypt...\n");
+	//unsigned char *ciphertext, *plaintext;
+	//int len, olen;
+	//olen = len = strlen((const char*)str) + 1;
+	//printf("Begin to encrypt...\n");
 	std::string sPath = GetSANDirectory2() + "rsafile";
 	std::string sPathEnc = GetSANDirectory2() + "rsafile_enc";
 	std::string sPathDec = GetSANDirectory2() + "reafile_dec";
@@ -6850,35 +6850,31 @@ void TestRSA()
 	std::string sPubKeyPath = GetSANDirectory2() + "keypath_client_pub";
 	std::string sPriKeyPath = GetSANDirectory2() + "keypath_client_pri";
 	RSA_GENERATE_KEYPAIR(sPubKeyPath, sPriKeyPath);
-	ciphertext = RSA_ENCRYPT_CHAR(sPubKeyPath, str, len, cipher_len, sError);
+	//ciphertext = RSA_ENCRYPT_CHAR(sPubKeyPath, str, len, cipher_len, sError);
 	RSA_Encrypt_File(sPubKeyPath, sPath, sPathEnc, sError);
-	LogPrintf(" Errors phase 0 %s ", sError.c_str());
-	printf("Begin to decrypt..\n");
+	//LogPrintf(" Errors phase 0 %s ", sError.c_str());
+	//printf("Begin to decrypt..\n");
 	int ciphertext_size = cipher_len;
 	int plaintext_len = 0;
-	plaintext = RSA_DECRYPT_CHAR(sPriKeyPath, ciphertext, ciphertext_size, plaintext_len, sError);
-	LogPrintf(" rsa_decrypt  ciphersize %f  plaintextsize %f  ", ciphertext_size, plaintext_len);
-	LogPrintf(" Errors phase 1 %s ", sError.c_str());
+	//plaintext = RSA_DECRYPT_CHAR(sPriKeyPath, ciphertext, ciphertext_size, plaintext_len, sError);
+	//LogPrintf(" rsa_decrypt  ciphersize %f  plaintextsize %f  ", ciphertext_size, plaintext_len);
+	//LogPrintf(" Errors phase 1 %s ", sError.c_str());
 	RSA_Decrypt_File(sPriKeyPath, sPathEnc, sPathDec, sError);
-	LogPrintf(" Errors phase 2 %s ", sError.c_str());
-	if (ciphertext_size > 0)
-	{
-		if (strncmp((const char *)plaintext, (const char *)str, olen)) 
-			printf("\nFailed for the plaintext: {%s}\n", str);
-		else 
-			printf("\nOk, Decrypted string = {%s}\n", plaintext);
-	}
+	//LogPrintf(" Errors phase 2 %s ", sError.c_str());
+	//if (ciphertext_size > 0)
+	//{
+	//	if (strncmp((const char *)plaintext, (const char *)str, olen)) 
+	//		printf("\nFailed for the plaintext: {%s}\n", str);
+	//	else 
+	//		printf("\nOk, Decrypted string = {%s}\n", plaintext);
+	//}
 
 	std::string sData = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-
 	LogPrintf(" Errors phase 3 %s ", sError.c_str());
-	
 	std::string sEnc = RSA_Encrypt_String(sPubKeyPath, sData, sError);
 	LogPrintf(" Errors phase 3.5 %s ", sError.c_str());
-	
 	std::string sDec = RSA_Decrypt_String(sPriKeyPath, sEnc, sError);
 	LogPrintf(" Errors phase 4 %s ", sError.c_str());
-	
 	LogPrintf(" Status Decoded %s , error %s ", sDec.c_str(), sError.c_str());
 	
 }
