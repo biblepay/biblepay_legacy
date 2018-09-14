@@ -12,8 +12,6 @@
 #include <boost/foreach.hpp>
 #include <openssl/aes.h>
 #include <openssl/evp.h>
-
-#include <arpa/inet.h> /* For htonl() */
 #include <iostream>
 #include <fstream>
 
