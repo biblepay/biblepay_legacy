@@ -57,8 +57,10 @@ std::string GetTxNews(uint256 hash, std::string& sHeadline);
 extern UniValue GetLeaderboard(int nHeight);
 extern double MyPercentile(int nHeight);
 extern double GetSporkDouble(std::string sName, double nDefault);
-
+extern std::string SignPrice(std::string sValue);
 std::string GetFileNameFromPath(std::string sPath);
+extern bool VerifyDarkSendSigner(std::string sXML);
+extern double GetQTPhase(double dPrice, int nEventHeight, double& out_PriorPrice, double& out_PriorPhase);
 extern UniValue GetIPFSList(int iMaxDays, std::string& out_Files);
 extern UniValue GetSancIPFSQualityReport();
 extern UniValue GetBusinessObjectByFieldValue(std::string sType, std::string sFieldName, std::string sSearchValue);
@@ -71,6 +73,8 @@ void RSA_Decrypt_File(std::string sPriKeyPath, std::string sSourcePath, std::str
 std::string RSA_Encrypt_String(std::string sPubKeyPath, std::string sData, std::string& sError);
 std::string RSA_Decrypt_String(std::string sPrivKeyPath, std::string sData, std::string& sError);
 std::vector<char> ReadAllBytes(char const* filename);
+extern double GetPBase();
+extern std::string GetDataFromIPFS(std::string sURL, std::string& sError);
 
 bool ipfs_download(const string& url, const string& filename, double dTimeoutSecs);
 extern int CheckSanctuaryIPFSHealth(std::string sAddress);
@@ -382,7 +386,6 @@ UniValue blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool tx
 	
 	if (blockindex && blockindex->pprev)
 	{
-		//double dReward = GetBlockSubsidy(blockindex->pprev, blockindex->pprev->nBits, blockindex->pprev->nHeight, consensusParams, true)/COIN;
 		//result.push_back(Pair("estimatedsanctuaryreward", dReward));
         result.push_back(Pair("previousblockhash", blockindex->pprev->GetBlockHash().GetHex()));
 		std::string sVerses = GetBibleHashVerses(block.GetHash(), block.GetBlockTime(), blockindex->pprev->nTime, blockindex->pprev->nHeight, blockindex->pprev);
@@ -2211,6 +2214,15 @@ UniValue exec(const UniValue& params, bool fHelp)
 		std::string sResponse = BiblepayHTTPSPost(true, 0,"POST","USER_A","PostSpeed","https://pool.biblepay.org","Action.aspx", 443, "SOLUTION", 20, 5000);
 		results.push_back(Pair("Test",sResponse));
 	}
+	else if (sItem=="ipfsgetbyurl")
+	{
+		if (params.size() < 3)
+			throw runtime_error("You must specify source IPFSURL and target filename.");
+		std::string sURL = params[1].get_str();
+		std::string sPath = params[2].get_str();
+		int i = ipfs_download(sURL, sPath, 15);
+		results.push_back(Pair("Results", i));
+	}
 	else if (sItem == "ipfsget")
 	{
 		if (params.size() < 3)
@@ -2549,7 +2561,6 @@ UniValue exec(const UniValue& params, bool fHelp)
 		results.push_back(Pair("file-age", nAge));
 		results.push_back(Pair("file-hash", uDCChash.GetHex()));
 		results.push_back(Pair("contract", sContract));
-		LogPrintf(" Phase %f ", 3);
 		double nRank = MyPercentile(iLastSuperblock);
 		results.push_back(Pair("sanctuary_rank", nRank));
 		std::string sAddresses="";
@@ -2568,12 +2579,17 @@ UniValue exec(const UniValue& params, bool fHelp)
 			// create the contract
 			std::string sQuorumTrigger = SerializeSanctuaryQuorumTrigger(iNextSuperblock, sContract);
 			std::string sGobjectHash = "";
-			LogPrintf(" Phase %f ", 6);
 
 			SubmitDistributedComputingTrigger(sQuorumTrigger, sGobjectHash, sError);
-			LogPrintf(" Phase %f ", 7);
-
+			
 			results.push_back(Pair("quorum_hex", sQuorumTrigger));
+			// Add the contract explanation as JSON
+			std::vector<unsigned char> v = ParseHex(sQuorumTrigger);
+			std::string sMyQuorumTrigger(v.begin(), v.end());
+			UniValue u(UniValue::VOBJ);
+			u.read(sMyQuorumTrigger);
+			std::string sMyJsonQuorumTrigger = u.write().c_str();
+			results.push_back(Pair("quorum_json", sMyJsonQuorumTrigger));
 			results.push_back(Pair("quorum_gobject_trigger_hash", sGobjectHash));
 			results.push_back(Pair("quorum_error", sError));
 		}
@@ -2582,6 +2598,11 @@ UniValue exec(const UniValue& params, bool fHelp)
 		results.push_back(Pair("required_votes", iRequiredVotes));
 		results.push_back(Pair("last_superblock", iLastSuperblock));
 		results.push_back(Pair("next_superblock", iNextSuperblock));
+		// QT
+		std::string sSig = SignPrice(".01");
+		bool fSigValid = VerifyDarkSendSigner(sSig);
+		results.push_back(Pair("sigvalid", fSigValid));
+
 		bool fTriggered = CSuperblockManager::IsSuperblockTriggered(iNextSuperblock);
 		double nTotalMagnitude = 0;
 		LogPrintf(" Phase %f ", 10);
@@ -3117,6 +3138,21 @@ UniValue exec(const UniValue& params, bool fHelp)
 	{
 		TestRSA();
 		results.push_back(Pair("rsa", 1));
+	}
+	else if (sItem == "pbase")
+	{
+		double dBase = GetPBase();
+		results.push_back(Pair("pbase", RoundToString(dBase,12)));
+	}
+	else if (sItem == "qt")
+	{
+		// QuantitativeTightening - QT - RANDREWS - BIBLEPAY
+		double dPriorPrice = 0;
+		double dPriorPhase = 0;
+		GetQTPhase(1, chainActive.Tip()->nHeight, dPriorPrice, dPriorPhase);
+		std::string sQT = RoundToString(dPriorPhase, 0) + "%";
+		// End of QT
+		results.push_back(Pair("qt", sQT));
 	}
 	else if (sItem == "datalist")
 	{
@@ -5778,6 +5814,17 @@ std::string VerifyManyWorkUnits(std::string sProjectId, std::string sTaskIds)
 	return sResponse;
 }
 
+double GetPBase()
+{
+	std::string sBase1 = DecodeBase64(GetSporkValue("pbase1"));
+	std::string sBase2 = DecodeBase64(GetSporkValue("pbase2"));
+	std::string sBase3 = DecodeBase64(GetSporkValue("pbase3"));
+	std::string sError = "";
+	std::string sRes = BiblepayHTTPSPost(false, 0, "", "", "", sBase1, sBase2, 443, "", 15, 35000, 3);
+	double dBase1 = cdbl(ExtractXML(sRes, sBase3 + "\":", "}"), 12);
+    return dBase1;
+}
+
 std::string GetBoincHostsByUser(int iRosettaID, std::string sProjectId)
 {
     	std::string sProjectURL= "https://" + GetSporkValue(sProjectId);
@@ -6018,31 +6065,97 @@ double GetBoincTeamByUserId(std::string sProjectId, int nUserId)
 	return dTeam;
 }
 
+bool VerifyDarkSendSigner(std::string sXML)
+{
+	std::string sSignature = ExtractXML(sXML, "<sig>", "</sig>");
+	std::string sSigner = ExtractXML(sXML, "<signer>", "</signer>");
+	std::string sMessage = ExtractXML(sXML, "<message>", "</message>");
+	std::string sError = "";
+	bool fValid = CheckStakeSignature(sSigner, sSignature, sMessage, sError);
+	return fValid;
+}
+
+double GetQTPhase(double dPrice, int nEventHeight, double& out_PriorPrice, double& out_PriorPhase)
+{
+	double nMaximumTighteningPercentage = GetSporkDouble("qtmaxpercentage", 0);
+	// If feature is off return 0:
+	if (nMaximumTighteningPercentage == 0) return 0;
+	double nPriceThreshhold = GetSporkDouble("qtpricethreshhold", 0);
+	
+	// Step 1:  If our price is > QTPriceThreshhold (initially .01), we are in phase 0
+	if (dPrice >= nPriceThreshhold) return 0;
+	// Step 2: If price is 0, something is wrong.
+	if (dPrice == 0) return 0;
+    // Step 3: Get yesterdays phase
+	// Find the last superblock height before this height
+	
+	const Consensus::Params& consensusParams = Params().GetConsensus();
+	int iNextSuperblock = 0;
+	int iLastSuperblock = GetLastDCSuperblockHeight(nEventHeight-1, iNextSuperblock);
+	//LogPrintf(" Looking for superblock before %f at %f ", nEventHeight, iLastSuperblock);
+
+	if (nEventHeight < 100 || iLastSuperblock < 100 || iLastSuperblock > chainActive.Tip()->nHeight) return 0;
+	std::string sXML = "";
+	CBlockIndex* pindex = FindBlockByHeight(iLastSuperblock);
+	if (pindex != NULL)
+	{
+		CBlock block;
+		if (ReadBlockFromDisk(block, pindex, consensusParams, "IsGovObjPaid")) 
+		{
+			for (unsigned int i = 0; i < block.vtx[0].vout.size(); i++)
+			{
+				sXML += block.vtx[0].vout[i].sTxOutMessage;
+			}		
+		}
+		bool bValid = VerifyDarkSendSigner(sXML);
+		double dPhase = 0;
+		if (bValid)
+		{
+			out_PriorPhase = cdbl(ExtractXML(sXML, "<qtphase>", "</qtphase>"), 0);
+			out_PriorPrice = cdbl(ExtractXML(sXML, "<price>", "</price>"), 0);
+		}
+		dPhase = out_PriorPhase + 1;
+		if (dPhase > nMaximumTighteningPercentage) dPhase = nMaximumTighteningPercentage; 
+		return dPhase;
+	}
+	return 0;
+}
 
 std::string SerializeSanctuaryQuorumTrigger(int nEventBlockHeight, std::string sContract)
 {
-		std::string sEventBlockHeight = RoundToString(nEventBlockHeight,0);
-		std::string sPaymentAddresses = "";
-		std::string sPaymentAmounts = "";
-		bool bStatus = GetContractPaymentData(sContract, nEventBlockHeight, sPaymentAddresses, sPaymentAmounts);
-		if (!bStatus) return "";
-		std::string sProposalHashes = GetDCCHash(sContract).GetHex();
-		std::string sType = "2"; //DC Trigger is always 2
-		std::string sQ = "\"";
-		std::string sJson = "[[" + sQ + "trigger" + sQ + ",{";
-		sJson += GJE("event_block_height", sEventBlockHeight, true, false); // Must be an int
-		sJson += GJE("payment_addresses", sPaymentAddresses, true, true);
-		sJson += GJE("payment_amounts", sPaymentAmounts, true, true);
-		sJson += GJE("proposal_hashes", sProposalHashes, true, true);
-		//sJson += GJE("contract", sContract, true, true);
-		sJson += GJE("type", sType, false, false); 
-		sJson += "}]]";
-	    std::vector<unsigned char> vchJson = vector<unsigned char>(sJson.begin(), sJson.end());
-		std::string sHex = HexStr(vchJson.begin(), vchJson.end());
-	    return sHex;
+	std::string sEventBlockHeight = RoundToString(nEventBlockHeight,0);
+	std::string sPaymentAddresses = "";
+	std::string sPaymentAmounts = "";
+	bool bStatus = GetContractPaymentData(sContract, nEventBlockHeight, sPaymentAddresses, sPaymentAmounts);
+	if (!bStatus) return "";
+	std::string sProposalHashes = GetDCCHash(sContract).GetHex();
+	std::string sType = "2"; //DC Trigger is always 2
+	std::string sQ = "\"";
+	std::string sJson = "[[" + sQ + "trigger" + sQ + ",{";
+	sJson += GJE("event_block_height", sEventBlockHeight, true, false); // Must be an int
+	sJson += GJE("payment_addresses", sPaymentAddresses,  true, true);
+	sJson += GJE("payment_amounts",   sPaymentAmounts,    true, true);
+	sJson += GJE("proposal_hashes",   sProposalHashes,    true, true);
+	// QT - Quantitative Tightening - R ANDREWS - 9-14-2018
+	double dPrice = GetPBase();
+	std::string sPrice = RoundToString(dPrice, 12);
+	sJson += GJE("price", sPrice, true, true);
+	double out_PriorPrice = 0;
+	double out_PriorPhase = 0;
+	double dPhase = GetQTPhase(dPrice, nEventBlockHeight, out_PriorPrice, out_PriorPhase);
+	std::string sPhase = RoundToString(dPhase, 0);
+	sJson += GJE("qtphase", sPhase, true, true);
+	std::string sSig = SignPrice(sPrice);
+	sJson += GJE("sig", sSig, true, true);
+	bool fSigValid = VerifyDarkSendSigner(sSig);
+	LogPrintf("Creating Contract Sig %s  sigvalid %f ",sSig.c_str(),(double)fSigValid);
+
+	sJson += GJE("type", sType, false, false); 
+	sJson += "}]]";
+	std::vector<unsigned char> vchJson = vector<unsigned char>(sJson.begin(), sJson.end());
+	std::string sHex = HexStr(vchJson.begin(), vchJson.end());
+	return sHex;
 }
-
-
 
 
 double VerifyTasks(std::string sCPID, std::string sTasks)
@@ -6475,7 +6588,27 @@ std::string GetActiveProposals()
 	return sXML;
 }
 
-
+std::string SignPrice(std::string sValue)
+{
+	 CMasternode mn;
+     if(mnodeman.Get(activeMasternode.vin, mn)) 
+	 {
+         CBitcoinAddress mnAddress(mn.pubKeyCollateralAddress.GetID());
+		 if (mnAddress.IsValid()) 
+		 {
+			std::string sNonceValue = RoundToString(GetAdjustedTime(), 0);
+	        std::string sError = "";
+			std::string sSignature = "";
+			bool bSigned = SignStake(mnAddress.ToString(), sValue + sNonceValue, sError, sSignature);
+			if (bSigned) 
+			{
+				std::string sDarkSendSigner = "<signer>" + mnAddress.ToString() + "</signer><sig>" + sSignature + "</sig><message>" + sValue + sNonceValue + "</message>";
+				return sDarkSendSigner;
+			}
+		 }
+	 }
+	 return "";
+}
 
 bool VoteManyForGobject(std::string govobj, std::string strVoteSignal, std::string strVoteOutcome, 
 	int iVotingLimit, int& nSuccessful, int& nFailed, std::string& sError)
@@ -6770,10 +6903,14 @@ std::string StoreBusinessObject(UniValue& oBusinessObject, std::string& sError)
 	return "";
 }
 
-std::string GetJSONFromIPFS(std::string sHash, std::string& sError)
+std::string GetDataFromIPFS(std::string sURL, std::string& sError)
 {
-	std::string sURL = "http://ipfs.biblepay.org:8080/ipfs/" + sHash;
-	std::string sPath = GetSANDirectory2() + sHash;
+	std::string sPath = GetSANDirectory2() + "guid";
+	std::ofstream fd(sPath.c_str());
+	std::string sEmptyData = "";
+	fd.write(sEmptyData.c_str(), sizeof(char)*sEmptyData.size());
+	fd.close();
+
 	int i = ipfs_download(sURL, sPath, 15);
 	if (i != 1) 
 	{
@@ -6796,6 +6933,13 @@ std::string GetJSONFromIPFS(std::string sHash, std::string& sError)
 	}
 	streamIn.close();
 	return sJson;
+}
+
+
+std::string GetJSONFromIPFS(std::string sHash, std::string& sError)
+{
+	std::string sURL = "http://ipfs.biblepay.org:8080/ipfs/" + sHash;
+	return GetDataFromIPFS(sURL, sError);
 }
 
 UniValue GetBusinessObject(std::string sType, std::string sPrimaryKey, std::string& sError)

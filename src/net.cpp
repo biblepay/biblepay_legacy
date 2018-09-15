@@ -2927,9 +2927,10 @@ std::string GetDomainFromURL(std::string sURL)
 std::string PrepareHTTPPost(bool bPost, std::string sPage, std::string sHostHeader, const string& sMsg, const map<string,string>& mapRequestHeaders)
 {
     ostringstream s;
+	std::string sUserAgent = "Mozilla/5.0";
 	std::string sMethod = bPost ? "POST" : "GET";
     s << sMethod + " /" + sPage + " HTTP/1.1\r\n"
-      << "User-Agent: BiblePay-QT/" << FormatFullVersion() << "\r\n"
+      << "User-Agent: " + sUserAgent + "/" << FormatFullVersion() << "\r\n"
 	  << "Host: " + sHostHeader + "" << "\r\n"
       << "Content-Length: " << sMsg.size() << "\r\n";
     BOOST_FOREACH(const PAIRTYPE(string, string)& item, mapRequestHeaders)
@@ -3320,6 +3321,7 @@ std::string BiblepayHTTPSPost(bool bPost, int iThreadID, std::string sActionName
 				if (iBreakOnError == 1) if (sData.find("</error>") != string::npos) break;
 				if (iBreakOnError == 1) if (sData.find("</error_msg>") != string::npos) break;
 				if (iBreakOnError == 2) if (sData.find("</results>") != string::npos) break;
+				if (iBreakOnError == 3) if (sData.find("}}") != string::npos) break;
 				if (sData.find("Content-Length:") != string::npos)
 				{
 					double dMaxSize = cdbl(ExtractXML(sData,"Content-Length: ","\n"),0);

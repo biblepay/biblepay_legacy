@@ -115,6 +115,7 @@ int DeserializePrayersFromFile();
 extern void KillBlockchainFiles();
 extern void HealthCheckup();
 std::string GenerateNewAddress(std::string& sError, std::string sName);
+double GetQTPhase(double dPrice, int nEventHeight, double& out_PriorPrice, double& out_PriorPhase);
 
 bool CheckProofOfLoyalty(double dWeight, uint256 hash, unsigned int nBits, const Consensus::Params& params, 
 	int64_t nBlockTime, int64_t nPrevBlockTime, int nPrevHeight, unsigned int nNonce, const CBlockIndex* pindexPrev, bool bLoadingBlockIndex);
@@ -2232,6 +2233,25 @@ const CBlockIndex* GetLookbackIndex(int64_t iMinimumBackSpacing, int64_t iFirstM
    if (BlockReading) { return BlockReading; } else { return NULL; }
 }
 
+CAmount GetQuantitativeTighteningAmount(CAmount nSubsidy, int nHeight)
+{
+	bool f14000 = ((nHeight > F14000_CUTOVER_HEIGHT_PROD && fProd)  ||  (nHeight > F14000_CUTOVER_HEIGHT_TESTNET && !fProd));
+	if (!f14000) return 0;
+	// Step 2: Verify the feature is enabled
+	double nMaximumTighteningPercentage = GetSporkDouble("qtmaxpercentage", 0);
+	if (nMaximumTighteningPercentage == 0) return 0;
+	// Step 3: Calculate the QT cumulative tightening value
+	double dPriorPrice = 0;
+	double dPriorPhase = 0;
+	GetQTPhase(1, nHeight, dPriorPrice, dPriorPhase);
+	// If yesterdays phase was 0, don't modify the subsidy
+	if (dPriorPhase <= 0) return 0;
+	// Step 4: Modify the subsidy by the percent
+	double dQuantitativePercent = dPriorPhase / 100;
+	CAmount dReduction = nSubsidy * dQuantitativePercent;
+	return dReduction;
+}
+
 CAmount GetBlockSubsidy(const CBlockIndex* pindexPrev, int nPrevBits, int nPrevHeight, const Consensus::Params& consensusParams, bool fSuperblockPartOnly)
 {
 	double dDiff = 0;
@@ -2282,6 +2302,12 @@ CAmount GetBlockSubsidy(const CBlockIndex* pindexPrev, int nPrevBits, int nPrevH
         nSubsidy -= (nSubsidy * iDeflationRate);
     }
 		
+	// 9-15-2018 - BiblePay - R ANDREWS - QuantitativeTightening (QT)
+	CAmount nQTAmount = GetQuantitativeTighteningAmount(nSubsidy, nPrevHeight);
+	nSubsidy -= (nQTAmount);
+
+	// End of QT
+
     // When sanctuaries go live: The Tithe block is disabled, budgeting/superblocks are enabled, and the budget contains a max of : 
 	// 10% to Charity budget, 5% for the IT budget, 2.5% PR, 2.5% P2P.  The 80% remaining is split between the miner and the sanctuary.
 
@@ -7483,7 +7509,12 @@ void SetOverviewStatus()
 {
 	double dDiff = GetDifficultyN(chainActive.Tip(), 10);
 	double dPOWDifficulty = GetDifficulty(chainActive.Tip()) * 10;
-
+	// QuantitativeTightening - QT - RANDREWS - BIBLEPAY
+	double dPriorPrice = 0;
+	double dPriorPhase = 0;
+	GetQTPhase(1, chainActive.Tip()->nHeight, dPriorPrice, dPriorPhase);
+	std::string sQT = "QT: " + RoundToString(dPriorPhase, 0) + "%";
+	// End of QT
 	if (fDistributedComputingEnabled) UpdateMagnitude();
 	std::string sPrayer = "NA";
 	GetDataList("PRAYER", 7, iPrayerIndex, "", sPrayer);
@@ -7494,6 +7525,7 @@ void SetOverviewStatus()
 	msGlobalStatus += "</font>";
 	std::string sVersionAlert = GetVersionAlert();
 	if (!sVersionAlert.empty()) msGlobalStatus += " <font color=purple>" + sVersionAlert + "</font> ;";
+	msGlobalStatus += " <font color=orange>" + sQT + "</font> ;";
 	// std::string sPrayers = FormatHTML(sPrayer, 12, "<br>");
 	msGlobalStatus2 = "<font color=maroon><b>" + sPrayer + "</font></b><br>&nbsp;";
 }
