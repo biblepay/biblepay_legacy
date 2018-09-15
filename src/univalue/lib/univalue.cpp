@@ -307,6 +307,7 @@ bool UniValue::get_bool() const
     return getBool();
 }
 
+
 std::string UniValue::get_str() const
 {
     if (typ != VSTR)

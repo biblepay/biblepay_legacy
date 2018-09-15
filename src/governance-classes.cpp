@@ -450,9 +450,9 @@ std::string GetQTPhaseXML(CSuperblock_sptr pSuperblock)
 		UniValue obj = pObj->GetJSONObject();
 		if (obj.size() > 0)
 		{
-			std::string sPrice = obj["price"].get_str();
-			std::string sQTPhase = obj["qtphase"].get_str();
-			std::string sDarkSig = obj["sig"].get_str();
+			std::string sPrice = obj["price"].getValStr();
+			std::string sQTPhase = obj["qtphase"].getValStr();
+			std::string sDarkSig = obj["sig"].getValStr();
 			std::string sXML = "<price>" + sPrice + "</price><qtphase>" + sQTPhase + "</qtphase>" + sDarkSig;
 			return sXML;
 		}

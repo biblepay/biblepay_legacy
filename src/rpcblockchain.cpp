@@ -2624,7 +2624,7 @@ UniValue exec(const UniValue& params, bool fHelp)
 		// Returns a CPID for a given BBP address
 		if (params.size() > 2) throw runtime_error("You must specify one BBP address or none: exec getcpid, or exec getcpid BBPAddress.");
 		std::string sAddress = "";
-		if (params.size() == 2) sAddress = params[1].get_str();
+		if (params.size() == 2) sAddress = params[1].getValStr();
 		std::string out_address = "";
 		double nMagnitude = 0;
 		std::string sCPID = FindResearcherCPIDByAddress(sAddress, out_address, nMagnitude);

@@ -73,7 +73,7 @@ QString GetValue(UniValue oObject, std::string sFieldName)
 	
 	if (oObject.size() > 0)
 	{
-		std::string sResult = oObject[sFieldName].get_str();
+		std::string sResult = oObject[sFieldName].getValStr();
 		return ToQstring(sResult);
 	}
 	else
@@ -85,38 +85,27 @@ QString GetValue(UniValue oObject, std::string sFieldName)
 void ContactAddDialog::UpdateDisplay()
 {
 		std::string sInfo = "Note: Longitude/Latitude is optional and used for our Great Tribulation Map (consider using the nearest street corner).  <br>E-Mail is optional and used for receiving BBP via e-mail.<br><br><font color=red>GDPR Regulation Compliance:  To delete your personal information, click Delete and the off-chain data will be deleted during <br>the IPFS cleanup cycle (BiblePay does not store personal information in the chain).</font>(" + RoundToString(iUpdates, 0) + ")  ";
-
 		std::string sError = "";
-		LogPrintf(" 800.5 \n");
 		fprintf(stdout, "800.5 \n");
 		iUpdates++;
 
 		if (sAddress.empty()) sAddress = DefaultRecAddress(BUSINESS_OBJECTS);
 
-		LogPrintf(" 801 ");
-
 		UniValue oContact = GetBusinessObject("contact", sAddress, sError);
-		LogPrintf(" 802 \n");
 
 		if (sError.empty() && oContact.size() > 0)
 		{
-			LogPrintf(" 803 ");
-
 			ui->txtContactName->setText(GetValue(oContact, "contact_name"));
 			ui->txtCompanyName->setText(GetValue(oContact, "company_name"));
 			ui->txtURL->setText(GetValue(oContact, "url"));
 			ui->txtLongitude->setText(GetValue(oContact, "longitude"));
-			LogPrintf(" 804 ");
-
+			std::string sResult = oContact["empty"].getValStr();
+			LogPrintf(" emptyresult %s  ", sResult.c_str());
 			ui->txtLatitude->setText(GetValue(oContact, "latitude"));
 			ui->txtAddress->setText(GetValue(oContact, "receiving_address"));
 			ui->txtEmail->setText(GetValue(oContact, "email"));
-			LogPrintf(" 805 ");
-
 			int index = ui->cmbContactType->findText(GetValue(oContact, "contact_type"));
 			if (index >= 0) ui->cmbContactType->setCurrentIndex(index);
-			LogPrintf(" 806 ");
-
 		}
 		else
 		{
@@ -167,7 +156,7 @@ void ContactAddDialog::on_btnDelete_clicked()
 	objContact.push_back(Pair("receiving_address", FromQStringW(ui->txtAddress->text())));
 	objContact.push_back(Pair("email", FromQStringW(ui->txtEmail->text())));
 	std::string sError = "";
-	CBitcoinAddress address(objContact["receiving_address"].get_str());
+	CBitcoinAddress address(objContact["receiving_address"].getValStr());
 	if (!address.IsValid()) sError += "Funding Address is invalid. ";
 	std::string sContactType = FromQStringW(ui->cmbContactType->currentText());
 	objContact.push_back(Pair("contact_type", sContactType));
@@ -195,8 +184,8 @@ void ContactAddDialog::on_btnSave_clicked()
 	objContact.push_back(Pair("email", FromQStringW(ui->txtEmail->text())));
 
 	std::string sError = "";
-	if (objContact["contact_name"].get_str().length() < 3) sError += "Contact Name must be populated. ";
-	CBitcoinAddress address(objContact["receiving_address"].get_str());
+	if (objContact["contact_name"].getValStr().length() < 3) sError += "Contact Name must be populated. ";
+	CBitcoinAddress address(objContact["receiving_address"].getValStr());
 	if (!address.IsValid()) sError += "Funding Address is invalid. ";
 	std::string sContactType = FromQStringW(ui->cmbContactType->currentText());
 	if (sContactType.empty()) sError += "Contact Type must be chosen. ";
