@@ -3149,10 +3149,18 @@ UniValue exec(const UniValue& params, bool fHelp)
 		// QuantitativeTightening - QT - RANDREWS - BIBLEPAY
 		double dPriorPrice = 0;
 		double dPriorPhase = 0;
-		GetQTPhase(1, chainActive.Tip()->nHeight, dPriorPrice, dPriorPhase);
-		std::string sQT = RoundToString(dPriorPhase, 0) + "%";
-		// End of QT
-		results.push_back(Pair("qt", sQT));
+		int iStep = fProd ? BLOCKS_PER_DAY : BLOCKS_PER_DAY/4;
+		int iLookback = fProd ? BLOCKS_PER_DAY * 7 : BLOCKS_PER_DAY * 7 * 4;
+		int nMinHeight = (chainActive.Tip()->nHeight - 10 - (iLookback));
+		if (nMinHeight < 100) nMinHeight = 100;
+		results.push_back(Pair("Report", "QT - History"));
+		results.push_back(Pair("Height", "Price; QT Percentage"));
+		for (int nHeight = nMinHeight; nHeight < chainActive.Tip()->nHeight; nHeight += iStep)
+		{
+			GetQTPhase(-1, nHeight, dPriorPrice, dPriorPhase);
+			std::string sRow = "Price: " + RoundToString(dPriorPrice, 12) + "; QT: " + RoundToString(dPriorPhase, 0) + "%";
+			results.push_back(Pair(RoundToString(nHeight, 0), sRow));
+		}
 	}
 	else if (sItem == "datalist")
 	{
@@ -6077,7 +6085,8 @@ bool VerifyDarkSendSigner(std::string sXML)
 
 double GetQTPhase(double dPrice, int nEventHeight, double& out_PriorPrice, double& out_PriorPhase)
 {
-	double nMaximumTighteningPercentage = GetSporkDouble("qtmaxpercentage", 0);
+	// If -1 is passed in, the caller wants the prior days QT level and price.
+    double nMaximumTighteningPercentage = GetSporkDouble("qtmaxpercentage", 0);
 	// If feature is off return 0:
 	if (nMaximumTighteningPercentage == 0) return 0;
 	double nPriceThreshhold = GetSporkDouble("qtpricethreshhold", 0);
@@ -6086,39 +6095,58 @@ double GetQTPhase(double dPrice, int nEventHeight, double& out_PriorPrice, doubl
 	if (dPrice >= nPriceThreshhold) return 0;
 	// Step 2: If price is 0, something is wrong.
 	if (dPrice == 0) return 0;
-    // Step 3: Get yesterdays phase
+	
+	// Step 3: Get yesterdays phase
 	// Find the last superblock height before this height
 	
 	const Consensus::Params& consensusParams = Params().GetConsensus();
 	int iNextSuperblock = 0;
-	int iLastSuperblock = GetLastDCSuperblockHeight(nEventHeight-1, iNextSuperblock);
-	//LogPrintf(" Looking for superblock before %f at %f ", nEventHeight, iLastSuperblock);
-
-	if (nEventHeight < 100 || iLastSuperblock < 100 || iLastSuperblock > chainActive.Tip()->nHeight) return 0;
-	std::string sXML = "";
-	CBlockIndex* pindex = FindBlockByHeight(iLastSuperblock);
-	if (pindex != NULL)
+	nEventHeight -= 1;
+	int nTotalSamples = 3;
+	// Check N Samples for the first valid price and phase
+	for (int iDay = 0; iDay < nTotalSamples; iDay++)
 	{
-		CBlock block;
-		if (ReadBlockFromDisk(block, pindex, consensusParams, "IsGovObjPaid")) 
+		int iLastSuperblock = GetLastDCSuperblockHeight(nEventHeight-1, iNextSuperblock);
+		//LogPrintf(" Looking for superblock before %f at %f ", nEventHeight, iLastSuperblock);
+		if (iLastSuperblock > chainActive.Tip()->nHeight)
 		{
-			for (unsigned int i = 0; i < block.vtx[0].vout.size(); i++)
+			LogPrintf(" Last Superblock %f, tip %f ", iLastSuperblock, chainActive.Tip()->nHeight);
+		}
+		if (nEventHeight < 1000 || iLastSuperblock < 1000 || iLastSuperblock > chainActive.Tip()->nHeight) return 0;
+		std::string sXML = "";
+		CBlockIndex* pindex = FindBlockByHeight(iLastSuperblock);
+		if (pindex != NULL)
+		{
+			CBlock block;
+			if (ReadBlockFromDisk(block, pindex, consensusParams, "IsGovObjPaid")) 
 			{
-				sXML += block.vtx[0].vout[i].sTxOutMessage;
-			}		
+				for (unsigned int i = 0; i < block.vtx[0].vout.size(); i++)
+				{
+					sXML += block.vtx[0].vout[i].sTxOutMessage;
+				}		
+			}
+			bool bValid = VerifyDarkSendSigner(sXML);
+			if (bValid)
+			{
+				out_PriorPhase = cdbl(ExtractXML(sXML, "<qtphase>", "</qtphase>"), 0);
+				out_PriorPrice = cdbl(ExtractXML(sXML, "<price>", "</price>"), 12);
+				break;
+			}
+			else
+			{
+				// LogPrintf(" unable to verify price %s for height %f ",sXML.c_str(), iLastSuperblock);
+			}
 		}
-		bool bValid = VerifyDarkSendSigner(sXML);
-		double dPhase = 0;
-		if (bValid)
+		else
 		{
-			out_PriorPhase = cdbl(ExtractXML(sXML, "<qtphase>", "</qtphase>"), 0);
-			out_PriorPrice = cdbl(ExtractXML(sXML, "<price>", "</price>"), 0);
+			return 0;
 		}
-		dPhase = out_PriorPhase + 1;
-		if (dPhase > nMaximumTighteningPercentage) dPhase = nMaximumTighteningPercentage; 
-		return dPhase;
+		nEventHeight -= consensusParams.nDCCSuperblockCycle;
+		if (nEventHeight < 1000) break;
 	}
-	return 0;
+	double dPhase = out_PriorPhase + 1;
+	if (dPhase > nMaximumTighteningPercentage) dPhase = nMaximumTighteningPercentage; 
+	return dPhase;
 }
 
 std::string SerializeSanctuaryQuorumTrigger(int nEventBlockHeight, std::string sContract)

@@ -2243,7 +2243,7 @@ CAmount GetQuantitativeTighteningAmount(CAmount nSubsidy, int nHeight)
 	// Step 3: Calculate the QT cumulative tightening value
 	double dPriorPrice = 0;
 	double dPriorPhase = 0;
-	GetQTPhase(1, nHeight, dPriorPrice, dPriorPhase);
+	GetQTPhase(-1, nHeight, dPriorPrice, dPriorPhase);
 	// If yesterdays phase was 0, don't modify the subsidy
 	if (dPriorPhase <= 0) return 0;
 	// Step 4: Modify the subsidy by the percent
@@ -7512,8 +7512,10 @@ void SetOverviewStatus()
 	// QuantitativeTightening - QT - RANDREWS - BIBLEPAY
 	double dPriorPrice = 0;
 	double dPriorPhase = 0;
-	GetQTPhase(1, chainActive.Tip()->nHeight, dPriorPrice, dPriorPhase);
+	GetQTPhase(-1, chainActive.Tip()->nHeight-1, dPriorPrice, dPriorPhase);
 	std::string sQT = "QT: " + RoundToString(dPriorPhase, 0) + "%";
+	std::string sQTColor = (dPriorPhase == 0) ? "<font color=blue>" : "<font color=green>";
+
 	// End of QT
 	if (fDistributedComputingEnabled) UpdateMagnitude();
 	std::string sPrayer = "NA";
@@ -7525,7 +7527,7 @@ void SetOverviewStatus()
 	msGlobalStatus += "</font>";
 	std::string sVersionAlert = GetVersionAlert();
 	if (!sVersionAlert.empty()) msGlobalStatus += " <font color=purple>" + sVersionAlert + "</font> ;";
-	msGlobalStatus += " <font color=orange>" + sQT + "</font> ;";
+	msGlobalStatus += " " + sQTColor + sQT + "</font>;<font color=green> Price: " + RoundToString(dPriorPrice, 8) + "</font>;";
 	// std::string sPrayers = FormatHTML(sPrayer, 12, "<br>");
 	msGlobalStatus2 = "<font color=maroon><b>" + sPrayer + "</font></b><br>&nbsp;";
 }

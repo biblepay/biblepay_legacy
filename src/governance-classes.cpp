@@ -515,6 +515,7 @@ void CSuperblockManager::CreateSuperblock(CMutableTransaction& txNewRet, int nBl
 			if (!bQTPhaseEmitted) 
 			{
 				txout.sTxOutMessage = GetQTPhaseXML(pSuperblock);
+				bQTPhaseEmitted = true;
 			}
             txNewRet.vout.push_back(txout);
             voutSuperblockRet.push_back(txout);
