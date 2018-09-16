@@ -48,7 +48,7 @@ QString BitcoinUnits::name(int unit)
         {
             case BIBLEPAY: return QString("Biblepay");
             case mBIBLEPAY: return QString("mBiblepay");
-            case uBIBLEPAY: return QString::fromUtf8("?Biblepay");
+            case uBIBLEPAY: return QString::fromUtf8("µBiblepay");
             case duffs: return QString("duffs");
             default: return QString("???");
         }

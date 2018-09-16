@@ -62,14 +62,15 @@ void ProposalAddDialog::UpdateDisplay()
 {
 	int nNextHeight = GetNextSuperblock();
 
-	std::string sInfo = "Note: Proposal Cost is 2500 BBP.  Next Superblock at height: " + RoundToString(nNextHeight, 0);
+	std::string sInfo = "Note: Proposal Cost is 2500 BBP.  Next Superblock at height: " + RoundToString(nNextHeight, 0) + "<br>Warning: You must unlock the wallet before submitting the proposal.";
+
 	if (fProposalNeedsSubmitted)
 	{
-		sInfo += "<br>NOTE: You have a proposal waiting to be submitted.  Status: " + msProposalResult;
+		sInfo += "<br>NOTE: You have a proposal waiting to be submitted.  <br>Status: " + msProposalResult;
 	}
 	else if (!msProposalResult.empty())
 	{
-		sInfo = "<br>NOTE: Your last proposal has been submitted.  Status: " + msProposalResult;
+		sInfo = "<br>NOTE: Your last proposal has been submitted.  <br>Status: " + msProposalResult;
 	}
 
 	ui->txtInfo->setText(ToQstring(sInfo));
@@ -176,10 +177,12 @@ void ProposalAddDialog::on_btnSubmit_clicked()
 		nProposalStartTime = unixStartTimestamp;
 		msProposalHex = sHex;
 		fProposalNeedsSubmitted = true;
+		clear();
+ 	
 	}
  	QMessageBox::warning(this, tr("Proposal Add Result"), ToQstring(sNarr), QMessageBox::Ok, QMessageBox::Ok);
-    clear();
- 	UpdateDisplay();
+
+    UpdateDisplay();
 }
 
 

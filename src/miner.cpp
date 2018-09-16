@@ -828,7 +828,7 @@ recover:
             {
 				// This happens when there is no CPID, or last block was solved by this CPID
                 // LogPrintf("BiblepayMiner -- Keypool ran out, please call keypoolrefill before restarting the mining thread\n");
-				MilliSleep(10);
+				MilliSleep(30000);
 				// UpdateHashesPerSec(nHashesDone);
 				goto recover;
             }

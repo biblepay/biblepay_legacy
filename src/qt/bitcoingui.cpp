@@ -1704,7 +1704,7 @@ void BitcoinGUI::detectShutdown()
 				std::string sError = "";
 				std::string sGovObj = "";
 				bool fSubmitted = SubmitProposalToNetwork(uTxIdFee, nProposalStartTime, msProposalHex, sError, sGovObj);
-				msProposalResult = fSubmitted ? "Submitted Proposal Successfully ( " + sGovObj + " )" : sError;
+				msProposalResult = fSubmitted ? "Submitted Proposal Successfully <br>( " + sGovObj + " )" : sError;
 				LogPrintf(" Proposal Submission Result:  %s  \n", msProposalResult.c_str());
 			}
 			else
