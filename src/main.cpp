@@ -7515,7 +7515,6 @@ void SetOverviewStatus()
 	GetQTPhase(-1, chainActive.Tip()->nHeight-1, dPriorPrice, dPriorPhase);
 	std::string sQT = "QT: " + RoundToString(dPriorPhase, 0) + "%";
 	std::string sQTColor = (dPriorPhase == 0) ? "<font color=blue>" : "<font color=green>";
-
 	// End of QT
 	if (fDistributedComputingEnabled) UpdateMagnitude();
 	std::string sPrayer = "NA";
@@ -7527,7 +7526,7 @@ void SetOverviewStatus()
 	msGlobalStatus += "</font>";
 	std::string sVersionAlert = GetVersionAlert();
 	if (!sVersionAlert.empty()) msGlobalStatus += " <font color=purple>" + sVersionAlert + "</font> ;";
-	msGlobalStatus += " " + sQTColor + sQT + "</font>;<font color=green> Price: " + RoundToString(dPriorPrice, 8) + "</font>;";
+	if (!fProd) msGlobalStatus += " " + sQTColor + sQT + "</font>;<font color=green> Price: " + RoundToString(dPriorPrice, 8) + "</font>;";
 	// std::string sPrayers = FormatHTML(sPrayer, 12, "<br>");
 	msGlobalStatus2 = "<font color=maroon><b>" + sPrayer + "</font></b><br>&nbsp;";
 }
