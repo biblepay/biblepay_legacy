@@ -2302,12 +2302,6 @@ CAmount GetBlockSubsidy(const CBlockIndex* pindexPrev, int nPrevBits, int nPrevH
         nSubsidy -= (nSubsidy * iDeflationRate);
     }
 		
-	// 9-15-2018 - BiblePay - R ANDREWS - QuantitativeTightening (QT)
-	CAmount nQTAmount = GetQuantitativeTighteningAmount(nSubsidy, nPrevHeight);
-	nSubsidy -= (nQTAmount);
-
-	// End of QT
-
     // When sanctuaries go live: The Tithe block is disabled, budgeting/superblocks are enabled, and the budget contains a max of : 
 	// 10% to Charity budget, 5% for the IT budget, 2.5% PR, 2.5% P2P.  The 80% remaining is split between the miner and the sanctuary.
 
@@ -4459,7 +4453,7 @@ bool HasThisCPIDSolvedPriorBlocks(std::string CPID, CBlockIndex* pindexPrev)
 	int iCheckWindow = fProd ? 4 : 1;
 	CBlockIndex* pindex = pindexPrev;
 	int64_t headerAge = GetAdjustedTime() - pindexPrev->nTime;
-	if (headerAge > (60*60*4)) return false;
+	if (headerAge > (60 * 60 * 4)) return false;
 	const CChainParams& chainparams = Params();
   
 	for (int i = 0; i < iCheckWindow; i++)
@@ -4474,7 +4468,11 @@ bool HasThisCPIDSolvedPriorBlocks(std::string CPID, CBlockIndex* pindexPrev)
 				if (!lastcpid.empty() && !sCPIDSig.empty())
 				{
 					// LogPrintf(" Current CPID %s, LastCPID %s, Height %f --- ", CPID.c_str(), lastcpid.c_str(), (double)pindex->nHeight);
-					if (lastcpid == CPID) return true;
+					if (lastcpid == CPID) 
+					{
+						// if (fDebugMaster) LogPrintf(" CPID %s has solvd prior blx @ height %f in prod %f iteration i %f ", CPID.c_str(), (double)pindex->nHeight, fProd, i);
+						return true;
+					}
 					pindex = pindexPrev->pprev;
 				}
 			}
@@ -7510,11 +7508,11 @@ void SetOverviewStatus()
 	double dDiff = GetDifficultyN(chainActive.Tip(), 10);
 	double dPOWDifficulty = GetDifficulty(chainActive.Tip()) * 10;
 	// QuantitativeTightening - QT - RANDREWS - BIBLEPAY
-	double dPriorPrice = 0;
-	double dPriorPhase = 0;
-	GetQTPhase(-1, chainActive.Tip()->nHeight-1, dPriorPrice, dPriorPhase);
-	std::string sQT = "QT: " + RoundToString(dPriorPhase, 0) + "%";
-	std::string sQTColor = (dPriorPhase == 0) ? "<font color=blue>" : "<font color=green>";
+	// double dPriorPrice = 0;
+	// double dPriorPhase = 0;
+	// GetQTPhase(-1, chainActive.Tip()->nHeight-1, dPriorPrice, dPriorPhase);
+	// std::string sQT = "QT: " + RoundToString(dPriorPhase, 0) + "%";
+	// std::string sQTColor = (dPriorPhase == 0) ? "<font color=blue>" : "<font color=green>";
 	// End of QT
 	if (fDistributedComputingEnabled) UpdateMagnitude();
 	std::string sPrayer = "NA";
@@ -7526,8 +7524,8 @@ void SetOverviewStatus()
 	msGlobalStatus += "</font>";
 	std::string sVersionAlert = GetVersionAlert();
 	if (!sVersionAlert.empty()) msGlobalStatus += " <font color=purple>" + sVersionAlert + "</font> ;";
-	if (!fProd) msGlobalStatus += " " + sQTColor + sQT + "</font>;<font color=green> Price: " + RoundToString(dPriorPrice, 8) + "</font>;";
-	// std::string sPrayers = FormatHTML(sPrayer, 12, "<br>");
+	// if (false) msGlobalStatus += " " + sQTColor + sQT + "</font>;<font color=green> Price: " + RoundToString(dPriorPrice, 8) + "</font>;";
+	std::string sPrayers = FormatHTML(sPrayer, 12, "<br>");
 	msGlobalStatus2 = "<font color=maroon><b>" + sPrayer + "</font></b><br>&nbsp;";
 }
 
