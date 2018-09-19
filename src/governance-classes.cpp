@@ -660,7 +660,7 @@ CAmount CSuperblock::GetPaymentsLimit(int nBlockHeight)
     int nBits = consensusParams.fPowAllowMinDifficultyBlocks ? UintToArith256(consensusParams.powLimit).GetCompact() : 1;
 
 	bool fDCLive = (fProd && fDistributedComputingEnabled && nBlockHeight > F11000_CUTOVER_HEIGHT_PROD) || (!fProd && fDistributedComputingEnabled);
-	bool F14000 = (((nBlockHeight > F14000_CUTOVER_HEIGHT_PROD && fProd) || (nBlockHeight > F14000_CUTOVER_HEIGHT_TESTNET && !fProd)));
+	// bool F14000 = (((nBlockHeight > F14000_CUTOVER_HEIGHT_PROD && fProd) || (nBlockHeight > F14000_CUTOVER_HEIGHT_TESTNET && !fProd)));
 					
     // some part of all blocks issued during the cycle goes to superblock, see GetBlockSubsidy
 	if (fDCLive) 
@@ -670,9 +670,9 @@ CAmount CSuperblock::GetPaymentsLimit(int nBlockHeight)
 	int nSuperblockCycle = IsValidBlockHeight(nBlockHeight) ? consensusParams.nSuperblockCycle : consensusParams.nDCCSuperblockCycle;
 	double nBudgetAvailable = (fDCLive && IsValidBlockHeight(nBlockHeight) && !IsDCCSuperblock(nBlockHeight)) ? .20 : 1;
 	// The first call to GetBlockSubsidy calculates the future reward (and this has our standard deflation of 19% per year in it)
-	int nAssessmentHeight = F14000 ? (nBlockHeight-nSuperblockCycle) : nBlockHeight;
-	
-    CAmount nSuperblockPartOfSubsidy = GetBlockSubsidy(pindexBestHeader->pprev, nBits, nAssessmentHeight, consensusParams, true);
+	// int nAssessmentHeight = F14000 ? (nBlockHeight-nSuperblockCycle) : nBlockHeight;
+		
+    CAmount nSuperblockPartOfSubsidy = GetBlockSubsidy(pindexBestHeader->pprev, nBits, nBlockHeight, consensusParams, true);
 	
     CAmount nPaymentsLimit = 0;
 	if (nBudgetAvailable == 1)
