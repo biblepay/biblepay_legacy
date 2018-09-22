@@ -29,6 +29,7 @@
 #include <vector>
 #include <boost/unordered_map.hpp>
 #include "support/allocators/secure.h"
+#include <univalue.h>
 
 class CBlockIndex;
 class CBlockTreeDB;

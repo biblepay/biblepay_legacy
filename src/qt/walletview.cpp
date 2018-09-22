@@ -17,6 +17,7 @@
 #include "distributedcomputingdialog.h"
 #include "proposaladddialog.h"
 #include "contactadddialog.h"
+#include "businessobjectlist.h"
 #include "sendcoinsdialog.h"
 #include "signverifymessagedialog.h"
 #include "transactiontablemodel.h"
@@ -80,6 +81,7 @@ WalletView::WalletView(const PlatformStyle *platformStyle, QWidget *parent):
 	proposalAddPage = new ProposalAddDialog(platformStyle);
 	proposalListPage = new Proposals(platformStyle);
     contactAddPage = new ContactAddDialog(platformStyle);
+	businessObjectListPage = new BusinessObjectList(platformStyle);
 
     usedSendingAddressesPage = new AddressBookPage(platformStyle, AddressBookPage::ForEditing, AddressBookPage::SendingTab, this);
     usedReceivingAddressesPage = new AddressBookPage(platformStyle, AddressBookPage::ForEditing, AddressBookPage::ReceivingTab, this);
@@ -90,6 +92,7 @@ WalletView::WalletView(const PlatformStyle *platformStyle, QWidget *parent):
 	addWidget(distributedComputingPage);
 	addWidget(proposalAddPage);
 	addWidget(contactAddPage);
+	addWidget(businessObjectListPage);
 	addWidget(proposalListPage);
     addWidget(sendCoinsPage);
 
@@ -170,6 +173,7 @@ void WalletView::setWalletModel(WalletModel *walletModel)
 	
 	proposalListPage->setModel(walletModel);
 	contactAddPage->setModel(walletModel);
+	businessObjectListPage->setModel(walletModel);
 
     usedReceivingAddressesPage->setModel(walletModel->getAddressTableModel());
     usedSendingAddressesPage->setModel(walletModel->getAddressTableModel());
@@ -256,6 +260,13 @@ void WalletView::gotoContactAddPage()
 {
 	setCurrentWidget(contactAddPage);
 	contactAddPage->UpdateDisplay();
+}
+
+void WalletView::gotoBusinessObjectListPage()
+{
+	if (fProd) return;
+	setCurrentWidget(businessObjectListPage);
+	businessObjectListPage->UpdateObject("object");
 }
 
 void WalletView::gotoProposalListPage()

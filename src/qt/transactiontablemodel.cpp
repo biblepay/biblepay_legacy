@@ -97,6 +97,11 @@ public:
      */
     void updateWallet(const uint256 &hash, int status, bool showTransaction)
     {
+		if (hash.IsNull())
+		{
+			LogPrintf(" UpdateWallet hash is null \n");
+		}
+	
         qDebug() << "TransactionTablePriv::updateWallet: " + QString::fromStdString(hash.ToString()) + " " + QString::number(status);
 
         // Find bounds of this transaction in model
@@ -170,6 +175,7 @@ public:
             // visible transactions.
             break;
         }
+
     }
 
     int size()
@@ -267,6 +273,7 @@ void TransactionTableModel::updateAmountColumnTitle()
 void TransactionTableModel::updateTransaction(const QString &hash, int status, bool showTransaction)
 {
     uint256 updated;
+
     updated.SetHex(hash.toStdString());
 
     priv->updateWallet(updated, status, showTransaction);
@@ -755,6 +762,12 @@ static std::vector< TransactionNotification > vQueueNotifications;
 static void NotifyTransactionChanged(TransactionTableModel *ttm, CWallet *wallet, const uint256 &hash, ChangeType status)
 {
     // Find transaction in wallet
+    if (hash.IsNull())
+	{
+		LogPrintf(" notification hash is null \n");
+		return;
+	}
+
     std::map<uint256, CWalletTx>::iterator mi = wallet->mapWallet.find(hash);
     // Determine whether to show transaction or not (determine this here so that no relocking is needed in GUI thread)
     bool inWallet = mi != wallet->mapWallet.end();
@@ -767,6 +780,7 @@ static void NotifyTransactionChanged(TransactionTableModel *ttm, CWallet *wallet
         vQueueNotifications.push_back(notification);
         return;
     }
+
     notification.invoke(ttm);
 }
 

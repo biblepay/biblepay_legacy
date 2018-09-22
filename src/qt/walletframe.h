@@ -68,6 +68,9 @@ public Q_SLOTS:
 	/** Switch to Contact add page */
 	void gotoContactAddPage();
 
+	/** Switch to Business Object List page */
+	void gotoBusinessObjectListPage();
+
     /** Switch to send coins page */
     void gotoSendCoinsPage(QString addr = "");
 	void gotoAccountabilityPage();

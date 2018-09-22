@@ -163,6 +163,14 @@ void WalletFrame::gotoContactAddPage()
         i.value()->gotoContactAddPage();
 }
 
+void WalletFrame::gotoBusinessObjectListPage()
+{
+
+    QMap<QString, WalletView*>::const_iterator i;
+    for (i = mapWalletViews.constBegin(); i != mapWalletViews.constEnd(); ++i)
+        i.value()->gotoBusinessObjectListPage();
+}
+
 void WalletFrame::gotoReceiveCoinsPage()
 {
     QMap<QString, WalletView*>::const_iterator i;

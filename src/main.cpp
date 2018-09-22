@@ -4671,6 +4671,9 @@ static bool AcceptBlockHeader(const CBlockHeader& block, CValidationState& state
 		{
 			// This happens 3rd - 4-24-2018 - Found chain with no ancestor
 			// RecoverOrphanedChain(3);
+
+			// Why do we have a mapBlockIndex pointing to a NULL pindex?
+			mapBlockIndex.erase(block.hashPrevBlock);
 			LogPrintf("\n ERROR: Found block with no ancestor \n");
 			return state.DoS(3, error("Block has no ancestor. \n"));
         }

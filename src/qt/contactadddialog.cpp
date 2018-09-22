@@ -86,11 +86,8 @@ void ContactAddDialog::UpdateDisplay()
 {
 		std::string sInfo = "Note: Longitude/Latitude is optional and used for our Great Tribulation Map (consider using the nearest street corner).  <br>E-Mail is optional and used for receiving BBP via e-mail.<br><br><font color=red>GDPR Regulation Compliance:  To delete your personal information, click Delete and the off-chain data will be deleted during <br>the IPFS cleanup cycle (BiblePay does not store personal information in the chain).</font>(" + RoundToString(iUpdates, 0) + ")  ";
 		std::string sError = "";
-		fprintf(stdout, "800.5 \n");
 		iUpdates++;
-
 		if (sAddress.empty()) sAddress = DefaultRecAddress(BUSINESS_OBJECTS);
-
 		UniValue oContact = GetBusinessObject("contact", sAddress, sError);
 
 		if (sError.empty() && oContact.size() > 0)
@@ -154,6 +151,7 @@ void ContactAddDialog::on_btnDelete_clicked()
 	objContact.push_back(Pair("longitude", FromQStringW(ui->txtLongitude->text())));
 	objContact.push_back(Pair("latitude", FromQStringW(ui->txtLatitude->text())));
 	objContact.push_back(Pair("receiving_address", FromQStringW(ui->txtAddress->text())));
+	objContact.push_back(Pair("deleted", "1"));
 	objContact.push_back(Pair("email", FromQStringW(ui->txtEmail->text())));
 	std::string sError = "";
 	CBitcoinAddress address(objContact["receiving_address"].getValStr());
@@ -193,11 +191,13 @@ void ContactAddDialog::on_btnSave_clicked()
 	if (!fEmailValid) sError += "E-Mail address is invalid. ";
 	objContact.push_back(Pair("contact_type", sContactType));
 	objContact.push_back(Pair("objecttype", "contact"));
-	std::string sTxId = "";
-	if (sError.empty())	sTxId = StoreBusinessObject(objContact, sError);
 
-	std::string sNarr = (!sError.empty()) ? "Business Object Store Failed: " + sError : sNarr = "Contact record saved successfully.";
-	QMessageBox::warning(this, tr("Contact Add Result"), ToQstring(sNarr), QMessageBox::Ok, QMessageBox::Ok);
+	std::string sTxId = "";
+	if (sError.empty()) sTxId = StoreBusinessObject(objContact, sError);
+	std::string sNarr = "";
+	sNarr = (!sError.empty()) ? "Business Object Store Failed: " + sError : "Business Object saved successfully " + sTxId + ".";
+	QMessageBox::warning(this, tr("Business Object Add Result"), ToQstring(sNarr), QMessageBox::Ok, QMessageBox::Ok);
+	
 }
 
 

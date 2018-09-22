@@ -19,6 +19,7 @@
 #include "utilitydialog.h"
 #include <QDesktopServices>  //Added for openURL()
 #include "proposals.h"
+#include "businessobjectlist.h"
 
 #ifdef ENABLE_WALLET
 #include "walletframe.h"
@@ -84,6 +85,7 @@ QString ToQstring(std::string s);
 bool InstantiateOneClickMiningEntries();
 std::string GetBibleHashVerseNumber(uint256, uint64_t nBlockTime, uint64_t nPrevBlockTime, int nPrevHeight, CBlockIndex* pindexPrev, int iVerseNumber);
 bool SubmitProposalToNetwork(uint256 txidFee, int64_t nStartTime, std::string sHex, std::string& sError, std::string& out_sGovObj);
+std::string StoreBusinessObject(UniValue& oBusinessObject, std::string& sError);
 
 
 BitcoinGUI::BitcoinGUI(const PlatformStyle *platformStyle, const NetworkStyle *networkStyle, QWidget *parent) :
@@ -126,6 +128,7 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *platformStyle, const NetworkStyle *n
 	proposalAddAction(0),
 	proposalAddMenuAction(0),
 	contactAddMenuAction(0),
+	businessObjectListMenuAction(0),
 	proposalListAction(0),
     optionsAction(0),
     toggleHideAction(0),
@@ -416,6 +419,7 @@ void BitcoinGUI::createActions()
 	connect(proposalAddAction, SIGNAL(triggered()), this, SLOT(gotoProposalAddPage()));
 	connect(proposalListAction, SIGNAL(triggered()), this, SLOT(gotoProposalListPage()));
 	connect(contactAddMenuAction, SIGNAL(triggered()), this, SLOT(gotoContactAddPage()));
+	connect(businessObjectListMenuAction, SIGNAL(triggered()), this, SLOT(gotoBusinessObjectListPage()));
 
     connect(receiveCoinsMenuAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
     connect(receiveCoinsMenuAction, SIGNAL(triggered()), this, SLOT(gotoReceiveCoinsPage()));
@@ -538,7 +542,11 @@ void BitcoinGUI::createActions()
 	contactAddMenuAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("Contact &Add"), this);
     contactAddMenuAction->setStatusTip(tr("Add Contact"));
     contactAddMenuAction->setEnabled(true);
-
+	// Business Object List Menu Item
+	businessObjectListMenuAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("Business Object &List"), this);
+    businessObjectListMenuAction->setStatusTip(tr("Business Object List"));
+    businessObjectListMenuAction->setEnabled(true);
+	
     openFundedProposalsAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("&Funded Proposal List"), this);
     openFundedProposalsAction->setStatusTip(tr("Show Funded Proposal List"));
 	openFundedProposalsAction->setEnabled(false);
@@ -604,6 +612,7 @@ void BitcoinGUI::createActions()
     connect(openPeersAction, SIGNAL(triggered()), this, SLOT(showPeers()));
     connect(openRepairAction, SIGNAL(triggered()), this, SLOT(showRepair()));
 	connect(contactAddMenuAction, SIGNAL(triggered()), this, SLOT(gotoContactAddPage()));
+	connect(businessObjectListMenuAction, SIGNAL(triggered()), this, SLOT(gotoBusinessObjectListPage()));
 
     // Open configs and backup folder from menu
     connect(openConfEditorAction, SIGNAL(triggered()), this, SLOT(showConfEditor()));
@@ -702,8 +711,10 @@ void BitcoinGUI::createMenuBar()
 
 		QMenu *contacts = appMenuBar->addMenu(tr("&Contacts"));
 		contacts->addAction(contactAddMenuAction);
-    }
 
+		QMenu *businessObjects = appMenuBar->addMenu(tr("&Business Objects"));
+		businessObjects->addAction(businessObjectListMenuAction);
+    }
 
 	
 	// BiblePay - Prayers, Jesus' Commandments, and Reading the Bible
@@ -906,6 +917,7 @@ void BitcoinGUI::setWalletActionsEnabled(bool enabled)
 	proposalAddAction->setEnabled(enabled);
 	proposalListAction->setEnabled(enabled);
 	contactAddMenuAction->setEnabled(enabled);
+	businessObjectListMenuAction->setEnabled(enabled);
 
     historyAction->setEnabled(enabled);
     QSettings settings;
@@ -1195,9 +1207,14 @@ void BitcoinGUI::gotoProposalAddPage()
 	if (walletFrame) walletFrame->gotoProposalAddPage();
 }
 
+void BitcoinGUI::gotoBusinessObjectListPage()
+{
+	businessObjectListMenuAction->setChecked(true);
+	if (walletFrame) walletFrame->gotoBusinessObjectListPage();
+}
+
 void BitcoinGUI::gotoContactAddPage()
 {
-	LogPrintf("\n gotoContactAddPage Clicked \n");
 	contactAddMenuAction->setChecked(true);
 	if (walletFrame) walletFrame->gotoContactAddPage();
 }
@@ -1713,7 +1730,6 @@ void BitcoinGUI::detectShutdown()
 			}
 		}
 	}
-
 	// PODC - Check to see if user prefers to use Auto Unlock feature - R Andrews - Biblepay - 3/3/2018
 	if (!fCheckedPODCUnlock && fWalletLoaded)
 	{

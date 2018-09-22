@@ -64,6 +64,8 @@ extern double GetQTPhase(double dPrice, int nEventHeight, double& out_PriorPrice
 extern UniValue GetIPFSList(int iMaxDays, std::string& out_Files);
 extern UniValue GetSancIPFSQualityReport();
 extern UniValue GetBusinessObjectByFieldValue(std::string sType, std::string sFieldName, std::string sSearchValue);
+extern std::string GetBusinessObjectList(std::string sType, std::string sFields);
+extern std::string StoreBusinessObjectWithPK(UniValue& oBusinessObject, std::string& sError);
 void TestRSA();
 int RSA_GENERATE_KEYPAIR(std::string sPublicKeyPath, std::string sPrivateKeyPath);
 unsigned char *RSA_ENCRYPT_CHAR(std::string sPubKeyPath, unsigned char *plaintext, int plaintext_length, int& cipher_len, std::string& sError);
@@ -75,6 +77,11 @@ std::string RSA_Decrypt_String(std::string sPrivKeyPath, std::string sData, std:
 std::vector<char> ReadAllBytes(char const* filename);
 extern double GetPBase();
 extern std::string GetDataFromIPFS(std::string sURL, std::string& sError);
+extern bool IsBoincInstalled();
+extern std::string CreateNewRosettaAccount(std::string sEmail, std::string sPass, std::string sNickname);
+extern std::string GetAccountAuthenticator(std::string sEmail, std::string sPass);
+extern double GetRosettaLocalRAC();
+extern std::string GetCPID();
 
 bool ipfs_download(const string& url, const string& filename, double dTimeoutSecs);
 extern int CheckSanctuaryIPFSHealth(std::string sAddress);
@@ -97,6 +104,8 @@ extern uint256 GetDCCHash(std::string sContract);
 extern UniValue UTXOReport(std::string sCPID);
 extern uint256 GetDCCFileHash();
 extern double GetTeamPercentage(double dUserTeam, double dProjectTeam, std::string sTeamBlacklist, double dNonBiblepayTeamPercentage);
+extern std::string AttachProject(std::string sAuth);
+
 
 std::string SignMessage(std::string sMsg, std::string sPrivateKey);
 extern double CAmountToRetirementDouble(CAmount Amount);
@@ -3047,6 +3056,111 @@ UniValue exec(const UniValue& params, bool fHelp)
 		results.push_back(Pair("3", s3));
 		results.push_back(Pair("4", s4));
 	}
+	else if (sItem == "rosettadiagnostics")
+	{
+		if (params.size() != 2 && params.size() != 3)
+			throw runtime_error("You must specify Rosetta e-mail and password. IE 'exec rosettadiagnostics email pass'");
+		std::string sEmail= params[1].get_str();
+		std::string sPass = params[2].get_str();
+		std::string sError = "";
+		bool fBoincInstalled = IsBoincInstalled();
+		if (!fBoincInstalled) sError = "Boinc is not installed.  Please run 'sudo apt-get install boincmgr boinc'.";
+		std::string sAuth = "";
+		if (sError.empty())
+		{
+			sAuth = GetAccountAuthenticator(sEmail, sPass);
+			if (sAuth.empty())
+			{
+				sError = "No Rosetta account exists. ";
+			}
+		}
+
+		results.push_back(Pair("Boinc_Installed", fBoincInstalled));
+
+		if (sError.empty())
+		{
+			results.push_back(Pair("Rosetta_Account", sAuth));
+			double dRosettaRAC = GetRosettaLocalRAC();
+			results.push_back(Pair("Rosetta RAC", dRosettaRAC));
+			std::string sCPID = GetCPID();
+			if (dRosettaRAC != -1)
+			{
+				results.push_back(Pair("CPID", sCPID));
+			}
+		}
+		
+		if (!sError.empty())
+		{
+			results.push_back(Pair("Errors", sError));
+		}
+		
+	}
+	else if (sItem == "attachrosetta")
+	{
+		if (params.size() != 2 && params.size() != 3)
+			throw runtime_error("You must specify Rosetta e-mail and password. IE 'exec rosettadiagnostics email pass'");
+		std::string sEmail= params[1].get_str();
+		std::string sPass = params[2].get_str();
+		std::string sError = "";
+		bool fBoincInstalled = IsBoincInstalled();
+		if (!fBoincInstalled) sError = "Boinc is not installed.  Please run 'sudo apt-get install boincmgr boinc'.";
+		results.push_back(Pair("Boinc_Installed", fBoincInstalled));
+
+		std::string sAuth = "";
+		if (sError.empty())
+		{
+			sAuth = GetAccountAuthenticator(sEmail, sPass);
+			// During the attachrosetta process, if no account exists, create one for them
+			if (sAuth.empty())
+			{
+				results.push_back(Pair("Rosetta Account Does Not Exist", "Creating New Account"));
+				sAuth = CreateNewRosettaAccount(sEmail, sPass, sEmail);
+				if (sAuth.empty())
+				{
+					sError = "Unable to create Rosetta Account";
+				}
+				else
+				{
+					results.push_back(Pair("Created new Rosetta Account", sAuth));
+					sAuth = GetAccountAuthenticator(sEmail, sPass);
+				}
+			}
+		}
+
+		if (sError.empty())
+		{
+			results.push_back(Pair("Rosetta_Account", sAuth));
+			// Attach the project
+			std::string sAttached = AttachProject(sAuth);
+			double dRosettaRAC = 0;
+			if (!sAttached.empty()) 
+			{
+				// This is not really an error, BOINC is telling us the project is already attached:
+				results.push_back(Pair("Attaching Rosetta Project", sAttached));
+			}
+			else
+			{
+				results.push_back(Pair("Attaching Rosetta Project", "Attached Successfully"));
+				for (int i = 0; i < 15; i++)
+				{
+					MilliSleep(1000);
+					dRosettaRAC = GetRosettaLocalRAC();
+					if (dRosettaRAC != -1) break;
+				}
+			}
+
+			dRosettaRAC = GetRosettaLocalRAC();
+			results.push_back(Pair("Rosetta RAC", dRosettaRAC));
+			std::string sCPID = GetCPID();
+			results.push_back(Pair("CPID", sCPID));
+		}
+		
+		if (!sError.empty())
+		{
+			results.push_back(Pair("Errors", sError));
+		}
+		
+	}
 	else if (sItem == "syscmd")
 	{
 		if (params.size() != 2 && params.size() != 3)
@@ -3085,6 +3199,61 @@ UniValue exec(const UniValue& params, bool fHelp)
 		results.push_back(Pair("json", sJson));
 		results.push_back(Pair("field1", obj["field1"].get_str()));
 		results.push_back(Pair("field2", obj["field2"].get_str()));
+	}
+	else if (sItem == "addnewobject")
+	{
+		if (params.size() != 2 && params.size() != 3)
+			throw runtime_error("You must specify the object_name, comma-delimited-fields.");
+
+		std::string sObjectName = params[1].get_str();
+		std::string sFields     = params[2].get_str();
+		std::string sError = "";
+			
+		if (sObjectName.empty()) sError = "Object Name must be populated.";
+		if (sFields.empty()) sError = "Fields must be populated.";
+		if (sError.empty())
+		{
+			UniValue oBO(UniValue::VOBJ);
+			oBO.push_back(Pair("object_name", sObjectName));
+			// GospelLink:   url,notes
+			oBO.push_back(Pair("fields", sFields));
+			std::string sAddress = DefaultRecAddress(BUSINESS_OBJECTS);
+			oBO.push_back(Pair("receiving_address", sAddress));
+		    oBO.push_back(Pair("objecttype", "object"));
+			oBO.push_back(Pair("added", RoundToString(GetAdjustedTime(),0)));
+			oBO.push_back(Pair("secondarykey", RoundToString(GetAdjustedTime(), 0)));
+			std::string sTxId = "";
+			sTxId = StoreBusinessObject(oBO, sError);
+			results.push_back(Pair("obj_txid", sTxId));
+		}
+		if (!sError.empty())	results.push_back(Pair("Errors", sError));
+	}
+	else if (sItem == "addgospellink")
+	{
+		if (params.size() != 2 && params.size() != 3)
+			throw runtime_error("You must specify the URL, notes.");
+
+		std::string sURL       = params[1].get_str();
+		std::string sNotes     = params[2].get_str();
+		std::string sError = "";
+			
+		if (sURL.empty()) sError = "URL must be populated.";
+		if (sNotes.empty()) sError = "Notes must be populated.";
+		if (sError.empty())
+		{
+			UniValue oBO(UniValue::VOBJ);
+			oBO.push_back(Pair("url", sURL));
+			oBO.push_back(Pair("notes", sNotes));
+			std::string sAddress = DefaultRecAddress(BUSINESS_OBJECTS);
+			oBO.push_back(Pair("receiving_address", sAddress));
+		    oBO.push_back(Pair("objecttype", "gospellink"));
+			oBO.push_back(Pair("secondarykey", RoundToString(GetAdjustedTime(), 0)));
+			oBO.push_back(Pair("added", RoundToString(GetAdjustedTime(), 0)));
+			std::string sTxId = "";
+			sTxId = StoreBusinessObject(oBO, sError);
+			results.push_back(Pair("obj_txid", sTxId));
+		}
+		if (!sError.empty())	results.push_back(Pair("Errors", sError));
 	}
 	else if (sItem == "bolist")
 	{
@@ -3161,6 +3330,24 @@ UniValue exec(const UniValue& params, bool fHelp)
 			std::string sRow = "Price: " + RoundToString(dPriorPrice, 12) + "; QT: " + RoundToString(dPriorPhase, 0) + "%";
 			results.push_back(Pair(RoundToString(nHeight, 0), sRow));
 		}
+	}
+	else if (sItem == "legacydel")
+	{
+		if (params.size() != 4)
+			throw runtime_error("You must specify objecttype, primarykey, secondarykey or -1 for NULL.");
+		std::string sOT = params[1].get_str();
+		std::string sPK = params[2].get_str();
+		std::string sSK = params[3].get_str();
+		if (sSK == "-1") sSK = "";
+		UniValue oBO(UniValue::VOBJ);
+		oBO.push_back(Pair("objecttype", sOT));
+		oBO.push_back(Pair("primarykey", sPK));
+		oBO.push_back(Pair("secondarykey", sSK));
+		oBO.push_back(Pair("deleted", "1"));
+		std::string sError = "";
+		std::string txid = StoreBusinessObjectWithPK(oBO, sError);
+		results.push_back(Pair("TXID", txid));
+		results.push_back(Pair("Error", sError));
 	}
 	else if (sItem == "datalist")
 	{
@@ -3604,7 +3791,7 @@ UniValue GetBusinessObjectByFieldValue(std::string sType, std::string sFieldName
 				UniValue o = GetBusinessObject(sType, sPrimaryKey, sError);
 				if (o.size() > 0)
 				{
-					std::string sBOValue = o[sFieldName].get_str();
+					std::string sBOValue = o[sFieldName].getValStr();
 					boost::to_upper(sBOValue);
 					if (sBOValue == sSearchValue)
 						return o;
@@ -3620,28 +3807,67 @@ UniValue GetBusinessObjectList(std::string sType)
 {
 	UniValue ret(UniValue::VOBJ);
 	boost::to_upper(sType);
-	
     for(map<string,string>::iterator ii=mvApplicationCache.begin(); ii!=mvApplicationCache.end(); ++ii) 
     {
 		std::string sKey = (*ii).first;
 	   	if (sKey.length() > sType.length())
 		{
-			if (sKey.substr(0,sType.length())==sType)
+			if (sKey.substr(0,sType.length()) == sType)
 			{
 				std::string sPrimaryKey = sKey.substr(sType.length() + 1, sKey.length() - sType.length());
 				std::string sIPFSHash = mvApplicationCache[(*ii).first];
 				std::string sError = "";
-				LogPrintf("PK %s Hash %s ",sPrimaryKey.c_str(), sIPFSHash.c_str());
 				UniValue o = GetBusinessObject(sType, sPrimaryKey, sError);
 				if (o.size() > 0)
 				{
-					ret.push_back(Pair(sPrimaryKey + " (" + sIPFSHash + ")", o));
+					bool fDeleted = o["deleted"].getValStr() == "1";
+					if (!fDeleted)
+							ret.push_back(Pair(sPrimaryKey + " (" + sIPFSHash + ")", o));
 				}
 			}
 		}
 	}
 	return ret;
 }
+
+std::string GetBusinessObjectList(std::string sType, std::string sFields)
+{
+	boost::to_upper(sType);
+	std::vector<std::string> vFields = Split(sFields.c_str(), ",");
+	std::string sData = "";
+    for(map<string,string>::iterator ii=mvApplicationCache.begin(); ii!=mvApplicationCache.end(); ++ii) 
+    {
+		std::string sKey = (*ii).first;
+	   	if (sKey.length() > sType.length())
+		{
+			if (sKey.substr(0,sType.length()) == sType)
+			{
+				std::string sPrimaryKey = sKey.substr(sType.length() + 1, sKey.length() - sType.length());
+				std::string sIPFSHash = mvApplicationCache[(*ii).first];
+				std::string sError = "";
+				UniValue o = GetBusinessObject(sType, sPrimaryKey, sError);
+				if (o.size() > 0)
+				{
+					bool fDeleted = o["deleted"].getValStr() == "1";
+					if (!fDeleted)
+					{
+						// 1st column is ID - objecttype - recaddress - secondarykey
+						std::string sPK = sType + "-" + sPrimaryKey + "-" + sIPFSHash;
+						std::string sRow = sPK + "<col>";
+						for (int i = 0; i < (int)vFields.size(); i++)
+						{
+							sRow += o[vFields[i]].getValStr() + "<col>";
+						}
+						sData += sRow + "<object>";
+					}
+				}
+			}
+		}
+	}
+	LogPrintf("BOList data %s \n",sData.c_str());
+	return sData;
+}
+
 
 UniValue GetIPFSList(int iMaxAgeInDays, std::string& out_Files)
 {
@@ -4017,6 +4243,7 @@ bool SignStake(std::string sBitcoinAddress, std::string strMessage, std::string&
 		ss << strMessageMagic;
 		ss << strMessage;
 		vector<unsigned char> vchSig;
+		// 9-20-2018 - Uninitialized Sig
 		if (!key.SignCompact(ss.GetHash(), vchSig))
 		{
 			sError = "Sign failed";
@@ -6565,52 +6792,48 @@ std::string GetActiveProposals()
 	std::string sZero = "\0";
     BOOST_FOREACH(CGovernanceObject* pGovObj, objs)
     {
-            if(strType == "proposals" && pGovObj->GetObjectType() != GOVERNANCE_OBJECT_PROPOSAL) continue;
-            if(strType == "triggers" && pGovObj->GetObjectType() != GOVERNANCE_OBJECT_TRIGGER) continue;
-            if(strType == "watchdogs" && pGovObj->GetObjectType() != GOVERNANCE_OBJECT_WATCHDOG) continue;
-
-			UniValue obj = pGovObj->GetJSONObject();
-			std::string sHash = pGovObj->GetHash().GetHex();
-			
-			// First ensure it has not been paid already
-			bool bIsPaid = IsGovObjPaid(sHash);
-
-			if (!bIsPaid)
+		if(strType == "proposals" && pGovObj->GetObjectType() != GOVERNANCE_OBJECT_PROPOSAL) continue;
+        if(strType == "triggers" && pGovObj->GetObjectType() != GOVERNANCE_OBJECT_TRIGGER) continue;
+        if(strType == "watchdogs" && pGovObj->GetObjectType() != GOVERNANCE_OBJECT_WATCHDOG) continue;
+		UniValue obj = pGovObj->GetJSONObject();
+		std::string sHash = pGovObj->GetHash().GetHex();
+		// First ensure it has not been paid already
+		bool bIsPaid = IsGovObjPaid(sHash);
+		if (!bIsPaid)
+		{
+			int iYes = pGovObj->GetYesCount(VOTE_SIGNAL_FUNDING);
+			int iNo = pGovObj->GetNoCount(VOTE_SIGNAL_FUNDING);
+			int iAbstain = pGovObj->GetAbstainCount(VOTE_SIGNAL_FUNDING);
+			id++;
+			// Attempt to retrieve the expense type from the JSON object
+			std::string sCharityType = "";
+			try
 			{
-				int iYes = pGovObj->GetYesCount(VOTE_SIGNAL_FUNDING);
-				int iNo = pGovObj->GetNoCount(VOTE_SIGNAL_FUNDING);
-				int iAbstain = pGovObj->GetAbstainCount(VOTE_SIGNAL_FUNDING);
-				id++;
-				// Attempt to retrieve the expense type from the JSON object
-				std::string sCharityType = "";
-				try
-				{
-					sCharityType = obj["expensetype"].get_str();
-				}
-				catch (const std::runtime_error& e) 
-				{
-					sCharityType = "NA";
-				}
-   
-				if (sCharityType.empty()) sCharityType = "N/A";
-				std::string sEndEpoch = obj["end_epoch"].get_str();
-				if (!sEndEpoch.empty())
-				{
-					std::string sProposalTime = TimestampToHRDate(cdbl(sEndEpoch,0));
-					std::string sURL = obj["url"].get_str();
-					if (id == 1) sURL += "&t=" + RoundToString(GetAdjustedTime(), 0);
-					// proposal_hashes
-					std::string sRow = "<proposal>" + sHash + sDelim 
-						+ obj["name"].get_str() + sDelim 
-						+ obj["payment_amount"].get_str() + sDelim
-						+ sCharityType + sDelim
-						+ sProposalTime + sDelim
-						+ RoundToString(iYes,0) + sDelim
-						+ RoundToString(iNo,0) + sDelim + RoundToString(iAbstain,0) 
-						+ sDelim + sURL;
-					sXML += sRow;
-				}
+				sCharityType = obj["expensetype"].get_str();
 			}
+			catch (const std::runtime_error& e) 
+			{
+				sCharityType = "NA";
+			}
+   			if (sCharityType.empty()) sCharityType = "N/A";
+			std::string sEndEpoch = obj["end_epoch"].get_str();
+			if (!sEndEpoch.empty())
+			{
+				std::string sProposalTime = TimestampToHRDate(cdbl(sEndEpoch,0));
+				std::string sURL = obj["url"].get_str();
+				if (id == 1) sURL += "&t=" + RoundToString(GetAdjustedTime(), 0);
+				// proposal_hashes
+				std::string sRow = "<proposal>" + sHash + sDelim 
+					+ obj["name"].get_str() + sDelim 
+					+ obj["payment_amount"].get_str() + sDelim
+					+ sCharityType + sDelim
+					+ sProposalTime + sDelim
+					+ RoundToString(iYes,0) + sDelim
+					+ RoundToString(iNo,0) + sDelim + RoundToString(iAbstain,0) 
+					+ sDelim + sURL;
+				sXML += sRow;
+			}
+		}
 	}
 	if (fDebugMaster && false) LogPrintf("Proposals %s \n", sXML.c_str());
 	return sXML;
@@ -6914,21 +7137,49 @@ bool is_email_valid(const std::string& e)
 	return (Contains(e, "@") && Contains(e,".") && e.length() > MINIMUM_EMAIL_LENGTH) ? true : false;
 }
 
+std::string StoreBusinessObjectWithPK(UniValue& oBusinessObject, std::string& sError)
+{
+	std::string sJson = oBusinessObject.write(0,0);
+	std::string sPK = oBusinessObject["primarykey"].get_str();
+	std::string sAddress = DefaultRecAddress(BUSINESS_OBJECTS);
+	std::string sOT = oBusinessObject["objecttype"].get_str();
+	std::string sSecondaryKey = oBusinessObject["secondarykey"].get_str();
+	std::string sIPFSHash = SubmitBusinessObjectToIPFS(sJson, sError);
+	if (sError.empty())
+	{
+		double dStorageFee = 1;
+		std::string sTxId = "";
+		sTxId = SendBusinessObject(sOT, sPK + sSecondaryKey, sIPFSHash, dStorageFee, sAddress, true, sError);
+		return sTxId;
+	}
+	return "";
+}
+
+
 std::string StoreBusinessObject(UniValue& oBusinessObject, std::string& sError)
 {
 	std::string sJson = oBusinessObject.write(0,0);
 	std::string sAddress = DefaultRecAddress(BUSINESS_OBJECTS);
 	std::string sPrimaryKey = oBusinessObject["objecttype"].get_str();
+	std::string sSecondaryKey = oBusinessObject["secondarykey"].get_str();
 	std::string sIPFSHash = SubmitBusinessObjectToIPFS(sJson, sError);
-	LogPrintf("IPFSHash %s ",sIPFSHash.c_str());
+	// LogPrintf("IPFSHash %s ",sIPFSHash.c_str());
 	if (sError.empty())
 	{
 		double dStorageFee = 1;
 		std::string sTxId = "";
-		sTxId = SendBusinessObject("contact", sAddress, sIPFSHash, dStorageFee, sAddress, true, sError);
+		sTxId = SendBusinessObject(sPrimaryKey, sAddress + sSecondaryKey, sIPFSHash, dStorageFee, sAddress, true, sError);
 		return sTxId;
 	}
 	return "";
+}
+
+void ClearFile(std::string sPath)
+{
+	std::ofstream fd(sPath.c_str());
+	std::string sEmptyData = "";
+	fd.write(sEmptyData.c_str(), sizeof(char)*sEmptyData.size());
+	fd.close();
 }
 
 std::string GetDataFromIPFS(std::string sURL, std::string& sError)
@@ -6970,9 +7221,25 @@ std::string GetJSONFromIPFS(std::string sHash, std::string& sError)
 	return GetDataFromIPFS(sURL, sError);
 }
 
+std::string ReadAllText(std::string sPath)
+{
+	boost::filesystem::path pathIn(sPath);
+    std::ifstream streamIn;
+    streamIn.open(pathIn.string().c_str());
+	if (!streamIn) return "";
+	std::string sLine = "";
+	std::string sJson = "";
+    while(std::getline(streamIn, sLine))
+    {
+		sJson += sLine;
+	}
+	streamIn.close();
+	return sJson;
+}
+
+
 UniValue GetBusinessObject(std::string sType, std::string sPrimaryKey, std::string& sError)
 {
-	LogPrintf(" getting business object %s ",sPrimaryKey.c_str());
 	UniValue o(UniValue::VOBJ);
 	std::string sIPFSHash = ReadCache(sType, sPrimaryKey);
 
@@ -6983,7 +7250,7 @@ UniValue GetBusinessObject(std::string sType, std::string sPrimaryKey, std::stri
 		return o;
 	}
 	std::string sJson = GetJSONFromIPFS(sIPFSHash, sError);
-	LogPrintf(" json %s ",sJson.c_str());
+	//LogPrintf(" json %s ",sJson.c_str());
 
 	if (!sError.empty()) return o;
 	try  
@@ -7034,3 +7301,84 @@ void TestRSA()
 	LogPrintf(" Status Decoded %s , error %s ", sDec.c_str(), sError.c_str());
 }
 
+std::string SysCommandStdErr(std::string sCommand, std::string sTempFileName, std::string& sStdOut)
+{
+	std::string sPath = GetSANDirectory2() + sTempFileName;
+	ClearFile(sPath);
+	sStdOut = SystemCommand2(sCommand.c_str());
+	std::string sStdErr = ReadAllText(sPath);
+	LogPrintf(" BOINC COMMAND %s , Result %s ", sCommand.c_str(), sStdErr.c_str());
+
+	return sStdErr;
+}
+
+std::string BoincCommand(std::string sCommand, std::string sError)
+{
+	std::string sPath = GetSANDirectory2() + "boinctemp";
+	// Boinc sends some output to stderr, some to stdout
+	std::string sCmd = "boinccmd >" + sPath + " " + sCommand + " 2>&1";
+	std::string stdout = "";
+	std::string sResult = SysCommandStdErr(sCmd, "boinctemp", stdout);
+	// We handle Not installed, account exists, boincinstalled and account does not exist
+	// Boinc is not installed when stderr contains "not found"
+	sResult += "<EOF>";
+	return sResult;
+}
+
+bool IsBoincInstalled()
+{
+	std::string sError = "";
+	std::string sData = BoincCommand("help", sError);
+	bool bInstalled = (Contains(sData, "project_attach"));
+	return bInstalled;						
+}
+
+std::string CreateNewRosettaAccount(std::string sEmail, std::string sPass, std::string sNickname)
+{
+	std::string sError = "";
+	std::string sURL = "http://boinc.bakerlab.org/rosetta";
+	std::string sData = BoincCommand("--create_account " + sURL + " " + sEmail + " " + sPass + " " + sNickname, sError);
+	std::string sAuth = ExtractXML(sData, "key:", "<EOF>");
+	return sAuth;
+}
+
+std::string GetAccountAuthenticator(std::string sEmail, std::string sPass)
+{
+	// Note:  the password is Not sent over the internet; it is sent to boinccmd which hashes the user+pass first, then asks Rosetta for the authenticator (by hash)
+	std::string sError = "";
+	std::string sURL = "http://boinc.bakerlab.org/rosetta";
+	std::string sData = BoincCommand("--lookup_account " + sURL + " " + sEmail + " " + sPass, sError);
+	std::string sAuth = ExtractXML(sData, "key:", "<EOF>");
+	return sAuth;
+}
+
+double GetRosettaLocalRAC()
+{
+	std::string sError = "";
+	std::string sData = BoincCommand("--get_project_status", sError);
+	std::string sRosetta = ExtractXML(sData, "Rosetta", "user_name");
+	if (!Contains(sRosetta, "bakerlab.org")) return -1;
+	std::string sSnippet = ExtractXML(sData, "bakerlab.org", "scheduler");
+	//user_expavg_credit:
+	double dAvgCredit = cdbl(ExtractXML(sSnippet, "user_expavg_credit:", "host"), 2);
+	return dAvgCredit;
+}
+
+std::string GetCPID()
+{
+	std::string sError = "";
+	std::string sData = BoincCommand("--get_project_status", sError);
+	std::string sCPID = ExtractXML(sData, "cross-project ID:", "<EOF>");
+	return sCPID;
+}
+
+std::string AttachProject(std::string sAuth)
+{
+	// Note:  the password is Not sent over the internet; it is sent to boinccmd which hashes the user+pass first, then asks Rosetta for the authenticator (by hash)
+	std::string sError = "";
+	std::string sURL = "http://boinc.bakerlab.org/rosetta";
+	std::string sData = BoincCommand("--project_attach " + sURL + " " + sAuth, sError);
+	if (Contains(sData, "already attached")) return "ALREADY_ATTACHED";
+	// LOL, if the attaching was successful, the reply is empty
+	return "";
+}

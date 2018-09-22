@@ -92,11 +92,11 @@ private:
     QLabel *progressBarLabel;
     QProgressBar *progressBar;
     QProgressDialog *progressDialog;
-
-    QMenuBar *appMenuBar;
+	QMenuBar *appMenuBar;
     QAction *overviewAction;
     QAction *historyAction;
     QAction *masternodeAction;
+	
 	QAction *orphanAction;
 
     QAction *quitAction;
@@ -126,6 +126,7 @@ private:
 	QAction *proposalAddAction;
 	QAction *proposalAddMenuAction;
 	QAction *contactAddMenuAction;
+	QAction *businessObjectListMenuAction;
 	QAction *proposalListAction;
 
     QAction *optionsAction;
@@ -242,6 +243,8 @@ private Q_SLOTS:
 	void gotoProposalListPage();
 	/** Switch to Contact Add page */
 	void gotoContactAddPage();
+	/** Switch to Business Object List page */
+	void gotoBusinessObjectListPage();
 
     /** Show Sign/Verify Message dialog and switch to sign message tab */
     void gotoSignMessageTab(QString addr = "");

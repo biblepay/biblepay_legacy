@@ -127,6 +127,7 @@ bool fReboot2 = false;
 bool fProposalNeedsSubmitted = false;
 bool fPrintToConsole = false;
 bool fPrintToDebugLog = true;
+
 bool fDaemon = false;
 bool fServer = false;
 

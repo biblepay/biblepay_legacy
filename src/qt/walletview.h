@@ -18,6 +18,8 @@ class ReceiveCoinsDialog;
 class DistributedComputingDialog;
 class ProposalAddDialog;
 class ContactAddDialog;
+class BusinessObjectList;
+
 class Proposals;
 class SendCoinsDialog;
 class SendCoinsRecipient;
@@ -70,6 +72,8 @@ private:
 	DistributedComputingDialog *distributedComputingPage;
 	ProposalAddDialog *proposalAddPage;
 	ContactAddDialog *contactAddPage;
+	BusinessObjectList *businessObjectListPage;
+
 	Proposals *proposalListPage;
     SendCoinsDialog *sendCoinsPage;
     AddressBookPage *usedSendingAddressesPage;
@@ -102,6 +106,9 @@ public Q_SLOTS:
 
 	/** Switch to Contact Add Page */
 	void gotoContactAddPage();
+
+	/** Switch to Business Object List Page */
+	void gotoBusinessObjectListPage();
 
     /** Show Sign/Verify Message dialog and switch to sign message tab */
     void gotoSignMessageTab(QString addr = "");
