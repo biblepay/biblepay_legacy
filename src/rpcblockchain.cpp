@@ -7317,8 +7317,8 @@ std::string BoincCommand(std::string sCommand, std::string sError)
 	std::string sPath = GetSANDirectory2() + "boinctemp";
 	// Boinc sends some output to stderr, some to stdout
 	std::string sCmd = "boinccmd >" + sPath + " " + sCommand + " 2>&1";
-	std::string stdout = "";
-	std::string sResult = SysCommandStdErr(sCmd, "boinctemp", stdout);
+	std::string sStandardOut = "";
+	std::string sResult = SysCommandStdErr(sCmd, "boinctemp", sStandardOut);
 	// We handle Not installed, account exists, boincinstalled and account does not exist
 	// Boinc is not installed when stderr contains "not found"
 	sResult += "<EOF>";
