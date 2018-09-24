@@ -66,6 +66,7 @@ extern UniValue GetSancIPFSQualityReport();
 extern UniValue GetBusinessObjectByFieldValue(std::string sType, std::string sFieldName, std::string sSearchValue);
 extern std::string GetBusinessObjectList(std::string sType, std::string sFields);
 extern std::string StoreBusinessObjectWithPK(UniValue& oBusinessObject, std::string& sError);
+extern int GetBoincTaskCount();
 void TestRSA();
 int RSA_GENERATE_KEYPAIR(std::string sPublicKeyPath, std::string sPrivateKeyPath);
 unsigned char *RSA_ENCRYPT_CHAR(std::string sPubKeyPath, unsigned char *plaintext, int plaintext_length, int& cipher_len, std::string& sError);
@@ -74,6 +75,8 @@ unsigned char *RSA_DECRYPT_CHAR(std::string sPriKeyPath, unsigned char *cipherte
 void RSA_Decrypt_File(std::string sPriKeyPath, std::string sSourcePath, std::string sDecryptPath, std::string sError);
 std::string RSA_Encrypt_String(std::string sPubKeyPath, std::string sData, std::string& sError);
 std::string RSA_Decrypt_String(std::string sPrivKeyPath, std::string sData, std::string& sError);
+extern std::string RosettaDiagnostics(std::string sEmail, std::string sPass, std::string& sError);
+extern std::string FixRosetta(std::string sEmail, std::string sPass, std::string& sError);
 std::vector<char> ReadAllBytes(char const* filename);
 extern double GetPBase();
 extern std::string GetDataFromIPFS(std::string sURL, std::string& sError);
@@ -3062,37 +3065,12 @@ UniValue exec(const UniValue& params, bool fHelp)
 			throw runtime_error("You must specify Rosetta e-mail and password. IE 'exec rosettadiagnostics email pass'");
 		std::string sEmail= params[1].get_str();
 		std::string sPass = params[2].get_str();
+
 		std::string sError = "";
-		bool fBoincInstalled = IsBoincInstalled();
-		if (!fBoincInstalled) sError = "Boinc is not installed.  Please run 'sudo apt-get install boincmgr boinc'.";
-		std::string sAuth = "";
-		if (sError.empty())
-		{
-			sAuth = GetAccountAuthenticator(sEmail, sPass);
-			if (sAuth.empty())
-			{
-				sError = "No Rosetta account exists. ";
-			}
-		}
-
-		results.push_back(Pair("Boinc_Installed", fBoincInstalled));
-
-		if (sError.empty())
-		{
-			results.push_back(Pair("Rosetta_Account", sAuth));
-			double dRosettaRAC = GetRosettaLocalRAC();
-			results.push_back(Pair("Rosetta RAC", dRosettaRAC));
-			std::string sCPID = GetCPID();
-			if (dRosettaRAC != -1)
-			{
-				results.push_back(Pair("CPID", sCPID));
-			}
-		}
-		
-		if (!sError.empty())
-		{
-			results.push_back(Pair("Errors", sError));
-		}
+		std::string sHTML = RosettaDiagnostics(sEmail, sPass, sError);
+		results.push_back(Pair("Results", sHTML));
+	
+		if (!sError.empty()) results.push_back(Pair("Errors", sError));
 		
 	}
 	else if (sItem == "attachrosetta")
@@ -3102,64 +3080,9 @@ UniValue exec(const UniValue& params, bool fHelp)
 		std::string sEmail= params[1].get_str();
 		std::string sPass = params[2].get_str();
 		std::string sError = "";
-		bool fBoincInstalled = IsBoincInstalled();
-		if (!fBoincInstalled) sError = "Boinc is not installed.  Please run 'sudo apt-get install boincmgr boinc'.";
-		results.push_back(Pair("Boinc_Installed", fBoincInstalled));
-
-		std::string sAuth = "";
-		if (sError.empty())
-		{
-			sAuth = GetAccountAuthenticator(sEmail, sPass);
-			// During the attachrosetta process, if no account exists, create one for them
-			if (sAuth.empty())
-			{
-				results.push_back(Pair("Rosetta Account Does Not Exist", "Creating New Account"));
-				sAuth = CreateNewRosettaAccount(sEmail, sPass, sEmail);
-				if (sAuth.empty())
-				{
-					sError = "Unable to create Rosetta Account";
-				}
-				else
-				{
-					results.push_back(Pair("Created new Rosetta Account", sAuth));
-					sAuth = GetAccountAuthenticator(sEmail, sPass);
-				}
-			}
-		}
-
-		if (sError.empty())
-		{
-			results.push_back(Pair("Rosetta_Account", sAuth));
-			// Attach the project
-			std::string sAttached = AttachProject(sAuth);
-			double dRosettaRAC = 0;
-			if (!sAttached.empty()) 
-			{
-				// This is not really an error, BOINC is telling us the project is already attached:
-				results.push_back(Pair("Attaching Rosetta Project", sAttached));
-			}
-			else
-			{
-				results.push_back(Pair("Attaching Rosetta Project", "Attached Successfully"));
-				for (int i = 0; i < 15; i++)
-				{
-					MilliSleep(1000);
-					dRosettaRAC = GetRosettaLocalRAC();
-					if (dRosettaRAC != -1) break;
-				}
-			}
-
-			dRosettaRAC = GetRosettaLocalRAC();
-			results.push_back(Pair("Rosetta RAC", dRosettaRAC));
-			std::string sCPID = GetCPID();
-			results.push_back(Pair("CPID", sCPID));
-		}
-		
-		if (!sError.empty())
-		{
-			results.push_back(Pair("Errors", sError));
-		}
-		
+		std::string sHTML = FixRosetta(sEmail, sPass, sError);
+		results.push_back(Pair("Results", sHTML));
+		if (!sError.empty()) results.push_back(Pair("Errors", sError));
 	}
 	else if (sItem == "syscmd")
 	{
@@ -7362,7 +7285,6 @@ double GetRosettaLocalRAC()
 	std::string sRosetta = ExtractXML(sData, "Rosetta", "user_name");
 	if (!Contains(sRosetta, "bakerlab.org")) return -1;
 	std::string sSnippet = ExtractXML(sData, "bakerlab.org", "scheduler");
-	//user_expavg_credit:
 	double dAvgCredit = cdbl(ExtractXML(sSnippet, "user_expavg_credit:", "host"), 2);
 	return dAvgCredit;
 }
@@ -7372,6 +7294,7 @@ std::string GetCPID()
 	std::string sError = "";
 	std::string sData = BoincCommand("--get_project_status", sError);
 	std::string sCPID = ExtractXML(sData, "cross-project ID:", "<EOF>");
+	boost::trim(sCPID);
 	return sCPID;
 }
 
@@ -7384,4 +7307,116 @@ std::string AttachProject(std::string sAuth)
 	if (Contains(sData, "already attached")) return "ALREADY_ATTACHED";
 	// LOL, if the attaching was successful, the reply is empty
 	return "";
+}
+
+
+std::string RosettaDiagnostics(std::string sEmail, std::string sPass, std::string& sError)
+{
+		std::string sHTML = "";
+		if (sEmail.empty()) sError = "E-mail must be populated.";
+		if (sPass.empty()) sError += "Password must be populated.";
+		bool fBoincInstalled = IsBoincInstalled();
+		if (!fBoincInstalled) sError += "Boinc is not installed.  Please run 'sudo apt-get install boincmgr boinc'.";
+		std::string sAuth = "";
+		if (sError.empty())
+		{
+			sAuth = GetAccountAuthenticator(sEmail, sPass);
+			if (sAuth.empty())
+			{
+				sError = "No Rosetta account exists. ";
+			}
+		}
+
+		sHTML += "Boinc Installed: " + ToYesNo(fBoincInstalled) + "\n";
+
+		if (sError.empty())
+		{
+			sHTML += "Rosetta_Account: " + sAuth + "\n";
+
+			double dRosettaRAC = GetRosettaLocalRAC();
+			sHTML += "Rosetta_RAC: " + RoundToString(dRosettaRAC, 2) + "\n";
+		
+			std::string sCPID = GetCPID();
+			if (dRosettaRAC != -1)
+			{
+				sHTML += "CPID: " + sCPID + "\n";
+			}
+		}
+		return sHTML;
+}
+
+
+std::string FixRosetta(std::string sEmail, std::string sPass, std::string& sError)
+{
+	std::string sHTML = "";
+	if (sEmail.empty()) sError = "E-mail must be populated.";
+	if (sPass.empty()) sError += "Password must be populated.";
+
+	bool fBoincInstalled = IsBoincInstalled();
+	if (!fBoincInstalled) sError += "Boinc is not installed.  Please run 'sudo apt-get install boincmgr boinc'.\n";
+	sHTML += "Boinc_Installed: " + ToYesNo(fBoincInstalled) + "\n";
+	std::string sAuth = "";
+	if (sError.empty())
+	{
+		sAuth = GetAccountAuthenticator(sEmail, sPass);
+		// During the attachrosetta process, if no account exists, create one for them
+		if (sAuth.empty())
+		{
+			sHTML += "Rosetta Account Does Not Exist:  Creating New Account\n";
+			sAuth = CreateNewRosettaAccount(sEmail, sPass, sEmail);
+			if (sAuth.empty())
+			{
+				sError += "Unable to create Rosetta Account\n";
+			}
+			else
+			{
+				sHTML += "Created new Rosetta Account: " + sAuth+ "\n";
+				sAuth = GetAccountAuthenticator(sEmail, sPass);
+			}
+		}
+	}
+
+	if (sError.empty())
+	{
+		sHTML += "Rosetta_Account: " + sAuth + "\n";
+		// Attach the project
+		std::string sAttached = AttachProject(sAuth);
+		double dRosettaRAC = 0;
+		if (!sAttached.empty()) 
+		{
+			// This is not really an error, BOINC is telling us the project is already attached:
+			sHTML += "Attaching Rosetta Project: " + sAttached + "\n";
+		}
+		else
+		{
+			sHTML += "Attaching Rosetta Project: Attached Successfully\n";
+			for (int i = 0; i < 15; i++)
+			{
+				MilliSleep(1000);
+				dRosettaRAC = GetRosettaLocalRAC();
+				if (dRosettaRAC != -1) break;
+			}
+		}
+		dRosettaRAC = GetRosettaLocalRAC();
+		sHTML += "Rosetta RAC: " + RoundToString(dRosettaRAC, 0) + "\n";
+		std::string sCPID = GetCPID();
+		sHTML += "CPID: " + sCPID + "\n";
+	}
+	return sHTML;
+}
+
+int GetBoincTaskCount()
+{
+	std::string sError = "";
+	std::string sData = BoincCommand("--get_tasks", sError);
+	std::vector<std::string> vTasks = Split(sData.c_str(), "project");
+	int nTasks = 0;
+	for (int i = 0; i < (int)vTasks.size(); i++)
+	{
+		std::string sState = ExtractXML(vTasks[i], "active_task_state:", "app");
+		boost::trim(sState);
+	
+		if (!Contains(sState, "SUSPENDED") && !sState.empty()) nTasks++;
+	}
+	return nTasks;
 }

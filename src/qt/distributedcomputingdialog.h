@@ -61,6 +61,8 @@ private:
 
 private Q_SLOTS:
     void on_btnAssociate_clicked();
+	void on_btnFix_clicked();
+	void on_btnDiagnostics_clicked();
 };
 
 #endif // BITCOIN_QT_DISTRIBUTEDCOMPUTINGDIALOG_H
