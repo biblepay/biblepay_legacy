@@ -2232,7 +2232,7 @@ UniValue exec(const UniValue& params, bool fHelp)
 			throw runtime_error("You must specify source IPFSURL and target filename.");
 		std::string sURL = params[1].get_str();
 		std::string sPath = params[2].get_str();
-		int i = ipfs_download(sURL, sPath, 15);
+		int i = ipfs_download(sURL, sPath, 375);
 		results.push_back(Pair("Results", i));
 	}
 	else if (sItem == "ipfsget")
@@ -2243,7 +2243,7 @@ UniValue exec(const UniValue& params, bool fHelp)
 		std::string sPath = params[2].get_str();
 		std::string sFN = GetFileNameFromPath(sPath);
 		std::string sURL = "http://ipfs.biblepay.org:8080/ipfs/" + sHash;
-		int i = ipfs_download(sURL, sPath, 15);
+		int i = ipfs_download(sURL, sPath, 375);
 		results.push_back(Pair("Results", i));
 	}
 	else if (sItem == "ipfsadd")

@@ -94,6 +94,7 @@ std::string GetSporkValue(std::string sKey);
 int ipfs_socket_connect(string ip_address, int port);
 int ipfs_http_get(const string& request, const string& ip_address, int port, const string& fname, double dTimeoutSecs);
 extern int ipfs_download(const string& url, const string& filename, double dTimeoutSecs);
+int64_t GetFileSize(std::string sPath);
 
 using namespace std;
 
@@ -1634,6 +1635,7 @@ void ThreadOpenAddedConnections()
 		AddSeedNode("dns3.biblepay.org");  // Rob
 		AddSeedNode("dns4.biblepay.org");  // Rob
 		AddSeedNode("dns5.biblepay.org");  // Rob
+		if (!fProd) AddSeedNode("testnet.biblepay.org");
 		if (!fProd) AddSeedNode("test.dnsseed.biblepay-explorer.org"); // Alex (TESTNET)
     }
 
@@ -2998,6 +3000,30 @@ std::string BiblepayHttpPost(bool bPost, int iThreadID, std::string sActionName,
 	}
 }
 
+bool DownloadIndividualDistributedComputingFile2(int iNextSuperblock, std::string sBaseURL, std::string sPage, std::string sUserFile, std::string& sError)
+{
+	std::string sPath = GetSANDirectory2() + sUserFile + ".gz";
+	std::string sTarget = GetSANDirectory2() + sUserFile;
+	boost::filesystem::remove(sTarget);
+    boost::filesystem::remove(sPath);
+	std::string sURL = sBaseURL + sPage;
+	std::string sCommand = "wget " + sURL + " -O " + sPath + " -q";
+    std::string sResult = SystemCommand2(sCommand.c_str());
+	sCommand = "gunzip " + sPath;
+    sResult = SystemCommand2(sCommand.c_str());
+	int64_t nFileSize = GetFileSize(sTarget);
+	if (fDebugMaster) LogPrintf(" DIDCF2 phase1 %s, sz %f \n", sResult.c_str(), nFileSize);
+	if (nFileSize < 1)
+	{
+		sError = sResult;
+		return false;
+	}
+	else
+	{
+		return true;
+	}
+}
+
 bool DownloadIndividualDistributedComputingFile(int iNextSuperblock, std::string sBaseURL, std::string sPage, std::string sUserFile, std::string& sError)
 {
 	// First delete:
@@ -3011,73 +3037,79 @@ bool DownloadIndividualDistributedComputingFile(int iNextSuperblock, std::string
 	int iIterations = 0;
 	try
 	{
-		    map<string, string> mapRequestHeaders;
-			mapRequestHeaders["Agent"] = FormatFullVersion();
-			const CChainParams& chainparams = Params();
-			BIO* bio;
-			SSL_CTX* ctx;
-			SSL_library_init();
-			ctx = SSL_CTX_new(SSLv23_client_method());
-			if (ctx == NULL)
-			{
-				sError = "<ERROR>CTX_IS_NULL</ERROR>";
-				fDistributedComputingCycleDownloading = false;
-				return false;
-			}
-			bio = BIO_new_ssl_connect(ctx);
-			std::string sDomain = GetDomainFromURL(sBaseURL);
-			std::string sDomainWithPort = sDomain + ":" + "443";
-			BIO_set_conn_hostname(bio, sDomainWithPort.c_str());
-			if(BIO_do_connect(bio) <= 0)
-			{
-				sError = "Failed connection to " + sDomainWithPort;
-				fDistributedComputingCycleDownloading = false;
-				return false;
-			}
+		map<string, string> mapRequestHeaders;
+		mapRequestHeaders["Agent"] = FormatFullVersion();
+		const CChainParams& chainparams = Params();
+		BIO* bio;
+		SSL_CTX* ctx;
+		SSL_library_init();
+		ctx = SSL_CTX_new(SSLv23_client_method());
+		if (ctx == NULL)
+		{
+			sError = "<ERROR>CTX_IS_NULL</ERROR>";
+			fDistributedComputingCycleDownloading = false;
+			return false;
+		}
+		bio = BIO_new_ssl_connect(ctx);
+		std::string sDomain = GetDomainFromURL(sBaseURL);
+		std::string sDomainWithPort = sDomain + ":" + "443";
+		BIO_set_conn_hostname(bio, sDomainWithPort.c_str());
+		if(BIO_do_connect(bio) <= 0)
+		{
+			sError = "Failed connection to " + sDomainWithPort;
+			fDistributedComputingCycleDownloading = false;
+			return false;
+		}
+		CService addrConnect;
+		if (sDomain.empty()) 
+		{
+			sError = "DOMAIN_MISSING";
+			fDistributedComputingCycleDownloading = false;
+			return false;
+		}
+		CService addrIP(sDomain, 443, true);
+    	if (addrIP.IsValid())
+		{
+			addrConnect = addrIP;
+		}
+		else
+		{
+  			sError = "<ERROR>DNS_ERROR</ERROR>"; 
+			fDistributedComputingCycleDownloading = false;
+			return false;
+		}
+		std::string sPayload = "";
+		std::string sPost = PrepareHTTPPost(true, sPage, sDomain, sPayload, mapRequestHeaders);
+		const char* write_buf = sPost.c_str();
+		if(BIO_write(bio, write_buf, strlen(write_buf)) <= 0)
+		{
+			sError = "<ERROR>FAILED_HTTPS_POST</ERROR>";
+			fDistributedComputingCycleDownloading = false;
+			return false;
+		}
+		int iSize;
+		int iBufSize = 256000;
+		clock_t begin = clock();
+		std::string sData = "";
+		char bigbuf[iBufSize];
 	
-			CService addrConnect;
-			if (sDomain.empty()) 
+		FILE *outUserFile = fopen(sPath2.c_str(), "wb");
+		for(;;)
+		{
+	
+			iSize = BIO_read(bio, bigbuf, iBufSize);
+			bool fShouldRetry = BIO_should_retry(bio);
+
+			if(iSize <= 0 && !fShouldRetry)
 			{
-					sError = "DOMAIN_MISSING";
-					fDistributedComputingCycleDownloading = false;
-					return false;
+				LogPrintf("DCC download finished \n");
+				break;
 			}
-			CService addrIP(sDomain, 443, true);
-     		if (addrIP.IsValid())
+
+			size_t bytesWritten=0;
+			if (iSize > 0)
 			{
-				addrConnect = addrIP;
-			}
-			else
-			{
-  				sError = "<ERROR>DNS_ERROR</ERROR>"; 
-				fDistributedComputingCycleDownloading = false;
-				return false;
-			}
-			std::string sPayload = "";
-			std::string sPost = PrepareHTTPPost(true, sPage, sDomain, sPayload, mapRequestHeaders);
-			const char* write_buf = sPost.c_str();
-			if(BIO_write(bio, write_buf, strlen(write_buf)) <= 0)
-			{
-				sError = "<ERROR>FAILED_HTTPS_POST</ERROR>";
-				fDistributedComputingCycleDownloading = false;
-				return false;
-			}
-			int iSize;
-			int iBufSize = 8192;
-			char bigbuf[iBufSize];
-			clock_t begin = clock();
-			std::string sData = "";
-			FILE *outUserFile = fopen(sPath2.c_str(), "wb");
-			for(;;)
-			{
-				iSize = BIO_read(bio, bigbuf, iBufSize);
-				if(iSize <= 0)
-				{
-					LogPrintf("DCC download finished \n");
-					break;
-				}
-				size_t bytesWritten=0;
-				if (iIterations==0)
+				if (iIterations == 0)
 				{
 					// GZ magic bytes: 31 139
 					int iPos = 0;
@@ -3101,22 +3133,23 @@ bool DownloadIndividualDistributedComputingFile(int iNextSuperblock, std::string
 					bytesWritten = fwrite(bigbuf, 1, iSize, outUserFile);
 				}
 				iIterations++;
-				clock_t end = clock();
-				double elapsed_secs = double(end - begin) / (CLOCKS_PER_SEC + .01);
-				if (elapsed_secs > iTimeoutSecs) 
-				{
-					LogPrintf(" download timed out ... (bytes written %f)  \n", (double)bytesWritten);
-					break;
-				}
-				if (false && (int)sData.size() >= iMaxSize) 
-				{
-					LogPrintf(" download oversized .. \n");
-					break;
-				}
 			}
-			// R ANDREW - JAN 4 2018: Free bio resources
-			BIO_free_all(bio);
-		 	fclose(outUserFile);
+			clock_t end = clock();
+			double elapsed_secs = double(end - begin) / (CLOCKS_PER_SEC + .01);
+			if (elapsed_secs > iTimeoutSecs) 
+			{
+				LogPrintf(" download timed out ... (bytes written %f)  \n", (double)bytesWritten);
+				break;
+			}
+			if (false && (int)sData.size() >= iMaxSize) 
+			{
+				LogPrintf(" download oversized .. \n");
+				break;
+			}
+		}
+		// R ANDREW - JAN 4 2018: Free bio resources
+		BIO_free_all(bio);
+	 	fclose(outUserFile);
 	}
 	catch (std::exception &e)
 	{
@@ -3150,8 +3183,8 @@ bool DownloadDistributedComputingFile(int iNextSuperblock, std::string& sError)
 	std::string sSrc2 = GetSporkValue(sProjectId2);
 	std::string sBaseURL2 = "https://" + sSrc2;
 	std::string sPage2 = "/boinc/stats/user.gz";
-	DownloadIndividualDistributedComputingFile(iNextSuperblock, sBaseURL, sPage, "user1", sError);
-	DownloadIndividualDistributedComputingFile(iNextSuperblock, sBaseURL2, sPage2, "user2", sError);
+	DownloadIndividualDistributedComputingFile2(iNextSuperblock, sBaseURL, sPage, "user1", sError);
+	DownloadIndividualDistributedComputingFile2(iNextSuperblock, sBaseURL2, sPage2, "user2", sError);
 	LogPrintf("Filter File %f",iNextSuperblock);
 	FilterFile(50, iNextSuperblock, sError);
 	fDistributedComputingCycleDownloading = false;
@@ -3455,7 +3488,6 @@ int ipfs_http_get(const string& request, const string& ip_address, int port, con
 
 int ipfs_download(const string& url, const string& filename, double dTimeoutSecs)
 {
-    int ipv=0;
 	int port = 0;
     string protocol, domain, path, query, url_port;
     vector<string> ip_addresses;
