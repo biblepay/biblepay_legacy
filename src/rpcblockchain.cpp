@@ -5339,7 +5339,8 @@ bool FilterFile(int iBufferSize, int iNextSuperblock, std::string& sError)
 		}
 	}
 	boost::to_upper(sConcatCPIDs);
-	if (fDebugMaster && false) LogPrintf("Filter Phase 1: CPID List concatenated %s, unbanked %s  ",sConcatCPIDs.c_str(), sUnbankedList.c_str());
+	if (fDebugMaster) LogPrintf("Filter Phase 1: CPID List concatenated %s, unbanked %s  ",sConcatCPIDs.c_str(), sUnbankedList.c_str());
+
 	// Filter each BOINC Project file down to the individual BiblePay records
 
 	bool bResult = FilterPhase1(iNextSuperblock, sConcatCPIDs, sTarget, sFiltered, vCPIDs);
@@ -5431,8 +5432,8 @@ bool FilterFile(int iBufferSize, int iNextSuperblock, std::string& sError)
 				dTotalWCG += dWCGRAC;
 
 				double dModifiedCredit = GetResearcherCredit(dDRMode, dRosettaRAC + dWCGRAC, dUTXOWeight, dTaskWeight, dUnbanked, dTotalRAC, dReqSPM, dReqSPR, dRACThreshhold, 1);
-
-				if (dModifiedCredit > 0)
+				// R ANDREW : BIBLEPAY : We include any CPID with adj. credit > 0 or RAC > 100 so that the user can see this record in the superblock view report (IE they have 0 UTXO WEIGHT and want to diagnose the problem).  We filter out adjusted RAC of zero (zero mag reward) with < 100 RAC (decaying long gone boincers) for a succinct superblock contract.
+				if (dModifiedCredit > 0 || (dRosettaRAC + dWCGRAC > 100))
 				{
 					bool fRequireSig = dUnbanked == 1 ? false : true;
 					std::string BPK = GetDCCPublicKey(sCPID, fRequireSig);
@@ -5451,6 +5452,11 @@ bool FilterFile(int iBufferSize, int iNextSuperblock, std::string& sError)
 						dTotalMagnitude += dMagnitude;
 						iRows++;
 					}
+				}
+				else
+				{
+					if (fDebugMaster) LogPrintf(" Non-Included CPID %s , RosettaRAC %f, WCGRAC %f, UTXO Weight %f, Task Weight %f, DRMode %f, RacThreshhold %f, TotalRAC %f \n",
+						sCPID.c_str(), dRosettaRAC, dWCGRAC, dUTXOWeight, dTaskWeight, dDRMode, dRACThreshhold, dTotalRAC);
 				}
 				sUser = "";
 			}
@@ -6487,7 +6493,8 @@ double GetSumOfXMLColumnFromXMLFile(std::string sFileName, std::string sObjectNa
 				double dAvgCredit = cdbl(sValue,2);
 				double dModifiedCredit = GetResearcherCredit(dDRMode, dAvgCredit, dUTXOWeight, dTaskWeight, dUnbanked, 0, dReqSPM, dReqSPR, dRACThreshhold, dTeamPercentage);
 				dTotal += dModifiedCredit;
-				if (fDebugMaster && false) LogPrintf(" Adding CPID %s, Team %f, modifiedrac %f from RAC %f  with nonbbptp %f    Grand Total %f \n", sCPID.c_str(), dTeam, dModifiedCredit, dAvgCredit, dNonBiblepayTeamPercentage, dTotal);
+				if (fDebugMaster && false) LogPrintf(" Adding CPID %s, Team %f, modifiedrac %f from RAC %f  with nonbbptp %f   DRMode %f,  Grand Total %f \n", 
+					sCPID.c_str(), dTeam, dModifiedCredit, dAvgCredit, dNonBiblepayTeamPercentage, dDRMode, dTotal);
 			}
 		}
     }

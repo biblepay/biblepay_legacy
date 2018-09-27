@@ -76,7 +76,7 @@
              </size>
             </property>
             <property name="text">
-             <string>&amp;Add Me as a Researcher</string>
+             <string>&amp;Associate Researcher CPID with BiblePay</string>
             </property>
            </widget>
           </item>
@@ -90,7 +90,7 @@
           <item>
            <widget class="QPushButton" name="btnDiagnostics">
             <property name="text">
-             <string>R@H Diagnostics</string>
+             <string>Run R@H Diagnostics</string>
             </property>
            </widget>
           </item>
