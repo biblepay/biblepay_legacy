@@ -86,6 +86,9 @@
         </item>
         <item row="4" column="2">
          <widget class="QLineEdit" name="txtCompanyName">
+          <property name="cursor">
+           <cursorShape>CrossCursor</cursorShape>
+          </property>
           <property name="toolTip">
            <string>Enter Company Name</string>
           </property>
@@ -94,7 +97,7 @@
         <item row="2" column="2">
          <widget class="QLabel" name="label_5">
           <property name="text">
-           <string>Biblepay - Add/Edit Contact Record - 1.0&lt;br&gt;</string>
+           <string>Biblepay - Add/Edit Contact Record - 1.1&lt;br&gt;</string>
           </property>
          </widget>
         </item>
@@ -362,7 +365,15 @@
  </widget>
  <tabstops>
   <tabstop>txtCompanyName</tabstop>
+  <tabstop>txtContactName</tabstop>
+  <tabstop>txtURL</tabstop>
+  <tabstop>txtAddress</tabstop>
+  <tabstop>txtLongitude</tabstop>
+  <tabstop>txtLatitude</tabstop>
+  <tabstop>txtEmail</tabstop>
+  <tabstop>cmbContactType</tabstop>
   <tabstop>btnSave</tabstop>
+  <tabstop>btnDelete</tabstop>
  </tabstops>
  <resources>
   <include location="../biblepay.qrc"/>
