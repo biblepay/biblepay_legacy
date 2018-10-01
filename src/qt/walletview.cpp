@@ -264,7 +264,6 @@ void WalletView::gotoContactAddPage()
 
 void WalletView::gotoBusinessObjectListPage()
 {
-	if (fProd) return;
 	setCurrentWidget(businessObjectListPage);
 	businessObjectListPage->UpdateObject("object");
 }

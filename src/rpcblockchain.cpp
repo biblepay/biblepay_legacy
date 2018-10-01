@@ -102,12 +102,14 @@ extern double AscertainResearcherTotalRAC();
 extern std::vector<std::string> GetListOfDCCS(std::string sSearch, bool fRequireSig);
 extern bool VerifyCPIDSignature(std::string sFullSig, bool bRequireEndToEndVerification, std::string& sError);
 extern double GetSumOfXMLColumnFromXMLFile(std::string sFileName, std::string sObjectName, std::string sElementName, double dReqSPM, double dReqSPR, double dTeamRequired, std::string sConcatCpids, 
-	double dRACThreshhold, std::string sTeamBlacklist, int iNextSuperblock);
+		double dRACThreshhold, std::string sTeamBlacklist, int iNextSuperblock);
 extern uint256 GetDCCHash(std::string sContract);
 extern UniValue UTXOReport(std::string sCPID);
 extern uint256 GetDCCFileHash();
 extern double GetTeamPercentage(double dUserTeam, double dProjectTeam, std::string sTeamBlacklist, double dNonBiblepayTeamPercentage);
 extern std::string AttachProject(std::string sAuth);
+extern UserVote GetSumOfSignal(std::string sType, std::string sIPFSHash);
+extern std::string SendBusinessObject(std::string sType, std::string sPrimaryKey, std::string sValue, double dStorageFee, std::string sSignKey, bool fSign, std::string& sError);
 
 
 std::string SignMessage(std::string sMsg, std::string sPrivateKey);
@@ -3272,6 +3274,50 @@ UniValue exec(const UniValue& params, bool fHelp)
 		results.push_back(Pair("TXID", txid));
 		results.push_back(Pair("Error", sError));
 	}
+	else if (sItem == "vote")
+	{
+		if (params.size() != 3)
+			throw runtime_error("You must specify type: IE 'exec vote ipfshash vote_signal'.  IE 'exec vote ipfshash [yes/no/abstain]'.");
+		std::string sIPFSHash = params[1].get_str();
+		std::string sVoteSignal = params[2].get_str();
+		if (sVoteSignal != "yes" && sVoteSignal != "no" && sVoteSignal != "abstain")
+			throw runtime_error("Vote signal must be yes, no, or abstain.");
+		std::string sAddress = DefaultRecAddress(BUSINESS_OBJECTS);
+		std::string sOT = "vote";
+		std::string sSecondaryKey = sIPFSHash + "-" + sAddress;
+		double dStorageFee = 1;
+		std::string sError = "";
+		std::string sTxId = "";
+		std::string sUTXOWeight = "<voteweight>100</voteweight>";
+		std::string sVote = "<vote><votehash>" + sIPFSHash + "</votehash><signal>" + sVoteSignal + "</signal>" + sUTXOWeight + "</vote>";
+		sTxId = SendBusinessObject(sOT, sSecondaryKey, sVote, dStorageFee, sAddress, true, sError);
+		if (sError.empty())
+		{
+			results.push_back(Pair("TXID", sTxId));
+		}
+		else
+		{
+			results.push_back(Pair("Error", sError));
+		}
+
+	}
+	else if (sItem == "votecount")
+	{
+		if (params.size() != 2)
+			throw runtime_error("You must specify type: IE 'exec votecount ipfshash'.  IE 'exec votecount'.");
+
+		std::string sHash = params[1].get_str();
+		UserVote v = GetSumOfSignal("VOTE", sHash);
+
+		results.push_back(Pair("Yes Weight", v.nTotalYesWeight));
+		results.push_back(Pair("Yes", v.nTotalYesCount));
+		results.push_back(Pair("No Weight", v.nTotalNoWeight));
+		results.push_back(Pair("No", v.nTotalNoCount));
+		results.push_back(Pair("Abstain Weight", v.nTotalAbstainWeight));
+		results.push_back(Pair("Abstain", v.nTotalAbstainCount));
+		
+		
+	}
 	else if (sItem == "datalist")
 	{
 		if (params.size() != 2 && params.size() != 3)
@@ -3751,6 +3797,53 @@ UniValue GetBusinessObjectList(std::string sType)
 		}
 	}
 	return ret;
+}
+
+
+int GetSignalInt(std::string sLocalSignal)
+{
+	boost::to_upper(sLocalSignal);
+	if (sLocalSignal=="NO") return 1;
+	if (sLocalSignal=="YES") return 2;
+	if (sLocalSignal=="ABSTAIN") return 3;
+	return 0;
+}
+
+UserVote GetSumOfSignal(std::string sType, std::string sIPFSHash)
+{
+	// Get sum of business object type - ipfshash - signal by ipfshash/objecttype/voter
+	boost::to_upper(sType);
+	boost::to_upper(sIPFSHash);
+	std::string sData = "";
+	UserVote v = UserVote();
+
+    for(map<string,string>::iterator ii=mvApplicationCache.begin(); ii!=mvApplicationCache.end(); ++ii) 
+    {
+		std::string sKey = (*ii).first;
+		std::string sValue = mvApplicationCache[(*ii).first];
+		if (Contains(sKey, sType + ";" + sIPFSHash))
+		{
+			std::string sLocalSignal = ExtractXML(sValue, "<signal>", "</signal>");
+			double dWeight = cdbl(ExtractXML(sValue, "<voteweight>", "</voteweight>"), 2);
+			int iSignal = GetSignalInt(sLocalSignal);
+			if (iSignal == 1)
+			{
+				v.nTotalNoCount++;
+				v.nTotalNoWeight += dWeight;
+			}
+			else if (iSignal == 2)
+			{
+				v.nTotalYesCount++;
+				v.nTotalYesWeight += dWeight;
+			}
+			else if (iSignal == 3)
+			{
+				v.nTotalAbstainCount++;
+				v.nTotalAbstainWeight += dWeight;
+			}
+		}
+	}
+	return v;
 }
 
 std::string GetBusinessObjectList(std::string sType, std::string sFields)
@@ -7070,10 +7163,10 @@ bool is_email_valid(const std::string& e)
 std::string StoreBusinessObjectWithPK(UniValue& oBusinessObject, std::string& sError)
 {
 	std::string sJson = oBusinessObject.write(0,0);
-	std::string sPK = oBusinessObject["primarykey"].get_str();
+	std::string sPK = oBusinessObject["primarykey"].getValStr();
 	std::string sAddress = DefaultRecAddress(BUSINESS_OBJECTS);
-	std::string sOT = oBusinessObject["objecttype"].get_str();
-	std::string sSecondaryKey = oBusinessObject["secondarykey"].get_str();
+	std::string sOT = oBusinessObject["objecttype"].getValStr();
+	std::string sSecondaryKey = oBusinessObject["secondarykey"].getValStr();
 	std::string sIPFSHash = SubmitBusinessObjectToIPFS(sJson, sError);
 	if (sError.empty())
 	{
@@ -7090,10 +7183,9 @@ std::string StoreBusinessObject(UniValue& oBusinessObject, std::string& sError)
 {
 	std::string sJson = oBusinessObject.write(0,0);
 	std::string sAddress = DefaultRecAddress(BUSINESS_OBJECTS);
-	std::string sPrimaryKey = oBusinessObject["objecttype"].get_str();
-	std::string sSecondaryKey = oBusinessObject["secondarykey"].get_str();
+	std::string sPrimaryKey = oBusinessObject["objecttype"].getValStr();
+	std::string sSecondaryKey = oBusinessObject["secondarykey"].getValStr();
 	std::string sIPFSHash = SubmitBusinessObjectToIPFS(sJson, sError);
-	// LogPrintf("IPFSHash %s ",sIPFSHash.c_str());
 	if (sError.empty())
 	{
 		double dStorageFee = 1;
@@ -7349,6 +7441,20 @@ std::string RosettaDiagnostics(std::string sEmail, std::string sPass, std::strin
 				sHTML += "CPID: " + sCPID + "\n";
 			}
 		}
+
+		if (sError.empty())
+		{
+			double dRAC = AscertainResearcherTotalRAC();
+			double dStake = GetMinimumRequiredUTXOStake(dRAC, 1.1);
+			sHTML += "UTXO_Target: " + RoundToString(dStake, 2) + "\n";
+			double dStakeBalance = pwalletMain->GetUnlockedBalance() / COIN;
+			sHTML += "Stake_Balance: " + RoundToString(dStakeBalance, 2) + "\n";
+			if (dStakeBalance < dStake)
+			{
+				sError += "You have less stake balance available than needed for the PODC UTXO Target.  Coins must be more than 5 confirmations deep to count.  See coin control.  Please run exec totalrac.";
+			}
+		}
+
 		return sHTML;
 }
 

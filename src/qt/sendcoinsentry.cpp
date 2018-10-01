@@ -71,13 +71,10 @@ SendCoinsEntry::SendCoinsEntry(const PlatformStyle *platformStyle, QWidget *pare
 	// IPFS
 	connect(ui->btnAttach, SIGNAL(clicked()), this, SLOT(attachFile()));
 	const CChainParams& chainparams = Params();
-	if (chainparams.NetworkIDString()=="main")
-	{
-		ui->btnAttach->setVisible(false);
-		ui->lblIPFSFee->setVisible(false);
-		ui->txtFile->setVisible(false);
-		ui->lblatt->setVisible(false);
-	}
+	ui->btnAttach->setVisible(false);
+	ui->lblIPFSFee->setVisible(false);
+	ui->txtFile->setVisible(false);
+	ui->lblatt->setVisible(false);
 
 	// Initialize Repentance Combo
 	initRepentanceDropDown();

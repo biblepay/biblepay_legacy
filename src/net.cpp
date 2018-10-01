@@ -2051,10 +2051,7 @@ void StartNode(boost::thread_group& threadGroup, CScheduler& scheduler)
     threadGroup.create_thread(boost::bind(&TraceThread<void (*)()>, "msghand", &ThreadMessageHandler));
 
     // Dump network addresses
-	// scheduler.scheduleEvery(&DumpData, DUMP_ADDRESSES_INTERVAL);  R Andrews: ToDo - Update Constant in next version after testing.  This calls HealthCheckup();
-	//scheduler.scheduleEvery(boost::bind(&DumpData, boost::cref(iDumpType)), 180);
 	scheduler.scheduleEvery(&DumpData, 180);
-
 }
 
 

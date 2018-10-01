@@ -7824,7 +7824,10 @@ struct TxMessage
   std::string sCPID;
   std::string sPODCTasks;
   std::string sTxId;
+  std::string sVoteSignal;
+  std::string sVoteHash;
   double      nNonce;
+  double      dAmount;
   bool        fNonceValid;
   bool        fPrayersMustBeSigned;
   bool        fSporkSigValid;
@@ -7886,7 +7889,7 @@ bool CheckBusinessObjectSig(TxMessage t)
 	return false;
 }
 
-TxMessage GetTxMessage(std::string sMessage, int64_t nTime, int iPosition, std::string sTxId)
+TxMessage GetTxMessage(std::string sMessage, int64_t nTime, int iPosition, std::string sTxId, double dAmount)
 {
 	TxMessage t;
 	t.sMessageType = ExtractXML(sMessage,"<MT>","</MT>");
@@ -7906,6 +7909,7 @@ TxMessage GetTxMessage(std::string sMessage, int64_t nTime, int iPosition, std::
 	t.sPODCTasks   = ExtractXML(sMessage, "<PODC_TASKS>", "</PODC_TASKS>");
 	t.sTxId        = sTxId;
 	t.nTime        = nTime;
+	t.dAmount      = dAmount;
     boost::to_upper(t.sMessageType);
 	boost::to_upper(t.sMessageKey);
 	t.sTimestamp = TimestampToHRDate((double)nTime + iPosition);
@@ -7944,6 +7948,11 @@ TxMessage GetTxMessage(std::string sMessage, int64_t nTime, int iPosition, std::
 		// These are checked in the memory pool (since we have some unbanked CPIDs who didn't sign the CPID from the wallet)
 		t.fPassedSecurityCheck = true;
 	}
+	else if (t.sMessageType == "VOTE")
+	{
+		t.fBOSigValid = CheckBusinessObjectSig(t);
+		t.fPassedSecurityCheck = t.fBOSigValid;
+	}
 	else
 	{
 		// We assume this is a business object
@@ -7958,7 +7967,7 @@ TxMessage GetTxMessage(std::string sMessage, int64_t nTime, int iPosition, std::
 void MemorizePrayer(std::string sMessage, int64_t nTime, double dAmount, int iPosition, std::string sTxID, int nHeight, double dFoundationDonation)
 {
 	if (sMessage.empty()) return;
-	TxMessage t = GetTxMessage(sMessage, nTime, iPosition, sTxID);
+	TxMessage t = GetTxMessage(sMessage, nTime, iPosition, sTxID, dAmount);
 	if (!t.sIPFSHash.empty())
 	{
 		WriteCache("IPFS", t.sIPFSHash, RoundToString(nHeight, 0), nTime, false);

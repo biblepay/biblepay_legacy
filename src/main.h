@@ -75,7 +75,7 @@ static const int F11000_CUTOVER_HEIGHT_TESTNET = 1;
 static const int F12000_CUTOVER_HEIGHT_PROD = 35110;
 static const int F13000_CUTOVER_HEIGHT_PROD = 57700; // July 11th, 2018
 static const int F13000_CUTOVER_HEIGHT_TESTNET = 16600;
-static const int F14000_CUTOVER_HEIGHT_PROD = 77700; // Sep. 30th, 2018
+static const int F14000_CUTOVER_HEIGHT_PROD = 77000; // October 14th, 2018
 static const int F14000_CUTOVER_HEIGHT_TESTNET = 54300; // Sep. 1, 2018
 static const int MINIMUM_EMAIL_LENGTH = 5; // 3 character domain + . + 1 character name
 /** Default for -maxorphantx, maximum number of orphan transactions kept in memory */
@@ -170,6 +170,17 @@ struct BlockHasher
 {
     size_t operator()(const uint256& hash) const { return hash.GetCheapHash(); }
 };
+
+struct UserVote
+{
+	int nTotalYesCount;
+	int nTotalNoCount;
+	int nTotalAbstainCount;
+	int nTotalYesWeight;
+	int nTotalNoWeight;
+	int nTotalAbstainWeight;
+};
+
 
 extern CScript COINBASE_FLAGS;
 extern CCriticalSection cs_main;
