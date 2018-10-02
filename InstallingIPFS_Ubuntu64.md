@@ -20,3 +20,15 @@ scroll down to line 47 (the line reads:  "Gateway:" /ip4/127.0.0.1/tcp/8080)
 
 Edit the line to be:
 "Gateway": "/ip4/your_sanc_public_ip/tcp/8080"
+
+
+
+Running IPFS on your Sanc:
+
+After each machine reboot start IPFS (IPFS is already in users path):
+
+ipfs daemon
+
+
+
+
