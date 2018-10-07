@@ -4825,7 +4825,7 @@ int64_t RetrieveCPIDAssociationTime(std::string cpid)
 std::string GetDCCPublicKey(const std::string& cpid, bool fRequireSig)
 {
 	if (cpid.empty()) return "";
-	int iMonths = 11;
+	int iMonths = 120;
     int64_t iMaxSeconds = 60 * 24 * 30 * iMonths * 60;
     std::string sData = RetrieveDCCWithMaxAge(cpid, iMaxSeconds);
     if (sData.empty())
@@ -5645,13 +5645,15 @@ bool FilterFile(int iBufferSize, int iNextSuperblock, std::string& sError)
 		double doutRAHTeam = 0;
 		for (int i = 0; i < (int)vCPIDs.size(); i++)
 		{
-			std::string sCPID = GetDCCElement(vCPIDs[i], 0, true);
+			std::string sPreCPID = GetDCCElement(vCPIDs[i], 0, false);
+			double dUnbanked = cdbl(ReadCacheWithMaxAge("Unbanked", sPreCPID, nMaxAge), 0);
+			bool fRequireSig = dUnbanked == 1 ? false : true;
+			std::string sCPID = GetDCCElement(vCPIDs[i], 0, fRequireSig);
 			double dRosettaID = cdbl(GetDCCElement(vCPIDs[i], 3, false), 0);
 			if (!sCPID.empty())
 			{
 				double dUTXOWeight = GetMatureMetric("UTXOWeight", sCPID, nMaxAge, iNextSuperblock);
 				double dTaskWeight = GetMatureMetric("TaskWeight", sCPID, nMaxAge, iNextSuperblock);
-				double dUnbanked = cdbl(ReadCacheWithMaxAge("Unbanked", sCPID, nMaxAge), 0);
 				// If backup project enabled, add additional credit
 				double dWCGRAC = 0;
 				if (dTeamBackupProject > 0) 
@@ -5666,9 +5668,8 @@ bool FilterFile(int iBufferSize, int iNextSuperblock, std::string& sError)
 
 				double dModifiedCredit = GetResearcherCredit(dDRMode, dRosettaRAC + dWCGRAC, dUTXOWeight, dTaskWeight, dUnbanked, dTotalRAC, dReqSPM, dReqSPR, dRACThreshhold, 1);
 				// R ANDREW : BIBLEPAY : We include any CPID with adj. credit > 0 or RAC > 100 so that the user can see this record in the superblock view report (IE they have 0 UTXO WEIGHT and want to diagnose the problem).  We filter out adjusted RAC of zero (zero mag reward) with < 100 RAC (decaying long gone boincers) for a succinct superblock contract.
-				if (dModifiedCredit > 0 || (dRosettaRAC + dWCGRAC > 100))
+				if (dModifiedCredit > 0 || (dRosettaRAC + dWCGRAC > 9))
 				{
-					bool fRequireSig = dUnbanked == 1 ? false : true;
 					std::string BPK = GetDCCPublicKey(sCPID, fRequireSig);
 					double dMagnitude = (dModifiedCredit / dTotalRAC) * 999 * dGlobalMagnitudeFactor;
 					double dUTXO = GetUTXOLevel(dUTXOWeight, dTotalRAC, dRosettaRAC + dWCGRAC, dReqSPM, dReqSPR, dRACThreshhold);
@@ -5684,6 +5685,11 @@ bool FilterFile(int iBufferSize, int iNextSuperblock, std::string& sError)
 						sDCC += sRow;
 						dTotalMagnitude += dMagnitude;
 						iRows++;
+					}
+					else
+					{
+						if (fDebugMaster) LogPrintf(" Non-Included DCC CPID %s , RosettaRAC %f, WCGRAC %f, UTXO Weight %f, Task Weight %f, DRMode %f, RacThreshhold %f, TotalRAC %f \n",
+							sCPID.c_str(), dRosettaRAC, dWCGRAC, dUTXOWeight, dTaskWeight, dDRMode, dRACThreshhold, dTotalRAC);
 					}
 				}
 				else

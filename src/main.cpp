@@ -2260,6 +2260,7 @@ CAmount GetBlockSubsidy(const CBlockIndex* pindexPrev, int nPrevBits, int nPrevH
 	if ((pindexPrev && !fProd && pindexPrev->nHeight >= 1) || (fProd && pindexPrev && pindexPrev->nHeight >= F7000_CUTOVER_HEIGHT && pindexPrev->nHeight < F7000_CUTOVER_HEIGHT_DIFF_END))
 	{
 		// This setting included in f7000 regulates the extent in which the block subsidy is lowered by increasing diff; once we remove the x11 component from the biblehash, it was necessary to recalculate the reduction to match the prior regulation level.
+		// Dark Gravity Wave Subsidy Decrease (a Higher difficulty equals a Lower total block reward):
 		dDiff = dDiff / 700;
 		/*		BiblePay Difficulty Level Chart:
 		 1            19998.2933653649 
@@ -2283,15 +2284,13 @@ CAmount GetBlockSubsidy(const CBlockIndex* pindexPrev, int nPrevBits, int nPrevH
     if(nSubsidyBase > 20000) nSubsidyBase = 20000;
         else if(nSubsidyBase < 5000) nSubsidyBase = 5000;
 
-    // LogPrintf("height %u diff %4.2f reward %d\n", nPrevHeight, dDiff, nSubsidyBase);
     CAmount nSubsidy = nSubsidyBase * COIN;
     // Yearly decline of production by ~19.5% per year, projected ~5.2 Billion coins max by year 2050+.
-
 	// http://wiki.biblepay.org/Emission_Schedule
 
 	bool fSuperblocksEnabled = (pindexPrev->nHeight >= consensusParams.nSuperblockStartBlock) && fMasternodesEnabled;
 	int iSubsidyDecreaseInterval = BLOCKS_PER_DAY * 365; // Yearly Initially
-	double iDeflationRate = .10; // 10% per year initially
+	double iDeflationRate = .10; // 10% deflation from July 2017 to Dec 2017 (until sanctuaries go live) - This bootstraps the coin
 	if (fSuperblocksEnabled)
 	{
 		iSubsidyDecreaseInterval = BLOCKS_PER_DAY * 30; // After sanctuaries go live, Monthly
@@ -2303,11 +2302,13 @@ CAmount GetBlockSubsidy(const CBlockIndex* pindexPrev, int nPrevBits, int nPrevH
     }
 		
     // When sanctuaries go live: The Tithe block is disabled, budgeting/superblocks are enabled, and the budget contains a max of : 
-	// 10% to Charity budget, 5% for the IT budget, 2.5% PR, 2.5% P2P.  The 80% remaining is split between the miner and the sanctuary.
+	// 10% to Charity budget, 5% for the IT budget, 2.5% PR, 2.5% P2P.  The 80% remaining is split between the miner, PODC rewards and the sanctuary.
+	// https://wiki.biblepay.org/Economics
 
-	// Distributed Computing - Give 10% to charity, 5% to IT, 5% to P2P+PR, 50% to Distributed-Computing, (leaving 27% for Sanctuary and 3% for POW mining)
+	// Distributed Computing - Give 10% to charity, 5% to IT, 5% to P2P+PR, 50% to Distributed-Computing
 	double dSuperblockMultiplier = fSuperblocksEnabled ? (!fProd ? .15 : .20) : .10;
 	bool fDCLive = (fProd && fDistributedComputingEnabled && pindexPrev->nHeight > F11000_CUTOVER_HEIGHT_PROD) || (!fProd && fDistributedComputingEnabled);
+	// POW Payment + Sanctuary Payment / .30 = Gross reward minus (Sanctuary payment - POW Payment) = Gross Total Coinbase reward - This equals the .70 escrow:
 	if (fDCLive) dSuperblockMultiplier = .70;
     CAmount nSuperblockPart = (nPrevHeight > consensusParams.nBudgetPaymentsStartBlock) ? nSubsidy * dSuperblockMultiplier : 0;
     return fSuperblockPartOnly ? nSuperblockPart : nSubsidy - nSuperblockPart;
@@ -2315,13 +2316,11 @@ CAmount GetBlockSubsidy(const CBlockIndex* pindexPrev, int nPrevBits, int nPrevH
 
 CAmount GetMasternodePayment(int nHeight, CAmount blockValue, CAmount nSanctuaryCollateral)
 {
-	// Give Sanctuaries 35% of the block reward after Christmas 2017 (leaving 20% for budgets (see budget breakdown below), 35% to DC and 10% to POW miner):
+	// https://wiki.biblepay.org/Economics
 	const Consensus::Params& consensusParams = Params().GetConsensus();
     bool fSuperblocksEnabled = (nHeight >= consensusParams.nSuperblockStartBlock) && fMasternodesEnabled;
 	// http://forum.biblepay.org/index.php?topic=33.0
-	// Should we carve out additional 1-10% from superblocks for PR and/or P2P Rewards?
-	// Poll ended 12-4-2017: Yes, carve an addl 2.5% for PR and 2.5% for P2P rewards (5% more) leaving 80% for miner/sanctuaries.
-	// Final Distribution: 10% Charity, 2.5% PR, 2.5% P2P, 5% for IT, 40% for miner, 40% for sanctuary
+	// Final Distribution: 10% Charity, 2.5% PR, 2.5% P2P, 5% for IT
 	CAmount ret = 0;
 	int nSpork8Height = fProd ? SPORK8_HEIGHT : SPORK8_HEIGHT_TESTNET;
 	if (fProd && nHeight > nSpork8Height)
