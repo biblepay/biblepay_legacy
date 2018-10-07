@@ -14,12 +14,12 @@
 QString ToQstring(std::string s);
 std::string FromQStringW(QString qs);
 std::string RoundToString(double d, int place);
-QString ToQstring(std::string s);
 std::string GetBusinessObjectList(std::string sType, std::string sFields);
 UniValue GetBusinessObjectByFieldValue(std::string sType, std::string sFieldName, std::string sSearchValue);
 UniValue GetBusinessObject(std::string sType, std::string sPrimaryKey, std::string& sError);
-
+double cdbl(std::string s, int place);
 std::string ObjectType = "";
+extern int GetUrlColumn(std::string sTarget);
 
 QStringList BusinessObjectList::GetHeaders()
 {
@@ -77,20 +77,37 @@ void BusinessObjectList::createUI(const QStringList &headers, const QString &pSt
 	if (pStr == "") return;
 
     pMatrix = SplitData(pStr);
+	int iAmountCol = GetUrlColumn("Amount");
+	int iFooterRow = (iAmountCol > -1) ? 1 : 0;
     int rows = pMatrix.size();
-    ui->tableWidget->setRowCount(rows);
+    ui->tableWidget->setRowCount(rows + iFooterRow);
     int cols = pMatrix[0].size() - 1;
     ui->tableWidget->setColumnCount(cols);
     ui->tableWidget->setHorizontalHeaderLabels(headers);
     QString s;
+	double dGrandTotal = 0;
     for(int i=0; i < rows; i++)
+	{
         for(int j=0; j < cols; j++)
+		{
             ui->tableWidget->setItem(i,j, new QTableWidgetItem(pMatrix[i][j]));
+		}
+		if (iAmountCol > -1)
+		{
+			dGrandTotal += cdbl(FromQStringW(pMatrix[i][iAmountCol]), 2);
+		}
+	}
+	if (iFooterRow > 0)
+	{
+		ui->tableWidget->setItem(rows, 0, new QTableWidgetItem("Grand Total:"));
+		ui->tableWidget->setItem(rows, iAmountCol, new QTableWidgetItem(ToQstring(RoundToString(dGrandTotal, 2))));
+	}
 
     ui->tableWidget->setEditTriggers(QAbstractItemView::NoEditTriggers);
     ui->tableWidget->resizeRowsToContents();
     ui->tableWidget->resizeColumnsToContents();
     ui->tableWidget->setContextMenuPolicy(Qt::CustomContextMenu);
+
 	// Column widths should be set 
 	for (int j=0; j < cols; j++)
 	{

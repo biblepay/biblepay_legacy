@@ -7948,6 +7948,16 @@ TxMessage GetTxMessage(std::string sMessage, int64_t nTime, int iPosition, std::
 		// These are checked in the memory pool (since we have some unbanked CPIDs who didn't sign the CPID from the wallet)
 		t.fPassedSecurityCheck = true;
 	}
+	else if (t.sMessageType == "EXPENSE" || t.sMessageType == "REVENUE")
+	{
+		t.sSporkSig = t.sBOSig;
+		t.fSporkSigValid = CheckSporkSig(t);
+		if (!t.fSporkSigValid) 
+		{
+			t.sMessageValue  = "";
+		}
+		t.fPassedSecurityCheck = t.fSporkSigValid;
+	}
 	else if (t.sMessageType == "VOTE")
 	{
 		t.fBOSigValid = CheckBusinessObjectSig(t);

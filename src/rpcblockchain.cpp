@@ -66,6 +66,7 @@ extern UniValue GetSancIPFSQualityReport();
 extern UniValue GetBusinessObjectByFieldValue(std::string sType, std::string sFieldName, std::string sSearchValue);
 extern std::string GetBusinessObjectList(std::string sType, std::string sFields);
 extern std::string StoreBusinessObjectWithPK(UniValue& oBusinessObject, std::string& sError);
+extern double GetBusinessObjectTotal(std::string sType, std::string sFieldName, int iAggregationType);
 extern int GetBoincTaskCount();
 void TestRSA();
 int RSA_GENERATE_KEYPAIR(std::string sPublicKeyPath, std::string sPrivateKeyPath);
@@ -3263,12 +3264,84 @@ UniValue exec(const UniValue& params, bool fHelp)
 		std::string sOT = params[1].get_str();
 		std::string sPK = params[2].get_str();
 		std::string sSK = params[3].get_str();
+		const Consensus::Params& consensusParams = Params().GetConsensus();
+	    std::string sFoundationAddress = consensusParams.FoundationAddress;
+
 		if (sSK == "-1") sSK = "";
 		UniValue oBO(UniValue::VOBJ);
 		oBO.push_back(Pair("objecttype", sOT));
 		oBO.push_back(Pair("primarykey", sPK));
 		oBO.push_back(Pair("secondarykey", sSK));
 		oBO.push_back(Pair("deleted", "1"));
+		oBO.push_back(Pair("signingkey", sFoundationAddress));
+		std::string sError = "";
+		std::string txid = StoreBusinessObjectWithPK(oBO, sError);
+		results.push_back(Pair("TXID", txid));
+		results.push_back(Pair("Error", sError));
+	}
+	else if (sItem == "addexpense")
+	{
+		if (params.size() != 7)
+			throw runtime_error("You must specify amount, newsponsorships, URL, prepaidsponsorships, charity, handledby.");
+		std::string sAmt                 = params[1].getValStr();
+		std::string sNewSponsorships     = params[2].getValStr();
+		std::string sURL                 = params[3].getValStr();
+		std::string sPrepaidSponsorships = params[4].getValStr();
+		std::string sCharity             = params[5].getValStr();
+		std::string sHandledBy           = params[6].getValStr();
+		const Consensus::Params& consensusParams = Params().GetConsensus();
+	    std::string sFoundationAddress = consensusParams.FoundationAddress;
+
+		UniValue oBO(UniValue::VOBJ);
+		oBO.push_back(Pair("objecttype", "expense"));
+		oBO.push_back(Pair("primarykey", "expense"));
+		oBO.push_back(Pair("secondarykey", RoundToString(GetAdjustedTime(), 0)));
+		oBO.push_back(Pair("signingkey", sFoundationAddress));
+		oBO.push_back(Pair("added", RoundToString(GetAdjustedTime(), 0)));
+		oBO.push_back(Pair("deleted", "0"));
+		oBO.push_back(Pair("amount", sAmt));
+		oBO.push_back(Pair("new_sponsorships", sNewSponsorships));
+		oBO.push_back(Pair("url", sURL));
+		oBO.push_back(Pair("prepaid_sponsorships", sPrepaidSponsorships));
+		oBO.push_back(Pair("charity", sCharity));
+		oBO.push_back(Pair("handled_by", sHandledBy));
+		std::string sError = "";
+		std::string txid = StoreBusinessObjectWithPK(oBO, sError);
+		results.push_back(Pair("TXID", txid));
+		results.push_back(Pair("Error", sError));
+	}
+	else if (sItem == "addrev")
+	{
+		if (params.size() != 2)
+			throw runtime_error("You must specify \"amount|bbpamount|btcraised|btcprice|notes|handledby|charity.\"");
+		std::string sData = params[1].getValStr();
+		std::vector<std::string> vData = Split(sData.c_str(),"|");
+		if (vData.size() != 7)
+			throw runtime_error("You must specify \"amount|bbpamount|btcraised|btcprice|notes|handledby|charity.\"");
+		std::string sAmt                 = vData[0];
+		std::string sBBPAmount           = vData[1];
+		std::string sBTCRaised           = vData[2];
+		std::string sBTCPrice            = vData[3];
+		std::string sNotes               = vData[4];
+		std::string sHandledBy           = vData[5];
+		std::string sCharity             = vData[6];
+		const Consensus::Params& consensusParams = Params().GetConsensus();
+	    std::string sFoundationAddress = consensusParams.FoundationAddress;
+
+		UniValue oBO(UniValue::VOBJ);
+		oBO.push_back(Pair("objecttype", "revenue"));
+		oBO.push_back(Pair("primarykey", "revenue"));
+		oBO.push_back(Pair("secondarykey", RoundToString(GetAdjustedTime(), 0)));
+		oBO.push_back(Pair("signingkey", sFoundationAddress));
+		oBO.push_back(Pair("added", RoundToString(GetAdjustedTime(), 0)));
+		oBO.push_back(Pair("deleted", "0"));
+		oBO.push_back(Pair("amount", sAmt));
+		oBO.push_back(Pair("bbp_amount", sBBPAmount));
+		oBO.push_back(Pair("btc_raised", sBTCRaised));
+		oBO.push_back(Pair("btc_price", sBTCPrice));
+		oBO.push_back(Pair("notes", sNotes));
+		oBO.push_back(Pair("handled_by", sHandledBy));
+		oBO.push_back(Pair("charity", sCharity));
 		std::string sError = "";
 		std::string txid = StoreBusinessObjectWithPK(oBO, sError);
 		results.push_back(Pair("TXID", txid));
@@ -3308,16 +3381,39 @@ UniValue exec(const UniValue& params, bool fHelp)
 
 		std::string sHash = params[1].get_str();
 		UserVote v = GetSumOfSignal("VOTE", sHash);
-
 		results.push_back(Pair("Yes Weight", v.nTotalYesWeight));
 		results.push_back(Pair("Yes", v.nTotalYesCount));
 		results.push_back(Pair("No Weight", v.nTotalNoWeight));
 		results.push_back(Pair("No", v.nTotalNoCount));
 		results.push_back(Pair("Abstain Weight", v.nTotalAbstainWeight));
 		results.push_back(Pair("Abstain", v.nTotalAbstainCount));
-		
-		
 	}
+	else if (sItem == "theymos")
+	{
+		CCoinsStats stats;
+		FlushStateToDisk();
+		if (!pcoinsTip->GetStats(stats)) 
+			throw runtime_error("Wallet must be synced to run the Theymos report.");
+		double dTotalEmission = stats.nTotalAmount / COIN;
+		double dTotalCharityBudget = dTotalEmission * .10;
+		double dTotalBBPSold = GetBusinessObjectTotal("revenue", "bbp_amount", 1);
+		double dTotalBTCRaised = GetBusinessObjectTotal("revenue", "btc_raised", 1);
+		double dAvgBTCPrice = GetBusinessObjectTotal("revenue", "btc_price", 2);
+		double dTotalRevenue = GetBusinessObjectTotal("revenue", "amount", 1);
+		double dTotalExpenses = GetBusinessObjectTotal("expense", "amount", 1);
+		double dAvgBBPPrice = 0;
+		if (dTotalBBPSold > 0) dAvgBBPPrice = dTotalRevenue/dTotalBBPSold;
+		results.push_back(Pair("Theymos Report", TimestampToHRDate(GetAdjustedTime())));
+		results.push_back(Pair("Total Coinbase Emission (Money Supply)", dTotalEmission));
+		results.push_back(Pair("Total Charity Budget", dTotalCharityBudget));
+		results.push_back(Pair("Total BBP Sold on Exchanges", dTotalBBPSold));
+		results.push_back(Pair("Total BTC Raised", dTotalBTCRaised));
+		results.push_back(Pair("Avg BTC Price", dAvgBTCPrice));
+		results.push_back(Pair("Avg BBP Price", dAvgBBPPrice));
+		results.push_back(Pair("Total Revenue in USD", dTotalRevenue));
+		results.push_back(Pair("Total Expenses in USD", dTotalExpenses));
+		results.push_back(Pair("Note:", "See Business Objects | Expenses or Revenue for more details and attached PDF receipts.  Click Navigate_To to view the PDF."));
+    }
 	else if (sItem == "datalist")
 	{
 		if (params.size() != 2 && params.size() != 3)
@@ -3741,6 +3837,46 @@ std::string GetUndownloadedIPFSHash()
 	return "";
 }
 
+double GetBusinessObjectTotal(std::string sType, std::string sFieldName, int iAggregationType)
+{
+	UniValue ret(UniValue::VOBJ);
+	boost::to_upper(sType);
+	double dTotal = 0;
+	double dTotalRows = 0;
+    for(map<string,string>::iterator ii=mvApplicationCache.begin(); ii!=mvApplicationCache.end(); ++ii) 
+    {
+		std::string sKey = (*ii).first;
+	   	if (sKey.length() > sType.length())
+		{
+			if (sKey.substr(0,sType.length())==sType)
+			{
+				std::string sPrimaryKey = sKey.substr(sType.length() + 1, sKey.length() - sType.length());
+				std::string sIPFSHash = mvApplicationCache[(*ii).first];
+				std::string sError = "";
+				UniValue o = GetBusinessObject(sType, sPrimaryKey, sError);
+				if (o.size() > 0)
+				{
+					bool fDeleted = o["deleted"].getValStr() == "1";
+					if (!fDeleted)
+					{
+						std::string sBOValue = o[sFieldName].getValStr();
+						double dBOValue = cdbl(sBOValue, 2);
+						dTotal += dBOValue;
+						dTotalRows++;
+					}
+				}
+			}
+		}
+	}
+	if (iAggregationType == 1) return dTotal;
+	double dAvg = 0;
+	if (dTotalRows > 0) dAvg = dTotal / dTotalRows;
+	if (iAggregationType == 2) return dAvg;
+	return 0;
+}
+
+
+
 
 UniValue GetBusinessObjectByFieldValue(std::string sType, std::string sFieldName, std::string sSearchValue)
 {
@@ -3760,10 +3896,14 @@ UniValue GetBusinessObjectByFieldValue(std::string sType, std::string sFieldName
 				UniValue o = GetBusinessObject(sType, sPrimaryKey, sError);
 				if (o.size() > 0)
 				{
-					std::string sBOValue = o[sFieldName].getValStr();
-					boost::to_upper(sBOValue);
-					if (sBOValue == sSearchValue)
-						return o;
+					bool fDeleted = o["deleted"].getValStr() == "1";
+					if (!fDeleted)
+					{
+						std::string sBOValue = o[sFieldName].getValStr();
+						boost::to_upper(sBOValue);
+						if (sBOValue == sSearchValue)
+							return o;
+					}
 				}
 			}
 		}
@@ -7142,7 +7282,7 @@ std::string SendBusinessObject(std::string sType, std::string sPrimaryKey, std::
 		if (bSigned) 
 		{
 			sMessageSig = "<BOSIG>" + sSignature + "</BOSIG>";
-			WriteCache("contact", sSignKey, sValue, GetAdjustedTime());
+			WriteCache(sType, sSignKey, sValue, GetAdjustedTime());
 		}
 	}
 	std::string s1 = sMessageType + sMessageKey + sMessageValue + sNonce + sBOSignKey + sMessageSig;
@@ -7165,6 +7305,8 @@ std::string StoreBusinessObjectWithPK(UniValue& oBusinessObject, std::string& sE
 	std::string sJson = oBusinessObject.write(0,0);
 	std::string sPK = oBusinessObject["primarykey"].getValStr();
 	std::string sAddress = DefaultRecAddress(BUSINESS_OBJECTS);
+	std::string sSignKey = oBusinessObject["signingkey"].getValStr();
+	if (sSignKey.empty()) sSignKey = sAddress;
 	std::string sOT = oBusinessObject["objecttype"].getValStr();
 	std::string sSecondaryKey = oBusinessObject["secondarykey"].getValStr();
 	std::string sIPFSHash = SubmitBusinessObjectToIPFS(sJson, sError);
@@ -7172,7 +7314,7 @@ std::string StoreBusinessObjectWithPK(UniValue& oBusinessObject, std::string& sE
 	{
 		double dStorageFee = 1;
 		std::string sTxId = "";
-		sTxId = SendBusinessObject(sOT, sPK + sSecondaryKey, sIPFSHash, dStorageFee, sAddress, true, sError);
+		sTxId = SendBusinessObject(sOT, sPK + sSecondaryKey, sIPFSHash, dStorageFee, sSignKey, true, sError);
 		return sTxId;
 	}
 	return "";
