@@ -36,5 +36,14 @@ After each machine reboot start IPFS (IPFS is already in users path):
 ipfs daemon
 
 
+To automate the IPFS daemon to start automatically after a reboot (recommended):
+
+https://gist.github.com/graffen/e0ff7ca4827959beedb15cf15a9df9d5
+chmod +x startup_ipfs.sh
+
+crontab -e
+*/5 * * * * /home/start_ipfs.sh > /dev/null 2>&1
+
+
 
 
