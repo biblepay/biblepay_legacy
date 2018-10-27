@@ -1,6 +1,6 @@
 // Copyright (c) 2010 Satoshi Nakamoto
 // Copyright (c) 2009-2015 The Bitcoin Core developers
-// Copyright (c) 2014-2017 The Däsh Core developers
+// Copyright (c) 2014-2017 The DÃ¤sh Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -1811,7 +1811,61 @@ UniValue exec(const UniValue& params, bool fHelp)
     if (fHelp || (params.size() != 1 && params.size() != 2  && params.size() != 3 && params.size() != 4 && params.size() != 5 && params.size() != 6 && params.size() != 7))
         throw runtime_error(
 		"exec <string::itemname> <string::parameter> \r\n"
-        "Executes an RPC command by name.");
+        "Executes an RPC command by name. run exec COMMAND for more info \r\n"
+		"Available Commands:\r\n"
+		"\r\nBlockchain Commands: \r\n"
+		"blocktohex - convert block to Hex by block number \r\n"
+		"hexblocktocoinbase - Get Coinbase from block Hex\r\n"
+		"hexblocktojson - Convert block Hex to JSON for parsing\r\n"
+		"versioncheck - Check current version vs Githubs latest.\r\n"
+		"amimasternode - Check to see if the client is a masternode.\r\n"
+		"datalist - Get a list from data pool, examples (PRAYER,SPORK,MESSAGE,SIN)\r\n"
+		"search - Search for Prayers or messages, optionally with a search phrase.\r\n"
+		"sendmessage   - Send a message (or Prayer)\r\n"
+		"getversion    - Show application dunnoversion info\r\n"
+		"versionreport - Show versions that mined the last days blocks\r\n"
+		"biblehash     - Get a bible hash generated from parameters\r\n"
+		"stakebalance  - Show current balance available to stake\r\n"
+		"pinfo         - Unknown,  shows height and some other data.\r\n"
+		"subsidy      - show subsidy and some block info for a given block\r\n"
+
+		"\r\n Proof Of Distributed Computing Commands:\r\n"
+		"getboincinfo - Get researcher BOINC status \r\n"
+		"totalrac      - Show Stake Levels and BBP requirements for current rac \r\n"
+		"utxoreport    - Show report of the PODC updates for a cpid \r\n "
+		"podcdifficulty - Show difficulty for POW/PODC\r\n"
+		"podcupdate - Manually send a PODC update\r\n"
+		"dcc - Download Distributed computing data files\r\n"
+		"associate - Connect Distributed computing account to this wallet, or connect unbanked CPID \r\n"
+		"getcpid - Get current wallet's CPID\r\n"
+		"getboinctasks - Get task info from BOINC (must have BOINC installed/running)\r\n"
+		"getpodcpayments - Get a list of PODC payments by BBP addresses.\r\n"
+		"setpodcunlockpassword - Set password to unlock wallet for PODC updates.\r\n"
+		"getblock - Get block formatted in JSON by block number.\r\n"
+		"wcgrac - Get current World Compute Grid RAC and payments.\r\n"
+		"totalrac - Give a report of the total RAC and stake reward level BBP requirements\r\n"
+		"unbanked - Get a list of Unbanked CPID's and payments\r\n"
+		"leaderboard - Show PODC Mag Leaderboard\r\n"
+
+		"\r\n IPFS Options\r\n"
+		" bolist - List Business Objects\r\n"
+		" bosearch - Search Business Objects\r\n"
+		" emailbbp - Send BBP Via E-Mail to a contact\r\n"
+		" ipfsadd - Add file to IPFS\r\n"
+		" ipfsget - Get File from IPFS by hash\r\n"
+		" ipfsgetbyurl - Get file from IPFS by URL\r\n"
+		" ipfslist\r\n"
+		" ipfsquality\r\n"
+		" votecount - Get count of an IPFS Object votes.\r\n"
+		" vote - Vote for an IPFS Object"
+
+		"\r\n Accountability Commmands\r\n"
+		"contributions - Tally payments to the orphan foundation wallet\r\n"
+		"theymos - Report for theymos from BitCoinTalk\r\n"
+
+        );
+        throw runtime_error(
+);
 
     std::string sItem = params[0].get_str();
 	if (sItem=="") throw runtime_error("Command argument invalid.");
@@ -2499,7 +2553,7 @@ UniValue exec(const UniValue& params, bool fHelp)
 	else if (sItem == "associate")
 	{
 		if (params.size() < 3)
-			throw runtime_error("You must specify boincemail, boincpassword.  Optionally specify force=true/false.");
+			throw runtime_error("You must specify boincemail, boincpassword.  Optionally specify force=true/false, and unbanked CPID.");
 		std::string sEmail = params[1].get_str();
 		std::string sPW = params[2].get_str();
 		std::string sForce = "";
@@ -5933,7 +5987,7 @@ bool VoteForDistributedComputingContract(int nHeight, std::string sMyContract, s
 
 	if (sPaymentAddresses.empty() || sAmounts.empty())
 	{
-		sError = "Ünable to vote for DC Contract::Foreign addresses or amounts empty.";
+		sError = "Unable to vote for DC Contract::Foreign addresses or amounts empty.";
 		return false;
 	}
 
