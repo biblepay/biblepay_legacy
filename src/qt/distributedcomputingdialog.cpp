@@ -27,9 +27,13 @@ QString ToQstring(std::string s);
 std::string FromQStringW(QString qs);
 std::string RoundToString(double d, int place);
 double GetTaskWeight(std::string sCPID);
-
 double GetUTXOWeight(std::string sCPID);
 std::string AssociateDCAccount(std::string sProjectId, std::string sBoincEmail, std::string sBoincPassword, std::string sUnbankedPublicKey, bool fForce);
+std::string FixRosetta(std::string sEmail, std::string sPass, std::string& sError);
+std::string RosettaDiagnostics(std::string sEmail, std::string sPass, std::string& sError);
+int GetBoincTaskCount();
+
+
 
 DistributedComputingDialog::DistributedComputingDialog(const PlatformStyle *platformStyle, QWidget *parent) :
     QDialog(parent),
@@ -50,12 +54,7 @@ DistributedComputingDialog::DistributedComputingDialog(const PlatformStyle *plat
 	ui->cmbProjectName->clear();
  	ui->cmbProjectName->addItem(ToQstring(sProject));
 	// Populate the CPIDs and Magnitude
-
 	UpdateMagnitudeDisplay();
-
-    // context menu signals
- 
-    connect(ui->btnAssociate, SIGNAL(clicked()), this, SLOT(clicked()));
 }
 
 
@@ -68,6 +67,10 @@ void DistributedComputingDialog::UpdateMagnitudeDisplay()
 		+ "<br> Magnitude: " + RoundToString(mnMagnitude,2)
 		+ "<br> Task Weight: " + RoundToString(dTaskWeight, 0) + "; UTXO Weight: " + RoundToString(dUTXOWeight, 0);
 	ui->txtInfo->setText(ToQstring(sInfo));
+	int nTasks = GetBoincTaskCount();
+
+	ui->lcdTasks->display(nTasks);
+
 }
 
 
@@ -78,7 +81,6 @@ void DistributedComputingDialog::setModel(WalletModel *model)
     if(model && model->getOptionsModel())
     {
 		UpdateMagnitudeDisplay();
-		LogPrintf(". model set .\n");
     }
 }
 
@@ -115,4 +117,36 @@ void DistributedComputingDialog::on_btnAssociate_clicked()
 	UpdateMagnitudeDisplay();
 }
 
+
+void DistributedComputingDialog::on_btnFix_clicked()
+{
+    if(!model || !model->getOptionsModel())
+        return;
+	std::string sEmail = FromQStringW(ui->txtEmail->text());
+	std::string sPassword = FromQStringW(ui->txtPassword->text());
+
+	std::string sError = "";
+	std::string sHTML = FixRosetta(sEmail, sPassword, sError);
+	sHTML = strReplace(sHTML, "\n", "<br>");
+	
+	std::string sNarr = (sError.empty()) ? sHTML : sError;
+	QMessageBox::warning(this, tr("Fix BOINC Configuration"), ToQstring(sNarr), QMessageBox::Ok, QMessageBox::Ok);
+    clear();
+	UpdateMagnitudeDisplay();
+}
+
+void DistributedComputingDialog::on_btnDiagnostics_clicked()
+{
+    if(!model || !model->getOptionsModel())
+        return;
+	std::string sEmail = FromQStringW(ui->txtEmail->text());
+	std::string sPassword = FromQStringW(ui->txtPassword->text());
+	std::string sError = "";
+	std::string sHTML = RosettaDiagnostics(sEmail, sPassword, sError);
+	sHTML = strReplace(sHTML, "\n", "<br>");
+	std::string sNarr = (sError.empty()) ? sHTML : sError;
+	QMessageBox::warning(this, tr("BOINC Diagnostics Result"), ToQstring(sNarr), QMessageBox::Ok, QMessageBox::Ok);
+    clear();
+	UpdateMagnitudeDisplay();
+}
 

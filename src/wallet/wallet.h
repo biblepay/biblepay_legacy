@@ -161,6 +161,7 @@ struct CRecipient
 	std::string txtMessage;
 	std::string txtRepent;
 	std::string Message;
+	std::string ipfshash;
 };
 
 typedef std::map<std::string, std::string> mapValue_t;

@@ -31,6 +31,9 @@
 std::string PubKeyToAddress(const CScript& scriptPubKey);
 extern QString ToQstring(std::string s);
 extern std::string FromQStringW(QString qs);
+std::string SubmitToIPFS(std::string sPath, std::string& sError);
+double GetSporkDouble(std::string sName, double nDefault);
+int64_t GetFileSize(std::string sPath);
 
 
 WalletModel::WalletModel(const PlatformStyle *platformStyle, CWallet *wallet, OptionsModel *optionsModel, QObject *parent) :
@@ -271,7 +274,8 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
                 const unsigned char* scriptStr = (const unsigned char*)out.script().data();
                 CScript scriptPubKey(scriptStr, scriptStr+out.script().size());
                 CAmount nAmount = out.amount();
-                CRecipient recipient = {scriptPubKey, nAmount, rcp.fSubtractFeeFromAmount, rcp.fTithe, rcp.fPrayer, rcp.fRepent, FromQStringW(rcp.txtMessage), FromQStringW(rcp.txtRepent), FromQStringW("") };
+                CRecipient recipient = {scriptPubKey, nAmount, rcp.fSubtractFeeFromAmount, rcp.fTithe, rcp.fPrayer, rcp.fRepent, 
+					FromQStringW(rcp.txtMessage), FromQStringW(rcp.txtRepent), FromQStringW(""), FromQStringW(rcp.ipfshash) };
                 vecSend.push_back(recipient);
             }
             if (subtotal <= 0)
@@ -295,7 +299,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
 
             CScript scriptPubKey = GetScriptForDestination(CBitcoinAddress(rcp.address.toStdString()).Get());
             CRecipient recipient = {scriptPubKey, rcp.amount, rcp.fSubtractFeeFromAmount, rcp.fTithe, rcp.fPrayer, rcp.fRepent, 
-				FromQStringW(rcp.txtMessage), FromQStringW(rcp.txtRepent), FromQStringW("") };
+				FromQStringW(rcp.txtMessage), FromQStringW(rcp.txtRepent), FromQStringW(""), FromQStringW(rcp.ipfshash) };
 			//If TITHE is Checked, add a recipient here
 
 			std::string sAddress = PubKeyToAddress(scriptPubKey);
@@ -310,7 +314,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
 					const Consensus::Params& consensusParams = Params().GetConsensus();
 					CScript spkFoundation = GetScriptForDestination(CBitcoinAddress(consensusParams.FoundationAddress).Get());
 		            CRecipient recFoundation = {spkFoundation, aTitheAmount, false, true, rcp.fPrayer, rcp.fRepent, FromQStringW(rcp.txtMessage), 
-						FromQStringW(rcp.txtRepent), FromQStringW("") };
+						FromQStringW(rcp.txtRepent), FromQStringW(""), FromQStringW(rcp.ipfshash) };
 					std::string sAddrF = PubKeyToAddress(spkFoundation);
 					setAddress.insert(ToQstring(sAddrF));
             		++nAddresses;
@@ -318,9 +322,38 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
 					vecSend.push_back(recFoundation);
 			}
 
+			if (rcp.ipfshash.length() > 0)
+			{
+				if (rcp.ipfshash.length() != 64)
+				{
+					std::string sError = "";
+					std::string sIPHash = SubmitToIPFS(FromQStringW(rcp.ipfshash), sError);
+					if (!sError.empty())
+					{
+						QString qErr = "IPFS Attachment Failed.  " + ToQstring(sError);
+						Q_EMIT message(tr("Send Coins"), qErr, CClientUIInterface::MSG_ERROR);
+						return TransactionCreationFailed;
+					}
+					// At this point, the file is good, Biblepay can add it to IPFS and we know the size.  Now we can calculate the cost and add the PODS fee.
+					int64_t nFileSize = GetFileSize(FromQStringW(rcp.ipfshash));
+					double dCostPerByte = GetSporkDouble("ipfscostperbyte", .0002);
+					CAmount aIPFSFee = dCostPerByte * nFileSize * COIN;
+					const Consensus::Params& consensusParams = Params().GetConsensus();
+					CScript spkFoundation = GetScriptForDestination(CBitcoinAddress(consensusParams.FoundationPODSAddress).Get());
+		            CRecipient recFoundation = {spkFoundation, aIPFSFee, false, true, rcp.fPrayer, rcp.fRepent, FromQStringW(rcp.txtMessage), FromQStringW(rcp.txtRepent), FromQStringW(""), FromQStringW(rcp.ipfshash) };
+					std::string sAddrF = PubKeyToAddress(spkFoundation);
+					setAddress.insert(ToQstring(sAddrF));
+            		++nAddresses;
+					LogPrintf(" \r\n Created IPFS Fee vout for bbp %f to address %s ", (double)(aIPFSFee/COIN), sAddrF.c_str());
+					vecSend.push_back(recFoundation);
+					sMessages += "<PACK><MT>ATTACHMENT</MT><MK>OUT_TX</MK><MV>" + sIPHash + "</MV><ipfshash>" + sIPHash + "</ipfshash><ipfssize>" + RoundToString(nFileSize, 0) + "</ipfssize></PACK>";
+					LogPrintf("Attaching %s ",sMessages.c_str());
+				}
+			}
+
 			if (rcp.txtMessage.length() > 0 || rcp.txtRepent.length() > 0)
 			{
-				// Store Message or Prayer in this TX
+				// Store Message or Prayer or IPFS Attachment in this TX : (R Andrews - 8/27/2018)
 				std::string sMessageType = "MESSAGE";
 				std::string sRepent = "";
 				

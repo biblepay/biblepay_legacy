@@ -6,6 +6,8 @@
 #define BITCOIN_QT_TRANSACTIONDESCDIALOG_H
 
 #include <QDialog>
+#include <QObject>
+#include <QNetworkReply>
 
 namespace Ui {
     class TransactionDescDialog;
@@ -26,6 +28,13 @@ public:
 
 private:
     Ui::TransactionDescDialog *ui;
+
+
+private Q_SLOTS:
+    void on_btnCloseClicked();
+    void on_btnOpenClicked();
+	void on_detailTextClicked(int a, int b);
+	void on_AnchorClicked();
 };
 
 #endif // BITCOIN_QT_TRANSACTIONDESCDIALOG_H

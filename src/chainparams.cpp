@@ -68,6 +68,7 @@ public:
         consensus.BIP34Hash = uint256S("0x0000039f2a2d9bc85cb7b5e34b5221bf3e840d142a400cb9f3cf1850dcc7a9cc");
         consensus.powLimit = uint256S("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
 		consensus.FoundationAddress = "BB2BwSbDCqCqNsfc7FgWFJn4sRgnUt4tsM";
+		consensus.FoundationPODSAddress = "BScSypUZVEEY4TMz1ehyyPcS5wrnMM7WPB";
         consensus.nPowTargetTimespan = 24 * 60 * 60; // Biblepay: 1 day
         consensus.nPowTargetSpacing = 7 * 60; // Biblepay: 7 minutes
 		
@@ -141,11 +142,12 @@ public:
 			(21960, uint256S("0xdd7e0acd7b9569b6fbf84a8262bb5fe3ea28af259f12d060acbcd62d4241fb51"))
 			(32500, uint256S("0xacb4534f70da9624fee2b9032d2fe47fe6d7d3e8cffdbfbca4d0a3a63394045a"))
 			(33460, uint256S("0xe64ff92ae97c2978c14d97ae45c618c1f2140339ce9ccb770945d3efb7d5e0f5"))
+			(63000, uint256S("0x1ef6f6e5d803cf04f84a4377365db6cefe82a775a9a596029db7d23fa3652f57"))
 			,
-            1520469785,     // * UNIX timestamp of last checkpoint block
-            124175,          // * total number of transactions between genesis and last checkpoint
+            1533611315,     // * UNIX timestamp of last checkpoint block
+            446177,          // * total number of transactions between genesis and last checkpoint
                             //   (the tx=... number in the SetBestChain debug.log lines)
-            150             // * estimated number of transactions per day after checkpoint
+            1205           // * estimated number of transactions per day after checkpoint
         };
 		
     }
@@ -172,6 +174,7 @@ public:
 	    consensus.nSuperblockStartBlock = 201; // NOTE: Should satisfy nSuperblockStartBlock > nBudgetPaymentsStartBlock
         consensus.nBudgetProposalEstablishingTime = 60 * 20; //Possibly 8 in the future
 		consensus.FoundationAddress = "yadZnJ3hD3FRC8CiLZEVNqejvQFgNtu5ci";
+		consensus.FoundationPODSAddress = "yiqFGdxM2vzKCk74GrjevEGNTC2rLqKFeg";
         consensus.nSuperblockCycle = BLOCKS_PER_DAY * 7; // Superblocks can be issued weekly on testnet
 		consensus.nDCCSuperblockStartBlock = 470;
 		consensus.nDCCSuperblockCycle = 99; // Daily
@@ -253,23 +256,19 @@ public:
         };
 		*/
 
-		
-		
-		
-		checkpointData = (CCheckpointData) 
-		{
+		checkpointData = (CCheckpointData) {
             boost::assign::map_list_of
             (    1, uint256S("0x18b37b60b422ea27d57ceea9dd794b5f74c561565ecc03e85a22ecdf74cbb33a"))
-       		,
-            1511964848, // * UNIX timestamp of last checkpoint block
+			(50000, uint256S("0x182cd59a2e10f9d4e26bfe05661bb82d20b98afb60b627a6e65b576777073bbb")),
+		    1511964848, // * UNIX timestamp of last checkpoint block
             54664,     // * total number of transactions between genesis and last checkpoint
                         //   (the tx=... number in the SetBestChain debug.log lines)
             500         // * estimated number of transactions per day after checkpoint
         };
-	
-
+		
     }
 };
+
 static CTestNetParams testNetParams;
 
 /**
@@ -299,6 +298,7 @@ public:
         consensus.BIP34Height = 1; 
         consensus.BIP34Hash = uint256();
 		consensus.FoundationAddress = "yedEtKvuw9CMBKdzGNVM1ezzMMy2ibtXDR";
+		consensus.FoundationPODSAddress = "yiqFGdxM2vzKCk74GrjevEGNTC2rLqKFeg";
 		consensus.nDCCSuperblockStartBlock = 2001;
 		consensus.nDCCSuperblockCycle = BLOCKS_PER_DAY * 1; // Daily
     
@@ -339,13 +339,15 @@ public:
 
         nFulfilledRequestExpireTime = 5*60; // fulfilled requests expire in 5 minutes
 
-        checkpointData = (CCheckpointData){
+        checkpointData = (CCheckpointData)
+		{
             boost::assign::map_list_of
-            ( 0, uint256S("0x0")),
+            ( 0, uint256S("0x0"))
+			,
             0,
-            0,
-            0
-        };
+			0,
+			0        
+		};
         // Regtest Biblepay addresses start with 'y'
         base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,140);
         // Regtest Biblepay script addresses start with '8' or '9'

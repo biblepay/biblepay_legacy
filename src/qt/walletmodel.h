@@ -40,8 +40,10 @@ class SendCoinsRecipient
 public:
     explicit SendCoinsRecipient() : amount(0), fSubtractFeeFromAmount(false), fTithe(false), fPrayer(false), fRepent(false), nVersion(SendCoinsRecipient::CURRENT_VERSION) { }
     explicit SendCoinsRecipient(const QString &addr, const QString &label, const CAmount& amount, const QString &message):
-        address(addr), label(label), amount(amount), message(message), fSubtractFeeFromAmount(false), fTithe(false), 
-			fPrayer(false), fRepent(false), nVersion(SendCoinsRecipient::CURRENT_VERSION) {}
+        address(addr), label(label), amount(amount), message(message), 
+			fSubtractFeeFromAmount(false), 
+			fTithe(false), fPrayer(false), fRepent(false), 
+			nVersion(SendCoinsRecipient::CURRENT_VERSION) {}
 
     // If from an unauthenticated payment request, this is used for storing
     // the addresses, e.g. address-A<br />address-B<br />address-C.
@@ -57,6 +59,7 @@ public:
     QString message;
 	QString txtMessage;
 	QString txtRepent;
+	QString ipfshash;
     // If from a payment request, paymentRequest.IsInitialized() will be true
     PaymentRequestPlus paymentRequest;
     // Empty if no authentication or invalid signature/cert/etc.

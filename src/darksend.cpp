@@ -1828,7 +1828,7 @@ bool CDarksendPool::MakeCollateralAmounts(const CompactTallyItem& tallyItem)
     scriptCollateral = GetScriptForDestination(vchPubKey.GetID());
 	////  CScript scriptPubKey;     CAmount nAmount;     bool fSubtractFeeFromAmount; 	bool fTithe; 	bool fPrayer; 	std::string txtMessage;
     
-    vecSend.push_back((CRecipient){scriptCollateral, PRIVATESEND_COLLATERAL*4, false, false, false, false, "", "", ""});
+    vecSend.push_back((CRecipient){scriptCollateral, PRIVATESEND_COLLATERAL*4, false, false, false, false, "", "", "", ""});
 
     // try to use non-denominated and not mn-like funds first, select them explicitly
     CCoinControl coinControl;
@@ -1910,7 +1910,7 @@ bool CDarksendPool::CreateDenominated(const CompactTallyItem& tallyItem, bool fC
 	//  CScript scriptPubKey;     CAmount nAmount;     bool fSubtractFeeFromAmount; 	bool fTithe; 	bool fPrayer; 	std::string txtMessage;
     
     if(fCreateMixingCollaterals) {
-        vecSend.push_back((CRecipient){scriptCollateral, PRIVATESEND_COLLATERAL*4, false, false, false, false, "", "", ""});
+        vecSend.push_back((CRecipient){scriptCollateral, PRIVATESEND_COLLATERAL*4, false, false, false, false, "", "", "", ""});
         nValueLeft -= PRIVATESEND_COLLATERAL*4;
     }
 
@@ -1955,7 +1955,7 @@ bool CDarksendPool::CreateDenominated(const CompactTallyItem& tallyItem, bool fC
                 reservekeyDenom.KeepKey();
 				////  CScript scriptPubKey;     CAmount nAmount;     bool fSubtractFeeFromAmount; 	bool fTithe; 	bool fPrayer; 	std::string txtMessage;
     
-                vecSend.push_back((CRecipient){ scriptDenom, nDenomValue, false, false, false, false, "", "", ""});
+                vecSend.push_back((CRecipient){ scriptDenom, nDenomValue, false, false, false, false, "", "", "", ""});
 
                 //increment outputs and subtract denomination amount
                 nOutputs++;
@@ -2349,7 +2349,8 @@ bool CDarksendQueue::Sign()
 
     std::string strMessage = vin.ToString() + boost::lexical_cast<std::string>(nDenom) + boost::lexical_cast<std::string>(nTime) + boost::lexical_cast<std::string>(fReady);
 
-    if(!darkSendSigner.SignMessage(strMessage, vchSig, activeMasternode.keyMasternode)) {
+    if(!darkSendSigner.SignMessage(strMessage, vchSig, activeMasternode.keyMasternode)) 
+	{
         LogPrintf("CDarksendQueue::Sign -- SignMessage() failed, %s\n", ToString());
         return false;
     }
@@ -2362,8 +2363,9 @@ bool CDarksendQueue::CheckSignature(const CPubKey& pubKeyMasternode)
     std::string strMessage = vin.ToString() + boost::lexical_cast<std::string>(nDenom) + boost::lexical_cast<std::string>(nTime) + boost::lexical_cast<std::string>(fReady);
     std::string strError = "";
 
-    if(!darkSendSigner.VerifyMessage(pubKeyMasternode, vchSig, strMessage, strError)) {
-        LogPrintf("CDarksendQueue::CheckSignature -- Got bad Masternode queue signature: %s; error: %s\n", ToString(), strError);
+    if(!darkSendSigner.VerifyMessage(pubKeyMasternode, vchSig, strMessage, strError)) 
+	{
+        LogPrint("masternode","CDarksendQueue::CheckSignature -- Got bad Masternode queue signature: %s; error: %s\n", ToString(), strError);
         return false;
     }
 
@@ -2492,7 +2494,8 @@ void ThreadCheckDarkSendPool()
         // try to sync from all available nodes, one step at a time
         masternodeSync.ProcessTick();
 
-        if(masternodeSync.IsBlockchainSynced() && !ShutdownRequested()) {
+        if(masternodeSync.IsBlockchainSynced() && !ShutdownRequested()) 
+		{
 
             nTick++;
 
@@ -2504,17 +2507,21 @@ void ThreadCheckDarkSendPool()
             if(nTick % MASTERNODE_MIN_MNP_SECONDS == 15)
                 activeMasternode.ManageState();
 
-            if(nTick % 60 == 0) {
+            if(nTick % 60 == 0) 
+			{
                 mnodeman.ProcessMasternodeConnections();
                 mnodeman.CheckAndRemove();
                 mnpayments.CheckAndRemove();
                 instantsend.CheckAndRemove();
             }
-            if(fMasterNode && (nTick % (60 * 5) == 0)) {
+
+            if(fMasterNode && (nTick % (60 * 5) == 0)) 
+			{
                 mnodeman.DoFullVerificationStep();
             }
 
-            if(nTick % (60 * 5) == 0) {
+            if(nTick % (60 * 5) == 0) 
+			{
                 governance.DoMaintenance();
             }
 

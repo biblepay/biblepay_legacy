@@ -159,7 +159,7 @@ void Shutdown(void* parg)
   exit(0);
 }
 
-void StartShutdown()
+void StartShutdown(int iCondition)
 {
   exit(0);
 }

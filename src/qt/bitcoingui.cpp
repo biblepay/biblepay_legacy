@@ -18,6 +18,8 @@
 #include "rpcconsole.h"
 #include "utilitydialog.h"
 #include <QDesktopServices>  //Added for openURL()
+#include "proposals.h"
+#include "businessobjectlist.h"
 
 #ifdef ENABLE_WALLET
 #include "walletframe.h"
@@ -41,10 +43,12 @@
 #include <QDateTime>
 #include <QDesktopWidget>
 #include <QDragEnterEvent>
+#include <QLabel>
 #include <QListWidget>
 #include <QMenuBar>
 #include <QMessageBox>
 #include <QMimeData>
+#include <QPixmap>
 #include <QProgressBar>
 #include <QProgressDialog>
 #include <QSettings>
@@ -55,11 +59,12 @@
 #include <QTimer>
 #include <QToolBar>
 #include <QVBoxLayout>
+#include <QHBoxLayout>
 #include <QInputDialog>
+#include <QUrl>
 
 #if QT_VERSION < 0x050000
 #include <QTextDocument>
-#include <QUrl>
 #else
 #include <QUrlQuery>
 #endif
@@ -79,6 +84,8 @@ std::string FromQStringW(QString qs);
 QString ToQstring(std::string s);
 bool InstantiateOneClickMiningEntries();
 std::string GetBibleHashVerseNumber(uint256, uint64_t nBlockTime, uint64_t nPrevBlockTime, int nPrevHeight, CBlockIndex* pindexPrev, int iVerseNumber);
+bool SubmitProposalToNetwork(uint256 txidFee, int64_t nStartTime, std::string sHex, std::string& sError, std::string& out_sGovObj);
+std::string StoreBusinessObject(UniValue& oBusinessObject, std::string& sError);
 
 
 BitcoinGUI::BitcoinGUI(const PlatformStyle *platformStyle, const NetworkStyle *networkStyle, QWidget *parent) :
@@ -118,6 +125,11 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *platformStyle, const NetworkStyle *n
     receiveCoinsMenuAction(0),
 	distributedComputingAction(0),
 	distributedComputingMenuAction(0),
+	proposalAddAction(0),
+	proposalAddMenuAction(0),
+	contactAddMenuAction(0),
+	businessObjectListMenuAction(0),
+	proposalListAction(0),
     optionsAction(0),
     toggleHideAction(0),
     encryptWalletAction(0),
@@ -328,8 +340,6 @@ void BitcoinGUI::createActions()
     receiveCoinsAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_3));
 #endif
     tabGroup->addAction(receiveCoinsAction);
-
-	// 1-30-2018
     distributedComputingAction = new QAction(QIcon(":/icons/" + theme + "/key"), tr("&Distributed Computing"), this);
     distributedComputingAction->setStatusTip(tr("Set up Biblepay Distributed Computing options (help cure cancer)"));
     distributedComputingAction->setToolTip(distributedComputingAction->statusTip());
@@ -339,6 +349,18 @@ void BitcoinGUI::createActions()
 	}
     tabGroup->addAction(distributedComputingAction);
 
+    proposalAddAction = new QAction(QIcon(":/icons/" + theme + "/edit"), tr("&Proposal Add"), this);
+    proposalAddAction->setStatusTip(tr("Add a Proposal"));
+    proposalAddAction->setToolTip(proposalAddAction->statusTip());
+	proposalAddAction->setCheckable(true);
+	// Enable Proposal Add in Top Menu only
+	proposalListAction = new QAction(QIcon(":/icons/" + theme + "/edit"), tr("&Proposals"), this);
+    proposalListAction->setStatusTip(tr("List Proposals"));
+    proposalListAction->setToolTip(proposalListAction->statusTip());
+	proposalListAction->setCheckable(true);
+	
+	tabGroup->addAction(proposalAddAction);
+	tabGroup->addAction(proposalListAction);
 
     receiveCoinsMenuAction = new QAction(QIcon(":/icons/" + theme + "/receiving_addresses"), receiveCoinsAction->text(), this);
     receiveCoinsMenuAction->setStatusTip(receiveCoinsAction->statusTip());
@@ -348,7 +370,7 @@ void BitcoinGUI::createActions()
     distributedComputingMenuAction->setStatusTip(distributedComputingAction->statusTip());
     distributedComputingMenuAction->setToolTip(distributedComputingMenuAction->statusTip());
 	
-    historyAction = new QAction(QIcon(":/icons/" + theme + "/history"), tr("&Transactions"), this);
+	historyAction = new QAction(QIcon(":/icons/" + theme + "/history"), tr("&Transactions"), this);
     historyAction->setStatusTip(tr("Browse transaction history"));
     historyAction->setToolTip(historyAction->statusTip());
     historyAction->setCheckable(true);
@@ -394,6 +416,10 @@ void BitcoinGUI::createActions()
     connect(receiveCoinsAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
     connect(receiveCoinsAction, SIGNAL(triggered()), this, SLOT(gotoReceiveCoinsPage()));
 	connect(distributedComputingAction, SIGNAL(triggered()), this, SLOT(gotoDistributedComputingPage()));
+	connect(proposalAddAction, SIGNAL(triggered()), this, SLOT(gotoProposalAddPage()));
+	connect(proposalListAction, SIGNAL(triggered()), this, SLOT(gotoProposalListPage()));
+	connect(contactAddMenuAction, SIGNAL(triggered()), this, SLOT(gotoContactAddPage()));
+	connect(businessObjectListMenuAction, SIGNAL(triggered()), this, SLOT(gotoBusinessObjectListPage()));
 
     connect(receiveCoinsMenuAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
     connect(receiveCoinsMenuAction, SIGNAL(triggered()), this, SLOT(gotoReceiveCoinsPage()));
@@ -447,7 +473,7 @@ void BitcoinGUI::createActions()
     JesusConciseCommandmentsAction->setStatusTip(tr("Show Jesus Concise Commandments"));
     JesusConciseCommandmentsAction->setMenuRole(QAction::AboutRole);
     JesusConciseCommandmentsAction->setEnabled(false);
-	
+
 	ReadBibleAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("Read Bible"), this);
     ReadBibleAction->setStatusTip(tr("Read Bible"));
     ReadBibleAction->setMenuRole(QAction::AboutRole);
@@ -488,10 +514,8 @@ void BitcoinGUI::createActions()
     backupWalletAction->setStatusTip(tr("Backup wallet to another location"));
     changePassphraseAction = new QAction(QIcon(":/icons/" + theme + "/key"), tr("&Change Passphrase..."), this);
     changePassphraseAction->setStatusTip(tr("Change the passphrase used for wallet encryption"));
-
     unlockWalletAction = new QAction(QIcon(":/icons/" + theme + "/key"), tr("&Unlock Wallet..."), this);
     unlockWalletAction->setToolTip(tr("Unlock wallet"));
-
     lockWalletAction = new QAction(QIcon(":/icons/" + theme + "/key"), tr("&Lock Wallet"), this);
     signMessageAction = new QAction(QIcon(":/icons/" + theme + "/edit"), tr("Sign &message..."), this);
     signMessageAction->setStatusTip(tr("Sign messages with your Biblepay addresses to prove you own them"));
@@ -508,6 +532,30 @@ void BitcoinGUI::createActions()
     openPeersAction->setStatusTip(tr("Show peers info"));
     openRepairAction = new QAction(QIcon(":/icons/" + theme + "/options"), tr("Wallet &Repair"), this);
     openRepairAction->setStatusTip(tr("Show wallet repair options"));
+	
+    //add submenu items to Proposals
+    openProposalsAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("Proposal &List"), this);
+    openProposalsAction->setStatusTip(tr("Show Proposal List"));
+    openProposalsAction->setEnabled(false);
+
+	// Add Contact Add Menu item
+	contactAddMenuAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("Contact &Add"), this);
+    contactAddMenuAction->setStatusTip(tr("Add Contact"));
+    contactAddMenuAction->setEnabled(true);
+	// Business Object List Menu Item
+	businessObjectListMenuAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("Business Object &List"), this);
+    businessObjectListMenuAction->setStatusTip(tr("Business Object List"));
+    businessObjectListMenuAction->setEnabled(true);
+	
+    openFundedProposalsAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("&Funded Proposal List"), this);
+    openFundedProposalsAction->setStatusTip(tr("Show Funded Proposal List"));
+	openFundedProposalsAction->setEnabled(false);
+
+    openAddProposalAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("Add &New Proposal"), this);
+    openAddProposalAction->setStatusTip(tr("Add New Proposal"));
+    openAddProposalAction->setEnabled(true);
+	
+
     openConfEditorAction = new QAction(QIcon(":/icons/" + theme + "/edit"), tr("Open Wallet &Configuration File"), this);
     openConfEditorAction->setStatusTip(tr("Open configuration file"));
     openMNConfEditorAction = new QAction(QIcon(":/icons/" + theme + "/edit"), tr("Open &Masternode Configuration File"), this);
@@ -563,6 +611,8 @@ void BitcoinGUI::createActions()
     connect(openGraphAction, SIGNAL(triggered()), this, SLOT(showGraph()));
     connect(openPeersAction, SIGNAL(triggered()), this, SLOT(showPeers()));
     connect(openRepairAction, SIGNAL(triggered()), this, SLOT(showRepair()));
+	connect(contactAddMenuAction, SIGNAL(triggered()), this, SLOT(gotoContactAddPage()));
+	connect(businessObjectListMenuAction, SIGNAL(triggered()), this, SLOT(gotoBusinessObjectListPage()));
 
     // Open configs and backup folder from menu
     connect(openConfEditorAction, SIGNAL(triggered()), this, SLOT(showConfEditor()));
@@ -571,7 +621,11 @@ void BitcoinGUI::createActions()
 
     // Get restart command-line parameters and handle restart
     connect(rpcConsole, SIGNAL(handleRestart(QStringList)), this, SLOT(handleRestart(QStringList)));
-    
+
+	// Proposals:
+    connect(openProposalsAction, SIGNAL(triggered()), this, SLOT(gotoProposalListPage()));
+	connect(openAddProposalAction, SIGNAL(triggered()), this, SLOT(gotoProposalAddPage()));
+
     // prevents an open debug window from becoming stuck/unusable on client shutdown
     connect(quitAction, SIGNAL(triggered()), rpcConsole, SLOT(hide()));
 
@@ -649,6 +703,20 @@ void BitcoinGUI::createMenuBar()
 		tools->addAction(OneClickMiningAction);
     }
 	
+	if(walletFrame)
+    {
+        QMenu *proposals = appMenuBar->addMenu(tr("&Proposals"));
+        proposals->addAction(openProposalsAction);
+        proposals->addAction(openFundedProposalsAction);
+
+		QMenu *contacts = appMenuBar->addMenu(tr("&Contacts"));
+		contacts->addAction(contactAddMenuAction);
+
+		QMenu *businessObjects = appMenuBar->addMenu(tr("&Business Objects"));
+		businessObjects->addAction(businessObjectListMenuAction);
+    }
+
+	
 	// BiblePay - Prayers, Jesus' Commandments, and Reading the Bible
 	QMenu *menuBible = appMenuBar->addMenu(tr("&Bible"));
 	menuBible->addAction(sinnerAction);
@@ -660,9 +728,9 @@ void BitcoinGUI::createMenuBar()
 	menuBible->addAction(ReadBibleAction);
 
 	// BiblePay News
-	QMenu *menuNews = appMenuBar->addMenu(tr("&News"));
-	menuNews->addAction(CreateNewsAction);
-	menuNews->addAction(ReadNewsAction);
+	//QMenu *menuNews = appMenuBar->addMenu(tr("&News"));
+	//menuNews->addAction(CreateNewsAction);
+	//menuNews->addAction(ReadNewsAction);
 
 	QMenu *help = appMenuBar->addMenu(tr("&Help"));
     help->addAction(showHelpMessageAction);
@@ -674,17 +742,39 @@ void BitcoinGUI::createMenuBar()
 
 }
 
+static QWidget* makeToolBarSpacer()
+{
+        QWidget* spacer = new QWidget();
+        spacer->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Expanding);
+        return spacer;
+}
+
+static QWidget* makeToolBarHeader()
+{
+        QWidget* header = new QWidget();
+        header->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+        header->setObjectName(QStringLiteral("header"));
+        return header;
+}
+
 void BitcoinGUI::createToolBars()
 {
     if(walletFrame)
     {
         QToolBar *toolbar = new QToolBar(tr("Tabs toolbar"));
         toolbar->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+
+        toolbar->addWidget(makeToolBarHeader());
+
         toolbar->addAction(overviewAction);
         toolbar->addAction(sendCoinsAction);
         toolbar->addAction(historyAction);
-        
-		if (fDistributedComputingEnabled) toolbar->addAction(distributedComputingAction);
+		if (fDistributedComputingEnabled) 
+        {
+            toolbar->addAction(distributedComputingAction);
+        }
+		toolbar->addAction(proposalAddAction);
+		toolbar->addAction(proposalListAction);
 		toolbar->addAction(receiveCoinsAction);
 		
         QSettings settings;
@@ -692,16 +782,20 @@ void BitcoinGUI::createToolBars()
         {
             toolbar->addAction(masternodeAction);
         }
+		
+        toolbar->addAction(orphanAction);
 
-		toolbar->addAction(orphanAction);
+        toolbar->addWidget(makeToolBarSpacer());
 
+        toolbar->setOrientation(Qt::Vertical);
         toolbar->setMovable(false); // remove unused icon in upper left corner
         overviewAction->setChecked(true);
+        addToolBar(Qt::LeftToolBarArea, toolbar);
 
         /** Create additional container for toolbar and walletFrame and make it the central widget.
             This is a workaround mostly for toolbar styling on Mac OS but should work fine for every other OSes too.
         */
-        QVBoxLayout *layout = new QVBoxLayout;
+        QHBoxLayout *layout = new QHBoxLayout;
         layout->addWidget(toolbar);
         layout->addWidget(walletFrame);
         layout->setSpacing(0);
@@ -820,6 +914,10 @@ void BitcoinGUI::setWalletActionsEnabled(bool enabled)
 		distributedComputingAction->setEnabled(enabled);
 		distributedComputingMenuAction->setEnabled(enabled);
 	}
+	proposalAddAction->setEnabled(enabled);
+	proposalListAction->setEnabled(enabled);
+	contactAddMenuAction->setEnabled(enabled);
+	businessObjectListMenuAction->setEnabled(enabled);
 
     historyAction->setEnabled(enabled);
     QSettings settings;
@@ -868,6 +966,9 @@ void BitcoinGUI::createIconMenu(QMenu *pmenu)
     pmenu->addAction(openConfEditorAction);
     pmenu->addAction(openMNConfEditorAction);
     pmenu->addAction(showBackupsAction);
+    pmenu->addAction(openProposalsAction);
+    pmenu->addAction(openFundedProposalsAction);
+
 #ifndef Q_OS_MAC // This is built-in on Mac
     pmenu->addSeparator();
     pmenu->addAction(quitAction);
@@ -1040,6 +1141,7 @@ void BitcoinGUI::showBackups()
     GUIUtil::showBackups();
 }
 
+
 void BitcoinGUI::showHelpMessageClicked()
 {
     helpMessageDialog->show();
@@ -1098,6 +1200,31 @@ void BitcoinGUI::gotoDistributedComputingPage()
     distributedComputingAction->setChecked(true);
     if (walletFrame) walletFrame->gotoDistributedComputingPage();
 }
+
+void BitcoinGUI::gotoProposalAddPage()
+{
+	proposalAddAction->setChecked(true);
+	if (walletFrame) walletFrame->gotoProposalAddPage();
+}
+
+void BitcoinGUI::gotoBusinessObjectListPage()
+{
+	businessObjectListMenuAction->setChecked(true);
+	if (walletFrame) walletFrame->gotoBusinessObjectListPage();
+}
+
+void BitcoinGUI::gotoContactAddPage()
+{
+	contactAddMenuAction->setChecked(true);
+	if (walletFrame) walletFrame->gotoContactAddPage();
+}
+
+void BitcoinGUI::gotoProposalListPage()
+{
+	proposalListAction->setChecked(true);
+	if (walletFrame) walletFrame->gotoProposalListPage();
+}
+
 
 void BitcoinGUI::gotoReceiveCoinsPage()
 {
@@ -1407,6 +1534,9 @@ void BitcoinGUI::showEvent(QShowEvent *event)
     openRepairAction->setEnabled(true);
     aboutAction->setEnabled(true);
     optionsAction->setEnabled(true);
+	openFundedProposalsAction->setEnabled(false);
+	openFundedProposalsAction->setVisible(false);
+	openProposalsAction->setEnabled(true); // Enabling List Proposals in Prod so we can test the Paid filter during this next superblock (6-28-2018) (Proposals have been tested in testnet)
 	sinnerAction->setEnabled(true);
 	TheLordsPrayerAction->setEnabled(true);
 	TheApostlesCreedAction->setEnabled(true);
@@ -1415,7 +1545,7 @@ void BitcoinGUI::showEvent(QShowEvent *event)
 	JesusConciseCommandmentsAction->setEnabled(true);
 	ReadBibleAction->setEnabled(true);
 
-	if (!fProd)
+	if (false)
 	{
 		CreateNewsAction->setEnabled(true);
 		ReadNewsAction->setEnabled(true);
@@ -1571,11 +1701,35 @@ void BitcoinGUI::detectShutdown()
 {
 	if (fReboot2)
 	{
-		LogPrintf("\r\n ** Rebooting Wallet Now ** \r\n");
-		fReboot2=false;
-        rpcConsole->walletReboot();
+		LogPrintf("\r\n ** Erasing Chain and Rebooting Wallet Now ** \r\n");
+		fReboot2 = false;
+        rpcConsole->walletEraseChain();
 	}
 
+	// Governance - Check to see if we should submit a proposal
+	nProposalModulus++;
+	if (nProposalModulus % 15 == 0 && !fLoadingIndex && fWalletLoaded)
+	{
+		nProposalModulus = 0;
+
+		if (fProposalNeedsSubmitted)
+		{
+			nProposalModulus = 0;
+			if(masternodeSync.IsSynced() && chainActive.Tip()->nHeight > (nProposalPrepareHeight + 6)) 
+			{
+				fProposalNeedsSubmitted = false;
+				std::string sError = "";
+				std::string sGovObj = "";
+				bool fSubmitted = SubmitProposalToNetwork(uTxIdFee, nProposalStartTime, msProposalHex, sError, sGovObj);
+				msProposalResult = fSubmitted ? "Submitted Proposal Successfully <br>( " + sGovObj + " )" : sError;
+				LogPrintf(" Proposal Submission Result:  %s  \n", msProposalResult.c_str());
+			}
+			else
+			{
+				msProposalResult = "Waiting for block " + RoundToString(nProposalPrepareHeight + 6, 0) + " to submit pending proposal. ";
+			}
+		}
+	}
 	// PODC - Check to see if user prefers to use Auto Unlock feature - R Andrews - Biblepay - 3/3/2018
 	if (!fCheckedPODCUnlock && fWalletLoaded)
 	{
@@ -1689,7 +1843,7 @@ void BitcoinGUI::unsubscribeFromCoreSignals()
 /** Get restart command-line parameters and request restart */
 void BitcoinGUI::handleRestart(QStringList args)
 {
-    if (!ShutdownRequested())
+    if (!ShutdownRequested() || RebootRequested())
         Q_EMIT requestedRestart(args);
 }
 

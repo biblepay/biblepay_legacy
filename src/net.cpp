@@ -53,6 +53,10 @@
 
 #include <math.h>
 
+#include <fstream>
+
+using std::ofstream;
+
 // Dump addresses to peers.dat every 15 minutes (900s)
 #define DUMP_ADDRESSES_INTERVAL 900
 
@@ -72,11 +76,14 @@
 #endif
 
 bool AddSeedNode(std::string sNode);
+void HealthCheckup();
 
 extern std::string BiblepayHttpPost(bool bPost, int iThreadID, std::string sActionName, std::string sDistinctUser, std::string sPayload, std::string sBaseURL, 
 	std::string sPage, int iPort, std::string sSolution);
 extern std::string BiblepayHTTPSPost(bool bPost, int iThreadID, std::string sActionName, std::string sDistinctUser, std::string sPayload, std::string sBaseURL, std::string sPage, int iPort,
 	std::string sSolution, int iTimeoutSecs, int iMaxSize, int iBreakOnError = 0);
+extern std::string BiblepayIPFSPost(std::string sFN, std::string sPayload);
+std::string GetIPFromAddress(std::string sAddress);
 
 extern std::string SQL(std::string sCommand, std::string sAddress, std::string sArguments, std::string& sError);
 extern std::string PrepareHTTPPost(bool bPost, std::string sPage, std::string sHostHeader, const string& sMsg, const map<string,string>& mapRequestHeaders);
@@ -84,6 +91,10 @@ extern std::string GetDomainFromURL(std::string sURL);
 extern bool DownloadDistributedComputingFile(int iNextSuperblock, std::string& sError);
 bool FilterFile(int iBufferSize, int iNextSuperblock, std::string& sError);
 std::string GetSporkValue(std::string sKey);
+int ipfs_socket_connect(string ip_address, int port);
+int ipfs_http_get(const string& request, const string& ip_address, int port, const string& fname, double dTimeoutSecs);
+extern int ipfs_download(const string& url, const string& filename, double dTimeoutSecs);
+int64_t GetFileSize(std::string sPath);
 
 using namespace std;
 
@@ -1471,13 +1482,6 @@ void ThreadDNSAddressSeed()
 
 
 
-
-
-
-
-
-
-
 void DumpAddresses()
 {
     int64_t nStart = GetTimeMillis();
@@ -1498,6 +1502,7 @@ void DumpData()
         DumpBanlist();
         CNode::SetBannedSetDirty(false);
     }
+	HealthCheckup();
 }
 
 void static ProcessOneShot()
@@ -1624,8 +1629,13 @@ void ThreadOpenAddedConnections()
         vAddedNodes = mapMultiArgs["-addnode"];
 		// dd Seed Nodes
 		AddSeedNode("node.biblepay.org"); // Volunteers welcome to run external nodes and we will add during future releases
-		AddSeedNode("99.198.174.212");    //PlainKoin
-		AddSeedNode("dnsseed.biblepay-explorer.org");  // Alex
+		AddSeedNode("node.biblepay-explorer.org");  // Licht
+		AddSeedNode("dns1.biblepay.org");  // Rob
+		AddSeedNode("dns2.biblepay.org");  // Rob
+		AddSeedNode("dns3.biblepay.org");  // Rob
+		AddSeedNode("dns4.biblepay.org");  // Rob
+		AddSeedNode("dns5.biblepay.org");  // Rob
+		if (!fProd) AddSeedNode("testnet.biblepay.org");
 		if (!fProd) AddSeedNode("test.dnsseed.biblepay-explorer.org"); // Alex (TESTNET)
     }
 
@@ -2041,8 +2051,9 @@ void StartNode(boost::thread_group& threadGroup, CScheduler& scheduler)
     threadGroup.create_thread(boost::bind(&TraceThread<void (*)()>, "msghand", &ThreadMessageHandler));
 
     // Dump network addresses
-    scheduler.scheduleEvery(&DumpData, DUMP_ADDRESSES_INTERVAL);
+	scheduler.scheduleEvery(&DumpData, 180);
 }
+
 
 bool StopNode()
 {
@@ -2876,6 +2887,7 @@ std::string GetHTTPContent(const CService& addrConnect, std::string getdata, int
 			double elapsed_secs = double(end - begin) / (CLOCKS_PER_SEC+.01);
 			if (elapsed_secs > iTimeoutSecs) break;
 		    if (strLine.find("<END>") != string::npos) break;
+			if (strLine.find("<eof>") != string::npos) break;
 			if (strLine.find("</html>") != string::npos) break;
 			if (strLine.find("</HTML>") != string::npos) break;
 		}
@@ -2892,8 +2904,6 @@ std::string GetHTTPContent(const CService& addrConnect, std::string getdata, int
 	}
 }
 
-
-
 std::string GetDomainFromURL(std::string sURL)
 {
 	std::string sDomain = "";
@@ -2901,21 +2911,25 @@ std::string GetDomainFromURL(std::string sURL)
 	{
 		sDomain = sURL.substr(8,sURL.length()-8);
 	}
-	if(sURL.find("http://") != string::npos)
+	else if(sURL.find("http://") != string::npos)
 	{
 		sDomain = sURL.substr(7,sURL.length()-7);
+	}
+	else
+	{
+		sDomain = sURL;
 	}
 	return sDomain;
 }
 
 
-
 std::string PrepareHTTPPost(bool bPost, std::string sPage, std::string sHostHeader, const string& sMsg, const map<string,string>& mapRequestHeaders)
 {
     ostringstream s;
+	std::string sUserAgent = "Mozilla/5.0";
 	std::string sMethod = bPost ? "POST" : "GET";
     s << sMethod + " /" + sPage + " HTTP/1.1\r\n"
-      << "User-Agent: BiblePay-QT/" << FormatFullVersion() << "\r\n"
+      << "User-Agent: " + sUserAgent + "/" << FormatFullVersion() << "\r\n"
 	  << "Host: " + sHostHeader + "" << "\r\n"
       << "Content-Length: " << sMsg.size() << "\r\n";
     BOOST_FOREACH(const PAIRTYPE(string, string)& item, mapRequestHeaders)
@@ -2983,6 +2997,30 @@ std::string BiblepayHttpPost(bool bPost, int iThreadID, std::string sActionName,
 	}
 }
 
+bool DownloadIndividualDistributedComputingFile2(int iNextSuperblock, std::string sBaseURL, std::string sPage, std::string sUserFile, std::string& sError)
+{
+	std::string sPath = GetSANDirectory2() + sUserFile + ".gz";
+	std::string sTarget = GetSANDirectory2() + sUserFile;
+	boost::filesystem::remove(sTarget);
+    boost::filesystem::remove(sPath);
+	std::string sURL = sBaseURL + sPage;
+	std::string sCommand = "wget " + sURL + " -O " + sPath + " -q";
+    std::string sResult = SystemCommand2(sCommand.c_str());
+	sCommand = "gunzip " + sPath;
+    sResult = SystemCommand2(sCommand.c_str());
+	int64_t nFileSize = GetFileSize(sTarget);
+	if (fDebugMaster) LogPrintf(" DIDCF2 phase1 %s, sz %f \n", sResult.c_str(), nFileSize);
+	if (nFileSize < 1)
+	{
+		sError = sResult;
+		return false;
+	}
+	else
+	{
+		return true;
+	}
+}
+
 bool DownloadIndividualDistributedComputingFile(int iNextSuperblock, std::string sBaseURL, std::string sPage, std::string sUserFile, std::string& sError)
 {
 	// First delete:
@@ -2992,87 +3030,94 @@ bool DownloadIndividualDistributedComputingFile(int iNextSuperblock, std::string
     boost::filesystem::remove(sPath2);
 	int iMaxSize = 900000000;
     int iTimeoutSecs = 60 * 7;
-	LogPrintf("Downloading DC File NAME %s FROM URL %s ",sPath2.c_str(), sBaseURL.c_str());
+	LogPrintf("Downloading DC File NAME %s FROM URL %s ", sPath2.c_str(), sBaseURL.c_str());
 	int iIterations = 0;
 	try
 	{
-		    map<string, string> mapRequestHeaders;
-			mapRequestHeaders["Agent"] = FormatFullVersion();
-			const CChainParams& chainparams = Params();
-			BIO* bio;
-			SSL_CTX* ctx;
-			SSL_library_init();
-			ctx = SSL_CTX_new(SSLv23_client_method());
-			if (ctx == NULL)
-			{
-				sError = "<ERROR>CTX_IS_NULL</ERROR>";
-				fDistributedComputingCycleDownloading = false;
-				return false;
-			}
-			bio = BIO_new_ssl_connect(ctx);
-			std::string sDomain = GetDomainFromURL(sBaseURL);
-			std::string sDomainWithPort = sDomain + ":" + "443";
-			BIO_set_conn_hostname(bio, sDomainWithPort.c_str());
-			if(BIO_do_connect(bio) <= 0)
-			{
-				sError = "Failed connection to " + sDomainWithPort;
-				fDistributedComputingCycleDownloading = false;
-				return false;
-			}
+		map<string, string> mapRequestHeaders;
+		mapRequestHeaders["Agent"] = FormatFullVersion();
+		const CChainParams& chainparams = Params();
+		BIO* bio;
+		SSL_CTX* ctx;
+		SSL_library_init();
+		ctx = SSL_CTX_new(SSLv23_client_method());
+		if (ctx == NULL)
+		{
+			sError = "<ERROR>CTX_IS_NULL</ERROR>";
+			fDistributedComputingCycleDownloading = false;
+			return false;
+		}
+		bio = BIO_new_ssl_connect(ctx);
+		std::string sDomain = GetDomainFromURL(sBaseURL);
+		std::string sDomainWithPort = sDomain + ":" + "443";
+		BIO_set_conn_hostname(bio, sDomainWithPort.c_str());
+		if(BIO_do_connect(bio) <= 0)
+		{
+			sError = "Failed connection to " + sDomainWithPort;
+			fDistributedComputingCycleDownloading = false;
+			return false;
+		}
+		CService addrConnect;
+		if (sDomain.empty()) 
+		{
+			sError = "DOMAIN_MISSING";
+			fDistributedComputingCycleDownloading = false;
+			return false;
+		}
+		CService addrIP(sDomain, 443, true);
+    	if (addrIP.IsValid())
+		{
+			addrConnect = addrIP;
+		}
+		else
+		{
+  			sError = "<ERROR>DNS_ERROR</ERROR>"; 
+			fDistributedComputingCycleDownloading = false;
+			return false;
+		}
+		std::string sPayload = "";
+		std::string sPost = PrepareHTTPPost(true, sPage, sDomain, sPayload, mapRequestHeaders);
+		const char* write_buf = sPost.c_str();
+		if(BIO_write(bio, write_buf, strlen(write_buf)) <= 0)
+		{
+			sError = "<ERROR>FAILED_HTTPS_POST</ERROR>";
+			fDistributedComputingCycleDownloading = false;
+			return false;
+		}
+		int iSize;
+		int iBufSize = 256000;
+		clock_t begin = clock();
+		std::string sData = "";
+		char bigbuf[iBufSize];
 	
-			CService addrConnect;
-			if (sDomain.empty()) 
+		FILE *outUserFile = fopen(sPath2.c_str(), "wb");
+		for(;;)
+		{
+	
+			iSize = BIO_read(bio, bigbuf, iBufSize);
+			bool fShouldRetry = BIO_should_retry(bio);
+
+			if(iSize <= 0 && !fShouldRetry)
 			{
-					sError = "DOMAIN_MISSING";
-					fDistributedComputingCycleDownloading = false;
-					return false;
+				LogPrintf("DCC download finished \n");
+				break;
 			}
-			CService addrIP(sDomain, 443, true);
-     		if (addrIP.IsValid())
+
+			size_t bytesWritten=0;
+			if (iSize > 0)
 			{
-				addrConnect = addrIP;
-			}
-			else
-			{
-  				sError = "<ERROR>DNS_ERROR</ERROR>"; 
-				fDistributedComputingCycleDownloading = false;
-				return false;
-			}
-			std::string sPayload = "";
-			std::string sPost = PrepareHTTPPost(true, sPage, sDomain, sPayload, mapRequestHeaders);
-			const char* write_buf = sPost.c_str();
-			if(BIO_write(bio, write_buf, strlen(write_buf)) <= 0)
-			{
-				sError = "<ERROR>FAILED_HTTPS_POST</ERROR>";
-				fDistributedComputingCycleDownloading = false;
-				return false;
-			}
-			int iSize;
-			char bigbuf[4096];
-			clock_t begin = clock();
-			std::string sData = "";
-			FILE *outUserFile = fopen(sPath2.c_str(), "wb");
-			for(;;)
-			{
-				iSize = BIO_read(bio, bigbuf, 4096);
-				if(iSize <= 0)
-				{
-					LogPrintf("DCC download finished \n");
-					break;
-				}
-				size_t bytesWritten=0;
-				if (iIterations==0)
+				if (iIterations == 0)
 				{
 					// GZ magic bytes: 31 139
 					int iPos = 0;
-					for (iPos = 0; iPos < 4096; iPos++)
+					for (iPos = 0; iPos < iBufSize; iPos++)
 					{
 						if (bigbuf[iPos] == 31) if (bigbuf[iPos + 1] == (char)0x8b)
 						{
 							break;
 						}
 					}
-					int iNewSize = 4096 - iPos;
+					int iNewSize = iBufSize - iPos;
 					char smallbuf[iNewSize];
 					for (int i=0; i < iNewSize; i++)
 					{
@@ -3085,22 +3130,23 @@ bool DownloadIndividualDistributedComputingFile(int iNextSuperblock, std::string
 					bytesWritten = fwrite(bigbuf, 1, iSize, outUserFile);
 				}
 				iIterations++;
-				clock_t end = clock();
-				double elapsed_secs = double(end - begin) / (CLOCKS_PER_SEC + .01);
-				if (elapsed_secs > iTimeoutSecs) 
-				{
-					LogPrintf(" download timed out ... \n");
-					break;
-				}
-				if (false && (int)sData.size() >= iMaxSize) 
-				{
-					LogPrintf(" download oversized .. \n");
-					break;
-				}
 			}
-			// R ANDREW - JAN 4 2018: Free bio resources
-			BIO_free_all(bio);
-		 	fclose(outUserFile);
+			clock_t end = clock();
+			double elapsed_secs = double(end - begin) / (CLOCKS_PER_SEC + .01);
+			if (elapsed_secs > iTimeoutSecs) 
+			{
+				LogPrintf(" download timed out ... (bytes written %f)  \n", (double)bytesWritten);
+				break;
+			}
+			if (false && (int)sData.size() >= iMaxSize) 
+			{
+				LogPrintf(" download oversized .. \n");
+				break;
+			}
+		}
+		// R ANDREW - JAN 4 2018: Free bio resources
+		BIO_free_all(bio);
+	 	fclose(outUserFile);
 	}
 	catch (std::exception &e)
 	{
@@ -3112,7 +3158,7 @@ bool DownloadIndividualDistributedComputingFile(int iNextSuperblock, std::string
 		sError = "<ERROR>GENERAL_WEB_EXCEPTION</ERROR>";
 		return false;
 	}
-
+	LogPrintf("Gunzip %s",sPath2.c_str());
 	std::string sCommand = "gunzip " + sPath2;
     std::string result = SystemCommand2(sCommand.c_str());
 	return true;
@@ -3134,12 +3180,90 @@ bool DownloadDistributedComputingFile(int iNextSuperblock, std::string& sError)
 	std::string sSrc2 = GetSporkValue(sProjectId2);
 	std::string sBaseURL2 = "https://" + sSrc2;
 	std::string sPage2 = "/boinc/stats/user.gz";
-	DownloadIndividualDistributedComputingFile(iNextSuperblock, sBaseURL, sPage, "user1", sError);
-	DownloadIndividualDistributedComputingFile(iNextSuperblock, sBaseURL2, sPage2, "user2", sError);
+	DownloadIndividualDistributedComputingFile2(iNextSuperblock, sBaseURL, sPage, "user1", sError);
+	DownloadIndividualDistributedComputingFile2(iNextSuperblock, sBaseURL2, sPage2, "user2", sError);
+	LogPrintf("Filter File %f",iNextSuperblock);
 	FilterFile(50, iNextSuperblock, sError);
 	fDistributedComputingCycleDownloading = false;
 	return true;
 }
+
+
+std::string BiblepayIPFSPost(std::string sFileName, std::string sPayload)
+{
+		int iTimeoutSecs = 30;
+		int iMaxSize = 900000;
+	    map<string, string> mapRequestHeaders;
+		mapRequestHeaders["Agent"] = FormatFullVersion();
+		mapRequestHeaders["Filename"] = sFileName;
+		const CChainParams& chainparams = Params();
+		mapRequestHeaders["NetworkID"] = chainparams.NetworkIDString();
+		BIO* bio;
+		SSL_CTX* ctx;
+		SSL_library_init();
+		ctx = SSL_CTX_new(SSLv23_client_method());
+		if (ctx == NULL) 
+			return "<ERROR>CTX_IS_NULL</ERROR>";
+		bio = BIO_new_ssl_connect(ctx);
+		std::string sDomain = GetDomainFromURL("ipfs.biblepay.org");
+		int iPort = 443;
+		std::string sDomainWithPort = sDomain + ":" + RoundToString(iPort, 0);
+		BIO_set_conn_hostname(bio, sDomainWithPort.c_str());
+		if(BIO_do_connect(bio) <= 0)
+			return "<ERROR>BIO_FAILURE while connecting " + sDomainWithPort + "</ERROR>";
+		CService addrConnect;
+		if (sDomain.empty()) return "<ERROR>DOMAIN_MISSING</ERROR>";
+		CService addrIP(sDomain, iPort, true);
+    	if (addrIP.IsValid())
+		{
+			addrConnect = addrIP;
+		}
+		else
+		{ 
+			return "<ERROR>DNS_ERROR</ERROR>"; 
+		}
+		
+		std::string sPost = PrepareHTTPPost(true, "ipfs.bible", sDomain, sPayload, mapRequestHeaders);
+		const char* write_buf = sPost.c_str();
+		if(BIO_write(bio, write_buf, strlen(write_buf)) <= 0)
+		{
+		return "<ERROR>FAILED_HTTPS_POST</ERROR>";
+		}
+		int size;
+		char buf[1024];
+		clock_t begin = clock();
+		std::string sData = "";
+		for(;;)
+		{
+			size = BIO_read(bio, buf, 1023);
+			if(size <= 0)
+			{
+				break;
+			}
+			buf[size] = 0;
+			string MyData(buf);
+			sData += MyData;
+			clock_t end = clock();
+			double elapsed_secs = double(end - begin) / (CLOCKS_PER_SEC + .01);
+			if (elapsed_secs > iTimeoutSecs) break;
+			if (sData.find("</html>") != string::npos) break;
+			if (sData.find("</HTML>") != string::npos) break;
+			if (sData.find("<EOF>") != string::npos) break;
+			if (sData.find("Content-Length:") != string::npos)
+			{
+				double dMaxSize = cdbl(ExtractXML(sData,"Content-Length: ","\n"),0);
+				std::size_t foundPos = sData.find("Content-Length:");
+				if (dMaxSize > 0)
+				{
+					iMaxSize = dMaxSize + (int)foundPos + 16;
+				}
+			}
+			if ((int)sData.size() >= (iMaxSize-1)) break;
+		}
+		BIO_free_all(bio);
+		return sData;
+}
+
 
 std::string BiblepayHTTPSPost(bool bPost, int iThreadID, std::string sActionName, std::string sDistinctUser, std::string sPayload, std::string sBaseURL, 
 	std::string sPage, int iPort, std::string sSolution, int iTimeoutSecs, int iMaxSize, int iBreakOnError)
@@ -3178,7 +3302,7 @@ std::string BiblepayHTTPSPost(bool bPost, int iThreadID, std::string sActionName
 			CService addrConnect;
 			if (sDomain.empty()) return "<ERROR>DOMAIN_MISSING</ERROR>";
 			CService addrIP(sDomain, 443, true);
-     		if (addrIP.IsValid())
+            if (addrIP.IsValid())
 			{
 				addrConnect = addrIP;
 			}
@@ -3227,6 +3351,7 @@ std::string BiblepayHTTPSPost(bool bPost, int iThreadID, std::string sActionName
 				if (iBreakOnError == 1) if (sData.find("</error>") != string::npos) break;
 				if (iBreakOnError == 1) if (sData.find("</error_msg>") != string::npos) break;
 				if (iBreakOnError == 2) if (sData.find("</results>") != string::npos) break;
+				if (iBreakOnError == 3) if (sData.find("}}") != string::npos) break;
 				if (sData.find("Content-Length:") != string::npos)
 				{
 					double dMaxSize = cdbl(ExtractXML(sData,"Content-Length: ","\n"),0);
@@ -3252,5 +3377,167 @@ std::string BiblepayHTTPSPost(bool bPost, int iThreadID, std::string sActionName
 	{
 		return "<ERROR>GENERAL_WEB_EXCEPTION</ERROR>";
 	}
+}
+
+
+/*                                                                          IPFS                                                                 */
+
+
+string ipfs_header_value(const string& full_header, const string& header_name)
+{
+    size_t pos = full_header.find(header_name);
+    string r;
+    if (pos!=string::npos)
+    {
+        size_t begin = full_header.find_first_not_of(": ", pos + header_name.length());
+        size_t until = full_header.find_first_of("\r\n\t ", begin + 1);
+        if (begin!=string::npos && until!=string::npos)
+        {
+            r = full_header.substr(begin,until-begin);
+        }
+    }
+    return r;
+}
+
+int ipfs_http_get(const string& request, const string& ip_address, int port, const string& fname, double dTimeoutSecs)
+{
+    char buffer[65535];
+	int bytes_total=0;
+	int bytes_expected=99999999;
+    int mode = 0;
+	SOCKET socketnumber;
+	CService addrConnect(ip_address, port, true);
+    if (!addrConnect.IsValid()) return -4;
+	bool proxyConnectionFailed = false;
+   
+	if (!ConnectSocket(addrConnect, socketnumber, dTimeoutSecs * 1000, &proxyConnectionFailed))
+	{
+		return -3;
+	}
+
+	ofstream fd(fname.c_str());
+	if (!fd.good()) return -1;
+	
+	int iOffset = 0;
+	LogPrintf(" sending %s ",ip_address.c_str());
+
+    ::send(socketnumber, request.c_str(), request.length(), MSG_NOSIGNAL | MSG_DONTWAIT);
+	double begin = clock();
+    while (bytes_total < bytes_expected)
+	{
+		    char tempbuffer[4096];
+			int iTempBytesRec = ::recv(socketnumber, tempbuffer, sizeof(tempbuffer), MSG_DONTWAIT);
+			if (iTempBytesRec > 0)
+			{
+				for (int k = 0; k < iTempBytesRec; k++)
+				{
+					buffer[iOffset + k] = tempbuffer[k];
+				}
+				iOffset += iTempBytesRec;
+			}
+		                
+			double elapsed_secs = double(clock() - begin) / (CLOCKS_PER_SEC + .01);
+			if (elapsed_secs > dTimeoutSecs) break;
+			if (iOffset > 255 || (iOffset+bytes_total > bytes_expected-1))
+			{
+				if (mode == 1) 
+				{
+					fd.write(buffer, iOffset);
+					bytes_total += iOffset;
+					//	LogPrintf(" . rec %f  bytestotal %f . ", iOffset, bytes_total);
+					iOffset = 0;
+					memset(buffer, 0, sizeof(buffer));
+				}
+				else if (mode == 0)
+				{
+					string sHeader(buffer);
+					std::string CL = ExtractXML(sHeader, "Content-Length:","\n");
+					int ContentSize = (int)cdbl(CL, 0);
+					if (ContentSize > 0)
+					{
+						// Find offset
+						int body_start = sHeader.find("\r\n\r\n");
+						bytes_expected  = ContentSize + body_start + 3;
+						bytes_total += iOffset;
+						// LogPrintf(" data %s bytes expected %f  elapsed %f bodystart %f   bytestotal %f ....... ",CL.c_str(), bytes_expected, elapsed_secs, body_start, bytes_total);
+						mode=1;
+						// Write first chunk
+						int iFirstByte = body_start + 4;
+						int iFirstChunk = iOffset - iFirstByte;
+						char tempbuffer[iFirstChunk];
+						for (int j = 0; j < iFirstChunk; j++)
+						{
+							tempbuffer[j] = buffer[j + iFirstByte];
+						}
+						fd.write(tempbuffer, iFirstChunk);
+						memset(buffer, 0, sizeof(buffer));
+						iOffset = 0;
+					}
+			}
+		}
+    }
+    ::close(socketnumber);
+    fd.close();
+	if (bytes_total >= bytes_expected && bytes_total > 0 && bytes_expected > 0) return 1;
+	return -2;
+}
+
+
+int ipfs_download(const string& url, const string& filename, double dTimeoutSecs)
+{
+	int port = 0;
+    string protocol, domain, path, query, url_port;
+    vector<string> ip_addresses;
+    int offset = 0;
+    size_t pos1,pos2,pos3,pos4;
+    offset = offset==0 && url.compare(0, 8, "https://")==0 ? 8 : offset;
+    offset = offset==0 && url.compare(0, 7, "http://" )==0 ? 7 : offset;
+    pos1 = url.find_first_of('/', offset+1 );
+    path = pos1==string::npos ? "" : url.substr(pos1);
+    domain = string( url.begin()+offset, pos1 != string::npos ? url.begin()+pos1 : url.end() );
+    path = (pos2 = path.find("#"))!=string::npos ? path.substr(0,pos2) : path;
+    url_port = (pos3 = domain.find(":"))!=string::npos ? domain.substr(pos3+1) : "";
+    domain = domain.substr(0, pos3!=string::npos ? pos3 : domain.length());
+    protocol = offset > 0 ? url.substr(0,offset-3) : "";
+    query = (pos4 = path.find("?"))!=string::npos ? path.substr(pos4+1) : "";
+    path = pos4!=string::npos ? path.substr(0,pos4) : path;
+ 
+    if (query.length()>0)
+    {
+        path.reserve( path.length() + 1 + query.length() );
+        path.append("?").append(query);
+    }
+    if (url_port.length()==0 && protocol.length()>0)
+    {
+        url_port = protocol=="http" ? "80" : "443";
+    }
+
+	// DNS
+	CService addrIP(domain, (int)cdbl(url_port, 0), true);
+    if (addrIP.IsValid())
+	{
+		domain = GetIPFromAddress(addrIP.ToString());
+		LogPrintf(" domain %s ",domain.c_str());
+	}
+	
+    if (domain.length() > 0)
+            ip_addresses.push_back(domain);
+    int r = -1;
+    if (ip_addresses.size() > 0)
+    {
+        stringstream(url_port) >> port;
+        stringstream request;
+        request << "GET " << path << " HTTP/1.1\r\n";
+        request << "Host: " << domain << "\r\n\r\n";
+		int ix = ip_addresses.size();
+
+        for(int i = 0; i < ix; i++)
+        {
+            r = ipfs_http_get(request.str(), ip_addresses[i], port, filename, dTimeoutSecs);
+			if (r==1) return r;
+        }
+    }
+
+	return r;
 }
 

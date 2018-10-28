@@ -16,6 +16,11 @@ class OverviewPage;
 class PlatformStyle;
 class ReceiveCoinsDialog;
 class DistributedComputingDialog;
+class ProposalAddDialog;
+class ContactAddDialog;
+class BusinessObjectList;
+
+class Proposals;
 class SendCoinsDialog;
 class SendCoinsRecipient;
 class TransactionView;
@@ -65,7 +70,11 @@ private:
     QWidget *transactionsPage;
     ReceiveCoinsDialog *receiveCoinsPage;
 	DistributedComputingDialog *distributedComputingPage;
+	ProposalAddDialog *proposalAddPage;
+	ContactAddDialog *contactAddPage;
+	BusinessObjectList *businessObjectListPage;
 
+	Proposals *proposalListPage;
     SendCoinsDialog *sendCoinsPage;
     AddressBookPage *usedSendingAddressesPage;
     AddressBookPage *usedReceivingAddressesPage;
@@ -90,6 +99,16 @@ public Q_SLOTS:
     void gotoSendCoinsPage(QString addr = "");
 	/** Switch to Distributed Computing page */
 	void gotoDistributedComputingPage();
+
+	/** Switch to Proposal Add Page */
+	void gotoProposalAddPage();
+	void gotoProposalListPage();
+
+	/** Switch to Contact Add Page */
+	void gotoContactAddPage();
+
+	/** Switch to Business Object List Page */
+	void gotoBusinessObjectListPage();
 
     /** Show Sign/Verify Message dialog and switch to sign message tab */
     void gotoSignMessageTab(QString addr = "");

@@ -1,6 +1,6 @@
 // Copyright (c) 2010 Satoshi Nakamoto
 // Copyright (c) 2009-2015 The Bitcoin Core developers
-// Copyright (c) 2014-2017 The Däsh Core developers
+// Copyright (c) 2014-2017 The DÃ¤sh Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -25,6 +25,7 @@
 #include "wallet/wallet.h"
 #include "wallet/rpcwallet.cpp"
 #include "masternode-payments.h"
+#include "masternodeconfig.h"
 
 #include "activemasternode.h"
 #include "masternodeman.h"
@@ -56,14 +57,62 @@ std::string GetTxNews(uint256 hash, std::string& sHeadline);
 extern UniValue GetLeaderboard(int nHeight);
 extern double MyPercentile(int nHeight);
 extern double GetSporkDouble(std::string sName, double nDefault);
+extern std::string SignPrice(std::string sValue);
+std::string GetFileNameFromPath(std::string sPath);
+extern bool VerifyDarkSendSigner(std::string sXML);
+extern double GetQTPhase(double dPrice, int nEventHeight, double& out_PriorPrice, double& out_PriorPhase);
+extern UniValue GetIPFSList(int iMaxDays, std::string& out_Files);
+extern UniValue GetSancIPFSQualityReport();
+extern UniValue GetBusinessObjectByFieldValue(std::string sType, std::string sFieldName, std::string sSearchValue);
+extern std::string GetBusinessObjectList(std::string sType, std::string sFields);
+extern std::string StoreBusinessObjectWithPK(UniValue& oBusinessObject, std::string& sError);
+extern double GetBusinessObjectTotal(std::string sType, std::string sFieldName, int iAggregationType);
+extern int GetBoincTaskCount();
+void TestRSA();
+int RSA_GENERATE_KEYPAIR(std::string sPublicKeyPath, std::string sPrivateKeyPath);
+unsigned char *RSA_ENCRYPT_CHAR(std::string sPubKeyPath, unsigned char *plaintext, int plaintext_length, int& cipher_len, std::string& sError);
+void RSA_Encrypt_File(std::string sPubKeyPath, std::string sSourcePath, std::string sEncryptPath, std::string& sError);
+unsigned char *RSA_DECRYPT_CHAR(std::string sPriKeyPath, unsigned char *ciphertext, int ciphrtext_size, int& plaintxt_len, std::string& sError);
+void RSA_Decrypt_File(std::string sPriKeyPath, std::string sSourcePath, std::string sDecryptPath, std::string sError);
+std::string RSA_Encrypt_String(std::string sPubKeyPath, std::string sData, std::string& sError);
+std::string RSA_Decrypt_String(std::string sPrivKeyPath, std::string sData, std::string& sError);
+extern std::string RosettaDiagnostics(std::string sEmail, std::string sPass, std::string& sError);
+extern std::string FixRosetta(std::string sEmail, std::string sPass, std::string& sError);
+std::vector<char> ReadAllBytes(char const* filename);
+extern double GetPBase();
+extern std::string GetDataFromIPFS(std::string sURL, std::string& sError);
+extern bool IsBoincInstalled();
+extern std::string CreateNewRosettaAccount(std::string sEmail, std::string sPass, std::string sNickname);
+extern std::string GetAccountAuthenticator(std::string sEmail, std::string sPass);
+extern double GetRosettaLocalRAC();
+extern std::string GetCPID();
+
+bool ipfs_download(const string& url, const string& filename, double dTimeoutSecs);
+extern int CheckSanctuaryIPFSHealth(std::string sAddress);
 extern std::string AssociateDCAccount(std::string sProjectId, std::string sBoincEmail, std::string sBoincPassword, std::string sUnbankedPublicKey, bool fForce);
+extern std::string SubmitToIPFS(std::string sPath, std::string& sError);
+extern std::string GetUndownloadedIPFSHash();
+extern std::string GetIPFromAddress(std::string sAddress);
+extern int64_t GetFileSize(std::string sPath);
+extern std::string StoreBusinessObject(UniValue& oBusinessObject, std::string& sError);
+extern UniValue GetBusinessObject(std::string sType, std::string sPrimaryKey, std::string& sError);
+extern UniValue GetBusinessObjectList(std::string sType);
+extern bool is_email_valid(const std::string& e);
+
 extern double AscertainResearcherTotalRAC();
 extern std::vector<std::string> GetListOfDCCS(std::string sSearch, bool fRequireSig);
 extern bool VerifyCPIDSignature(std::string sFullSig, bool bRequireEndToEndVerification, std::string& sError);
-extern double GetSumOfXMLColumnFromXMLFile(std::string sFileName, std::string sObjectName, std::string sElementName, double dReqSPM, double dReqSPR, double dTeamRequired, std::string sConcatCpids);
+extern double GetSumOfXMLColumnFromXMLFile(std::string sFileName, std::string sObjectName, std::string sElementName, double dReqSPM, double dReqSPR, double dTeamRequired, std::string sConcatCpids, 
+		double dRACThreshhold, std::string sTeamBlacklist, int iNextSuperblock);
 extern uint256 GetDCCHash(std::string sContract);
 extern UniValue UTXOReport(std::string sCPID);
 extern uint256 GetDCCFileHash();
+extern double GetTeamPercentage(double dUserTeam, double dProjectTeam, std::string sTeamBlacklist, double dNonBiblepayTeamPercentage);
+extern std::string AttachProject(std::string sAuth);
+extern UserVote GetSumOfSignal(std::string sType, std::string sIPFSHash);
+extern std::string SendBusinessObject(std::string sType, std::string sPrimaryKey, std::string sValue, double dStorageFee, std::string sSignKey, bool fSign, std::string& sError);
+
+
 std::string SignMessage(std::string sMsg, std::string sPrivateKey);
 extern double CAmountToRetirementDouble(CAmount Amount);
 void GetMiningParams(int nPrevHeight, bool& f7000, bool& f8000, bool& f9000, bool& fTitheBlocksActive);
@@ -71,18 +120,27 @@ std::string PrepareHTTPPost(bool bPost, std::string sPage, std::string sHostHead
 std::string GetDomainFromURL(std::string sURL);
 std::string BiblepayHTTPSPost(bool bPost, int iThreadID, std::string sActionName, std::string sDistinctUser, std::string sPayload, std::string sBaseURL, std::string sPage, int iPort,
 	std::string sSolution, int iTimeoutSecs, int iMaxSize, int iBreakOnError = 0);
+std::string BiblepayIPFSPost(std::string sFN, std::string sPayload);
 extern CTransaction CreateCoinStake(CBlockIndex* pindexLast, CScript scriptCoinstakeKey, CAmount nTargetValue, int iMinConfirms, std::string& sXML, std::string& sError);
 extern bool IsStakeSigned(std::string sXML);
 extern int64_t GetStakeTargetModifierPercent(int nHeight, double nWeight);
+extern bool SubmitProposalToNetwork(uint256 txidFee, int64_t nStartTime, std::string sHex, std::string& sError, std::string& out_sGovObj);
+extern void SerializePrayersToFile(int nHeight);
+extern int DeserializePrayersFromFile();
+
 extern double GetStakeWeight(CTransaction tx, int64_t nTipTime, std::string sXML, bool bVerifySignature, std::string& sMetrics, std::string& sError);
 UniValue ContributionReport();
 extern std::string TimestampToHRDate(double dtm);
 void GetBookStartEnd(std::string sBook, int& iStart, int& iEnd);
-extern double GetMinimumRequiredUTXOStake(double dRAC);
+extern double GetMinimumRequiredUTXOStake(double dRAC, double dFactor);
+bool TimerMain(std::string timer_name, int max_ms);
+bool NonObnoxiousLog(std::string sLogSection, std::string sLogKey, std::string sValue, int64_t nAllowedSpan);
+extern bool VoteManyForGobject(std::string govobj, std::string strVoteSignal, std::string strVoteOutcome, int iVotingLimit, 
+	 int& nSuccessful, int& nFailed, std::string& sError);
 
 /* Cache */
 std::string ReadCache(std::string sSection, std::string sKey);
-void WriteCache(std::string section, std::string key, std::string value, int64_t locktime);
+void WriteCache(std::string section, std::string key, std::string value, int64_t locktime, bool IgnoreCase=true);
 void ClearCache(std::string sSection);
 std::string ReadCacheWithMaxAge(std::string sSection, std::string sKey, int64_t nMaxAge);
 void PurgeCacheAsOfExpiration(std::string sSection, int64_t nExpiration);
@@ -91,6 +149,9 @@ std::vector<unsigned char> StringToVector(std::string sData);
 /* PODC */
 extern std::string FindResearcherCPIDByAddress(std::string sSearch, std::string& out_address, double& nTotalMagnitude);
 extern std::string AddBlockchainMessages(std::string sAddress, std::string sType, std::string sPrimaryKey, std::string sHTML, CAmount nAmount, std::string& sError);
+extern int GetNextSuperblock();
+
+
 bool HasThisCPIDSolvedPriorBlocks(std::string CPID, CBlockIndex* pindexPrev);
 std::string VectorToString(std::vector<unsigned char> v);
 std::string BibleMD5(std::string sData);
@@ -98,10 +159,20 @@ extern void GetDistributedComputingGovObjByHeight(int nHeight, uint256 uOptFilte
 extern bool GetContractPaymentData(std::string sContract, int nBlockHeight, std::string& sPaymentAddresses, std::string& sAmounts);
 extern std::string VerifyManyWorkUnits(std::string sProjectId, std::string sTaskIds);
 extern bool SignCPID(std::string sCPID, std::string& sError, std::string& out_FullSig);
+extern double GetTeamRAC();
 extern bool SubmitDistributedComputingTrigger(std::string sHex, std::string& gobjecthash, std::string& sError);
+extern int64_t GetHistoricalMilestoneAge(int64_t nMaturityAge, int64_t nOffset);
 extern std::string GetBoincAuthenticator(std::string sProjectID, std::string sProjectEmail, std::string sPasswordHash);
+extern std::string CreateGovernanceCollateral(uint256 GovObjHash, CAmount nFee, std::string& sError);
+extern double GetMatureMetric(std::string sMetricName, std::string sPrimaryKey, int64_t nMaxAge, int nHeight);
+extern std::string GetMatureString(std::string sMetricName, std::string sPrimaryKey, int64_t nMaxAge, int nHeight);
+extern int64_t GetDCCFileTimestamp();
 bool BibleEncrypt(std::vector<unsigned char> vchPlaintext, std::vector<unsigned char> &vchCiphertext);
+extern void RecoverOrphanedChain(int iCondition);
+extern void RecoverOrphanedChainNew(int iCondition);
 
+bool IsMature(int64_t nTime, int64_t nMaturityAge);
+extern bool VoteForGobject(uint256 govobj, std::string sVoteOutcome, std::string& sError);
 extern int GetBoincResearcherUserId(std::string sProjectId, std::string sAuthenticator);
 extern std::string GetBoincResearcherHexCodeAndCPID(std::string sProjectId, int nUserId, std::string& sCPID);
 extern std::string GetBoincUnbankedReport(std::string sProjectID);
@@ -117,7 +188,7 @@ extern std::string GetDCCElement(std::string sData, int iElement, bool fCheckSig
 extern double GetWCGRACByCPID(std::string sCPID);
 extern std::string SerializeSanctuaryQuorumTrigger(int nEventBlockHeight, std::string sContract);
 extern double VerifyTasks(std::string sCPID, std::string sTasks);
-
+extern std::string GetActiveProposals();
 
 extern std::string GetSporkValue(std::string sKey);
 extern int64_t RetrieveCPIDAssociationTime(std::string cpid);
@@ -128,7 +199,7 @@ extern int GetRequiredQuorumLevel(int nHeight);
 std::string GetVersionAlert();
 UniValue GetDataList(std::string sType, int iMaxAgeInDays, int& iSpecificEntry, std::string sSearch, std::string& outEntry);
 uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight, const CBlockIndex* pindexLast, bool bRequireTxIndex, bool f7000, bool f8000, bool f9000, bool fTitheBlocksActive, unsigned int nNonce);
-void MemorizeBlockChainPrayers(bool fDuringConnectBlock);
+void MemorizeBlockChainPrayers(bool fDuringConnectBlock, bool fSubThread, bool fColdBoot, bool fDuringSancQuorum);
 std::string GetVerse(std::string sBook, int iChapter, int iVerse, int iStart, int iEnd);
 std::string GetBookByName(std::string sName);
 std::string GetBook(int iBookNumber);
@@ -151,29 +222,21 @@ extern std::string RetrieveDCCWithMaxAge(std::string cpid, int64_t iMaxSeconds);
 extern double GetTaskWeight(std::string sCPID);
 
 extern double GetUTXOWeight(std::string sCPID);
-extern double GetUserMagnitude(double& nBudget, double& nTotalPaid, int& out_iLastSuperblock, std::string& out_Superblocks, int& out_SuperblockCount, int& out_HitCount, double& out_OneDayPaid, double& out_OneWeekPaid, double& out_OneDayBudget, double& out_OneWeekBudget);
+extern double GetUserMagnitude(std::string PK, double& nBudget, double& nTotalPaid, int& out_iLastSuperblock, std::string& out_Superblocks, int& out_SuperblockCount, int& out_HitCount, double& out_OneDayPaid, double& out_OneWeekPaid, double& out_OneDayBudget, double& out_OneWeekBudget);
 extern int GetMinimumResearcherParticipationLevel();
 extern int64_t GetDCCFileAge();
 extern std::string GetBoincPasswordHash(std::string sProjectPassword, std::string sProjectEmail);
 extern std::string GetBoincTasksByHost(int iHostID, std::string sProjectId);
 extern bool FilterFile(int iBufferSize, int iNextSuperblock, std::string& sError);
 extern uint256 GetDCPAMHashByContract(std::string sContract, int nHeight);
-
 extern uint256 GetDCPAMHash(std::string sAddresses, std::string sAmounts);
-
-
 extern int GetLastDCSuperblockWithPayment(int nChainHeight);
 extern double GetBlockMagnitude(int nChainHeight);
 extern int GetSanctuaryCount();
 extern bool AmIMasternode();
-extern double GetPaymentByCPID(std::string CPID);
-
-
-
+extern double GetPaymentByCPID(std::string CPID, int nHeight);
 extern uint256 PercentToBigIntBase(int iPercent);
 extern std::string ExecuteDistributedComputingSanctuaryQuorumProcess();
-
-
 extern int MyRank(int nHeight);
 extern bool SignStake(std::string sBitcoinAddress, std::string strMessage, std::string& sError, std::string& sSignature);
 extern std::string GenerateNewAddress(std::string& sError, std::string sName);
@@ -181,13 +244,10 @@ extern std::string GetMyPublicKeys();
 extern double GetMagnitudeByAddress(std::string sAddress);
 extern void ClearSanctuaryMemories();
 extern double GetMinimumMagnitude();
-
 extern std::string GetDCCPublicKey(const std::string& cpid, bool fRequireSig);
 extern bool VoteForDistributedComputingContract(int nHeight, std::string sMyContract, std::string sError);
-
-
-
 extern int GetLastDCSuperblockHeight(int nCurrentHeight, int& nNextSuperblock);
+
 
 
 
@@ -341,7 +401,6 @@ UniValue blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool tx
 	
 	if (blockindex && blockindex->pprev)
 	{
-		//double dReward = GetBlockSubsidy(blockindex->pprev, blockindex->pprev->nBits, blockindex->pprev->nHeight, consensusParams, true)/COIN;
 		//result.push_back(Pair("estimatedsanctuaryreward", dReward));
         result.push_back(Pair("previousblockhash", blockindex->pprev->GetBlockHash().GetHex()));
 		std::string sVerses = GetBibleHashVerses(block.GetHash(), block.GetBlockTime(), blockindex->pprev->nTime, blockindex->pprev->nHeight, blockindex->pprev);
@@ -1160,6 +1219,7 @@ struct CompareBlocksByHeight
     {
         /* Make sure that unequal blocks with the same height do not compare
            equal. Use the pointers themselves to make a distinction. */
+		if (a == NULL || b == NULL) return false;
 
         if (a->nHeight != b->nHeight)
           return (a->nHeight > b->nHeight);
@@ -1215,12 +1275,19 @@ UniValue getchaintips(const UniValue& params, bool fHelp)
        of another block.  */
     std::set<const CBlockIndex*, CompareBlocksByHeight> setTips;
     BOOST_FOREACH(const PAIRTYPE(const uint256, CBlockIndex*)& item, mapBlockIndex)
-        setTips.insert(item.second);
+	{
+		if (item.second != NULL) setTips.insert(item.second);
+	}
     BOOST_FOREACH(const PAIRTYPE(const uint256, CBlockIndex*)& item, mapBlockIndex)
     {
-        const CBlockIndex* pprev = item.second->pprev;
-        if (pprev)
-            setTips.erase(pprev);
+		if (item.second != NULL)
+		{
+			if (item.second->pprev != NULL)
+			{
+				const CBlockIndex* pprev = item.second->pprev;
+				if (pprev) setTips.erase(pprev);
+			}
+		}
     }
 
     // Always report the currently active tip.
@@ -1674,7 +1741,7 @@ CTransaction CreateCoinStake(CBlockIndex* pindexLast, CScript scriptCoinstakeKey
     std::string strError;
     vector<CRecipient> vecSend;
     int nChangePosRet = -1;
-    CRecipient recipient = {scriptCoinstakeKey, nTargetValue, false, false, false, false, "", "", ""};
+    CRecipient recipient = {scriptCoinstakeKey, nTargetValue, false, false, false, false, "", "", "", ""};
 	recipient.Message = "<polweight>" + RoundToString(nTargetValue/COIN,2) + "</polweight>";
 				
     vecSend.push_back(recipient);
@@ -1744,7 +1811,61 @@ UniValue exec(const UniValue& params, bool fHelp)
     if (fHelp || (params.size() != 1 && params.size() != 2  && params.size() != 3 && params.size() != 4 && params.size() != 5 && params.size() != 6 && params.size() != 7))
         throw runtime_error(
 		"exec <string::itemname> <string::parameter> \r\n"
-        "Executes an RPC command by name.");
+        "Executes an RPC command by name. run exec COMMAND for more info \r\n"
+		"Available Commands:\r\n"
+		"\r\nBlockchain Commands: \r\n"
+		"blocktohex - convert block to Hex by block number \r\n"
+		"hexblocktocoinbase - Get Coinbase from block Hex\r\n"
+		"hexblocktojson - Convert block Hex to JSON for parsing\r\n"
+		"versioncheck - Check current version vs Githubs latest.\r\n"
+		"amimasternode - Check to see if the client is a masternode.\r\n"
+		"datalist - Get a list from data pool, examples (PRAYER,SPORK,MESSAGE,SIN)\r\n"
+		"search - Search for Prayers or messages, optionally with a search phrase.\r\n"
+		"sendmessage   - Send a message (or Prayer)\r\n"
+		"getversion    - Show application dunnoversion info\r\n"
+		"versionreport - Show versions that mined the last days blocks\r\n"
+		"biblehash     - Get a bible hash generated from parameters\r\n"
+		"stakebalance  - Show current balance available to stake\r\n"
+		"pinfo         - Unknown,  shows height and some other data.\r\n"
+		"subsidy      - show subsidy and some block info for a given block\r\n"
+
+		"\r\n Proof Of Distributed Computing Commands:\r\n"
+		"getboincinfo - Get researcher BOINC status \r\n"
+		"totalrac      - Show Stake Levels and BBP requirements for current rac \r\n"
+		"utxoreport    - Show report of the PODC updates for a cpid \r\n "
+		"podcdifficulty - Show difficulty for POW/PODC\r\n"
+		"podcupdate - Manually send a PODC update\r\n"
+		"dcc - Download Distributed computing data files\r\n"
+		"associate - Connect Distributed computing account to this wallet, or connect unbanked CPID \r\n"
+		"getcpid - Get current wallet's CPID\r\n"
+		"getboinctasks - Get task info from BOINC (must have BOINC installed/running)\r\n"
+		"getpodcpayments - Get a list of PODC payments by BBP addresses.\r\n"
+		"setpodcunlockpassword - Set password to unlock wallet for PODC updates.\r\n"
+		"getblock - Get block formatted in JSON by block number.\r\n"
+		"wcgrac - Get current World Compute Grid RAC and payments.\r\n"
+		"totalrac - Give a report of the total RAC and stake reward level BBP requirements\r\n"
+		"unbanked - Get a list of Unbanked CPID's and payments\r\n"
+		"leaderboard - Show PODC Mag Leaderboard\r\n"
+
+		"\r\n IPFS Options\r\n"
+		" bolist - List Business Objects\r\n"
+		" bosearch - Search Business Objects\r\n"
+		" emailbbp - Send BBP Via E-Mail to a contact\r\n"
+		" ipfsadd - Add file to IPFS\r\n"
+		" ipfsget - Get File from IPFS by hash\r\n"
+		" ipfsgetbyurl - Get file from IPFS by URL\r\n"
+		" ipfslist\r\n"
+		" ipfsquality\r\n"
+		" votecount - Get count of an IPFS Object votes.\r\n"
+		" vote - Vote for an IPFS Object"
+
+		"\r\n Accountability Commmands\r\n"
+		"contributions - Tally payments to the orphan foundation wallet\r\n"
+		"theymos - Report for theymos from BitCoinTalk\r\n"
+
+        );
+        throw runtime_error(
+);
 
     std::string sItem = params[0].get_str();
 	if (sItem=="") throw runtime_error("Command argument invalid.");
@@ -1765,10 +1886,10 @@ UniValue exec(const UniValue& params, bool fHelp)
 		UniValue aUTXOReport = UTXOReport(sCPID);
 		return aUTXOReport;
 	}
-	else if (sItem == "reboot")
+	else if (sItem == "erasechain" || sItem == "recoverorphanednode")
 	{
-		fReboot2=true;
-		results.push_back(Pair("Reboot",1));
+		RecoverOrphanedChainNew(1);
+		results.push_back(Pair("Erase_Chain", 1));
     }
 	else if (sItem == "getnews")
 	{
@@ -1800,10 +1921,11 @@ UniValue exec(const UniValue& params, bool fHelp)
 		std::string sValue = params[3].get_str();
 		if (sType.empty() || sPrimaryKey.empty() || sValue.empty())
 			throw runtime_error(sError);
+		sError = "";
     	std::string sResult = SendBlockchainMessage(sType, sPrimaryKey, sValue, 1, true, sError);
 		results.push_back(Pair("Sent", sValue));
 		results.push_back(Pair("TXID", sResult));
-		results.push_back(Pair("Error", sError));
+		if (!sError.empty()) results.push_back(Pair("Error", sError));
 	}
 	else if (sItem == "sendmessage")
 	{
@@ -1903,15 +2025,15 @@ UniValue exec(const UniValue& params, bool fHelp)
 				CBlock block;
 				if (ReadBlockFromDisk(block, pindex, consensusParams, "GETSUBSIDY")) 
 				{
-        				results.push_back(Pair("subsidy", block.vtx[0].vout[0].nValue/COIN));
-						std::string sRecipient = PubKeyToAddress(block.vtx[0].vout[0].scriptPubKey);
-						results.push_back(Pair("recipient", sRecipient));
-						std::string sBlockVersion = ExtractXML(block.vtx[0].vout[0].sTxOutMessage,"<VER>","</VER>");
-						std::string sBlockVersion2 = strReplace(sBlockVersion, ".", "");
-						double dBlockVersion = cdbl(sBlockVersion2, 0);
-						results.push_back(Pair("blockversion", sBlockVersion));
-						results.push_back(Pair("blockversion2", dBlockVersion));
-						results.push_back(Pair("minerguid", ExtractXML(block.vtx[0].vout[0].sTxOutMessage,"<MINERGUID>","</MINERGUID>")));
+        			results.push_back(Pair("subsidy", block.vtx[0].vout[0].nValue/COIN));
+					std::string sRecipient = PubKeyToAddress(block.vtx[0].vout[0].scriptPubKey);
+					results.push_back(Pair("recipient", sRecipient));
+					std::string sBlockVersion = ExtractXML(block.vtx[0].vout[0].sTxOutMessage,"<VER>","</VER>");
+					std::string sBlockVersion2 = strReplace(sBlockVersion, ".", "");
+					double dBlockVersion = cdbl(sBlockVersion2, 0);
+					results.push_back(Pair("blockversion", sBlockVersion));
+					results.push_back(Pair("blockversion2", dBlockVersion));
+					results.push_back(Pair("minerguid", ExtractXML(block.vtx[0].vout[0].sTxOutMessage,"<MINERGUID>","</MINERGUID>")));
 				}
 			}
 		}
@@ -1958,7 +2080,7 @@ UniValue exec(const UniValue& params, bool fHelp)
 						  if (nAmount <= 0)    throw JSONRPCError(RPC_TYPE_ERROR, "Invalid amount for send");
 						  totalAmount += nAmount;
 						  bool fSubtractFeeFromAmount = false;
-					      CRecipient recipient = {scriptPubKey, nAmount, fSubtractFeeFromAmount, false, false, false, "", "", ""};
+					      CRecipient recipient = {scriptPubKey, nAmount, fSubtractFeeFromAmount, false, false, false, "", "", "", ""};
 						  vecSend.push_back(recipient);
 					}
 				}
@@ -2161,6 +2283,46 @@ UniValue exec(const UniValue& params, bool fHelp)
 		std::string sResponse = BiblepayHTTPSPost(true, 0,"POST","USER_A","PostSpeed","https://pool.biblepay.org","Action.aspx", 443, "SOLUTION", 20, 5000);
 		results.push_back(Pair("Test",sResponse));
 	}
+	else if (sItem=="ipfsgetbyurl")
+	{
+		if (params.size() < 3)
+			throw runtime_error("You must specify source IPFSURL and target filename.");
+		std::string sURL = params[1].get_str();
+		std::string sPath = params[2].get_str();
+		int i = ipfs_download(sURL, sPath, 375);
+		results.push_back(Pair("Results", i));
+	}
+	else if (sItem == "ipfsget")
+	{
+		if (params.size() < 3)
+			throw runtime_error("You must specify source IPFS hash and target filename.");
+		std::string sHash = params[1].get_str();
+		std::string sPath = params[2].get_str();
+		std::string sFN = GetFileNameFromPath(sPath);
+		std::string sURL = "http://ipfs.biblepay.org:8080/ipfs/" + sHash;
+		int i = ipfs_download(sURL, sPath, 375);
+		results.push_back(Pair("Results", i));
+	}
+	else if (sItem == "ipfsadd")
+	{
+		if (params.size() < 2)
+			throw runtime_error("You must specify source IPFS filename.");
+		std::string sPath = params[1].get_str();
+		std::string sFN = GetFileNameFromPath(sPath);
+		std::vector<char> v = ReadAllBytes(sPath.c_str());
+		std::vector<unsigned char> uData(v.begin(), v.end());
+		std::string s64 = EncodeBase64(&uData[0], uData.size());
+		std::string sData = BiblepayIPFSPost(sFN, s64);
+		std::string sHash = ExtractXML(sData,"<HASH>","</HASH>");
+		std::string sLink = ExtractXML(sData,"<LINK>","</LINK>");
+		std::string sError = ExtractXML(sData,"<ERROR>","</ERROR>");
+		results.push_back(Pair("IPFS Hash", sHash));
+		results.push_back(Pair("Path", sPath));
+		results.push_back(Pair("File", sFN));
+		results.push_back(Pair("Link", sLink));
+		if (!sError.empty()) 
+			results.push_back(Pair("Error", sError));
+	}
 	else if (sItem == "hp")
 	{
 		// This is a simple test to show the POL effect on the hashtarget:		
@@ -2176,6 +2338,25 @@ UniValue exec(const UniValue& params, bool fHelp)
 		arith_uint256 bn3 = bn1 + bn2;
 		uint256 h3 = ArithToUint256(bn3);
 		results.push_back(Pair("h3", h3.GetHex()));
+	}
+	else if (sItem == "blocktohex")
+	{
+		std::string sBlock = params[1].get_str();
+		int nHeight = (int)cdbl(sBlock,0);
+		if (nHeight < 0 || nHeight > chainActive.Tip()->nHeight) throw runtime_error("Block number out of range.");
+		CBlockIndex* pblockindex = FindBlockByHeight(nHeight);
+		if (pblockindex==NULL)    throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
+		CBlock block;
+		const Consensus::Params& consensusParams = Params().GetConsensus();
+		ReadBlockFromDisk(block, pblockindex, consensusParams, "SHOWBLOCK");
+		CDataStream ssBlock(SER_NETWORK, PROTOCOL_VERSION);
+		//CBlock block1 = const_cast<CBlock&>(*block);
+		ssBlock << block;
+		std::string sBlockHex = HexStr(ssBlock.begin(), ssBlock.end());
+		CTransaction txCoinbase;
+		std::string sTxCoinbaseHex = EncodeHexTx(block.vtx[0]);
+		results.push_back(Pair("blockhex", sBlockHex));
+		results.push_back(Pair("txhex", sTxCoinbaseHex));
 	}
 	else if (sItem == "hexblocktojson")
 	{
@@ -2219,7 +2400,6 @@ UniValue exec(const UniValue& params, bool fHelp)
 			pindexPrev->nHeight, NULL, false, f7000, f8000, f9000, fTitheBlocksActive, block.nNonce);
 		results.push_back(Pair("biblehash", hash.GetHex()));
 		results.push_back(Pair("subsidy", block.vtx[0].vout[0].nValue/COIN));
-		
 		results.push_back(Pair("blockversion", ExtractXML(block.vtx[0].vout[0].sTxOutMessage,"<VER>","</VER>")));
 		std::string sMsg = "";
 		for (unsigned int i = 0; i < block.vtx[0].vout.size(); i++)
@@ -2228,8 +2408,8 @@ UniValue exec(const UniValue& params, bool fHelp)
 		}
 		std::string sMySig = ExtractXML(sMsg,"<cpidsig>","</cpidsig>");
 		std::string sErr2 = "";
-		bool fSigChecked = VerifyCPIDSignature(sMySig, true, sErr2);
-		results.push_back(Pair("cpid_sig_valid", fSigChecked));
+		bool fSigValid = VerifyCPIDSignature(sMySig, true, sErr2);
+		results.push_back(Pair("cpid_sig_valid", fSigValid));
 		// 4-5-2018 Ensure it is legal for this CPID to solve this block
 
 		bool fLegality = true;
@@ -2239,19 +2419,27 @@ UniValue exec(const UniValue& params, bool fHelp)
 		
 		if (bActiveRACCheck)
 		{
-			if (fSigChecked)
+			if (fSigValid)
 			{
 				// Ensure this CPID has not solved any of the last N blocks in prod or last block in testnet if header age is < 1 hour:
 				std::string sCPID = GetElement(sMySig, ";", 0);
 				bool bSolvedPriorBlocks = HasThisCPIDSolvedPriorBlocks(sCPID, pindexPrev);
-				// Ensure this block can only be solved if this CPID was in the last superblock with a payment - but only if the header age is recent (this allows the chain to continue rolling if PODC goes down)
-				double nRecentlyPaid = GetPaymentByCPID(sCPID);
-				bool bRenumerationLegal = (nRecentlyPaid >= 0 && nRecentlyPaid < .50) ? false : true;
-				fLegality = (bRenumerationLegal && !bSolvedPriorBlocks);
-				if (!fLegality)
+				bool f14000 = (fDistributedComputingEnabled && ((pindexPrev->nHeight > F14000_CUTOVER_HEIGHT_PROD && fProd)  ||  (pindexPrev->nHeight > F14000_CUTOVER_HEIGHT_TESTNET && !fProd)));
+				if (f14000)
 				{
-					if (!bRenumerationLegal) sLegalityNarr = "CPID_HAS_NO_MAGNITUDE";
-					if (bSolvedPriorBlocks)  sLegalityNarr = "CPID_SOLVED_RECENT_BLOCK";
+					if (bSolvedPriorBlocks) sLegalityNarr="CPID_SOLVED_RECENT_BLOCK";
+				}
+				else
+				{
+					// Ensure this block can only be solved if this CPID was in the last superblock with a payment - but only if the header age is recent (this allows the chain to continue rolling if PODC goes down)
+					double nRecentlyPaid = GetPaymentByCPID(sCPID, pindexPrev->nHeight);
+					bool bRenumerationLegal = (nRecentlyPaid >= 0 && nRecentlyPaid < .50) ? false : true;
+					fLegality = (bRenumerationLegal && !bSolvedPriorBlocks);
+					if (!fLegality)
+					{
+						if (!bRenumerationLegal) sLegalityNarr = "CPID_HAS_NO_MAGNITUDE";
+						if (bSolvedPriorBlocks)  sLegalityNarr = "CPID_SOLVED_RECENT_BLOCK";
+					}
 				}
 			}
 			else
@@ -2259,9 +2447,7 @@ UniValue exec(const UniValue& params, bool fHelp)
 				fLegality = false;
 				sLegalityNarr = "CPID_SIGNATURE_INVALID";
 			}
-			
 		}
-
 		results.push_back(Pair("cpid_legal", fLegality));
 		results.push_back(Pair("cpid_legality_narr", sLegalityNarr));
 		results.push_back(Pair("blockmessage", sMsg));
@@ -2367,7 +2553,7 @@ UniValue exec(const UniValue& params, bool fHelp)
 	else if (sItem == "associate")
 	{
 		if (params.size() < 3)
-			throw runtime_error("You must specify boincemail, boincpassword.  Optionally specify force=true/false.");
+			throw runtime_error("You must specify boincemail, boincpassword.  Optionally specify force=true/false, and unbanked CPID.");
 		std::string sEmail = params[1].get_str();
 		std::string sPW = params[2].get_str();
 		std::string sForce = "";
@@ -2457,14 +2643,22 @@ UniValue exec(const UniValue& params, bool fHelp)
 		results.push_back(Pair("govobjhash", uGovObjHash.GetHex()));
 		results.push_back(Pair("Addresses", sAddresses));
 		results.push_back(Pair("Amounts", sAmounts));
-		
 		if (uGovObjHash == uint256S("0x0"))
 		{
 			// create the contract
 			std::string sQuorumTrigger = SerializeSanctuaryQuorumTrigger(iNextSuperblock, sContract);
 			std::string sGobjectHash = "";
+
 			SubmitDistributedComputingTrigger(sQuorumTrigger, sGobjectHash, sError);
+			
 			results.push_back(Pair("quorum_hex", sQuorumTrigger));
+			// Add the contract explanation as JSON
+			std::vector<unsigned char> v = ParseHex(sQuorumTrigger);
+			std::string sMyQuorumTrigger(v.begin(), v.end());
+			UniValue u(UniValue::VOBJ);
+			u.read(sMyQuorumTrigger);
+			std::string sMyJsonQuorumTrigger = u.write().c_str();
+			results.push_back(Pair("quorum_json", sMyJsonQuorumTrigger));
 			results.push_back(Pair("quorum_gobject_trigger_hash", sGobjectHash));
 			results.push_back(Pair("quorum_error", sError));
 		}
@@ -2473,29 +2667,33 @@ UniValue exec(const UniValue& params, bool fHelp)
 		results.push_back(Pair("required_votes", iRequiredVotes));
 		results.push_back(Pair("last_superblock", iLastSuperblock));
 		results.push_back(Pair("next_superblock", iNextSuperblock));
+		// QT
+		std::string sSig = SignPrice(".01");
+		bool fSigValid = VerifyDarkSendSigner(sSig);
+		results.push_back(Pair("sigvalid", fSigValid));
+
 		bool fTriggered = CSuperblockManager::IsSuperblockTriggered(iNextSuperblock);
 		double nTotalMagnitude = 0;
+		LogPrintf(" Phase %f ", 10);
 		int iCPIDCount = GetCPIDCount(sContract, nTotalMagnitude);
 		results.push_back(Pair("cpid_count", iCPIDCount));
 		results.push_back(Pair("total_magnitude", nTotalMagnitude));
 		results.push_back(Pair("next_superblock_triggered", fTriggered));
+		LogPrintf(" Phase %f ", 11);
 		bool bRes = VoteForDistributedComputingContract(iNextSuperblock, sContract, sError);
 		results.push_back(Pair("vote_result", bRes));
 		results.push_back(Pair("vote_error", sError));
-
 		// Verify the Vote serialization:
 		std::string sSerialize = mnpayments.SerializeSanctuaryQuorumSignatures(iNextSuperblock, uDCChash);
 		std::string sSigs = ExtractXML(sSerialize,"<SIGS>","</SIGS>");
-		int iVSigners = VerifySanctuarySignatures(sSigs);
 		results.push_back(Pair("serial", sSerialize));
-		results.push_back(Pair("verified_sigs", iVSigners));
 	}
 	else if (sItem == "getcpid")
 	{
 		// Returns a CPID for a given BBP address
 		if (params.size() > 2) throw runtime_error("You must specify one BBP address or none: exec getcpid, or exec getcpid BBPAddress.");
 		std::string sAddress = "";
-		if (params.size() == 2) sAddress = params[1].get_str();
+		if (params.size() == 2) sAddress = params[1].getValStr();
 		std::string out_address = "";
 		double nMagnitude = 0;
 		std::string sCPID = FindResearcherCPIDByAddress(sAddress, out_address, nMagnitude);
@@ -2561,15 +2759,58 @@ UniValue exec(const UniValue& params, bool fHelp)
 			}
 		}
 	}
+	else if (sItem == "getpodcpayments")
+	{
+		if (params.size() == 2)
+		{
+			std::string sAddressList = params[1].get_str();
+			int iNextSuperblock = 0;
+		
+			int iLastSuperblock = GetLastDCSuperblockHeight(chainActive.Tip()->nHeight, iNextSuperblock);
+			const Consensus::Params& consensusParams = Params().GetConsensus();
+			double nBudget = 0;
+			double nTotalPaid = 0;
+			std::string out_Superblocks = "";
+			int out_SuperblockCount = 0;
+			int out_HitCount = 0;
+			double out_OneDayPaid = 0;
+			double out_OneWeekPaid = 0;
+			double out_OneDayBudget = 0;
+			double out_OneWeekBudget = 0;
+			
+			double nMagnitude = GetUserMagnitude(sAddressList, nBudget, nTotalPaid, iLastSuperblock, out_Superblocks, out_SuperblockCount, out_HitCount, out_OneDayPaid, out_OneWeekPaid, 
+				out_OneDayBudget, out_OneWeekBudget);
+			results.push_back(Pair("Total Payments (One Day)", out_OneDayPaid));
+			results.push_back(Pair("Total Payments (One Week)", out_OneWeekPaid));
+			results.push_back(Pair("Total Budget (One Day)",out_OneDayBudget));
+			results.push_back(Pair("Total Budget (One Week)",out_OneWeekBudget));
+			results.push_back(Pair("Superblock Count (One Week)", out_SuperblockCount));
+			results.push_back(Pair("Superblock Hit Count (One Week)", out_HitCount));
+			results.push_back(Pair("Superblock List", out_Superblocks));
+			results.push_back(Pair("Last Superblock Height", iLastSuperblock));
+			nBudget = CSuperblock::GetPaymentsLimit(iLastSuperblock) / COIN;
+			results.push_back(Pair("Last Superblock Budget", nBudget));
+			results.push_back(Pair("Magnitude (One-Day)", mnMagnitudeOneDay));
+			results.push_back(Pair("Magnitude (One-Week)", nMagnitude));
+		}
+		else
+		{
+			throw runtime_error("You must specify a list of BBP Addresses delimited by semicolons.");
+		}
+	}
 	else if (sItem == "getboincinfo")
 	{
 		std::string out_address = "";
 		std::string sAddress = "";
 		if (params.size() == 2) sAddress = params[1].get_str();
 		double nMagnitude2 = 0;
+		LogPrintf("Step 1 %f",GetAdjustedTime());
 		std::string sCPID = FindResearcherCPIDByAddress(sAddress, out_address, nMagnitude2);
 		int iNextSuperblock = 0;
+		LogPrintf("Step 2 %f",GetAdjustedTime());
+	
 		int iLastSuperblock = GetLastDCSuperblockHeight(chainActive.Tip()->nHeight, iNextSuperblock);
+		LogPrintf("Step 3 %f",GetAdjustedTime());
 	
 		results.push_back(Pair("CPID", sCPID));
 		results.push_back(Pair("Address", out_address));
@@ -2577,7 +2818,8 @@ UniValue exec(const UniValue& params, bool fHelp)
 		
 		int64_t nTime = RetrieveCPIDAssociationTime(sCPID);
 		int64_t nAge = (GetAdjustedTime() - nTime)/(60*60);
-
+		LogPrintf("Step 4 %f",GetAdjustedTime());
+	
 		std::string sNarrAge = nAge < 24 ? "** Warning, CPID was associated less than 24 hours ago.  Magnitude may be zero until distributed grid network harvests all credit data.  Please keep crunching. **" : "";
 		results.push_back(Pair("CPID-Age (hours)",nAge));
 		if (!sNarrAge.empty())
@@ -2606,6 +2848,8 @@ UniValue exec(const UniValue& params, bool fHelp)
 					double RAC = GetBoincRACByUserId("project1", nUserId);
 					results.push_back(Pair(s1 + "_ADDRESS", sAddress));
 					results.push_back(Pair(s1 + "_RAC", RAC));
+					LogPrintf("UserID %f %f",nUserId, GetAdjustedTime());
+		
 					double dTeam = GetBoincTeamByUserId("project1", nUserId);
 					results.push_back(Pair(s1 + "_TEAM", dTeam));
 					if (dBiblepayTeam > 0)
@@ -2640,8 +2884,9 @@ UniValue exec(const UniValue& params, bool fHelp)
 		double out_OneWeekPaid = 0;
 		double out_OneDayBudget = 0;
 		double out_OneWeekBudget = 0;
-		double nMagnitude = GetUserMagnitude(nBudget, nTotalPaid, iLastSuperblock, out_Superblocks, out_SuperblockCount, out_HitCount, out_OneDayPaid, out_OneWeekPaid, out_OneDayBudget, out_OneWeekBudget);
+		std::string sPK = GetMyPublicKeys();
 
+		double nMagnitude = GetUserMagnitude(sPK, nBudget, nTotalPaid, iLastSuperblock, out_Superblocks, out_SuperblockCount, out_HitCount, out_OneDayPaid, out_OneWeekPaid, out_OneDayBudget, out_OneWeekBudget);
 		results.push_back(Pair("Total Payments (One Day)", out_OneDayPaid));
 		results.push_back(Pair("Total Payments (One Week)", out_OneWeekPaid));
 		results.push_back(Pair("Total Budget (One Day)",out_OneDayBudget));
@@ -2649,7 +2894,7 @@ UniValue exec(const UniValue& params, bool fHelp)
 		results.push_back(Pair("Superblock Count (One Week)", out_SuperblockCount));
 		results.push_back(Pair("Superblock Hit Count (One Week)", out_HitCount));
 		results.push_back(Pair("Superblock List", out_Superblocks));
-		double dLastPayment = GetPaymentByCPID(sCPID);
+		double dLastPayment = GetPaymentByCPID(sCPID, 0);
 		results.push_back(Pair("Last Superblock Height", iLastSuperblock));
 		nBudget = CSuperblock::GetPaymentsLimit(iLastSuperblock) / COIN;
 		results.push_back(Pair("Last Superblock Budget", nBudget));
@@ -2744,14 +2989,485 @@ UniValue exec(const UniValue& params, bool fHelp)
 		std::string sCPID = params[1].get_str();
 		double dWCGRAC = GetWCGRACByCPID(sCPID);
 		results.push_back(Pair("WCGRAC", dWCGRAC));
+		std::string sDCPK = GetDCCPublicKey(sCPID, true);
+		double dPODCPayments = cdbl(ReadCacheWithMaxAge("AddressPayment", sDCPK, GetHistoricalMilestoneAge(14400, 60 * 60 * 24 * 30)), 0);
+		results.push_back(Pair("Total PODC Payments (30 days)", dPODCPayments));
 	}
 	else if (sItem == "totalrac")
 	{
 		double dRAC = AscertainResearcherTotalRAC();
-		double dStake = GetMinimumRequiredUTXOStake(dRAC);
+		double dStake = GetMinimumRequiredUTXOStake(dRAC, 1.1);
 		results.push_back(Pair("Total RAC", dRAC));
 		results.push_back(Pair("UTXO Target", dStake));
+		CAmount nStakeBalance = pwalletMain->GetUnlockedBalance();
+		results.push_back(Pair("StakeBalance", nStakeBalance/COIN));
+		if ((nStakeBalance/COIN) < dStake)
+		{
+			results.push_back(Pair("Note", "You have less stake balance available than needed for the PODC UTXO Target.  Coins must be more than 5 confirmations deep to count.  See coin control."));
+		}
+		// Dave_BBP - Absolute minimum required
+		double dMinRequired = cdbl(RoundToString(GetMinimumRequiredUTXOStake(dRAC, .04), 2), 2);
+		std::string sNarr1 = "Threshhold to receive 10% rewards (below this UTXO Amount rewards are lost)";
+		results.push_back(Pair(sNarr1, dMinRequired));
+		
+		// Suggested by Capulo - Stake Breaks Table in 10% increments:
+		for (double i = .00; i <= .90; i += .10)
+		{
+			double iTestLevel = i;
+			if (iTestLevel == 0) iTestLevel = .041;
+
+			double dRequired = cdbl(RoundToString(GetMinimumRequiredUTXOStake(dRAC, iTestLevel), 2), 2);
+			double iLevel = (i*100) + 10;
+			
+			std::string sNarr = "Stake Level Required For " + RoundToString(iLevel, 0) + "% Level";
+			results.push_back(Pair(sNarr, dRequired));
+		}
+		double dTeamRAC = GetTeamRAC();
+		results.push_back(Pair("Total Team RAC", dTeamRAC));
+	
 	}
+	else if (sItem == "reconsiderblocks")
+	{
+		ReprocessBlocks(BLOCKS_PER_DAY);
+		results.push_back(Pair("Reprocessed Blocks", BLOCKS_PER_DAY));
+	}
+	else if (sItem == "timermain")
+	{
+		bool bInterval = TimerMain("reconsiderblocks", 3);
+		results.push_back(Pair("reconsiderblocks", bInterval));
+	}
+	else if (sItem == "podcvotingreport")
+	{
+		std::string strType = "triggers";
+		int nStartTime = 0; 
+		int nNextHeight = 0;
+		GetLastDCSuperblockHeight(chainActive.Tip()->nHeight, nNextHeight);
+		LOCK2(cs_main, governance.cs);
+		std::vector<CGovernanceObject*> objs = governance.GetAllNewerThan(nStartTime);
+		BOOST_FOREACH(CGovernanceObject* pGovObj, objs)
+        {
+            if(strType == "proposals" && pGovObj->GetObjectType() != GOVERNANCE_OBJECT_PROPOSAL) continue;
+            if(strType == "triggers" && pGovObj->GetObjectType() != GOVERNANCE_OBJECT_TRIGGER) continue;
+            if(strType == "watchdogs" && pGovObj->GetObjectType() != GOVERNANCE_OBJECT_WATCHDOG) continue;
+
+			UniValue obj = pGovObj->GetJSONObject();
+			int nLocalHeight = obj["event_block_height"].get_int();
+
+            if (nLocalHeight == nNextHeight)
+			{
+				int iVotes = pGovObj->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING);
+				std::string sPAM = obj["payment_amounts"].get_str();
+				std::vector<std::string> vCPIDs = Split(sPAM.c_str(),"|");
+				results.push_back(Pair("Govobj: " + pGovObj->GetHash().GetHex(), iVotes));
+				results.push_back(Pair("CPID Count", ((double)vCPIDs.size())));
+				if (iVotes > 0) results.push_back(Pair("Amounts", sPAM));
+			}
+		}
+	}
+	else if (sItem == "governancevotingreport")
+	{
+		std::string strType = "triggers";
+		int nStartTime = 0; 
+		int nNextHeight = 0;
+		GetLastDCSuperblockHeight(chainActive.Tip()->nHeight, nNextHeight);
+		LOCK2(cs_main, governance.cs);
+		std::vector<CGovernanceObject*> objs = governance.GetAllNewerThan(nStartTime);
+		BOOST_FOREACH(CGovernanceObject* pGovObj, objs)
+        {
+            if(strType == "proposals" && pGovObj->GetObjectType() != GOVERNANCE_OBJECT_PROPOSAL) continue;
+            if(strType == "triggers" && pGovObj->GetObjectType() != GOVERNANCE_OBJECT_TRIGGER) continue;
+            if(strType == "watchdogs" && pGovObj->GetObjectType() != GOVERNANCE_OBJECT_WATCHDOG) continue;
+
+			UniValue obj = pGovObj->GetJSONObject();
+			int nLocalHeight = obj["event_block_height"].get_int();
+			int iVotes = pGovObj->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING);
+
+            if (iVotes > 0)
+			{
+				std::string sPAM = obj["payment_amounts"].get_str();
+				std::string sPAD = obj["payment_addresses"].get_str();
+				std::string sPRO = obj["proposal_hashes"].get_str();
+				results.push_back(Pair("Height: " + RoundToString(nLocalHeight, 0) + ", Govobj: " + pGovObj->GetHash().GetHex(), iVotes));
+				results.push_back(Pair("Amounts", sPAM));
+				results.push_back(Pair("Addresses", sPAD));
+				results.push_back(Pair("Proposals", sPRO));
+			}
+		}
+	}
+	else if (sItem == "debug0620")
+	{
+		bool b1 = IsMature(GetAdjustedTime(), 14400);
+		bool b2 = IsMature(GetAdjustedTime() - 15000, 14400);
+		results.push_back(Pair("Now", b1));
+		results.push_back(Pair("Now-15000",b2));
+		WriteCache("debug", "1", "1", GetAdjustedTime());
+		WriteCache("debug", "2", "2", GetAdjustedTime() - 15000);
+		WriteCache("debug", "3", "3", GetAdjustedTime() - 65000);
+		WriteCache("debug", "4", "4", GetAdjustedTime() - 14400 - 86400 - 25000);
+		WriteCache("debug", "3", "3b", GetAdjustedTime() - 65000);
+		
+		std::string s1 = ReadCacheWithMaxAge("debug", "1", GetHistoricalMilestoneAge(14400, 86400));
+		std::string s2 = ReadCacheWithMaxAge("debug", "2", GetHistoricalMilestoneAge(14400, 86400));
+		std::string s3 = ReadCacheWithMaxAge("debug", "3", GetHistoricalMilestoneAge(14400, 86400));
+		std::string s4 = ReadCacheWithMaxAge("debug", "4", GetHistoricalMilestoneAge(14400, 86400));
+
+		results.push_back(Pair("1", s1));
+		results.push_back(Pair("2", s2));
+		results.push_back(Pair("3", s3));
+		results.push_back(Pair("4", s4));
+	}
+	else if (sItem == "rosettadiagnostics")
+	{
+		if (params.size() != 2 && params.size() != 3)
+			throw runtime_error("You must specify Rosetta e-mail and password. IE 'exec rosettadiagnostics email pass'");
+		std::string sEmail= params[1].get_str();
+		std::string sPass = params[2].get_str();
+
+		std::string sError = "";
+		std::string sHTML = RosettaDiagnostics(sEmail, sPass, sError);
+		results.push_back(Pair("Results", sHTML));
+	
+		if (!sError.empty()) results.push_back(Pair("Errors", sError));
+		
+	}
+	else if (sItem == "attachrosetta")
+	{
+		if (params.size() != 2 && params.size() != 3)
+			throw runtime_error("You must specify Rosetta e-mail and password. IE 'exec rosettadiagnostics email pass'");
+		std::string sEmail= params[1].get_str();
+		std::string sPass = params[2].get_str();
+		std::string sError = "";
+		std::string sHTML = FixRosetta(sEmail, sPass, sError);
+		results.push_back(Pair("Results", sHTML));
+		if (!sError.empty()) results.push_back(Pair("Errors", sError));
+	}
+	else if (sItem == "syscmd")
+	{
+		if (params.size() != 2 && params.size() != 3)
+			throw runtime_error("You must specify the command also. IE 'exec syscmd ls'");
+		std::string sCommand = params[1].get_str();
+		std::string sResult = SystemCommand2(sCommand.c_str());
+		results.push_back(Pair(sCommand,sResult));
+	}
+	else if (sItem == "ipfslist")
+	{
+		std::string sFiles = "";
+		UniValue uvIPFS = GetIPFSList(7, sFiles);
+		return uvIPFS;
+	}
+	else if (sItem == "ipfsquality")
+	{
+		UniValue a = GetSancIPFSQualityReport();
+		return a;
+	}
+	else if (sItem == "mnsporktest14")
+	{
+		bool bSpork14 = sporkManager.IsSporkActive(SPORK_14_REQUIRE_SENTINEL_FLAG);
+		results.push_back(Pair("spork14", bSpork14));
+	}
+	
+	else if (sItem == "botestharnessjsontest")
+	{
+		std::string sQ = "\"";
+		std::string sJson = "[[" + sQ + "contact" + sQ + ",{" + sQ + "field1" + sQ + ":" + sQ + "value1" + sQ + ", " + sQ + "field2" + sQ + ":" + sQ + "value2" + sQ + "}]]";
+		UniValue objResult(UniValue::VOBJ);
+		objResult.read(sJson);
+		std::vector<UniValue> arr1 = objResult.getValues();
+		std::vector<UniValue> arr2 = arr1.at( 0 ).getValues();
+		UniValue obj(UniValue::VOBJ);
+		obj = arr2.at( 1 );
+		results.push_back(Pair("json", sJson));
+		results.push_back(Pair("field1", obj["field1"].get_str()));
+		results.push_back(Pair("field2", obj["field2"].get_str()));
+	}
+	else if (sItem == "addnewobject")
+	{
+		if (params.size() != 2 && params.size() != 3)
+			throw runtime_error("You must specify the object_name, comma-delimited-fields.");
+
+		std::string sObjectName = params[1].get_str();
+		std::string sFields     = params[2].get_str();
+		std::string sError = "";
+			
+		if (sObjectName.empty()) sError = "Object Name must be populated.";
+		if (sFields.empty()) sError = "Fields must be populated.";
+		if (sError.empty())
+		{
+			UniValue oBO(UniValue::VOBJ);
+			oBO.push_back(Pair("object_name", sObjectName));
+			// GospelLink:   url,notes
+			oBO.push_back(Pair("fields", sFields));
+			std::string sAddress = DefaultRecAddress(BUSINESS_OBJECTS);
+			oBO.push_back(Pair("receiving_address", sAddress));
+		    oBO.push_back(Pair("objecttype", "object"));
+			oBO.push_back(Pair("added", RoundToString(GetAdjustedTime(),0)));
+			oBO.push_back(Pair("secondarykey", RoundToString(GetAdjustedTime(), 0)));
+			std::string sTxId = "";
+			sTxId = StoreBusinessObject(oBO, sError);
+			results.push_back(Pair("obj_txid", sTxId));
+		}
+		if (!sError.empty())	results.push_back(Pair("Errors", sError));
+	}
+	else if (sItem == "addgospellink")
+	{
+		if (params.size() != 2 && params.size() != 3)
+			throw runtime_error("You must specify the URL, notes.");
+
+		std::string sURL       = params[1].get_str();
+		std::string sNotes     = params[2].get_str();
+		std::string sError = "";
+			
+		if (sURL.empty()) sError = "URL must be populated.";
+		if (sNotes.empty()) sError = "Notes must be populated.";
+		if (sError.empty())
+		{
+			UniValue oBO(UniValue::VOBJ);
+			oBO.push_back(Pair("url", sURL));
+			oBO.push_back(Pair("notes", sNotes));
+			std::string sAddress = DefaultRecAddress(BUSINESS_OBJECTS);
+			oBO.push_back(Pair("receiving_address", sAddress));
+		    oBO.push_back(Pair("objecttype", "gospellink"));
+			oBO.push_back(Pair("secondarykey", RoundToString(GetAdjustedTime(), 0)));
+			oBO.push_back(Pair("added", RoundToString(GetAdjustedTime(), 0)));
+			std::string sTxId = "";
+			sTxId = StoreBusinessObject(oBO, sError);
+			results.push_back(Pair("obj_txid", sTxId));
+		}
+		if (!sError.empty())	results.push_back(Pair("Errors", sError));
+	}
+	else if (sItem == "bolist")
+	{
+		if (params.size() != 2)
+			throw runtime_error("You must specify business object type: IE 'exec bolist contact'.  ");
+		std::string sType = params[1].get_str();
+		UniValue aBOList = GetBusinessObjectList(sType);
+		return aBOList;
+	}
+	else if (sItem == "bosearch")
+	{
+		if (params.size() != 4)
+			throw runtime_error("You must specify business object type, search field name, and search field value: IE 'exec bosearch contact email rob@biblepay.org'.  ");
+
+		std::string sType = params[1].get_str();
+		std::string sFieldName = params[2].get_str();
+		std::string sSearchValue = params[3].get_str();
+		UniValue aBO = GetBusinessObjectByFieldValue(sType, sFieldName, sSearchValue);
+		results.push_back(Pair(sType + " - " + sFieldName, aBO));
+	}
+	else if (sItem == "emailbbp")
+	{
+		if (params.size() != 3)
+			throw runtime_error("You must specify e-mail address and amount: IE 'exec emailbbp rob@biblepay.org 5'.  ");
+
+		std::string sEmail = params[1].get_str();
+		UniValue aBO = GetBusinessObjectByFieldValue("contact", "email", sEmail);
+		if (aBO.size() == 0)
+			throw runtime_error("No BBP recipient found with e-mail " + sEmail + ".");
+		std::string sAddress = aBO["receiving_address"].get_str();
+
+		CBitcoinAddress address(sAddress);
+		if (!address.IsValid())
+			throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Destination Biblepay address");
+		// Amount
+		CAmount nAmount = AmountFromValue(params[2]);
+		if (nAmount <= 0)
+			throw JSONRPCError(RPC_TYPE_ERROR, "Invalid amount for send");
+
+		// Wallet comments
+		CWalletTx wtx;
+        bool fSubtractFeeFromAmount = false;
+		bool fUseInstantSend = false;
+		bool fUsePrivateSend = false;
+		bool fUseSanctuaryFunds = false;
+	    EnsureWalletIsUnlocked();
+		SendMoney(address.Get(), nAmount, fSubtractFeeFromAmount, wtx, fUseInstantSend, fUsePrivateSend, fUseSanctuaryFunds);
+		return wtx.GetHash().GetHex();
+	}
+	else if (sItem == "testrsa")
+	{
+		TestRSA();
+		results.push_back(Pair("rsa", 1));
+	}
+	else if (sItem == "pbase")
+	{
+		double dBase = GetPBase();
+		results.push_back(Pair("pbase", RoundToString(dBase,12)));
+	}
+	else if (sItem == "qt")
+	{
+		// QuantitativeTightening - QT - RANDREWS - BIBLEPAY
+		double dPriorPrice = 0;
+		double dPriorPhase = 0;
+		int iStep = fProd ? BLOCKS_PER_DAY : BLOCKS_PER_DAY/4;
+		int iLookback = fProd ? BLOCKS_PER_DAY * 7 : BLOCKS_PER_DAY * 7 * 4;
+		int nMinHeight = (chainActive.Tip()->nHeight - 10 - (iLookback));
+		if (nMinHeight < 100) nMinHeight = 100;
+		results.push_back(Pair("Report", "QT - History"));
+		results.push_back(Pair("Height", "Price; QT Percentage"));
+		for (int nHeight = nMinHeight; nHeight < chainActive.Tip()->nHeight; nHeight += iStep)
+		{
+			GetQTPhase(-1, nHeight, dPriorPrice, dPriorPhase);
+			std::string sRow = "Price: " + RoundToString(dPriorPrice, 12) + "; QT: " + RoundToString(dPriorPhase, 0) + "%";
+			results.push_back(Pair(RoundToString(nHeight, 0), sRow));
+		}
+	}
+	else if (sItem == "legacydel")
+	{
+		if (params.size() != 4)
+			throw runtime_error("You must specify objecttype, primarykey, secondarykey or -1 for NULL.");
+		std::string sOT = params[1].get_str();
+		std::string sPK = params[2].get_str();
+		std::string sSK = params[3].get_str();
+		const Consensus::Params& consensusParams = Params().GetConsensus();
+	    std::string sFoundationAddress = consensusParams.FoundationAddress;
+
+		if (sSK == "-1") sSK = "";
+		UniValue oBO(UniValue::VOBJ);
+		oBO.push_back(Pair("objecttype", sOT));
+		oBO.push_back(Pair("primarykey", sPK));
+		oBO.push_back(Pair("secondarykey", sSK));
+		oBO.push_back(Pair("deleted", "1"));
+		oBO.push_back(Pair("signingkey", sFoundationAddress));
+		std::string sError = "";
+		std::string txid = StoreBusinessObjectWithPK(oBO, sError);
+		results.push_back(Pair("TXID", txid));
+		results.push_back(Pair("Error", sError));
+	}
+	else if (sItem == "addexpense")
+	{
+		if (params.size() != 7)
+			throw runtime_error("You must specify amount, newsponsorships, URL, prepaidsponsorships, charity, handledby.");
+		std::string sAmt                 = params[1].getValStr();
+		std::string sNewSponsorships     = params[2].getValStr();
+		std::string sURL                 = params[3].getValStr();
+		std::string sPrepaidSponsorships = params[4].getValStr();
+		std::string sCharity             = params[5].getValStr();
+		std::string sHandledBy           = params[6].getValStr();
+		const Consensus::Params& consensusParams = Params().GetConsensus();
+	    std::string sFoundationAddress = consensusParams.FoundationAddress;
+
+		UniValue oBO(UniValue::VOBJ);
+		oBO.push_back(Pair("objecttype", "expense"));
+		oBO.push_back(Pair("primarykey", "expense"));
+		oBO.push_back(Pair("secondarykey", RoundToString(GetAdjustedTime(), 0)));
+		oBO.push_back(Pair("signingkey", sFoundationAddress));
+		oBO.push_back(Pair("added", RoundToString(GetAdjustedTime(), 0)));
+		oBO.push_back(Pair("deleted", "0"));
+		oBO.push_back(Pair("amount", sAmt));
+		oBO.push_back(Pair("new_sponsorships", sNewSponsorships));
+		oBO.push_back(Pair("url", sURL));
+		oBO.push_back(Pair("prepaid_sponsorships", sPrepaidSponsorships));
+		oBO.push_back(Pair("charity", sCharity));
+		oBO.push_back(Pair("handled_by", sHandledBy));
+		std::string sError = "";
+		std::string txid = StoreBusinessObjectWithPK(oBO, sError);
+		results.push_back(Pair("TXID", txid));
+		results.push_back(Pair("Error", sError));
+	}
+	else if (sItem == "addrev")
+	{
+		if (params.size() != 2)
+			throw runtime_error("You must specify \"amount|bbpamount|btcraised|btcprice|notes|handledby|charity.\"");
+		std::string sData = params[1].getValStr();
+		std::vector<std::string> vData = Split(sData.c_str(),"|");
+		if (vData.size() != 7)
+			throw runtime_error("You must specify \"amount|bbpamount|btcraised|btcprice|notes|handledby|charity.\"");
+		std::string sAmt                 = vData[0];
+		std::string sBBPAmount           = vData[1];
+		std::string sBTCRaised           = vData[2];
+		std::string sBTCPrice            = vData[3];
+		std::string sNotes               = vData[4];
+		std::string sHandledBy           = vData[5];
+		std::string sCharity             = vData[6];
+		const Consensus::Params& consensusParams = Params().GetConsensus();
+	    std::string sFoundationAddress = consensusParams.FoundationAddress;
+
+		UniValue oBO(UniValue::VOBJ);
+		oBO.push_back(Pair("objecttype", "revenue"));
+		oBO.push_back(Pair("primarykey", "revenue"));
+		oBO.push_back(Pair("secondarykey", RoundToString(GetAdjustedTime(), 0)));
+		oBO.push_back(Pair("signingkey", sFoundationAddress));
+		oBO.push_back(Pair("added", RoundToString(GetAdjustedTime(), 0)));
+		oBO.push_back(Pair("deleted", "0"));
+		oBO.push_back(Pair("amount", sAmt));
+		oBO.push_back(Pair("bbp_amount", sBBPAmount));
+		oBO.push_back(Pair("btc_raised", sBTCRaised));
+		oBO.push_back(Pair("btc_price", sBTCPrice));
+		oBO.push_back(Pair("notes", sNotes));
+		oBO.push_back(Pair("handled_by", sHandledBy));
+		oBO.push_back(Pair("charity", sCharity));
+		std::string sError = "";
+		std::string txid = StoreBusinessObjectWithPK(oBO, sError);
+		results.push_back(Pair("TXID", txid));
+		results.push_back(Pair("Error", sError));
+	}
+	else if (sItem == "vote")
+	{
+		if (params.size() != 3)
+			throw runtime_error("You must specify type: IE 'exec vote ipfshash vote_signal'.  IE 'exec vote ipfshash [yes/no/abstain]'.");
+		std::string sIPFSHash = params[1].get_str();
+		std::string sVoteSignal = params[2].get_str();
+		if (sVoteSignal != "yes" && sVoteSignal != "no" && sVoteSignal != "abstain")
+			throw runtime_error("Vote signal must be yes, no, or abstain.");
+		std::string sAddress = DefaultRecAddress(BUSINESS_OBJECTS);
+		std::string sOT = "vote";
+		std::string sSecondaryKey = sIPFSHash + "-" + sAddress;
+		double dStorageFee = 1;
+		std::string sError = "";
+		std::string sTxId = "";
+		std::string sUTXOWeight = "<voteweight>100</voteweight>";
+		std::string sVote = "<vote><votehash>" + sIPFSHash + "</votehash><signal>" + sVoteSignal + "</signal>" + sUTXOWeight + "</vote>";
+		sTxId = SendBusinessObject(sOT, sSecondaryKey, sVote, dStorageFee, sAddress, true, sError);
+		if (sError.empty())
+		{
+			results.push_back(Pair("TXID", sTxId));
+		}
+		else
+		{
+			results.push_back(Pair("Error", sError));
+		}
+
+	}
+	else if (sItem == "votecount")
+	{
+		if (params.size() != 2)
+			throw runtime_error("You must specify type: IE 'exec votecount ipfshash'.  IE 'exec votecount'.");
+
+		std::string sHash = params[1].get_str();
+		UserVote v = GetSumOfSignal("VOTE", sHash);
+		results.push_back(Pair("Yes Weight", v.nTotalYesWeight));
+		results.push_back(Pair("Yes", v.nTotalYesCount));
+		results.push_back(Pair("No Weight", v.nTotalNoWeight));
+		results.push_back(Pair("No", v.nTotalNoCount));
+		results.push_back(Pair("Abstain Weight", v.nTotalAbstainWeight));
+		results.push_back(Pair("Abstain", v.nTotalAbstainCount));
+	}
+	else if (sItem == "theymos")
+	{
+		CCoinsStats stats;
+		FlushStateToDisk();
+		if (!pcoinsTip->GetStats(stats)) 
+			throw runtime_error("Wallet must be synced to run the Theymos report.");
+		double dTotalEmission = stats.nTotalAmount / COIN;
+		double dTotalCharityBudget = dTotalEmission * .10;
+		double dTotalBBPSold = GetBusinessObjectTotal("revenue", "bbp_amount", 1);
+		double dTotalBTCRaised = GetBusinessObjectTotal("revenue", "btc_raised", 1);
+		double dAvgBTCPrice = GetBusinessObjectTotal("revenue", "btc_price", 2);
+		double dTotalRevenue = GetBusinessObjectTotal("revenue", "amount", 1);
+		double dTotalExpenses = GetBusinessObjectTotal("expense", "amount", 1);
+		double dAvgBBPPrice = 0;
+		if (dTotalBBPSold > 0) dAvgBBPPrice = dTotalRevenue/dTotalBBPSold;
+		results.push_back(Pair("Theymos Report", TimestampToHRDate(GetAdjustedTime())));
+		results.push_back(Pair("Total Coinbase Emission (Money Supply)", dTotalEmission));
+		results.push_back(Pair("Total Charity Budget", dTotalCharityBudget));
+		results.push_back(Pair("Total BBP Sold on Exchanges", dTotalBBPSold));
+		results.push_back(Pair("Total BTC Raised", dTotalBTCRaised));
+		results.push_back(Pair("Avg BTC Price", dAvgBTCPrice));
+		results.push_back(Pair("Avg BBP Price", dAvgBBPPrice));
+		results.push_back(Pair("Total Revenue in USD", dTotalRevenue));
+		results.push_back(Pair("Total Expenses in USD", dTotalExpenses));
+		results.push_back(Pair("Note:", "See Business Objects | Expenses or Revenue for more details and attached PDF receipts.  Click Navigate_To to view the PDF."));
+    }
 	else if (sItem == "datalist")
 	{
 		if (params.size() != 2 && params.size() != 3)
@@ -2816,7 +3532,7 @@ UniValue exec(const UniValue& params, bool fHelp)
 	}
 	else if (sItem == "memorizeprayers")
 	{
-		MemorizeBlockChainPrayers(false);
+		MemorizeBlockChainPrayers(false, false, false, false);
 		results.push_back(Pair("Memorized",1));
 	}
 	else if (sItem == "readverse")
@@ -2945,7 +3661,7 @@ std::string AddBlockchainMessages(std::string sAddress, std::string sType, std::
 		if (bLastStep) sChunk += "</BCM>";
 		double dLegAmount = dUTXOAmount / ((double)iParts);
 		CAmount caLegAmount = dLegAmount * COIN;
-	    CRecipient recipient = {scriptPubKey, caLegAmount, fSubtractFeeFromAmount, false, false, false, "", "", ""};
+	    CRecipient recipient = {scriptPubKey, caLegAmount, fSubtractFeeFromAmount, false, false, false, "", "", "", ""};
 		s1 += sChunk;
 		recipient.Message = s1;
 		LogPrintf("\r\n AddBlockChainMessage::Creating TXID Amount %f, MsgLength %f, StepLen %f, BasicParts %f, Parts %f, vout %f, ResumePos %f, ChunkLen %f, with Chunk %s \r\n", 
@@ -3054,6 +3770,350 @@ std::string TimestampToHRDate(double dtm)
 }
 
 
+void SerializePrayersToFile(int nHeight)
+{
+	if (nHeight < 100) return;
+	std::string sSuffix = fProd ? "_prod" : "_testnet";
+	std::string sTarget = GetSANDirectory2() + "prayers2" + sSuffix;
+	FILE *outFile = fopen(sTarget.c_str(), "w");
+	LogPrintf("Serializing Prayers... %f ",GetAdjustedTime());
+	for(map<string,string>::iterator ii=mvApplicationCache.begin(); ii!=mvApplicationCache.end(); ++ii) 
+    {
+		std::string sKey = (*ii).first;
+	   	int64_t nTimestamp = mvApplicationCacheTimestamp[(*ii).first];
+		std::string sValue = mvApplicationCache[(*ii).first];
+		bool bSkip = false;
+		if (sKey.length() > 7 && sKey.substr(0,7)=="MESSAGE" && (sValue == "" || sValue==" ")) bSkip = true;
+		if (!bSkip)
+		{
+			std::string sRow = RoundToString(nTimestamp, 0) + "<colprayer>" + RoundToString(nHeight, 0) + "<colprayer>" + sKey + "<colprayer>" + sValue + "<rowprayer>\r\n";
+			fputs(sRow.c_str(), outFile);
+		}
+	}
+	LogPrintf("...Done Serializing Prayers... %f ",GetAdjustedTime());
+    fclose(outFile);
+}
+
+int DeserializePrayersFromFile()
+{
+	std::string sSuffix = fProd ? "_prod" : "_testnet";
+	std::string sSource = GetSANDirectory2() + "prayers2" + sSuffix;
+
+	boost::filesystem::path pathIn(sSource);
+    std::ifstream streamIn;
+    streamIn.open(pathIn.string().c_str());
+	if (!streamIn) return -1;
+	int nHeight = 0;
+	std::string line;
+	int iRows = 0;
+    while(std::getline(streamIn, line))
+    {
+		std::vector<std::string> vRows = Split(line.c_str(),"<rowprayer>");
+		for (int i = 0; i < (int)vRows.size(); i++)
+		{
+			std::vector<std::string> vCols = Split(vRows[i].c_str(),"<colprayer>");
+			if (vCols.size() > 3)
+			{
+				int64_t nTimestamp = cdbl(vCols[0], 0);
+				int cHeight = cdbl(vCols[1], 0);
+				if (cHeight > nHeight) nHeight = cHeight;
+				std::string sKey = vCols[2];
+				std::string sValue = vCols[3];
+				std::vector<std::string> vKeys = Split(sKey.c_str(), ";");
+				if (vKeys.size() > 1)
+				{
+					WriteCache(vKeys[0], vKeys[1], sValue, nTimestamp);
+					iRows++;
+				}
+			}
+		}
+	}
+    LogPrintf(" Processed %f prayer rows \n", iRows);
+	streamIn.close();
+	return nHeight;
+}
+
+std::string GetIPFromAddress(std::string sAddress)
+{
+	std::vector<std::string> vAddr = Split(sAddress.c_str(),":");
+	if (vAddr.size() < 2) return "";
+	return vAddr[0];
+}
+
+int CheckSanctuaryIPFSHealth(std::string sAddress)
+{
+	std::string sIP = GetIPFromAddress(sAddress);
+	std::string sHash = "QmU3cpfPbqzZQTDtMswsF5VP7hzduhvacqNTuEaEsV3wBX";
+	//TODO: Make Spork
+	std::string sSporkHash = GetSporkValue("ipfshealthhash");
+	std::string sURL = "http://" + sIP + ":8080/ipfs/" + sHash;
+	std::string sHealthFN = GetSANDirectory2() + "checkhealth.dat";
+	int i = ipfs_download(sURL, sHealthFN, 5);
+	LogPrintf(" Checking %s, Result %i ",sAddress.c_str(), i);
+	return i;
+}
+
+UniValue GetSancIPFSQualityReport()
+{
+	UniValue ret(UniValue::VOBJ);
+    std::vector<CMasternode> vMasternodes = mnodeman.GetFullMasternodeVector();
+    BOOST_FOREACH(CMasternode& mn, vMasternodes) 
+	{
+		std::string strOutpoint = mn.vin.prevout.ToStringShort();
+		std::string sStatus = mn.GetStatus();
+		if (sStatus == "ENABLED")
+		{
+			int iQuality = CheckSanctuaryIPFSHealth(mn.addr.ToString());
+			//std::string sRow = sStatus + "; " 				+  CBitcoinAddress(mn.pubKeyCollateralAddress.GetID()).ToString()				+ " - " + TimestampToHRDate(mn.lastPing.sigTime)			+ " - " + mn.addr.ToString() + " - Q" + RoundToString(iQuality, 0);
+			std::string sNarr = iQuality == 1 ? "UP" : "DOWN";
+			std::string sRow = mn.addr.ToString() + ": " + sNarr;
+			ret.push_back(Pair(mn.addr.ToString(), sNarr));
+		}
+	}
+	return ret;
+}
+
+std::string GetUndownloadedIPFSHash()
+{
+	double dPODSDuration = GetSporkDouble("podsfileleaseduration", 7);
+	std::string sFiles = "";
+	GetIPFSList((int)dPODSDuration, sFiles);
+	std::vector<std::string> vHashes = Split(sFiles.c_str(),";");
+	for (int i = 0; i < (int)vHashes.size(); i++)
+	{
+		std::string sHash = vHashes[i];
+		if (!sHash.empty())
+		{
+			double dDownloaded = cdbl(ReadCache("ipfs_downloaded", sHash), 0);
+			if (dDownloaded == 0) return sHash;
+		}
+	}
+	return "";
+}
+
+double GetBusinessObjectTotal(std::string sType, std::string sFieldName, int iAggregationType)
+{
+	UniValue ret(UniValue::VOBJ);
+	boost::to_upper(sType);
+	double dTotal = 0;
+	double dTotalRows = 0;
+    for(map<string,string>::iterator ii=mvApplicationCache.begin(); ii!=mvApplicationCache.end(); ++ii) 
+    {
+		std::string sKey = (*ii).first;
+	   	if (sKey.length() > sType.length())
+		{
+			if (sKey.substr(0,sType.length())==sType)
+			{
+				std::string sPrimaryKey = sKey.substr(sType.length() + 1, sKey.length() - sType.length());
+				std::string sIPFSHash = mvApplicationCache[(*ii).first];
+				std::string sError = "";
+				UniValue o = GetBusinessObject(sType, sPrimaryKey, sError);
+				if (o.size() > 0)
+				{
+					bool fDeleted = o["deleted"].getValStr() == "1";
+					if (!fDeleted)
+					{
+						std::string sBOValue = o[sFieldName].getValStr();
+						double dBOValue = cdbl(sBOValue, 2);
+						dTotal += dBOValue;
+						dTotalRows++;
+					}
+				}
+			}
+		}
+	}
+	if (iAggregationType == 1) return dTotal;
+	double dAvg = 0;
+	if (dTotalRows > 0) dAvg = dTotal / dTotalRows;
+	if (iAggregationType == 2) return dAvg;
+	return 0;
+}
+
+
+
+
+UniValue GetBusinessObjectByFieldValue(std::string sType, std::string sFieldName, std::string sSearchValue)
+{
+	UniValue ret(UniValue::VOBJ);
+	boost::to_upper(sType);
+	boost::to_upper(sSearchValue);
+    for(map<string,string>::iterator ii=mvApplicationCache.begin(); ii!=mvApplicationCache.end(); ++ii) 
+    {
+		std::string sKey = (*ii).first;
+	   	if (sKey.length() > sType.length())
+		{
+			if (sKey.substr(0,sType.length())==sType)
+			{
+				std::string sPrimaryKey = sKey.substr(sType.length() + 1, sKey.length() - sType.length());
+				std::string sIPFSHash = mvApplicationCache[(*ii).first];
+				std::string sError = "";
+				UniValue o = GetBusinessObject(sType, sPrimaryKey, sError);
+				if (o.size() > 0)
+				{
+					bool fDeleted = o["deleted"].getValStr() == "1";
+					if (!fDeleted)
+					{
+						std::string sBOValue = o[sFieldName].getValStr();
+						boost::to_upper(sBOValue);
+						if (sBOValue == sSearchValue)
+							return o;
+					}
+				}
+			}
+		}
+	}
+	return ret;
+}
+
+
+UniValue GetBusinessObjectList(std::string sType)
+{
+	UniValue ret(UniValue::VOBJ);
+	boost::to_upper(sType);
+    for(map<string,string>::iterator ii=mvApplicationCache.begin(); ii!=mvApplicationCache.end(); ++ii) 
+    {
+		std::string sKey = (*ii).first;
+	   	if (sKey.length() > sType.length())
+		{
+			if (sKey.substr(0,sType.length()) == sType)
+			{
+				std::string sPrimaryKey = sKey.substr(sType.length() + 1, sKey.length() - sType.length());
+				std::string sIPFSHash = mvApplicationCache[(*ii).first];
+				std::string sError = "";
+				UniValue o = GetBusinessObject(sType, sPrimaryKey, sError);
+				if (o.size() > 0)
+				{
+					bool fDeleted = o["deleted"].getValStr() == "1";
+					if (!fDeleted)
+							ret.push_back(Pair(sPrimaryKey + " (" + sIPFSHash + ")", o));
+				}
+			}
+		}
+	}
+	return ret;
+}
+
+
+int GetSignalInt(std::string sLocalSignal)
+{
+	boost::to_upper(sLocalSignal);
+	if (sLocalSignal=="NO") return 1;
+	if (sLocalSignal=="YES") return 2;
+	if (sLocalSignal=="ABSTAIN") return 3;
+	return 0;
+}
+
+UserVote GetSumOfSignal(std::string sType, std::string sIPFSHash)
+{
+	// Get sum of business object type - ipfshash - signal by ipfshash/objecttype/voter
+	boost::to_upper(sType);
+	boost::to_upper(sIPFSHash);
+	std::string sData = "";
+	UserVote v = UserVote();
+
+    for(map<string,string>::iterator ii=mvApplicationCache.begin(); ii!=mvApplicationCache.end(); ++ii) 
+    {
+		std::string sKey = (*ii).first;
+		std::string sValue = mvApplicationCache[(*ii).first];
+		if (Contains(sKey, sType + ";" + sIPFSHash))
+		{
+			std::string sLocalSignal = ExtractXML(sValue, "<signal>", "</signal>");
+			double dWeight = cdbl(ExtractXML(sValue, "<voteweight>", "</voteweight>"), 2);
+			int iSignal = GetSignalInt(sLocalSignal);
+			if (iSignal == 1)
+			{
+				v.nTotalNoCount++;
+				v.nTotalNoWeight += dWeight;
+			}
+			else if (iSignal == 2)
+			{
+				v.nTotalYesCount++;
+				v.nTotalYesWeight += dWeight;
+			}
+			else if (iSignal == 3)
+			{
+				v.nTotalAbstainCount++;
+				v.nTotalAbstainWeight += dWeight;
+			}
+		}
+	}
+	return v;
+}
+
+std::string GetBusinessObjectList(std::string sType, std::string sFields)
+{
+	boost::to_upper(sType);
+	std::vector<std::string> vFields = Split(sFields.c_str(), ",");
+	std::string sData = "";
+    for(map<string,string>::iterator ii=mvApplicationCache.begin(); ii!=mvApplicationCache.end(); ++ii) 
+    {
+		std::string sKey = (*ii).first;
+	   	if (sKey.length() > sType.length())
+		{
+			if (sKey.substr(0,sType.length()) == sType)
+			{
+				std::string sPrimaryKey = sKey.substr(sType.length() + 1, sKey.length() - sType.length());
+				std::string sIPFSHash = mvApplicationCache[(*ii).first];
+				std::string sError = "";
+				UniValue o = GetBusinessObject(sType, sPrimaryKey, sError);
+				if (o.size() > 0)
+				{
+					bool fDeleted = o["deleted"].getValStr() == "1";
+					if (!fDeleted)
+					{
+						// 1st column is ID - objecttype - recaddress - secondarykey
+						std::string sPK = sType + "-" + sPrimaryKey + "-" + sIPFSHash;
+						std::string sRow = sPK + "<col>";
+						for (int i = 0; i < (int)vFields.size(); i++)
+						{
+							sRow += o[vFields[i]].getValStr() + "<col>";
+						}
+						sData += sRow + "<object>";
+					}
+				}
+			}
+		}
+	}
+	LogPrintf("BOList data %s \n",sData.c_str());
+	return sData;
+}
+
+
+UniValue GetIPFSList(int iMaxAgeInDays, std::string& out_Files)
+{
+	UniValue ret(UniValue::VOBJ);
+	std::string sType = "IPFS";
+	int64_t nMinStamp = GetAdjustedTime() - (86400 * iMaxAgeInDays);
+	std::string sFiles = ""; // TODO:  Make this a map of files for PODS; for now this is OK for a proof-of-concept
+	double dCostPerByte = GetSporkDouble("ipfscostperbyte", .0002);
+	// Only include the IPFS hashes that actually paid the PODS fees
+    for(map<string,string>::iterator ii=mvApplicationCache.begin(); ii!=mvApplicationCache.end(); ++ii) 
+    {
+		std::string sKey = (*ii).first;
+	   	if (sKey.length() > sType.length())
+		{
+			if (sKey.substr(0,sType.length())==sType)
+			{
+				std::string sPrimaryKey = sKey.substr(sType.length() + 1, sKey.length() - sType.length());
+		     	int64_t nTimestamp = mvApplicationCacheTimestamp[(*ii).first];
+				if (nTimestamp > nMinStamp)
+				{
+					std::string sValue = mvApplicationCache[(*ii).first];
+					double dPODSFeeCollected = cdbl(ReadCache("IpfsFee" + RoundToString(nTimestamp, 0), sPrimaryKey), 2);
+					double dSize = cdbl(ReadCache("IpfsSize" + RoundToString(nTimestamp, 0), sPrimaryKey), 0);
+					double dFee = dCostPerByte * dSize;
+					if (dPODSFeeCollected >= dFee && dPODSFeeCollected > 0)
+					{
+						ret.push_back(Pair(sPrimaryKey + " (" + sValue + ")", dPODSFeeCollected));
+						sFiles += sPrimaryKey + ";";
+					}
+				}
+			}
+		}
+	}
+	if (fDebugMaster) LogPrintf(" \n IPFS hashes %s ", sFiles.c_str());
+	return ret;
+}
 
 UniValue GetDataList(std::string sType, int iMaxAgeInDays, int& iSpecificEntry, std::string sSearch, std::string& outEntry)
 {
@@ -3253,32 +4313,53 @@ UniValue ContributionReport()
     CBlock block;
 	int nMinDepth = 1;
 	double dTotal = 0;
+	double dChunk = 0;
     UniValue ret(UniValue::VOBJ);
-
+	int iProcessedBlocks = 0;
+	int nStart = 1;
+	int nEnd = 1;
 	for (int ii = nMinDepth; ii <= nMaxDepth; ii++)
 	{
    			CBlockIndex* pblockindex = FindBlockByHeight(ii);
 			if (ReadBlockFromDisk(block, pblockindex, consensusParams, "CONTRIBUTIONREPORT"))
 			{
-				LogPrintf("Reading %f ",(double)ii);
-
+				iProcessedBlocks++;
+				nEnd = ii;
 				BOOST_FOREACH(CTransaction& tx, block.vtx)
 				{
 					 for (int i=0; i < (int)tx.vout.size(); i++)
 					 {
 				 		std::string sRecipient = PubKeyToAddress(tx.vout[i].scriptPubKey);
 						double dAmount = tx.vout[i].nValue/COIN;
+						bool bProcess = false;
 						if (sRecipient == consensusParams.FoundationAddress)
+						{ 
+							bProcess = true;
+						}
+						else if (pblockindex->nHeight == 24600 && dAmount == 2894609)
+						{
+							bProcess=true; // This compassion payment was sent to Robs address first by mistake; add to the audit 
+						}
+						if (bProcess)
 						{
 								dTotal += dAmount;
-						        ret.push_back(Pair("Block ", ii));
-								ret.push_back(Pair("Amount", dAmount));
-								LogPrintf("Amount %f ",dAmount);
+								dChunk += dAmount;
 						}
 					 }
 				 }
+		  		 double nBudget = CSuperblock::GetPaymentsLimit(ii) / COIN;
+				 if (iProcessedBlocks >= (BLOCKS_PER_DAY*7) || (ii == nMaxDepth-1) || (nBudget > 5000000))
+				 {
+					 iProcessedBlocks = 0;
+					 std::string sNarr = "Block " + RoundToString(nStart, 0) + " - " + RoundToString(nEnd, 0);
+					 ret.push_back(Pair(sNarr, dChunk));
+					 dChunk = 0;
+					 nStart = nEnd;
+				 }
+
 			}
 	}
+	
 	ret.push_back(Pair("Grand Total", dTotal));
 	return ret;
 }
@@ -3300,9 +4381,9 @@ std::string FindResearcherCPIDByAddress(std::string sSearch, std::string& out_ad
 			boost::to_upper(strName);
 			// If we have a valid burn in the chain, prefer it
 			std::vector<std::string> vCPIDs = GetListOfDCCS(sAddress, true);
-			nTotalMagnitude += GetMagnitudeByAddress(sAddress);
 			if (vCPIDs.size() > 0)
 			{
+				nTotalMagnitude += GetMagnitudeByAddress(sAddress);
 				for (int i=0; i < (int)vCPIDs.size(); i++)
 				{
 					std::string sCPID = GetDCCElement(vCPIDs[i], 0, false);
@@ -3312,7 +4393,7 @@ std::string FindResearcherCPIDByAddress(std::string sSearch, std::string& out_ad
 						msGlobalCPID += sCPID + ";";
 						sLastCPID = sCPID;
 					}
-					if (!sSearch.empty())
+					else if (!sSearch.empty())
 					{
 						if (sSearch == sAddress && !sCPID.empty()) 
 						{
@@ -3372,6 +4453,7 @@ bool SignStake(std::string sBitcoinAddress, std::string strMessage, std::string&
 		ss << strMessageMagic;
 		ss << strMessage;
 		vector<unsigned char> vchSig;
+		// 9-20-2018 - Uninitialized Sig
 		if (!key.SignCompact(ss.GetHash(), vchSig))
 		{
 			sError = "Sign failed";
@@ -3401,13 +4483,11 @@ std::string GenerateNewAddress(std::string& sError, std::string sName)
 			return "";
 		}
 		CKeyID keyID = newKey.GetID();
-		std::string strAccount = "";
-		pwalletMain->SetAddressBook(keyID, strAccount, sName);
+		pwalletMain->SetAddressBook(keyID, sName, "receive"); //receive == visible in address book, hidden = non-visible
+		LogPrintf(" created new address %s ", CBitcoinAddress(keyID).ToString().c_str());
 		return CBitcoinAddress(keyID).ToString();
 	}
 }
-
-
 
 std::string GetMyPublicKeys()
 {
@@ -3553,7 +4633,7 @@ bool AdvertiseDistributedComputingKey(std::string sProjectId, std::string sAuth,
 	}
 }
 
-double GetMinimumRequiredUTXOStake(double dRAC)
+double GetMinimumRequiredUTXOStake(double dRAC, double dFactor)
 {
 	double dReqSPM = GetSporkDouble("requiredspm", 500);
 	double dReqSPR = GetSporkDouble("requiredspr", 0);
@@ -3562,12 +4642,12 @@ double GetMinimumRequiredUTXOStake(double dRAC)
 	LogPrintf(" getminimumrequiredutxostake RAC %f, reqspm %f, reqspr %f ",dRAC, dReqSPM, dReqSPR);
 	if (dReqSPM > 0) 
 	{
-		dRequirement = dEstimatedMagnitude * dReqSPM * 1.1;
+		dRequirement = dEstimatedMagnitude * dReqSPM * dFactor;
 	}
 	else if (dReqSPR > 0)
 	{
 		// If using Stake-Per-RAC, then 
-		dRequirement = dRAC * dReqSPR * 1.1;
+		dRequirement = dRAC * dReqSPR * dFactor;
 	}
 	if (dRequirement < 10) dRequirement = 10;
 	return dRequirement;
@@ -3613,8 +4693,16 @@ bool PODCUpdate(std::string& sError, bool bForce, std::string sDebugInfo)
 		return false;
 	}
 	double dDRMode = cdbl(GetSporkValue("dr"), 0);
+	// 0) Heavenly               = UTXOWeight * TaskWeight * RAC = Magnitude
+	// 1) Possessed by UTXO      = UTXOWeight * RAC = Magnitude
+	// 2) Possessed by Tasks     = TaskWeight * RAC = Magnitude  
+	// 3) The-Law                = RAC = Magnitude
+	// 4) DR (Disaster-Recovery) = Proof-Of-BibleHash Only (Heat Mining only) (Mode 1, 3, 4 are not checking tasks)
+	bool bCheckingTasks = true;
+	if (dDRMode == 1 || dDRMode == 3 || dDRMode == 4) bCheckingTasks = false;
+
 	bool bForceUTXO = false;
-	if (dDRMode > 1)
+	if (!bCheckingTasks)
 	{
 		// In this mode the sanctuaries are not checking tasks, so forcefully send a UTXO Update (to allow backup project to function)
 		sDebugInfo = "00000=00000";
@@ -3659,6 +4747,7 @@ bool PODCUpdate(std::string& sError, bool bForce, std::string sDebugInfo)
 									sOutstanding += sTaskID + "=" + sTimestamp + ",";
 									iInserted++;
 									if (iInserted > 255 || sOutstanding.length() > 35000) break; // Don't let them blow up the blocksize
+									if (iInserted > 1 && !bCheckingTasks) break; // Don't spam the transactions if we aren't using the data
 								}
 							}
 						}
@@ -3688,7 +4777,7 @@ bool PODCUpdate(std::string& sError, bool bForce, std::string sDebugInfo)
 				{
 					double dRAC = AscertainResearcherTotalRAC();
 					double dUTXOOverride = cdbl(GetArg("-utxooverride", "0"), 2);
-					double dUTXOAmount = GetMinimumRequiredUTXOStake(dRAC);
+					double dUTXOAmount = GetMinimumRequiredUTXOStake(dRAC, 1.1);
 					if (dUTXOOverride > 0 || dUTXOOverride < 0) dUTXOAmount = dUTXOOverride;
 					LogPrintf(" PODCUpdate::Creating UTXO, Users RAC %f for %f ",dRAC, (double)dUTXOAmount);
 					CAmount curBalance = pwalletMain->GetUnlockedBalance(); // 3-5-2018, R Andrews
@@ -3790,7 +4879,7 @@ int64_t RetrieveCPIDAssociationTime(std::string cpid)
 std::string GetDCCPublicKey(const std::string& cpid, bool fRequireSig)
 {
 	if (cpid.empty()) return "";
-	int iMonths = 11;
+	int iMonths = 120;
     int64_t iMaxSeconds = 60 * 24 * 30 * iMonths * 60;
     std::string sData = RetrieveDCCWithMaxAge(cpid, iMaxSeconds);
     if (sData.empty())
@@ -3881,15 +4970,14 @@ UniValue UTXOReport(std::string sCPID)
 
 
 
-double GetUserMagnitude(double& nBudget, double& nTotalPaid, int& out_iLastSuperblock, std::string& out_Superblocks, int& out_SuperblockCount, int& out_HitCount, double& out_OneDayPaid, double& out_OneWeekPaid, double& out_OneDayBudget, double& out_OneWeekBudget)
+double GetUserMagnitude(std::string sListOfPublicKeys, double& nBudget, double& nTotalPaid, int& out_iLastSuperblock, std::string& out_Superblocks, int& out_SuperblockCount, int& out_HitCount, double& out_OneDayPaid, double& out_OneWeekPaid, double& out_OneDayBudget, double& out_OneWeekBudget)
 {
-	std::string sPK = GetMyPublicKeys();
 	// Query actual magnitude from last superblock
 	const Consensus::Params& consensusParams = Params().GetConsensus();
 	int iNextSuperblock = 0;  
 	for (int b = chainActive.Tip()->nHeight; b > 1; b--)
 	{
-		int iLastSuperblock = GetLastDCSuperblockHeight(b+1, iNextSuperblock);
+		int iLastSuperblock = GetLastDCSuperblockHeight(b + 1, iNextSuperblock);
 		if (iLastSuperblock == b)
 		{
 			out_SuperblockCount++;
@@ -3908,14 +4996,14 @@ double GetUserMagnitude(double& nBudget, double& nTotalPaid, int& out_iLastSuper
 				            std::string sRecipient = PubKeyToAddress(block.vtx[0].vout[i].scriptPubKey);
 							double dAmount = block.vtx[0].vout[i].nValue/COIN;
 							nTotalBlock += dAmount;
-							if (Contains(sPK, sRecipient))
+							if (Contains(sListOfPublicKeys, sRecipient))
 							{
 								nTotalPaid += dAmount;
 								if (Age > 0 && Age < 86400)
 								{
 									out_OneDayPaid += dAmount;
 								}
-								if (Age > 0 && Age < (7*86400)) out_OneWeekPaid += dAmount;
+								if (Age > 0 && Age < (7 * 86400)) out_OneWeekPaid += dAmount;
 							}
 					  }
 					  if (nTotalBlock > (nBudget * .50) && nBudget > 0) 
@@ -3927,11 +5015,11 @@ double GetUserMagnitude(double& nBudget, double& nTotalPaid, int& out_iLastSuper
 							{
 								out_OneDayBudget += nBudget;
 							}
-							if (Age > 0 && Age < (7*86400)) 
+							if (Age > 0 && Age < (7 * 86400)) 
 							{
 								out_OneWeekBudget += nBudget;
 							}
-							if (Age > (7*86400)) 
+							if (Age > (7 * 86400)) 
 							{
 								break;
 							}
@@ -4019,24 +5107,37 @@ int GetLastDCSuperblockHeight(int nCurrentHeight, int& nNextSuperblock)
     // Compute last/next superblock
     int nLastSuperblock = 0;
     int nSuperblockStartBlock = Params().GetConsensus().nDCCSuperblockStartBlock;
-    int nSuperblockCycle = Params().GetConsensus().nDCCSuperblockCycle;
-    int nFirstSuperblockOffset = (nSuperblockCycle - nSuperblockStartBlock % nSuperblockCycle) % nSuperblockCycle;
-    int nFirstSuperblock = nSuperblockStartBlock + nFirstSuperblockOffset;
-    if(nCurrentHeight < nFirstSuperblock)
+    // int nSuperblockCycle = Params().GetConsensus().nDCCSuperblockCycle;
+    // int nFirstSuperblockOffset = (nSuperblockCycle - nSuperblockStartBlock % nSuperblockCycle) % nSuperblockCycle;
+	// 6-5-2018 - R ANDREWS - CASCADING SUPERBLOCKS 
+	// So this looks complicated, but this logic allows us to transition over the F12000-F13000 superblock interval cycle change with a broken schedule in-between
+	int nHeight = nCurrentHeight;
+	for (; nHeight > nSuperblockStartBlock; nHeight--)
 	{
-        nLastSuperblock = 0;
-        nNextSuperblock = nFirstSuperblock;
-    } 
-	else 
+		if (CSuperblock::IsDCCSuperblock(nHeight))
+		{
+			nLastSuperblock = nHeight;
+			break;
+		}
+	}
+	nHeight++;
+	for (; nHeight > nSuperblockStartBlock; nHeight++)
 	{
-        nLastSuperblock = nCurrentHeight - (nCurrentHeight % nSuperblockCycle);
-        nNextSuperblock = nLastSuperblock + nSuperblockCycle;
-    }
+		if (CSuperblock::IsDCCSuperblock(nHeight))
+		{
+			nNextSuperblock = nHeight;
+			break;
+		}
+	}
 	return nLastSuperblock;
-
 }
 
 
+std::string ToYesNo(bool bValue)
+{
+	std::string sYesNo = bValue ? "Yes" : "No";
+	return sYesNo;
+}
 
 
 uint256 PercentToBigIntBase(int iPercent)
@@ -4096,13 +5197,18 @@ std::string ExecuteDistributedComputingSanctuaryQuorumProcess()
 	// If not a sanctuary, exit
 	if (!fDistributedComputingEnabled) return "";
 	if (fProd && chainActive.Tip()->nHeight < F11000_CUTOVER_HEIGHT_PROD) return "";
+	
+	// 4-3-2018 - R ANDREWS - Honor Sanctuary Aggregator Nodes
+	double dAggregationRank = cdbl(GetArg("-sanctuaryrank", "0"), 0);
+	bool bAggregator = (dAggregationRank > 0 && dAggregationRank < 10);
+	if (!AmIMasternode()) return "NOT_A_SANCTUARY";
+	
 	// This happens on sanctuaries only.  The node will check to see if the contract duration expired.
 	// When it expires, we must assemble a new contract as a sanctuary team.
 	// Since the contract is valid for 86400 seconds, we start this process one hour early (IE 82800 seconds after the last valid contract started)
-	if (!AmIMasternode()) return "NOT_A_SANCTUARY";
 	if (!chainActive.Tip()) return "INVALID_CHAIN";
 	std::string sContract = RetrieveCurrentDCContract(chainActive.Tip()->nHeight, 82800);
-	if (!sContract.empty()) return "ACTIVE_CONTRACT";
+	if (!sContract.empty() && !bAggregator) return "ACTIVE_CONTRACT";
 
 	int iNextSuperblock = 0;
 	int iLastSuperblock = GetLastDCSuperblockHeight(chainActive.Tip()->nHeight, iNextSuperblock);
@@ -4117,9 +5223,6 @@ std::string ExecuteDistributedComputingSanctuaryQuorumProcess()
 	std::string sError = "";
 		
 	bool bPending = iPendingVotes >= GetRequiredQuorumLevel(chainActive.Tip()->nHeight);
-	// 4-3-2018 - R ANDREWS - Honor Sanctuary Aggregator Nodes
-	double dAggregationRank = cdbl(GetArg("-sanctuaryrank", "0"), 0);
-	bool bAggregator = (dAggregationRank > 0 && dAggregationRank < 10);
 	
 	if (bPending && !bAggregator) 
 	{
@@ -4135,8 +5238,13 @@ std::string ExecuteDistributedComputingSanctuaryQuorumProcess()
 			int64_t nAge = GetDCCFileAge();
 			uint256 uDCChash = GetDCCFileHash();
 			sContract = GetDCCFileContract();
-			LogPrintf(" DCC hash %s  Age %f ",uDCChash.GetHex(), (float)nAge);
-			if (uDCChash == uint256S("0x0") || nAge > (60 * 60 * 4))
+			// Synchronized Sanctuary Quorum Download:  R ANDREWS - 6-26-2018
+			int64_t iFileTimestamp = GetDCCFileTimestamp();
+			// Is file older than the current quorum timestamp:
+			bool bIsOld = IsMature(iFileTimestamp, 60 * 60 * 4);
+			LogPrintf(" DCC hash %s  Age %f  FileTimeStamp %f   IsOld  %s ",uDCChash.GetHex(), (float)nAge, (float)iFileTimestamp, ToYesNo(bIsOld).c_str());
+			
+			if (uDCChash == uint256S("0x0") || bIsOld)
 			{
 				// Pull down the distributed computing file
 				LogPrintf("\n Chosen Sanctuary - pulling down the DCC file... Aggregator %f, Percentile %f \n", dAggregationRank, MyPercentile(iLastSuperblock));
@@ -4205,6 +5313,15 @@ int64_t GetDCCFileAge()
 	return nAge;
 }
 
+int64_t GetDCCFileTimestamp()
+{
+	std::string sDailyMagnitudeFile = GetSANDirectory2() + "magnitude";
+	boost::filesystem::path pathFiltered(sDailyMagnitudeFile);
+	if (!boost::filesystem::exists(pathFiltered)) return GetAdjustedTime() - 0;
+	int64_t nTime = last_write_time(pathFiltered);
+	return nTime;
+}
+
 
 std::string GetBoincPasswordHash(std::string sProjectPassword, std::string sProjectEmail)
 {
@@ -4246,7 +5363,7 @@ std::string GetBoincTasksByHost(int iHostID, std::string sProjectId)
 }
 
 
-bool FilterPhase1(std::string sConcatCPIDs, std::string sSourcePath, std::string sTargetPath, std::vector<std::string> vCPIDs)
+bool FilterPhase1(int iNextSuperblock, std::string sConcatCPIDs, std::string sSourcePath, std::string sTargetPath, std::vector<std::string> vCPIDs)
 {
 	boost::filesystem::path pathIn(sSourcePath);
     std::ifstream streamIn;
@@ -4289,8 +5406,8 @@ bool FilterPhase1(std::string sConcatCPIDs, std::string sSourcePath, std::string
 							if (bAddlData) sBuffer += line + "<ROW>";
 						}
 
-						double dUTXOWeight = cdbl(ReadCacheWithMaxAge("UTXOWeight", sCpid, nMaxAge), 0);
-						double dTaskWeight = cdbl(ReadCacheWithMaxAge("TaskWeight", sCpid, nMaxAge), 0);
+						double dUTXOWeight = GetMatureMetric("UTXOWeight", sCpid, nMaxAge, iNextSuperblock);
+						double dTaskWeight = GetMatureMetric("TaskWeight", sCpid, nMaxAge, iNextSuperblock);
 						double dUnbanked = cdbl(ReadCacheWithMaxAge("Unbanked", sCpid, nMaxAge), 0);
 						std::string sExtra = "<utxoweight>" + RoundToString(dUTXOWeight, 0) 
 							+ "</utxoweight>\r\n<taskweight>" 
@@ -4314,8 +5431,46 @@ bool FilterPhase1(std::string sConcatCPIDs, std::string sSourcePath, std::string
 }
 
 
-double GetExtraRacFromBackupProject(std::string sFileName, std::string sResearcherCPID, double dDRMode, double dReqSPM, double dReqSPR, double dTeamRequired,
-	double dProjectFactor)
+bool FilterPhase2(int iNextSuperblock, std::string sSourcePath, std::string sTargetPath, double dTargetTeam)
+{
+	boost::filesystem::path pathIn(sSourcePath);
+    std::ifstream streamIn;
+    streamIn.open(pathIn.string().c_str());
+	if (!streamIn) return false;
+
+	FILE *outFile = fopen(sTargetPath.c_str(), "w");
+	std::string sBuffer = "";
+	// This file is used by the faucets; Find all team members who are not necessarily yet associated in the chain:
+	std::string line;
+     
+    while(std::getline(streamIn, line))
+    {
+		  sBuffer += line;
+		  if (Contains(sBuffer,"</user>"))
+		  {
+			  	 std::string sCpid = ExtractXML(sBuffer,"<cpid>","</cpid>");
+				 double dTeamID = cdbl(ExtractXML(sBuffer,"<teamid>","</teamid>"), 0);
+				 double dRac = cdbl(ExtractXML(sBuffer,"<expavg_credit>","</expavg_credit>"), 0);
+				 double dTotalRAC = cdbl(ExtractXML(sBuffer,"<total_credit>","</total_credit>"), 0);
+				 double dCreated = cdbl(ExtractXML(sBuffer,"<create_time>","</create_time>"), 0);
+				 std::string sName = ExtractXML(sBuffer,"<name>","</name>");
+				 if (dTargetTeam == dTeamID)
+				 {
+					 std::string sRow = sCpid + "," + RoundToString(dTeamID,0) + "," + RoundToString(dRac,0) + "," + RoundToString(dTotalRAC,0) + "," + RoundToString(dCreated,0) + "," + sName + "\r\n";
+					 fputs(sRow.c_str(), outFile);
+				 }
+				 sBuffer="";
+		  }
+				 
+    }
+	streamIn.close();
+    fclose(outFile);
+	return true;
+}
+
+
+double GetRACFromPODCProject(int iNextSuperblock, std::string sFileName, std::string sResearcherCPID, double dDRMode, double dReqSPM, double dReqSPR, double dTeamRequired,
+	double dProjectFactor, double dRACThreshhold, std::string sTeamBlacklist, double& out_Team)
 {
 	boost::filesystem::path pathFiltered(sFileName);
 	std::ifstream streamFiltered;
@@ -4323,11 +5478,14 @@ double GetExtraRacFromBackupProject(std::string sFileName, std::string sResearch
 	if (!streamFiltered) return 0;
 	std::string sUser = "";
 	int64_t nMaxAge = (int64_t)GetSporkDouble("podcmaximumchatterage", (60 * 60 * 24));
-	double dUTXOWeight = cdbl(ReadCacheWithMaxAge("UTXOWeight", sResearcherCPID, nMaxAge), 0);
-	double dTaskWeight = cdbl(ReadCacheWithMaxAge("TaskWeight", sResearcherCPID, nMaxAge), 0);
+	double dUTXOWeight = GetMatureMetric("UTXOWeight", sResearcherCPID, nMaxAge, iNextSuperblock);
+	double dTaskWeight = GetMatureMetric("TaskWeight", sResearcherCPID, nMaxAge, iNextSuperblock);
+	double dNonBiblepayTeamPercentage = cdbl(GetSporkValue("nonbiblepayteampercentage"), 2);
+
 	double dUnbanked = cdbl(ReadCacheWithMaxAge("Unbanked", sResearcherCPID, nMaxAge), 0);
 	double dTotalRAC = 0;
 	double dTotalFound = 0;
+	boost::to_upper(sResearcherCPID);
 	std::string line = "";
     while(std::getline(streamFiltered, line))
     {
@@ -4335,18 +5493,16 @@ double GetExtraRacFromBackupProject(std::string sFileName, std::string sResearch
 		if (Contains(line, "</user>"))
 		{
 			std::string sCPID = ExtractXML(sUser, "<cpid>", "</cpid>");
+			boost::to_upper(sCPID);
 			if (sCPID == sResearcherCPID)
 			{
 				double dAvgCredit = cdbl(ExtractXML(sUser, "<expavg_credit>", "</expavg_credit>"), 4);
 				double dTeam = cdbl(ExtractXML(sUser, "<teamid>", "</teamid>"), 0);
-				// std::string sBackupProjectUserID = ExtractXML(sUser, "<id>", "</id>");
-				double dModifiedCredit = GetResearcherCredit(dDRMode, dAvgCredit, dUTXOWeight, dTaskWeight, dUnbanked, dTotalRAC, dReqSPM, dReqSPR) * dProjectFactor;
-				if (fDebugMaster) LogPrintf(" CPID %s, ExtraRAC %f, Team %f, TeamReq %f  ", sCPID.c_str(), dModifiedCredit, dTeam, dTeamRequired);
-				bool bTeamMatch = (dTeamRequired > 0) ? (dTeam == dTeamRequired) : true;
-				if (bTeamMatch)
-				{
-					dTotalFound += dModifiedCredit;
-				}
+				out_Team = dTeam;
+				// if (fDebugMaster) LogPrintf(" CPID %s, ExtraRAC %f, Team %f, TeamReq %f  ", sCPID.c_str(), dModifiedCredit, dTeam, dTeamRequired);
+				double dPercent = GetTeamPercentage(dTeam, dTeamRequired, sTeamBlacklist, dNonBiblepayTeamPercentage);
+				double dModifiedCredit = GetResearcherCredit(dDRMode, dAvgCredit, dUTXOWeight, dTaskWeight, dUnbanked, dTotalRAC, dReqSPM, dReqSPR, dRACThreshhold, dPercent) * dProjectFactor;
+				dTotalFound += dModifiedCredit;
 			}
 			sUser = "";
 		}
@@ -4354,6 +5510,56 @@ double GetExtraRacFromBackupProject(std::string sFileName, std::string sResearch
 	streamFiltered.close();
 	return dTotalFound;
 }
+
+int64_t GetHistoricalMilestoneAge(int64_t nMaturityAge, int64_t nOffset)
+{
+	// This function returns the timestamp in history of the last PODC Quorum Cutoff (by default the quorum cutoff occurs once every 4 hours)
+	int64_t nNow = GetAdjustedTime();
+	int64_t nRemainder = nNow % nMaturityAge;
+	int64_t nLookback = nRemainder + nOffset;
+	return nLookback;
+}
+
+std::string GetMatureString(std::string sMetricName, std::string sPrimaryKey, int64_t nMaxAge, int nHeight)
+{
+	std::string sMetric = "";
+	if ((fProd && nHeight > F13000_CUTOVER_HEIGHT_PROD) || (!fProd && nHeight > F13000_CUTOVER_HEIGHT_TESTNET))
+	{
+		// Do it the new way (Gather everything that is mature, with no maximum age)
+		// Mature means we stake a point in history (one timestamp per day) as Yesterdays point, and mature means it is older than that historical point.
+		// This should theoretically allow the sancs to come to a more perfect consensus each day for PODC elements: DCCs (Distinct CPIDs), UTXOWeights (UTXO Stake Amounts), TaskWeights (Task confirmations), and Unbanked Indicators
+		std::string sNewMetricName = "Mature" + sMetricName;
+		sMetric = ReadCacheWithMaxAge(sNewMetricName, sPrimaryKey, GetHistoricalMilestoneAge(14400, nMaxAge));
+	}
+	else
+	{
+		// Do it the old fashioned way (Gather everything up to chain tip, honoring maximum age)
+		sMetric = ReadCacheWithMaxAge(sMetricName, sPrimaryKey, nMaxAge);
+	}
+	return sMetric;
+}
+
+
+double GetMatureMetric(std::string sMetricName, std::string sPrimaryKey, int64_t nMaxAge, int nHeight)
+{
+	double dMetric = 0;
+	if ((fProd && nHeight > F13000_CUTOVER_HEIGHT_PROD) || (!fProd && nHeight > F13000_CUTOVER_HEIGHT_TESTNET))
+	{
+		// Do it the new way (Gather everything that is mature, with no maximum age)
+		// Mature means we stake a point in history (one timestamp per day) as Yesterdays point, and mature means it is older than that historical point.
+		// This should theoretically allow the sancs to come to a more perfect consensus each day for PODC elements: DCCs (Distinct CPIDs), UTXOWeights (UTXO Stake Amounts), TaskWeights (Task confirmations), and Unbanked Indicators
+		std::string sNewMetricName = "Mature" + sMetricName;
+		dMetric = cdbl(ReadCacheWithMaxAge(sNewMetricName, sPrimaryKey, GetHistoricalMilestoneAge(14400, nMaxAge)), 0);
+	}
+	else
+	{
+		// Do it the old fashioned way (Gather everything up to chain tip, honoring maximum age)
+		dMetric = cdbl(ReadCacheWithMaxAge(sMetricName, sPrimaryKey, nMaxAge), 0);
+	}
+	return dMetric;
+}
+		
+
 
 bool FilterFile(int iBufferSize, int iNextSuperblock, std::string& sError)
 {
@@ -4373,12 +5579,25 @@ bool FilterFile(int iBufferSize, int iNextSuperblock, std::string& sError)
     int64_t nMaxAge = (int64_t)GetSporkDouble("podcmaximumchatterage", (60 * 60 * 24));
 	double dReqSPM = GetSporkDouble("requiredspm", 500);
 	double dReqSPR = GetSporkDouble("requiredspr", 0);
+	double dRACThreshhold = GetSporkDouble("racthreshhold", 0);
+	//double dNonBiblepayTeamPercentage = cdbl(GetSporkValue("nonbiblepayteampercentage"), 2);
 
+	std::string sTeamBlacklist = GetSporkValue("teamblacklist");
 	std::string sConcatCPIDs = "";
 	std::string sUnbankedList = MutateToList(GetBoincUnbankedReport("pool"));
-	ClearSanctuaryMemories();
-	ClearCache("Unbanked");
+	if (true)
+	{
+		ClearSanctuaryMemories();
+		// 6-15-2018 R ANDREWS
+		LOCK(cs_main);
+		{
+			// This ensures that all mature CPIDs (assessed as of yesterdays single timestamp point) are memorized (IE we didnt skip over any because they were not mature 1-4 hours ago)
+			MemorizeBlockChainPrayers(false, false, false, true);
+		}
+	}
 
+	ClearCache("Unbanked");
+	double dDRMode = cdbl(GetSporkValue("dr"), 0);
 	for (int i = 0; i < (int)vCPIDs.size(); i++)
 	{
 		std::string sCPID1 = GetDCCElement(vCPIDs[i], 0, true);
@@ -4388,8 +5607,10 @@ bool FilterFile(int iBufferSize, int iNextSuperblock, std::string& sError)
 		if (!sCPID1.empty())
 		{
 			if (!sCPID1.empty()) sConcatCPIDs += sCPID1 + ",";
-			std::string sTaskList = ReadCacheWithMaxAge("CPIDTasks", sCPID1, nMaxAge);
-			double dVerifyTasks = VerifyTasks(sCPID1, sTaskList);
+			std::string sTaskList = GetMatureString("CPIDTasks", sCPID1, nMaxAge, iNextSuperblock);
+			double dVerifyTasks = 0;
+			// R ANDREWS; 5-9-2018
+			if (dDRMode == 0 || dDRMode == 2) dVerifyTasks = VerifyTasks(sCPID1, sTaskList);
 			WriteCache("TaskWeight", sCPID1, RoundToString(dVerifyTasks, 0), GetAdjustedTime());
 			if (dRosettaID > 0 && IsInList(sUnbankedList, ",", RoundToString(dRosettaID,0)))
 			{
@@ -4405,33 +5626,40 @@ bool FilterFile(int iBufferSize, int iNextSuperblock, std::string& sError)
 		}
 	}
 	boost::to_upper(sConcatCPIDs);
-	LogPrintf("CPID List concatenated %s, unbanked %s  ",sConcatCPIDs.c_str(), sUnbankedList.c_str());
+	if (fDebugMaster) LogPrintf("Filter Phase 1: CPID List concatenated %s, unbanked %s  ",sConcatCPIDs.c_str(), sUnbankedList.c_str());
+
 	// Filter each BOINC Project file down to the individual BiblePay records
 
-	bool bResult = FilterPhase1(sConcatCPIDs, sTarget, sFiltered, vCPIDs);
+	bool bResult = FilterPhase1(iNextSuperblock, sConcatCPIDs, sTarget, sFiltered, vCPIDs);
 	if (!bResult)
 	{
 		LogPrintf(" \n FilterFile::FilterPhase 1 failed. \n");
 		return false;
 	}
+	std::string sTeamFile1 = GetSANDirectory2() + "team1";
+	std::string sTeamFile2 = GetSANDirectory2() + "team2";
+
+	double dTeamRequired = cdbl(GetSporkValue("team"), 0);
+	double dTeamBackupProject = cdbl(GetSporkValue("team2"), 0);
+	
+	bResult = FilterPhase2(iNextSuperblock, sTarget, sTeamFile1, dTeamRequired);
 
 	std::string sTarget2 = GetSANDirectory2() + "user2";
 	std::string sFiltered2 = GetSANDirectory2() + "filtered2";
 	
     if (boost::filesystem::exists(sTarget2.c_str())) 
 	{
-		FilterPhase1(sConcatCPIDs, sTarget2, sFiltered2, vCPIDs);
+		FilterPhase1(iNextSuperblock, sConcatCPIDs, sTarget2, sFiltered2, vCPIDs);
     }
+	bResult = FilterPhase2(iNextSuperblock, sTarget2, sTeamFile2, dTeamBackupProject);
 
 	//  Phase II : Normalize the file for Biblepay (this process asseses the magnitude of each BiblePay Researcher relative to one another, with 100 being the leader, 0 being a researcher with no activity)
 	//  We measure users by RAC - the BOINC Decay function: expavg_credit.  This is the half-life of the users cobblestone emission over a one month period.
-	double dTeamRequired = cdbl(GetSporkValue("team"), 0);
-	double dTeamBackupProject = cdbl(GetSporkValue("team2"), 0);
 	
-	double dRAC1 = GetSumOfXMLColumnFromXMLFile(sFiltered, "<user>", "expavg_credit", dReqSPM, dReqSPR, dTeamRequired, sConcatCPIDs);
-	double dRAC2 = GetSumOfXMLColumnFromXMLFile(sFiltered2,"<user>", "expavg_credit", dReqSPM, dReqSPR, dTeamBackupProject, sConcatCPIDs);
+	double dRAC1 = GetSumOfXMLColumnFromXMLFile(sFiltered, "<user>", "expavg_credit", dReqSPM, dReqSPR, dTeamRequired, sConcatCPIDs, dRACThreshhold, sTeamBlacklist, iNextSuperblock);
+	double dRAC2 = GetSumOfXMLColumnFromXMLFile(sFiltered2,"<user>", "expavg_credit", dReqSPM, dReqSPR, dTeamBackupProject, sConcatCPIDs, dRACThreshhold, sTeamBlacklist, iNextSuperblock);
 	double dTotalRAC = dRAC1 + dRAC2;
-	LogPrintf(" \n Proj1 RAC %f, Proj2 RAC %f, Total RAC %f \n", dRAC1, dRAC2, dTotalRAC);
+	LogPrintf(" \n FilterPhase2: Team %f, backupteam %f, Proj1 RAC %f, Proj2 RAC %f, Total RAC %f \n", dTeamRequired, dTeamBackupProject, dRAC1, dRAC2, dTotalRAC);
 	if (dTotalRAC < 10)
 	{
 		sError = "Total DC credit less than the project minimum.  Unable to calculate magnitudes.";
@@ -4445,6 +5673,8 @@ bool FilterFile(int iBufferSize, int iNextSuperblock, std::string& sError)
 	int iTries = 0;
 	// Adding a more robust contract creator loop, just in case magnitude exceeds 1000 due to rounding errors, this gives the sanctuary a second chance to make it correct.
 	double dGlobalMagnitudeFactor = 1;  
+	double dTotalRosetta = 0;
+	double dTotalWCG = 0;
 	int iRows = 0;
 	double dTotalMagnitude = 0;
 	std::string sDCC = "";
@@ -4452,73 +5682,84 @@ bool FilterFile(int iBufferSize, int iNextSuperblock, std::string& sError)
 	while(true)
 	{
 		iTries++;
-		if (iTries > 7) break;
-		boost::filesystem::path pathFiltered(sFiltered);
-		std::ifstream streamFiltered;
-		streamFiltered.open(pathFiltered.string().c_str());
-		if (!streamFiltered) 
-		{
-			sError = "Unable to open filtered file";
-			return false;
-		}
+		if (iTries > 70) break;
 
 		std::string sUser = "";
 		sDCC = "";
 		double dBackupProjectFactor = cdbl(GetSporkValue("project2factor"), 2);
 		double dDRMode = cdbl(GetSporkValue("dr"), 0);
+		std::string sTeamBlacklist = GetSporkValue("teamblacklist");
 		dTotalMagnitude = 0;
+		dTotalRosetta = 0;
+		dTotalWCG = 0;
 		iRows = 0;
-
-		while(std::getline(streamFiltered, line))
+		
+		// ********************************************************************   Phase 3: Assemble Magnitudes   **********************************************************************************
+		double doutWCGTeam = 0;
+		double doutRAHTeam = 0;
+		for (int i = 0; i < (int)vCPIDs.size(); i++)
 		{
-			sUser += line;
-			if (Contains(line, "</user>"))
+			std::string sPreCPID = GetDCCElement(vCPIDs[i], 0, false);
+			double dUnbanked = cdbl(ReadCacheWithMaxAge("Unbanked", sPreCPID, nMaxAge), 0);
+			bool fRequireSig = dUnbanked == 1 ? false : true;
+			std::string sCPID = GetDCCElement(vCPIDs[i], 0, fRequireSig);
+			double dRosettaID = cdbl(GetDCCElement(vCPIDs[i], 3, false), 0);
+			if (!sCPID.empty())
 			{
-				std::string sCPID = ExtractXML(sUser, "<cpid>", "</cpid>");
-				double dAvgCredit = cdbl(ExtractXML(sUser, "<expavg_credit>", "</expavg_credit>"), 4);
-				double dTeam = cdbl(ExtractXML(sUser, "<teamid>", "</teamid>"), 0);
-				std::string sRosettaID = ExtractXML(sUser, "<id>", "</id>");
-				double dUTXOWeight = cdbl(ReadCacheWithMaxAge("UTXOWeight", sCPID, nMaxAge), 0);
-				double dTaskWeight = cdbl(ReadCacheWithMaxAge("TaskWeight", sCPID, nMaxAge), 0);
-				double dUnbanked = cdbl(ReadCacheWithMaxAge("Unbanked", sCPID, nMaxAge), 0);
-				bool bTeamMatch = (dTeamRequired > 0) ? (dTeam == dTeamRequired) : true;
+				double dUTXOWeight = GetMatureMetric("UTXOWeight", sCPID, nMaxAge, iNextSuperblock);
+				double dTaskWeight = GetMatureMetric("TaskWeight", sCPID, nMaxAge, iNextSuperblock);
 				// If backup project enabled, add additional credit
-				double dExtraRAC = 0;
-				if (dTeamBackupProject > 0)
+				double dWCGRAC = 0;
+				if (dTeamBackupProject > 0) 
 				{
-					dExtraRAC = GetExtraRacFromBackupProject(sFiltered2, sCPID, dDRMode, dReqSPM, dReqSPR, dTeamBackupProject, dBackupProjectFactor);
+					// Note that dDR Mode is set to 3 so that we can penalize the user based on the TOTAL UTXO LEVEL BELOW, not once per project (since they fit in ONE UTXO LEVEL SLOT):
+					dWCGRAC = GetRACFromPODCProject(iNextSuperblock, sFiltered2, sCPID, 3, dReqSPM, dReqSPR, dTeamBackupProject, dBackupProjectFactor, dRACThreshhold, sTeamBlacklist, doutWCGTeam);
 				}
+				double dRosettaRAC = GetRACFromPODCProject(iNextSuperblock, sFiltered, sCPID, 3, dReqSPM, dReqSPR, dTeamRequired, 1.0, dRACThreshhold, sTeamBlacklist, doutRAHTeam);
 
-				// Base GetResearcherCredit on the sum of RAH + WCG
-				double dModifiedCredit = GetResearcherCredit(dDRMode, dAvgCredit + dExtraRAC, dUTXOWeight, dTaskWeight, dUnbanked, dTotalRAC, dReqSPM, dReqSPR);
+				dTotalRosetta += dRosettaRAC;
+				dTotalWCG += dWCGRAC;
 
-				if (bTeamMatch)
+				double dModifiedCredit = GetResearcherCredit(dDRMode, dRosettaRAC + dWCGRAC, dUTXOWeight, dTaskWeight, dUnbanked, dTotalRAC, dReqSPM, dReqSPR, dRACThreshhold, 1);
+				// R ANDREW : BIBLEPAY : We include any CPID with adj. credit > 0 or RAC > 100 so that the user can see this record in the superblock view report (IE they have 0 UTXO WEIGHT and want to diagnose the problem).  We filter out adjusted RAC of zero (zero mag reward) with < 100 RAC (decaying long gone boincers) for a succinct superblock contract.
+				if (dModifiedCredit > 0 || (dRosettaRAC + dWCGRAC > 9))
 				{
-					bool fRequireSig = dUnbanked == 1 ? false : true;
 					std::string BPK = GetDCCPublicKey(sCPID, fRequireSig);
 					double dMagnitude = (dModifiedCredit / dTotalRAC) * 999 * dGlobalMagnitudeFactor;
-					double dUTXO = GetUTXOLevel(dUTXOWeight, dTotalRAC, dAvgCredit + dExtraRAC, dReqSPM, dReqSPR);
-					std::string sRow = BPK + "," + sCPID + "," + RoundToString(dMagnitude, 3) + "," + sRosettaID + "," + RoundToString(dTeam, 0) 
-						+ "," + RoundToString(dUTXOWeight, 0) + "," + RoundToString(dTaskWeight, 0) 
-						+ "," + RoundToString(dTotalRAC, 0) + "," 
-						+ RoundToString(dUnbanked, 0) + "," + RoundToString(dUTXO, 2) + "," + RoundToString(dAvgCredit,0) + "," 
-						+ RoundToString(dModifiedCredit, 0) + "," + RoundToString(iNextSuperblock, 0) + ","
-						+ RoundToString(dExtraRAC, 0) + "\n<ROW>";
-					sDCC += sRow;
-					dTotalMagnitude += dMagnitude;
-					iRows++;
+					double dUTXO = GetUTXOLevel(dUTXOWeight, dTotalRAC, dRosettaRAC + dWCGRAC, dReqSPM, dReqSPR, dRACThreshhold);
+					if (!BPK.empty())
+					{
+						std::string sRow = BPK + "," + sCPID + "," + RoundToString(dMagnitude, 3) + "," 
+							+ RoundToString(dRosettaID, 0) + "," + RoundToString(doutRAHTeam, 0) 
+							+ "," + RoundToString(dUTXOWeight, 0) + "," + RoundToString(dTaskWeight, 0) 
+							+ "," + RoundToString(dTotalRAC, 0) + "," 
+							+ RoundToString(dUnbanked, 0) + "," + RoundToString(dUTXO, 2) + "," + RoundToString(dRosettaRAC, 0) + "," 
+							+ RoundToString(dModifiedCredit, 0) + "," + RoundToString(iNextSuperblock, 0) + ","
+							+ RoundToString(dWCGRAC, 0) + "," + RoundToString(doutWCGTeam, 0) + "\n<ROW>";
+						sDCC += sRow;
+						dTotalMagnitude += dMagnitude;
+						iRows++;
+					}
+					else
+					{
+						if (fDebugMaster) LogPrintf(" Non-Included DCC CPID %s , RosettaRAC %f, WCGRAC %f, UTXO Weight %f, Task Weight %f, DRMode %f, RacThreshhold %f, TotalRAC %f \n",
+							sCPID.c_str(), dRosettaRAC, dWCGRAC, dUTXOWeight, dTaskWeight, dDRMode, dRACThreshhold, dTotalRAC);
+					}
+				}
+				else
+				{
+					if (fDebugMaster) LogPrintf(" Non-Included CPID %s , RosettaRAC %f, WCGRAC %f, UTXO Weight %f, Task Weight %f, DRMode %f, RacThreshhold %f, TotalRAC %f \n",
+						sCPID.c_str(), dRosettaRAC, dWCGRAC, dUTXOWeight, dTaskWeight, dDRMode, dRACThreshhold, dTotalRAC);
 				}
 				sUser = "";
 			}
 		}
-		streamFiltered.close();
 		if (dTotalMagnitude < 1000) break;
 		// Magnitude exceeded 1000, adjust the global factor:
 		dGlobalMagnitudeFactor -= .02;
-		LogPrintf("\n FilterFile::AssessMagnitudeLevels, Attempt #%f, GlobalMagnitudeFactor %f \n", iTries, dGlobalMagnitudeFactor);
+		if (fDebugMaster) LogPrintf("\n FilterFile::AssessMagnitudeLevels, Attempt #%f, GlobalMagnitudeFactor %f, Current Magnitude %f  TotalRosetta %f, Total WCG %f \n", iTries, dGlobalMagnitudeFactor, dTotalMagnitude, dTotalRosetta, dTotalWCG);
 	}
 	/* End of Assess Magnitude Levels */
-
 
     // Phase 3: Create the Daily Magnitude Contract and hash it
 	FILE *outMagFile = fopen(sDailyMagnitudeFile.c_str(),"w");
@@ -4569,8 +5810,6 @@ uint256 GetDCPAMHash(std::string sAddresses, std::string sAmounts)
 	return uint256S("0x" + sHash);
 }
 
-
-
 int GetLastDCSuperblockWithPayment(int nChainHeight)
 {
 	const Consensus::Params& consensusParams = Params().GetConsensus();
@@ -4599,8 +5838,6 @@ int GetLastDCSuperblockWithPayment(int nChainHeight)
 	return 0;
 }
 
-
-
 double GetBlockMagnitude(int nChainHeight)
 {
 	const Consensus::Params& consensusParams = Params().GetConsensus();
@@ -4627,12 +5864,29 @@ double GetBlockMagnitude(int nChainHeight)
 }
 
 
-double GetPaymentByCPID(std::string CPID)
+double GetPaymentByCPID(std::string CPID, int nHeight)
 {
-	// 2-10-2018 - R ANDREWS - BIBLEPAY - Provide ability to return last payment amount (in most recent superblock) for a given CPID
+	// 616WestWarnsworth - 6-27-2018 - Change the rule (in order to heat mine) from 'CPID with Magnitude' to 'CPID that has staked a UTXO within the last 7 days'
+	// In order for this function to pass the checkblock test, the return value must be > .50
 	std::string sDCPK = GetDCCPublicKey(CPID, true);
 	if (sDCPK.empty()) return -2;
 	if (CPID.empty()) return -3;
+
+	if ((fProd && nHeight > F13000_CUTOVER_HEIGHT_PROD) || (!fProd && nHeight > F13000_CUTOVER_HEIGHT_TESTNET))
+	{
+		// The new way - CPIDs Research address must have had a payment within the last 7 days:
+		/* Reserved:  Tracking UTXO Amount Staked in last 7 Days
+		
+		double dUTXOStakedInLast7Days = cdbl(ReadCacheWithMaxAge("MatureUTXOWeight", CPID, GetHistoricalMilestoneAge(14400, 60 * 60 * 24 * 7)), 0);
+		return dUTXOStakedInLast7Days;
+		*/
+		double dPODCPayments = cdbl(ReadCacheWithMaxAge("AddressPayment", sDCPK, GetHistoricalMilestoneAge(14400, 60 * 60 * 24 * 7)), 0);
+		return dPODCPayments;
+	}
+	// Otherwise fall through to the old way...
+
+
+	// 2-10-2018 - R ANDREWS - BIBLEPAY - Provide ability to return last payment amount (in most recent superblock) for a given CPID
 	const Consensus::Params& consensusParams = Params().GetConsensus();
 	int iNextSuperblock = 0;  
 	int iLastSuperblock = GetLastDCSuperblockHeight(chainActive.Tip()->nHeight, iNextSuperblock);
@@ -4640,9 +5894,9 @@ double GetPaymentByCPID(std::string CPID)
 	CBlock block;
 	double nTotalBlock = 0;
 	double nBudget = 0;
-	if (pindex==NULL) return -1;
+	if (pindex == NULL) return -1;
 	double nTotalPaid=0;
-	nTotalBlock=0;
+	nTotalBlock = 0;
 	if (ReadBlockFromDisk(block, pindex, consensusParams, "GetPaymentByCPID")) 
 	{
 		nBudget = CSuperblock::GetPaymentsLimit(iLastSuperblock) / COIN;
@@ -4669,10 +5923,12 @@ double GetPaymentByCPID(std::string CPID)
 }
 
 
-bool VoteForGobject(uint256 govobj, std::string& sError)
+bool VoteForGobject(uint256 govobj, std::string sVoteOutcome, std::string& sError)
 {
 	    vote_signal_enum_t eVoteSignal = CGovernanceVoting::ConvertVoteSignal("funding");
-        vote_outcome_enum_t eVoteOutcome = CGovernanceVoting::ConvertVoteOutcome("yes");
+		//yes, no or abstain
+
+        vote_outcome_enum_t eVoteOutcome = CGovernanceVoting::ConvertVoteOutcome(sVoteOutcome);
         int nSuccessful = 0;
         int nFailed = 0;
         std::vector<unsigned char> vchMasterNodeSignature;
@@ -4710,7 +5966,6 @@ bool VoteForGobject(uint256 govobj, std::string& sError)
 }
 
 
-
 bool VoteForDistributedComputingContract(int nHeight, std::string sMyContract, std::string sError)
 {
 	int iPendingVotes = 0;
@@ -4732,7 +5987,7 @@ bool VoteForDistributedComputingContract(int nHeight, std::string sMyContract, s
 
 	if (sPaymentAddresses.empty() || sAmounts.empty())
 	{
-		sError = "Ünable to vote for DC Contract::Foreign addresses or amounts empty.";
+		sError = "Unable to vote for DC Contract::Foreign addresses or amounts empty.";
 		return false;
 	}
 
@@ -4747,7 +6002,7 @@ bool VoteForDistributedComputingContract(int nHeight, std::string sMyContract, s
 		sError = "Unable to vote for DC Contract::My local contract Amounts != foreign contract amounts.";
 		return false;
 	}
-	bool bResult = VoteForGobject(uGovObjHash, sError);
+	bool bResult = VoteForGobject(uGovObjHash, "yes", sError);
 	return bResult;
 }
 
@@ -4758,8 +6013,6 @@ int GetSanctuaryCount()
 	int iSanctuaryCount = vMasternodeRanks.size();
 	return iSanctuaryCount;
 }
-
-
 
 bool AmIMasternode()
 {
@@ -4813,11 +6066,10 @@ void GetDistributedComputingGovObjByHeight(int nHeight, uint256 uOptFilter, int&
 }
 
 
-
 int GetRequiredQuorumLevel(int nHeight)
 {
 	// This is an anti-ddos feature that prevents ddossing the distributed computing grid
-	// REQUIREDQUORUM = X - Testnet Phase 3 change
+	// REQUIREDQUORUM = 10% or 2%
 	int iSanctuaryQuorumLevel = fProd ? .10 : .02;
 	int iRequiredVotes = GetSanctuaryCount() * iSanctuaryQuorumLevel;
 	if (fProd && iRequiredVotes < 3) iRequiredVotes = 3;
@@ -4829,7 +6081,7 @@ int GetRequiredQuorumLevel(int nHeight)
 
 bool GetContractPaymentData(std::string sContract, int nBlockHeight, std::string& sPaymentAddresses, std::string& sAmounts)
 {
-	// 2-19-2018 - Proof-of-distributed-computing
+	// Proof-of-distributed-computing (Feb 19th 2018)
 	CAmount nDCPaymentsTotal = CSuperblock::GetPaymentsLimit(nBlockHeight);
 	uint256 uHash = GetDCCHash(sContract);
 	double nTotalMagnitude = 0;
@@ -4865,14 +6117,13 @@ bool GetContractPaymentData(std::string sContract, int nBlockHeight, std::string
 			double dMagnitude = cdbl(vCPID[2],2);
 			if (!sCpid.empty() && dMagnitude > 0 && !sAddress.empty())
 			{
-				// 3-23-2018
 				CBitcoinAddress cbaResearcherAddress(sAddress);
 				if (cbaResearcherAddress.IsValid()) 
 				{
 					double dOwed = PaymentPerMagnitude * dMagnitude;
 					dTotalPaid += dOwed;
 					sPaymentAddresses += sAddress + "|";
-					sAmounts += RoundToString(dOwed,2) + "|";
+					sAmounts += RoundToString(dOwed, 2) + "|";
 				}
 			}
 		}
@@ -4890,7 +6141,7 @@ bool GetContractPaymentData(std::string sContract, int nBlockHeight, std::string
 std::string GetDCCElement(std::string sData, int iElement, bool fCheckSignature)
 {
     std::vector<std::string> vDecoded = Split(sData.c_str(),";");
-	if (vDecoded.size() < 5 || (vDecoded.size() < (unsigned int)iElement)) return "";
+	if (vDecoded.size() < 5 || (vDecoded.size() < (unsigned int)(iElement + 1))) return "";
 	std::string sCPID = vDecoded[0];
 	std::string sPubKey = vDecoded[2];
 	std::string sUserId = vDecoded[3];
@@ -4926,7 +6177,8 @@ bool VerifyCPIDSignature(std::string sFullSig, bool bRequireEndToEndVerification
 		std::string sDCPK = GetDCCPublicKey(sCPID, true);
 		if (sDCPK != sPK) 
 		{
-			LogPrintf(" End To End CPID Verification Failed, Address does not match advertised public key for CPID %s, Advertised Addr %s, Addr %s ", sCPID.c_str(), sDCPK.c_str(), sPK.c_str());
+			std::string sCPIDError = "End To End CPID Verification Failed, Address does not match advertised public key for CPID " + sCPID + ", Advertised Addr " + sDCPK + ", Addr " + sPK;
+			NonObnoxiousLog("cpid", "VerifyCPIDSignature", sCPIDError, 300);
 			return false;
 		}
 	}
@@ -5017,6 +6269,17 @@ std::string VerifyManyWorkUnits(std::string sProjectId, std::string sTaskIds)
 	std::string sRestfulURL = "rosetta/result_status.php?ids=" + sTaskIds;
 	std::string sResponse = BiblepayHTTPSPost(true, 0, "", "", "", sProjectURL, sRestfulURL, 443, "", 15, 275000, 2);
 	return sResponse;
+}
+
+double GetPBase()
+{
+	std::string sBase1 = DecodeBase64(GetSporkValue("pbase1"));
+	std::string sBase2 = DecodeBase64(GetSporkValue("pbase2"));
+	std::string sBase3 = DecodeBase64(GetSporkValue("pbase3"));
+	std::string sError = "";
+	std::string sRes = BiblepayHTTPSPost(false, 0, "", "", "", sBase1, sBase2, 443, "", 15, 35000, 3);
+	double dBase1 = cdbl(ExtractXML(sRes, sBase3 + "\":", "}"), 12);
+    return dBase1;
 }
 
 std::string GetBoincHostsByUser(int iRosettaID, std::string sProjectId)
@@ -5204,10 +6467,6 @@ std::string GetBoincUnbankedReport(std::string sProjectID)
 	return sUnbanked;
 }
 
-
-
-
-
 std::string SetBoincResearcherHexCode(std::string sProjectId, std::string sAuthCode, std::string sHexKey)
 {
 	std::string sProjectURL = "https://" + GetSporkValue(sProjectId);
@@ -5217,6 +6476,7 @@ std::string SetBoincResearcherHexCode(std::string sProjectId, std::string sAuthC
 	std::string sHexCode = ExtractXML(sResponse, "<url>","</url>");
 	return sHexCode;
 }
+
 std::string GetWorkUnitResultElement(std::string sProjectId, int nWorkUnitID, std::string sElement)
 {
  	std::string sProjectURL = "http://" + GetSporkValue(sProjectId);
@@ -5244,6 +6504,15 @@ double GetWCGRACByCPID(std::string sCPID)
 	return dRac;
 }
 
+double GetTeamRAC()
+{
+	std::string sProjectURL = "http://" + GetSporkValue("pool");
+	std::string sRestfulURL = "Action.aspx?action=teamrac&format=xml";
+	std::string sResponse = BiblepayHTTPSPost(true, 0, "", "", "", sProjectURL, sRestfulURL, 443, "", 20, 5000, 1);
+	double dRac = cdbl(ExtractXML(sResponse,"<TEAMRAC>", "</TEAMRAC>"), 2);
+	return dRac;
+}
+
 double GetBoincTeamByUserId(std::string sProjectId, int nUserId)
 {
 	std::string sProjectURL = "http://" + GetSporkValue(sProjectId);
@@ -5253,31 +6522,117 @@ double GetBoincTeamByUserId(std::string sProjectId, int nUserId)
 	return dTeam;
 }
 
+bool VerifyDarkSendSigner(std::string sXML)
+{
+	std::string sSignature = ExtractXML(sXML, "<sig>", "</sig>");
+	std::string sSigner = ExtractXML(sXML, "<signer>", "</signer>");
+	std::string sMessage = ExtractXML(sXML, "<message>", "</message>");
+	std::string sError = "";
+	bool fValid = CheckStakeSignature(sSigner, sSignature, sMessage, sError);
+	return fValid;
+}
+
+double GetQTPhase(double dPrice, int nEventHeight, double& out_PriorPrice, double& out_PriorPhase)
+{
+	// If -1 is passed in, the caller wants the prior days QT level and price.
+    double nMaximumTighteningPercentage = GetSporkDouble("qtmaxpercentage", 0);
+	// If feature is off return 0:
+	if (nMaximumTighteningPercentage == 0) return 0;
+	double nPriceThreshhold = GetSporkDouble("qtpricethreshhold", 0);
+	
+	// Step 1:  If our price is > QTPriceThreshhold (initially .01), we are in phase 0
+	if (dPrice >= nPriceThreshhold) return 0;
+	// Step 2: If price is 0, something is wrong.
+	if (dPrice == 0) return 0;
+	
+	// Step 3: Get yesterdays phase
+	// Find the last superblock height before this height
+	
+	const Consensus::Params& consensusParams = Params().GetConsensus();
+	int iNextSuperblock = 0;
+	nEventHeight -= 1;
+	int nTotalSamples = 3;
+	// Check N Samples for the first valid price and phase
+	for (int iDay = 0; iDay < nTotalSamples; iDay++)
+	{
+		int iLastSuperblock = GetLastDCSuperblockHeight(nEventHeight-1, iNextSuperblock);
+		//LogPrintf(" Looking for superblock before %f at %f ", nEventHeight, iLastSuperblock);
+		if (iLastSuperblock > chainActive.Tip()->nHeight)
+		{
+			LogPrintf(" Last Superblock %f, tip %f ", iLastSuperblock, chainActive.Tip()->nHeight);
+		}
+		if (nEventHeight < 1000 || iLastSuperblock < 1000 || iLastSuperblock > chainActive.Tip()->nHeight) return 0;
+		std::string sXML = "";
+		CBlockIndex* pindex = FindBlockByHeight(iLastSuperblock);
+		if (pindex != NULL)
+		{
+			CBlock block;
+			if (ReadBlockFromDisk(block, pindex, consensusParams, "IsGovObjPaid")) 
+			{
+				for (unsigned int i = 0; i < block.vtx[0].vout.size(); i++)
+				{
+					sXML += block.vtx[0].vout[i].sTxOutMessage;
+				}		
+			}
+			bool bValid = VerifyDarkSendSigner(sXML);
+			if (bValid)
+			{
+				out_PriorPhase = cdbl(ExtractXML(sXML, "<qtphase>", "</qtphase>"), 0);
+				out_PriorPrice = cdbl(ExtractXML(sXML, "<price>", "</price>"), 12);
+				break;
+			}
+			else
+			{
+				// LogPrintf(" unable to verify price %s for height %f ",sXML.c_str(), iLastSuperblock);
+			}
+		}
+		else
+		{
+			return 0;
+		}
+		nEventHeight -= consensusParams.nDCCSuperblockCycle;
+		if (nEventHeight < 1000) break;
+	}
+	double dPhase = out_PriorPhase + 1;
+	if (dPhase > nMaximumTighteningPercentage) dPhase = nMaximumTighteningPercentage; 
+	return dPhase;
+}
 
 std::string SerializeSanctuaryQuorumTrigger(int nEventBlockHeight, std::string sContract)
 {
-		std::string sEventBlockHeight = RoundToString(nEventBlockHeight,0);
-		std::string sPaymentAddresses = "";
-		std::string sPaymentAmounts = "";
-		bool bStatus = GetContractPaymentData(sContract, nEventBlockHeight, sPaymentAddresses, sPaymentAmounts);
-		if (!bStatus) return "";
-		std::string sProposalHashes = GetDCCHash(sContract).GetHex();
-		std::string sType = "2"; //DC Trigger is always 2
-		std::string sQ = "\"";
-		std::string sJson = "[[" + sQ + "trigger" + sQ + ",{";
-		sJson += GJE("event_block_height", sEventBlockHeight, true, false); // Must be an int
-		sJson += GJE("payment_addresses", sPaymentAddresses, true, true);
-		sJson += GJE("payment_amounts", sPaymentAmounts, true, true);
-		sJson += GJE("proposal_hashes", sProposalHashes, true, true);
-		//sJson += GJE("contract", sContract, true, true);
-		sJson += GJE("type", sType, false, false); 
-		sJson += "}]]";
-	    std::vector<unsigned char> vchJson = vector<unsigned char>(sJson.begin(), sJson.end());
-		std::string sHex = HexStr(vchJson.begin(), vchJson.end());
-	    return sHex;
+	std::string sEventBlockHeight = RoundToString(nEventBlockHeight,0);
+	std::string sPaymentAddresses = "";
+	std::string sPaymentAmounts = "";
+	bool bStatus = GetContractPaymentData(sContract, nEventBlockHeight, sPaymentAddresses, sPaymentAmounts);
+	if (!bStatus) return "";
+	std::string sProposalHashes = GetDCCHash(sContract).GetHex();
+	std::string sType = "2"; //DC Trigger is always 2
+	std::string sQ = "\"";
+	std::string sJson = "[[" + sQ + "trigger" + sQ + ",{";
+	sJson += GJE("event_block_height", sEventBlockHeight, true, false); // Must be an int
+	sJson += GJE("payment_addresses", sPaymentAddresses,  true, true);
+	sJson += GJE("payment_amounts",   sPaymentAmounts,    true, true);
+	sJson += GJE("proposal_hashes",   sProposalHashes,    true, true);
+	// QT - Quantitative Tightening - R ANDREWS - 9-14-2018
+	double dPrice = GetPBase();
+	std::string sPrice = RoundToString(dPrice, 12);
+	sJson += GJE("price", sPrice, true, true);
+	double out_PriorPrice = 0;
+	double out_PriorPhase = 0;
+	double dPhase = GetQTPhase(dPrice, nEventBlockHeight, out_PriorPrice, out_PriorPhase);
+	std::string sPhase = RoundToString(dPhase, 0);
+	sJson += GJE("qtphase", sPhase, true, true);
+	std::string sSig = SignPrice(sPrice);
+	sJson += GJE("sig", sSig, true, true);
+	bool fSigValid = VerifyDarkSendSigner(sSig);
+	LogPrintf("Creating Contract Sig %s  sigvalid %f ",sSig.c_str(),(double)fSigValid);
+
+	sJson += GJE("type", sType, false, false); 
+	sJson += "}]]";
+	std::vector<unsigned char> vchJson = vector<unsigned char>(sJson.begin(), sJson.end());
+	std::string sHex = HexStr(vchJson.begin(), vchJson.end());
+	return sHex;
 }
-
-
 
 
 double VerifyTasks(std::string sCPID, std::string sTasks)
@@ -5339,6 +6694,27 @@ std::string AssociateDCAccount(std::string sProjectId, std::string sBoincEmail, 
 }
 
 
+double GetTeamPercentage(double dUserTeam, double dProjectTeam, std::string sTeamBlacklist, double dNonBiblepayTeamPercentage)
+{
+	// Return a reward percentage for a given team 
+	// First, if blacklists are enabled, if user team is in blacklist, reject the users RAC
+	if (!sTeamBlacklist.empty())
+	{
+		std::vector<std::string> vTeams = Split(sTeamBlacklist.c_str(), ";");
+		for (int i = 0; i < (int)vTeams.size(); i++)
+		{
+			double dBlacklistedTeam = cdbl(vTeams[i], 0);
+			if (dBlacklistedTeam != 0 && dUserTeam != 0 && dBlacklistedTeam == dUserTeam)
+			{
+				return 0;
+			}
+		}
+	}
+	if (dProjectTeam == 0) return 1;
+	// Next, if BiblePay team is required, verify the team matches
+	return (dUserTeam == dProjectTeam) ? 1 : dNonBiblepayTeamPercentage;
+}
+
 
 std::vector<std::string> GetListOfDCCS(std::string sSearch, bool fRequireSig)
 {
@@ -5372,7 +6748,8 @@ std::vector<std::string> GetListOfDCCS(std::string sSearch, bool fRequireSig)
 }
 
 
-double GetSumOfXMLColumnFromXMLFile(std::string sFileName, std::string sObjectName, std::string sElementName, double dReqSPM, double dReqSPR, double dTeamRequired, std::string sConcatCPIDs)
+double GetSumOfXMLColumnFromXMLFile(std::string sFileName, std::string sObjectName, std::string sElementName, double dReqSPM, double dReqSPR, double dTeamRequired, std::string sConcatCPIDs, 
+	double dRACThreshhold, std::string sTeamBlacklist, int iNextSuperblock)
 {
 	boost::filesystem::path pathIn(sFileName);
     std::ifstream streamIn;
@@ -5382,6 +6759,9 @@ double GetSumOfXMLColumnFromXMLFile(std::string sFileName, std::string sObjectNa
 	std::string sLine = "";
 	std::string sBuffer = "";
 	double dDRMode = cdbl(GetSporkValue("dr"), 0);
+	double dNonBiblepayTeamPercentage = cdbl(GetSporkValue("nonbiblepayteampercentage"), 2);
+	//int64_t nMaxAge = (int64_t)GetSporkDouble("podcmaximumchatterage", (60 * 60 * 24));
+	
     while(std::getline(streamIn, sLine))
     {
 		sBuffer += sLine;
@@ -5399,14 +6779,15 @@ double GetSumOfXMLColumnFromXMLFile(std::string sFileName, std::string sObjectNa
 		boost::to_upper(sCPID);
 		if (Contains(sConcatCPIDs, sCPID))
 		{
-			bool bTeamMatch = (dTeamRequired > 0) ? (dTeam == dTeamRequired) : true;
-			if (bTeamMatch)
+			double dTeamPercentage = GetTeamPercentage(dTeam, dTeamRequired, sTeamBlacklist, dNonBiblepayTeamPercentage);
+			if (dTeamPercentage > 0)
 			{
 				std::string sValue = ExtractXML(sData, "<" + sElementName + ">","</" + sElementName + ">");
 				double dAvgCredit = cdbl(sValue,2);
-				double dModifiedCredit = GetResearcherCredit(dDRMode, dAvgCredit, dUTXOWeight, dTaskWeight, dUnbanked, 0, dReqSPM, dReqSPR);
+				double dModifiedCredit = GetResearcherCredit(dDRMode, dAvgCredit, dUTXOWeight, dTaskWeight, dUnbanked, 0, dReqSPM, dReqSPR, dRACThreshhold, dTeamPercentage);
 				dTotal += dModifiedCredit;
-				// LogPrintf(" Adding %f from RAC of %f Grand Total %f \n", dModifiedCredit, dAvgCredit, dTotal);
+				if (fDebugMaster && false) LogPrintf(" Adding CPID %s, Team %f, modifiedrac %f from RAC %f  with nonbbptp %f   DRMode %f,  Grand Total %f \n", 
+					sCPID.c_str(), dTeam, dModifiedCredit, dAvgCredit, dNonBiblepayTeamPercentage, dDRMode, dTotal);
 			}
 		}
     }
@@ -5450,6 +6831,35 @@ std::string GetCPIDByAddress(std::string sAddress, int iOffset)
 	return "";
 }
 
+void RecoverOrphanedChainNew(int iCondition)
+{
+	// R Andrews - Aug 12th, 2018 - The Heavy Handed Method
+	// Trying this method since RecoverOrphanedChain segafaults, due to having a NULL mapblockindex pointer on blocks where the ~BLOCK_INVALID mask is set (when getchaintips shows a potential invalid chain with more work).
+	StartShutdown(1); //this notifies the daemon
+}
+
+
+void RecoverOrphanedChain(int iCondition)
+{
+	// This process is designed to recover from normal forks.
+	// Since we mark a block as Dirty when it occurs, the wallet cannot recover around a bad block unless the block is reconsidered.
+	// (This can happen if a heat-mined block is considered bad but as since has gone over the 15 min threshhold, and may want to be reconsidered).
+	// Condition 1 = Found Chain with More Work
+	// Condition 2 = Blocks marked as invalid
+	// Condition 3 = No ancestor
+	// Attempt to mark these blocks as clean and reprocess 3 days worth of blocks as long as we have not attempted this within 750 seconds:
+	if (iCondition == 2)
+	{
+		if (!TimerMain("InvalidBlock", 10)) return;
+	}
+	bool bAllowed = NonObnoxiousLog("RecoverOrphanedChain", "BlockChainTools", "1", 750);
+	if (bAllowed)
+	{
+		LogPrintf("\n Attempting to Recover Block Chain under %f condition... %f \n", (double)GetAdjustedTime(), (double)iCondition);
+		ReprocessBlocks(BLOCKS_PER_DAY * 3);
+		LogPrintf("\n Finished. %f \n", (double)GetAdjustedTime());
+	}
+}
 
 
 std::string GetGithubVersion()
@@ -5485,4 +6895,843 @@ uint256 GetDCCFileHash()
 	std::string sContract = GetDCCFileContract();
 	uint256 uhash = GetDCCHash(sContract);
 	return uhash;    
+}
+
+bool IsGovObjPaid(std::string sGobjId)
+{
+	if (sGobjId.empty()) return false;
+	std::string strType = "triggers";
+    int nStartTime = 0; 
+	nStartTime = GetAdjustedTime() - (86400 * 64);
+   
+    std::vector<CGovernanceObject*> objs = governance.GetAllNewerThan(nStartTime);
+	std::string sDelim = "|";
+	const Consensus::Params& consensusParams = Params().GetConsensus();
+				
+    BOOST_FOREACH(CGovernanceObject* pGovObj, objs)
+    {
+            if(strType == "proposals" && pGovObj->GetObjectType() != GOVERNANCE_OBJECT_PROPOSAL) continue;
+            if(strType == "triggers" && pGovObj->GetObjectType() != GOVERNANCE_OBJECT_TRIGGER) continue;
+            if(strType == "watchdogs" && pGovObj->GetObjectType() != GOVERNANCE_OBJECT_WATCHDOG) continue;
+
+			UniValue obj = pGovObj->GetJSONObject();
+			int iAbsYes = pGovObj->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING);
+			int nHeight = obj["event_block_height"].get_int();
+			std::string sLocalHash = pGovObj->GetHash().GetHex();
+		
+			// 6-19-2018 - R ANDREWS - CHECK IF PROPOSAL WAS PAID
+			if (nHeight > 0 && iAbsYes > 0 && nHeight <= chainActive.Tip()->nHeight)
+			{
+				std::string sProposalHashes = obj["proposal_hashes"].get_str();
+
+				if (false)
+				{
+						LogPrintf(" Hash %s, Height %f, IsGovObjPaid, govobj %s -- ProposalHashes %s, AbsYesCount %f, nHeight %f \n", 
+							sLocalHash.c_str(), (double)nHeight, sGobjId.c_str(), 
+							sProposalHashes.c_str(), (double)iAbsYes, (double)nHeight);
+				}
+			
+				if (Contains(sProposalHashes, sGobjId))
+				{
+					// Trigger contains	the proposal, and it has a net yes vote, lets see if it was actually paid
+					std::string sPaymentAddresses = obj["payment_addresses"].get_str();
+					std::string sPaymentAmounts = obj["payment_amounts"].get_str();
+					if (false) LogPrintf("IsGovObjPaid::Paymentaddresses %s", sPaymentAddresses.c_str());
+
+					CBlockIndex* pindex = FindBlockByHeight(nHeight);
+					if (!pindex || sPaymentAddresses.empty() || sPaymentAmounts.empty()) 
+					{
+						LogPrintf("Trigger @ %f Not Found  or addresses empty or amounts empty",(double)nHeight);
+						return false;
+					}
+
+					CBlock block;
+					std::string sBlockPayments = "";
+					std::string sBlockRecips = "";
+					if (ReadBlockFromDisk(block, pindex, consensusParams, "IsGovObjPaid")) 
+					{
+						for (unsigned int i = 0; i < block.vtx[0].vout.size(); i++)
+						{
+							double dAmount = block.vtx[0].vout[i].nValue / COIN;
+							std::string sRecipient = PubKeyToAddress(block.vtx[0].vout[i].scriptPubKey);
+							sBlockPayments += RoundToString(dAmount,2) + "|";
+							sBlockRecips += sRecipient + "|";
+						}
+
+						if (false) LogPrintf("Verifying blockpayments %s, block recips %s ",sBlockPayments.c_str(), sBlockRecips.c_str());
+
+						// Now verify the block paid the proposals in the trigger
+						std::vector<std::string> vPAD = Split(sPaymentAddresses.c_str(), "|");
+						std::vector<std::string> vPAM = Split(sPaymentAmounts.c_str(), "|");
+						if (vPAD.size() != vPAM.size())
+						{
+							LogPrintf("IsGovObjPaid::vPAD != vPAM size.\n");
+							return false;
+						}
+						if (vPAD.size() < 1 || vPAM.size() < 1) 
+						{
+							LogPrintf("IsGovObjePaid::vPAD size < 1");
+							return false;
+						}
+						for (int i = 0; i < (int)vPAD.size() && i < (int)vPAM.size(); i++)
+						{
+							if (!(Contains(sPaymentAmounts, RoundToString(cdbl(vPAM[i],2),2)) && Contains(sPaymentAddresses, vPAD[i])))
+							{
+								LogPrintf("IsGovObjPaid::Payment for %s %s not found. ",vPAM[i].c_str(), vPAD[i].c_str());
+								return false;
+							}
+						}
+						// All payments and addresses were found in this superblock; success.
+						return true;
+					}
+				}
+			}
+			// ... Iterate to next gobject
+	}
+	// Gobject Not found - Or trigger not paid
+	if (false) LogPrintf("Gobj not found.");
+	return false;
+}
+
+
+std::string GetActiveProposals()
+{
+	std::string strType = "proposals";
+    int nStartTime = GetAdjustedTime() - (86400 * 32);
+    LOCK2(cs_main, governance.cs);
+    std::vector<CGovernanceObject*> objs = governance.GetAllNewerThan(nStartTime);
+	/*
+	Bhavanis input format = <proposal>1,proposal name1,amount1,expensetype1,createtime1,yescount1,nocount1,abstaincount1,url1
+	Proposal format:   "DataString": "[[\"proposal\",{\"end_epoch\":\"1525409746\",\"name\":\"MacOS compiles - iOS version support machine\",\"payment_address\":\
+	"BE2XrQurnfzbqAGgMX9F8dXEyReML2Zr6H\",\"payment_amount\":\"270270\",\"start_epoch\":\"1525409746\",\"type\":1,\"url\":\"https://forum.biblepay.org/index.php?topic=171.0\"}]]",
+	"Hash": "3a89aed047f627edee22853b8a7b3b3fbb5b6298d42ff78a495c4e38c0107fff",
+    "CollateralHash": "6b5ca3adc9c8a4536721a79a2a40dd7d1ce682e06132bee52700bb9940d7553c",
+    "ObjectType": 1,
+	*/
+
+	std::string sXML = "";
+	int id = 0;
+	std::string sDelim = "|";
+	std::string sZero = "\0";
+    BOOST_FOREACH(CGovernanceObject* pGovObj, objs)
+    {
+		if(strType == "proposals" && pGovObj->GetObjectType() != GOVERNANCE_OBJECT_PROPOSAL) continue;
+        if(strType == "triggers" && pGovObj->GetObjectType() != GOVERNANCE_OBJECT_TRIGGER) continue;
+        if(strType == "watchdogs" && pGovObj->GetObjectType() != GOVERNANCE_OBJECT_WATCHDOG) continue;
+		UniValue obj = pGovObj->GetJSONObject();
+		std::string sHash = pGovObj->GetHash().GetHex();
+		// First ensure it has not been paid already
+		bool bIsPaid = IsGovObjPaid(sHash);
+		if (!bIsPaid)
+		{
+			int iYes = pGovObj->GetYesCount(VOTE_SIGNAL_FUNDING);
+			int iNo = pGovObj->GetNoCount(VOTE_SIGNAL_FUNDING);
+			int iAbstain = pGovObj->GetAbstainCount(VOTE_SIGNAL_FUNDING);
+			id++;
+			// Attempt to retrieve the expense type from the JSON object
+			std::string sCharityType = "";
+			try
+			{
+				sCharityType = obj["expensetype"].get_str();
+			}
+			catch (const std::runtime_error& e) 
+			{
+				sCharityType = "NA";
+			}
+   			if (sCharityType.empty()) sCharityType = "N/A";
+			std::string sEndEpoch = obj["end_epoch"].get_str();
+			if (!sEndEpoch.empty())
+			{
+				std::string sProposalTime = TimestampToHRDate(cdbl(sEndEpoch,0));
+				std::string sURL = obj["url"].get_str();
+				if (id == 1) sURL += "&t=" + RoundToString(GetAdjustedTime(), 0);
+				// proposal_hashes
+				std::string sRow = "<proposal>" + sHash + sDelim 
+					+ obj["name"].get_str() + sDelim 
+					+ obj["payment_amount"].get_str() + sDelim
+					+ sCharityType + sDelim
+					+ sProposalTime + sDelim
+					+ RoundToString(iYes,0) + sDelim
+					+ RoundToString(iNo,0) + sDelim + RoundToString(iAbstain,0) 
+					+ sDelim + sURL;
+				sXML += sRow;
+			}
+		}
+	}
+	if (fDebugMaster && false) LogPrintf("Proposals %s \n", sXML.c_str());
+	return sXML;
+}
+
+std::string SignPrice(std::string sValue)
+{
+	 CMasternode mn;
+     if(mnodeman.Get(activeMasternode.vin, mn)) 
+	 {
+         CBitcoinAddress mnAddress(mn.pubKeyCollateralAddress.GetID());
+		 if (mnAddress.IsValid()) 
+		 {
+			std::string sNonceValue = RoundToString(GetAdjustedTime(), 0);
+	        std::string sError = "";
+			std::string sSignature = "";
+			bool bSigned = SignStake(mnAddress.ToString(), sValue + sNonceValue, sError, sSignature);
+			if (bSigned) 
+			{
+				std::string sDarkSendSigner = "<signer>" + mnAddress.ToString() + "</signer><sig>" + sSignature + "</sig><message>" + sValue + sNonceValue + "</message>";
+				return sDarkSendSigner;
+			}
+		 }
+	 }
+	 return "";
+}
+
+bool VoteManyForGobject(std::string govobj, std::string strVoteSignal, std::string strVoteOutcome, 
+	int iVotingLimit, int& nSuccessful, int& nFailed, std::string& sError)
+{
+        uint256 hash(uint256S(govobj));
+		vote_signal_enum_t eVoteSignal = CGovernanceVoting::ConvertVoteSignal(strVoteSignal);
+		if(eVoteSignal == VOTE_SIGNAL_NONE) 
+		{
+			sError = "Invalid vote signal (funding).";
+			return false;
+		}
+
+        vote_outcome_enum_t eVoteOutcome = CGovernanceVoting::ConvertVoteOutcome(strVoteOutcome);
+        if(eVoteOutcome == VOTE_OUTCOME_NONE) 
+		{
+            sError = "Invalid vote outcome (yes/no/abstain)";
+			return false;
+	    }
+
+        std::vector<CMasternodeConfig::CMasternodeEntry> mnEntries;
+        mnEntries = masternodeConfig.getEntries();
+        UniValue resultsObj(UniValue::VOBJ);
+
+        BOOST_FOREACH(CMasternodeConfig::CMasternodeEntry mne, masternodeConfig.getEntries()) 
+		{
+            std::string strError;
+            std::vector<unsigned char> vchMasterNodeSignature;
+            std::string strMasterNodeSignMessage;
+
+            CPubKey pubKeyCollateralAddress;
+            CKey keyCollateralAddress;
+            CPubKey pubKeyMasternode;
+            CKey keyMasternode;
+
+            UniValue statusObj(UniValue::VOBJ);
+
+            if(!darkSendSigner.GetKeysFromSecret(mne.getPrivKey(), keyMasternode, pubKeyMasternode))
+			{
+                nFailed++;
+                sError += "Masternode signing error, could not set key correctly. (" + mne.getAlias() + ")";
+                continue;
+            }
+
+            uint256 nTxHash;
+            nTxHash.SetHex(mne.getTxHash());
+
+            int nOutputIndex = 0;
+            if(!ParseInt32(mne.getOutputIndex(), &nOutputIndex)) 
+			{
+                continue;
+            }
+
+            CTxIn vin(COutPoint(nTxHash, nOutputIndex));
+
+            CMasternode mn;
+            bool fMnFound = mnodeman.Get(vin, mn);
+
+            if(!fMnFound) 
+			{
+                nFailed++;
+				sError += "Can't find masternode by collateral output (" + mne.getAlias() + ")";
+                continue;
+            }
+
+            CGovernanceVote vote(mn.vin, hash, eVoteSignal, eVoteOutcome);
+            if(!vote.Sign(keyMasternode, pubKeyMasternode))
+			{
+                nFailed++;
+				sError += "Failure to sign. (" + mne.getAlias() + ")";
+                continue;
+            }
+
+            CGovernanceException exception;
+            if(governance.ProcessVoteAndRelay(vote, exception)) 
+			{
+                nSuccessful++;
+				if (iVotingLimit > 0 && nSuccessful >= iVotingLimit) break;
+            }
+            else 
+			{
+                nFailed++;
+				sError += "Error (" + exception.GetMessage() + ")";
+            }
+
+        }
+
+     	return (nSuccessful > 0) ? true : false;
+}
+
+
+
+std::string CreateGovernanceCollateral(uint256 GovObjHash, CAmount caFee, std::string& sError)
+{
+	CWalletTx wtx;
+	if(!pwalletMain->GetBudgetSystemCollateralTX(wtx, GovObjHash, caFee, false)) 
+	{
+		sError = "Error creating collateral transaction for governance object.  Please check your wallet balance and make sure your wallet is unlocked.";
+		return "";
+	}
+	if (sError.empty())
+	{
+		// -- make our change address
+		CReserveKey reservekey(pwalletMain);
+		pwalletMain->CommitTransaction(wtx, reservekey, NetMsgType::TX);
+		DBG( cout << "gobject: prepare "
+					<< " strData = " << govobj.GetDataAsString()
+					<< ", hash = " << govobj.GetHash().GetHex()
+					<< ", txidFee = " << wtx.GetHash().GetHex()
+					<< endl; );
+		return wtx.GetHash().ToString();
+	}
+	return "";
+}
+	
+
+
+bool SubmitProposalToNetwork(uint256 txidFee, int64_t nStartTime, std::string sHex, std::string& sError, std::string& out_sGovObj)
+{
+        if(!masternodeSync.IsBlockchainSynced()) 
+		{
+			sError = "Must wait for client to sync with masternode network. ";
+			return false;
+        }
+        // ASSEMBLE NEW GOVERNANCE OBJECT FROM USER PARAMETERS
+        uint256 hashParent = uint256();
+        int nRevision = 1;
+	    CGovernanceObject govobj(hashParent, nRevision, nStartTime, txidFee, sHex);
+        DBG( cout << "gobject: submit "
+             << " strData = " << govobj.GetDataAsString()
+             << ", hash = " << govobj.GetHash().GetHex()
+             << ", txidFee = " << txidFee.GetHex()
+             << endl; );
+
+        std::string strHash = govobj.GetHash().ToString();
+        if(!govobj.IsValidLocally(sError, true)) 
+		{
+            sError += "Object submission rejected because object is not valid.";
+			LogPrintf("\n OBJECT REJECTED:\n gobject submit 0 1 %f %s %s \n", (double)nStartTime, sHex.c_str(), txidFee.GetHex().c_str());
+
+			return false;
+        }
+
+        // RELAY THIS OBJECT - Reject if rate check fails but don't update buffer
+        if(!governance.MasternodeRateCheck(govobj)) 
+		{
+            sError = "Object creation rate limit exceeded";
+			return false;
+        }
+        // This check should always pass, update buffer
+        if(!governance.MasternodeRateCheck(govobj, UPDATE_TRUE)) 
+		{
+            sError = "Object submission rejected because of rate check failure (buffer updated)";
+			return false;
+        }
+        governance.AddSeenGovernanceObject(govobj.GetHash(), SEEN_OBJECT_IS_VALID);
+        govobj.Relay();
+        bool fAddToSeen = true;
+        governance.AddGovernanceObject(govobj, fAddToSeen);
+		out_sGovObj = govobj.GetHash().ToString();
+		return true;
+}
+
+
+int GetNextSuperblock()
+{
+	int nLastSuperblock, nNextSuperblock;
+    // Get current block height
+    int nBlockHeight = 0;
+    {
+        LOCK(cs_main);
+        nBlockHeight = (int)chainActive.Height();
+    }
+
+    // Get chain parameters
+    int nSuperblockStartBlock = Params().GetConsensus().nSuperblockStartBlock;
+    int nSuperblockCycle = Params().GetConsensus().nSuperblockCycle;
+
+    // Get first superblock
+    int nFirstSuperblockOffset = (nSuperblockCycle - nSuperblockStartBlock % nSuperblockCycle) % nSuperblockCycle;
+    int nFirstSuperblock = nSuperblockStartBlock + nFirstSuperblockOffset;
+
+    if(nBlockHeight < nFirstSuperblock)
+	{
+        nLastSuperblock = 0;
+        nNextSuperblock = nFirstSuperblock;
+    }
+	else 
+	{
+        nLastSuperblock = nBlockHeight - nBlockHeight % nSuperblockCycle;
+        nNextSuperblock = nLastSuperblock + nSuperblockCycle;
+    }
+	return nNextSuperblock;
+}
+
+int64_t GetFileSize(std::string sPath)
+{
+	if (!boost::filesystem::exists(sPath)) return 0;
+	return (int64_t)boost::filesystem::file_size(sPath);
+}
+
+std::string SubmitBusinessObjectToIPFS(std::string sJSON, std::string& sError)
+{
+	std::string sBOPath = GetSANDirectory2() + "bo";
+	FILE *outBO = fopen(sBOPath.c_str(), "w");
+    fputs(sJSON.c_str(), outBO);
+	fclose(outBO);
+	return SubmitToIPFS(sBOPath, sError);
+}
+
+std::string SubmitToIPFS(std::string sPath, std::string& sError)
+{
+	if (!boost::filesystem::exists(sPath)) 
+	{
+		sError = "IPFS File not found.";
+		return "";
+	}
+	std::string sFN = GetFileNameFromPath(sPath);
+	std::vector<char> v = ReadAllBytes(sPath.c_str());
+	std::vector<unsigned char> uData(v.begin(), v.end());
+	std::string s64 = EncodeBase64(&uData[0], uData.size());
+	std::string sData = BiblepayIPFSPost(sFN, s64);
+	std::string sHash = ExtractXML(sData,"<HASH>","</HASH>");
+	std::string sLink = ExtractXML(sData,"<LINK>","</LINK>");
+	sError = ExtractXML(sData,"<ERROR>","</ERROR>");
+	return sHash;
+}	
+
+std::string SendBusinessObject(std::string sType, std::string sPrimaryKey, std::string sValue, double dStorageFee, std::string sSignKey, bool fSign, std::string& sError)
+{
+	const Consensus::Params& consensusParams = Params().GetConsensus();
+    std::string sAddress = consensusParams.FoundationAddress;
+    CBitcoinAddress address(sAddress);
+    if (!address.IsValid())
+	{
+		sError = "Invalid Destination Address";
+		return sError;
+	}
+    CAmount nAmount = AmountFromValue(dStorageFee);
+	CAmount nMinimumBalance = AmountFromValue(dStorageFee);
+    CWalletTx wtx;
+	boost::to_upper(sPrimaryKey); // Following same pattern
+	boost::to_upper(sType);
+	std::string sNonceValue = RoundToString(GetAdjustedTime(), 0);
+	// Add immunity to replay attacks (Add message nonce)
+ 	std::string sMessageType      = "<MT>" + sType  + "</MT>";  
+    std::string sMessageKey       = "<MK>" + sPrimaryKey   + "</MK>";
+	std::string sMessageValue     = "<MV>" + sValue + "</MV>";
+	std::string sNonce            = "<NONCE>" + sNonceValue + "</NONCE>";
+	std::string sBOSignKey        = "<BOSIGNER>" + sSignKey + "</BOSIGNER>";
+	std::string sMessageSig = "";
+	LogPrintf(" signing business object %s key %s ",sPrimaryKey.c_str(), sSignKey.c_str());
+
+	if (fSign)
+	{
+		std::string sSignature = "";
+		bool bSigned = SignStake(sSignKey, sValue + sNonceValue, sError, sSignature);
+		if (bSigned) 
+		{
+			sMessageSig = "<BOSIG>" + sSignature + "</BOSIG>";
+			WriteCache(sType, sSignKey, sValue, GetAdjustedTime());
+		}
+	}
+	std::string s1 = sMessageType + sMessageKey + sMessageValue + sNonce + sBOSignKey + sMessageSig;
+	wtx.sTxMessageConveyed = s1;
+	LOCK2(cs_main, pwalletMain->cs_wallet);
+	{
+		SendMoneyToDestinationWithMinimumBalance(address.Get(), nAmount, nMinimumBalance, wtx, sError);
+	}
+	if (!sError.empty()) return "";
+    return wtx.GetHash().GetHex().c_str();
+}
+
+bool is_email_valid(const std::string& e)
+{
+	return (Contains(e, "@") && Contains(e,".") && e.length() > MINIMUM_EMAIL_LENGTH) ? true : false;
+}
+
+std::string StoreBusinessObjectWithPK(UniValue& oBusinessObject, std::string& sError)
+{
+	std::string sJson = oBusinessObject.write(0,0);
+	std::string sPK = oBusinessObject["primarykey"].getValStr();
+	std::string sAddress = DefaultRecAddress(BUSINESS_OBJECTS);
+	std::string sSignKey = oBusinessObject["signingkey"].getValStr();
+	if (sSignKey.empty()) sSignKey = sAddress;
+	std::string sOT = oBusinessObject["objecttype"].getValStr();
+	std::string sSecondaryKey = oBusinessObject["secondarykey"].getValStr();
+	std::string sIPFSHash = SubmitBusinessObjectToIPFS(sJson, sError);
+	if (sError.empty())
+	{
+		double dStorageFee = 1;
+		std::string sTxId = "";
+		sTxId = SendBusinessObject(sOT, sPK + sSecondaryKey, sIPFSHash, dStorageFee, sSignKey, true, sError);
+		return sTxId;
+	}
+	return "";
+}
+
+
+std::string StoreBusinessObject(UniValue& oBusinessObject, std::string& sError)
+{
+	std::string sJson = oBusinessObject.write(0,0);
+	std::string sAddress = DefaultRecAddress(BUSINESS_OBJECTS);
+	std::string sPrimaryKey = oBusinessObject["objecttype"].getValStr();
+	std::string sSecondaryKey = oBusinessObject["secondarykey"].getValStr();
+	std::string sIPFSHash = SubmitBusinessObjectToIPFS(sJson, sError);
+	if (sError.empty())
+	{
+		double dStorageFee = 1;
+		std::string sTxId = "";
+		sTxId = SendBusinessObject(sPrimaryKey, sAddress + sSecondaryKey, sIPFSHash, dStorageFee, sAddress, true, sError);
+		return sTxId;
+	}
+	return "";
+}
+
+void ClearFile(std::string sPath)
+{
+	std::ofstream fd(sPath.c_str());
+	std::string sEmptyData = "";
+	fd.write(sEmptyData.c_str(), sizeof(char)*sEmptyData.size());
+	fd.close();
+}
+
+std::string GetDataFromIPFS(std::string sURL, std::string& sError)
+{
+	std::string sPath = GetSANDirectory2() + "guid";
+	std::ofstream fd(sPath.c_str());
+	std::string sEmptyData = "";
+	fd.write(sEmptyData.c_str(), sizeof(char)*sEmptyData.size());
+	fd.close();
+
+	int i = ipfs_download(sURL, sPath, 15);
+	if (i != 1) 
+	{
+		sError = "IPFS Download error.";
+		return "";
+	}
+	boost::filesystem::path pathIn(sPath);
+    std::ifstream streamIn;
+    streamIn.open(pathIn.string().c_str());
+	if (!streamIn) 
+	{
+		sError = "FileSystem Error.";
+		return "";
+	}
+	std::string sLine = "";
+	std::string sJson = "";
+    while(std::getline(streamIn, sLine))
+    {
+		sJson += sLine;
+	}
+	streamIn.close();
+	return sJson;
+}
+
+
+std::string GetJSONFromIPFS(std::string sHash, std::string& sError)
+{
+	std::string sURL = "http://ipfs.biblepay.org:8080/ipfs/" + sHash;
+	return GetDataFromIPFS(sURL, sError);
+}
+
+std::string ReadAllText(std::string sPath)
+{
+	boost::filesystem::path pathIn(sPath);
+    std::ifstream streamIn;
+    streamIn.open(pathIn.string().c_str());
+	if (!streamIn) return "";
+	std::string sLine = "";
+	std::string sJson = "";
+    while(std::getline(streamIn, sLine))
+    {
+		sJson += sLine;
+	}
+	streamIn.close();
+	return sJson;
+}
+
+
+UniValue GetBusinessObject(std::string sType, std::string sPrimaryKey, std::string& sError)
+{
+	UniValue o(UniValue::VOBJ);
+	std::string sIPFSHash = ReadCache(sType, sPrimaryKey);
+
+	if (sIPFSHash.empty()) 
+	{
+		o.push_back(Pair("objecttype", "0"));
+		sError = "Object not found";
+		return o;
+	}
+	std::string sJson = GetJSONFromIPFS(sIPFSHash, sError);
+	//LogPrintf(" json %s ",sJson.c_str());
+
+	if (!sError.empty()) return o;
+	try  
+	{
+	    UniValue o(UniValue::VOBJ);
+	    o.read(sJson);
+		LogPrintf("objecttype %s ",o["objecttype"].get_str().c_str());
+		return o;
+    }
+    catch(std::exception& e) 
+	{
+        std::ostringstream ostr;
+        ostr << "BusinessObject::LoadData Error parsing JSON" << ", e.what() = " << e.what();
+        DBG( cout << ostr.str() << endl; );
+        LogPrintf( ostr.str().c_str() );
+        sError = e.what();
+		return o;
+    }
+    catch(...) 
+	{
+        std::ostringstream ostr;
+        ostr << "BusinessObject::LoadData Unknown Error parsing JSON";
+        DBG( cout << ostr.str() << endl; );
+        LogPrintf( ostr.str().c_str() );
+		sError = "Unknown error while parsing JSON business object";
+		return o;
+    }
+	return o;
+}
+
+
+void TestRSA()
+{
+	std::string sPath = GetSANDirectory2() + "rsafile";
+	std::string sPathEnc = GetSANDirectory2() + "rsafile_enc";
+	std::string sPathDec = GetSANDirectory2() + "reafile_dec";
+    // int cipher_len = 0;
+	std::string sError = "";
+	std::string sPubKeyPath = GetSANDirectory2() + "keypath_client_pub";
+	std::string sPriKeyPath = GetSANDirectory2() + "keypath_client_pri";
+	RSA_GENERATE_KEYPAIR(sPubKeyPath, sPriKeyPath);
+	RSA_Encrypt_File(sPubKeyPath, sPath, sPathEnc, sError);
+	RSA_Decrypt_File(sPriKeyPath, sPathEnc, sPathDec, sError);
+	std::string sData = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+	LogPrintf(" Errors phase 3 %s ", sError.c_str());
+	std::string sEnc = RSA_Encrypt_String(sPubKeyPath, sData, sError);
+	std::string sDec = RSA_Decrypt_String(sPriKeyPath, sEnc, sError);
+	LogPrintf(" Status Decoded %s , error %s ", sDec.c_str(), sError.c_str());
+}
+
+std::string SysCommandStdErr(std::string sCommand, std::string sTempFileName, std::string& sStdOut)
+{
+	std::string sPath = GetSANDirectory2() + sTempFileName;
+	ClearFile(sPath);
+	sStdOut = SystemCommand2(sCommand.c_str());
+	std::string sStdErr = ReadAllText(sPath);
+	LogPrintf(" BOINC COMMAND %s , Result %s ", sCommand.c_str(), sStdErr.c_str());
+
+	return sStdErr;
+}
+
+std::string BoincCommand(std::string sCommand, std::string sError)
+{
+	std::string sPath = GetSANDirectory2() + "boinctemp";
+	// Boinc sends some output to stderr, some to stdout
+
+	std::string sEXEPath = sOS == "WIN" ? "\"c:\\program files\\BOINC\\boinccmd\"" : "boinccmd";
+
+	std::string sCmd = sEXEPath + " >" + sPath + " " + sCommand + " 2>&1";
+	std::string sStandardOut = "";
+	std::string sResult = SysCommandStdErr(sCmd, "boinctemp", sStandardOut);
+	// We handle Not installed, account exists, boincinstalled and account does not exist
+	// Boinc is not installed when stderr contains "not found"
+	sResult += "<EOF>";
+	return sResult;
+}
+
+bool IsBoincInstalled()
+{
+	std::string sError = "";
+	std::string sData = BoincCommand("help", sError);
+	bool bInstalled = (Contains(sData, "project_attach"));
+	return bInstalled;						
+}
+
+std::string CreateNewRosettaAccount(std::string sEmail, std::string sPass, std::string sNickname)
+{
+	std::string sError = "";
+	std::string sURL = "http://boinc.bakerlab.org/rosetta";
+	std::string sData = BoincCommand("--create_account " + sURL + " " + sEmail + " " + sPass + " " + sNickname, sError);
+	std::string sAuth = ExtractXML(sData, "key:", "<EOF>");
+	return sAuth;
+}
+
+std::string GetAccountAuthenticator(std::string sEmail, std::string sPass)
+{
+	// Note:  the password is Not sent over the internet; it is sent to boinccmd which hashes the user+pass first, then asks Rosetta for the authenticator (by hash)
+	std::string sError = "";
+	std::string sURL = "http://boinc.bakerlab.org/rosetta";
+	std::string sData = BoincCommand("--lookup_account " + sURL + " " + sEmail + " " + sPass, sError);
+	std::string sAuth = ExtractXML(sData, "key:", "<EOF>");
+	return sAuth;
+}
+
+double GetRosettaLocalRAC()
+{
+	std::string sError = "";
+	std::string sData = BoincCommand("--get_project_status", sError);
+	std::string sRosetta = ExtractXML(sData, "Rosetta", "user_name");
+	if (!Contains(sRosetta, "bakerlab.org")) return -1;
+	std::string sSnippet = ExtractXML(sData, "bakerlab.org", "scheduler");
+	double dAvgCredit = cdbl(ExtractXML(sSnippet, "user_expavg_credit:", "host"), 2);
+	return dAvgCredit;
+}
+
+std::string GetCPID()
+{
+	std::string sError = "";
+	std::string sData = BoincCommand("--get_project_status", sError);
+	std::string sCPID = ExtractXML(sData, "cross-project ID:", "<EOF>");
+	boost::trim(sCPID);
+	return sCPID;
+}
+
+std::string AttachProject(std::string sAuth)
+{
+	// Note:  the password is Not sent over the internet; it is sent to boinccmd which hashes the user+pass first, then asks Rosetta for the authenticator (by hash)
+	std::string sError = "";
+	std::string sURL = "http://boinc.bakerlab.org/rosetta";
+	std::string sData = BoincCommand("--project_attach " + sURL + " " + sAuth, sError);
+	if (Contains(sData, "already attached")) return "ALREADY_ATTACHED";
+	// LOL, if the attaching was successful, the reply is empty
+	return "";
+}
+
+
+std::string RosettaDiagnostics(std::string sEmail, std::string sPass, std::string& sError)
+{
+		std::string sHTML = "";
+		if (sEmail.empty()) sError = "E-mail must be populated.";
+		if (sPass.empty()) sError += "Password must be populated.";
+		bool fBoincInstalled = IsBoincInstalled();
+		if (!fBoincInstalled) sError += "Boinc is not installed.  Please run 'sudo apt-get install boincmgr boinc'.";
+		std::string sAuth = "";
+		if (sError.empty())
+		{
+			sAuth = GetAccountAuthenticator(sEmail, sPass);
+			if (sAuth.empty())
+			{
+				sError = "No Rosetta account exists. ";
+			}
+		}
+
+		sHTML += "Boinc Installed: " + ToYesNo(fBoincInstalled) + "\n";
+
+		if (sError.empty())
+		{
+			sHTML += "Rosetta_Account: " + sAuth + "\n";
+
+			double dRosettaRAC = GetRosettaLocalRAC();
+			sHTML += "Rosetta_RAC: " + RoundToString(dRosettaRAC, 2) + "\n";
+		
+			std::string sCPID = GetCPID();
+			if (dRosettaRAC != -1)
+			{
+				sHTML += "CPID: " + sCPID + "\n";
+			}
+		}
+
+		if (sError.empty())
+		{
+			double dRAC = AscertainResearcherTotalRAC();
+			double dStake = GetMinimumRequiredUTXOStake(dRAC, 1.1);
+			sHTML += "UTXO_Target: " + RoundToString(dStake, 2) + "\n";
+			double dStakeBalance = pwalletMain->GetUnlockedBalance() / COIN;
+			sHTML += "Stake_Balance: " + RoundToString(dStakeBalance, 2) + "\n";
+			if (dStakeBalance < dStake)
+			{
+				sError += "You have less stake balance available than needed for the PODC UTXO Target.  Coins must be more than 5 confirmations deep to count.  See coin control.  Please run exec totalrac.";
+			}
+		}
+
+		return sHTML;
+}
+
+
+std::string FixRosetta(std::string sEmail, std::string sPass, std::string& sError)
+{
+	std::string sHTML = "";
+	if (sEmail.empty()) sError = "E-mail must be populated.";
+	if (sPass.empty()) sError += "Password must be populated.";
+
+	bool fBoincInstalled = IsBoincInstalled();
+	if (!fBoincInstalled) sError += "Boinc is not installed.  Please run 'sudo apt-get install boincmgr boinc'.\n";
+	sHTML += "Boinc_Installed: " + ToYesNo(fBoincInstalled) + "\n";
+	std::string sAuth = "";
+	if (sError.empty())
+	{
+		sAuth = GetAccountAuthenticator(sEmail, sPass);
+		// During the attachrosetta process, if no account exists, create one for them
+		if (sAuth.empty())
+		{
+			sHTML += "Rosetta Account Does Not Exist:  Creating New Account\n";
+			sAuth = CreateNewRosettaAccount(sEmail, sPass, sEmail);
+			if (sAuth.empty())
+			{
+				sError += "Unable to create Rosetta Account\n";
+			}
+			else
+			{
+				sHTML += "Created new Rosetta Account: " + sAuth+ "\n";
+				sAuth = GetAccountAuthenticator(sEmail, sPass);
+			}
+		}
+	}
+
+	if (sError.empty())
+	{
+		sHTML += "Rosetta_Account: " + sAuth + "\n";
+		// Attach the project
+		std::string sAttached = AttachProject(sAuth);
+		double dRosettaRAC = 0;
+		if (!sAttached.empty()) 
+		{
+			// This is not really an error, BOINC is telling us the project is already attached:
+			sHTML += "Attaching Rosetta Project: " + sAttached + "\n";
+		}
+		else
+		{
+			sHTML += "Attaching Rosetta Project: Attached Successfully\n";
+			for (int i = 0; i < 15; i++)
+			{
+				MilliSleep(1000);
+				dRosettaRAC = GetRosettaLocalRAC();
+				if (dRosettaRAC != -1) break;
+			}
+		}
+		dRosettaRAC = GetRosettaLocalRAC();
+		sHTML += "Rosetta RAC: " + RoundToString(dRosettaRAC, 0) + "\n";
+		std::string sCPID = GetCPID();
+		sHTML += "CPID: " + sCPID + "\n";
+	}
+	return sHTML;
+}
+
+int GetBoincTaskCount()
+{
+	std::string sError = "";
+	std::string sData = BoincCommand("--get_tasks", sError);
+	std::vector<std::string> vTasks = Split(sData.c_str(), "project");
+	int nTasks = 0;
+	for (int i = 0; i < (int)vTasks.size(); i++)
+	{
+		std::string sState = ExtractXML(vTasks[i], "active_task_state:", "app");
+		boost::trim(sState);
+	
+		if (!Contains(sState, "SUSPENDED") && !sState.empty()) nTasks++;
+	}
+	return nTasks;
 }

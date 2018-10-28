@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>776</width>
-    <height>387</height>
+    <height>516</height>
    </rect>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout" stretch="0,0,1">
@@ -37,6 +37,9 @@
         </item>
         <item row="4" column="2">
          <widget class="QLineEdit" name="txtEmail">
+          <property name="cursor">
+           <cursorShape>CrossCursor</cursorShape>
+          </property>
           <property name="toolTip">
            <string>An optional label to associate with the new receiving address.</string>
           </property>
@@ -76,7 +79,21 @@
              </size>
             </property>
             <property name="text">
-             <string>&amp;Add Me as a Distributed Computing Researcher</string>
+             <string>&amp;Associate Researcher CPID with BiblePay</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="btnFix">
+            <property name="text">
+             <string>Create and Attach R@H Account</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="btnDiagnostics">
+            <property name="text">
+             <string>Run R@H Diagnostics</string>
             </property>
            </widget>
           </item>
@@ -175,6 +192,42 @@
      </property>
      <layout class="QVBoxLayout" name="verticalLayout_2">
       <item>
+       <widget class="QFrame" name="frame_2">
+        <property name="frameShape">
+         <enum>QFrame::StyledPanel</enum>
+        </property>
+        <property name="frameShadow">
+         <enum>QFrame::Raised</enum>
+        </property>
+        <widget class="QLabel" name="label_8">
+         <property name="geometry">
+          <rect>
+           <x>60</x>
+           <y>0</y>
+           <width>738</width>
+           <height>51</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>BOINC Rosetta@Home Current Tasks:</string>
+         </property>
+        </widget>
+        <widget class="QLCDNumber" name="lcdTasks">
+         <property name="geometry">
+          <rect>
+           <x>-30</x>
+           <y>20</y>
+           <width>738</width>
+           <height>65</height>
+          </rect>
+         </property>
+         <property name="intValue" stdset="0">
+          <number>-1</number>
+         </property>
+        </widget>
+       </widget>
+      </item>
+      <item>
        <widget class="QLabel" name="label_6">
         <property name="font">
          <font>
@@ -225,7 +278,11 @@
  </widget>
  <tabstops>
   <tabstop>txtEmail</tabstop>
+  <tabstop>txtPassword</tabstop>
+  <tabstop>cmbProjectName</tabstop>
   <tabstop>btnAssociate</tabstop>
+  <tabstop>btnFix</tabstop>
+  <tabstop>btnDiagnostics</tabstop>
  </tabstops>
  <resources>
   <include location="../biblepay.qrc"/>

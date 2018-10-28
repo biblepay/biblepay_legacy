@@ -923,8 +923,8 @@ QString loadStyleSheet()
         cssName = QString(":/css/") + theme; 
     }
     else {
-        cssName = QString(":/css/light");  
-        settings.setValue("theme", "light");
+        cssName = QString(":/css/bezaleel");  
+        settings.setValue("theme", "bezaleel");
     }
     
     QFile qFile(cssName);      

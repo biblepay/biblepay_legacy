@@ -834,12 +834,18 @@ bool CWallet::AddToWalletIfInvolvingMe(const CTransaction& tx, const CBlock* pbl
 {
     {
         AssertLockHeld(cs_wallet);
-
-        if (pblock) {
-            BOOST_FOREACH(const CTxIn& txin, tx.vin) {
+	
+        if (pblock) 
+		{
+            BOOST_FOREACH(const CTxIn& txin, tx.vin) 
+			{
+	
                 std::pair<TxSpends::const_iterator, TxSpends::const_iterator> range = mapTxSpends.equal_range(txin.prevout);
-                while (range.first != range.second) {
-                    if (range.first->second != tx.GetHash()) {
+                while (range.first != range.second) 
+				{
+
+                    if (range.first->second != tx.GetHash()) 
+					{
                         LogPrintf("Transaction %s (in block %s) conflicts with wallet transaction %s (both spend %s:%i)\n", tx.GetHash().ToString(), pblock->GetHash().ToString(), range.first->second.ToString(), range.first->first.hash.ToString(), range.first->first.n);
                         MarkConflicted(pblock->GetHash(), range.first->second);
                     }
@@ -848,12 +854,13 @@ bool CWallet::AddToWalletIfInvolvingMe(const CTransaction& tx, const CBlock* pbl
             }
         }
 
+
         bool fExisted = mapWallet.count(tx.GetHash()) != 0;
         if (fExisted && !fUpdate) return false;
         if (fExisted || IsMine(tx) || IsFromMe(tx))
         {
             CWalletTx wtx(this,tx);
-
+		
             // Get merkle branch if transaction was found in a block
             if (pblock)
                 wtx.SetMerkleBranch(*pblock);
@@ -861,8 +868,9 @@ bool CWallet::AddToWalletIfInvolvingMe(const CTransaction& tx, const CBlock* pbl
             // Do not flush the wallet here for performance reasons
             // this is safe, as in case of a crash, we rescan the necessary blocks on startup through our SetBestChain-mechanism
             CWalletDB walletdb(strWalletFile, "r+", false);
-
+		
             return AddToWallet(wtx, false, &walletdb);
+	
         }
     }
     return false;
@@ -1883,7 +1891,6 @@ CAmount CWallet::GetUnlockedBalance() const
                 bool fLocked = (nAmount == (SANCTUARY_COLLATERAL * COIN));
 				if (!fLocked)
 				{
-					int64_t nAge = GetAdjustedTime() - pcoin->nTimeReceived;
 					if (nCoinDepth > 5) 
 					{
 						nTotal += nAmount;
@@ -2596,7 +2603,7 @@ bool CWallet::FundTransaction(CMutableTransaction& tx, CAmount &nFeeRet, int& nC
     {
 		////  CScript scriptPubKey;     CAmount nAmount;     bool fSubtractFeeFromAmount; 	bool fTithe; 	bool fPrayer; 	std::string txtMessage;
     
-        CRecipient recipient = {txOut.scriptPubKey, txOut.nValue, false, false, false, false, "", "", ""};
+        CRecipient recipient = {txOut.scriptPubKey, txOut.nValue, false, false, false, false, "", "", "", ""};
         vecSend.push_back(recipient);
     }
 
@@ -3007,7 +3014,7 @@ bool CWallet::GetBudgetSystemCollateralTX(CWalletTx& tx, uint256 hash, CAmount a
     std::string strFail = "";
     vector< CRecipient > vecSend;
 	//  CScript scriptPubKey;     CAmount nAmount;     bool fSubtractFeeFromAmount; 	bool fTithe; 	bool fPrayer; 	std::string txtMessage;
-    vecSend.push_back((CRecipient){scriptChange, amount, false, false, false, false, "", "", ""});
+    vecSend.push_back((CRecipient){scriptChange, amount, false, false, false, false, "", "", "", ""});
 
     CCoinControl *coinControl=NULL;
     bool success = CreateTransaction(vecSend, tx, reservekey, nFeeRet, nChangePosRet, strFail, coinControl, true, ALL_COINS, fUseInstantSend);
@@ -3182,7 +3189,7 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
                 if (!SelectCoins(nValueToSelect, setCoins, nValueIn, coinControl, nCoinType, fUseInstantSend, iMinConfirms))
                 {
                     if (nCoinType == ONLY_NOT1000IFMN) {
-                        strFailReason = _("Unable to locate enough funds for this transaction that are not equal 1000 biblepay.");
+                        strFailReason = _("Unable to locate enough unlocked funds not equal to 1,550,001 biblepay.");
                     } else if (nCoinType == ONLY_NONDENOMINATED_NOT1000IFMN) {
                         strFailReason = _("Unable to locate enough PrivateSend non-denominated funds for this transaction that are not equal 1000 biblepay.");
                     } else if (nCoinType == ONLY_DENOMINATED) {
@@ -4204,6 +4211,7 @@ int CMerkleTx::SetMerkleBranch(const CBlock& block)
     }
 
     // Is the tx in a block that's in the main chain
+
     BlockMap::iterator mi = mapBlockIndex.find(hashBlock);
     if (mi == mapBlockIndex.end())
         return 0;

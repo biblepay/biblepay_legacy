@@ -88,7 +88,10 @@ public:
         PrivateSend,
 		ProofOfLoyalty,
 		PODCUpdate,
-		PODCAssociation
+		PODCAssociation,
+		PODCPayment,
+		SuperBlockPayment,
+		IPFSAttachment
     };
 
     /** Number of confirmation recommended for accepting a transaction */
@@ -139,6 +142,9 @@ public:
 
 	/** If this is a PODC Research Payment */
 	bool IsPODCPayment;
+
+	/** If this is an IPFS Attachment */
+	bool IsIPFSAttachment;
 
 	/** If this is a Superblock Payment */
 	bool IsSuperblockPayment;

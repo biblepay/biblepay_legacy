@@ -26,6 +26,8 @@
 const CBlockIndex* GetBlockIndexByTransactionHash(const uint256 &hash);
 std::string TimestampToHRDate(double dtm);
 double GetDifficultyN(const CBlockIndex* blockindex, double N);
+std::string ReadCache(std::string section, std::string key);
+void WriteCache(std::string section, std::string key, std::string value, int64_t locktime, bool IgnoreCase=true);
 
 QString TransactionDesc::FormatTxStatus(const CWalletTx& wtx)
 {
@@ -133,13 +135,13 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionReco
 	{
 	     strHTML += "<b>" + tr("Source") + ":</b> " + tr("Superblock-Payment") + "<br>";
 	}
+	if (wtx.IsIPFSAttachment())
+	{
+		strHTML += "<b>" + tr("Source") + ":</b>" + tr("IPFS-Attachment") + "</br>";
+	}
 	if (wtx.IsPODCPayment())
 	{
 	     strHTML += "<b>" + tr("Source") + ":</b> " + tr("PODC-Payment") + "<br>";
-	}
-	if (wtx.IsProofOfLoyalty())
-	{
-	     strHTML += "<b>" + tr("Source") + ":</b> " + tr("Proof-Of-Loyalty") + "<br>";
 	}
 	else if (wtx.IsCoinBase())
     {
@@ -339,17 +341,28 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionReco
 	std::string sMT = ExtractXML(sNetworkMessage,"<MT>","</MT>");
 	std::string sMK = ExtractXML(sNetworkMessage,"<MK>","</MK>");
 	std::string sMV = ExtractXML(sNetworkMessage,"<MV>","</MV>");
-	std::string sPolWeight = ExtractXML(sNetworkMessage,"<polweight>","</polweight>");
-	if (!sPolWeight.empty())
+
+	// IPFS
+	std::string sIPFSHash = ExtractXML(sNetworkMessage,"<ipfshash>","</ipfshash>");
+	std::string sIPFSLink = ExtractXML(sNetworkMessage,"<ipfslink>","</ipfslink>");
+	WriteCache("ipfs", "openlink", "", GetAdjustedTime());
+	if (!sIPFSHash.empty())
 	{
-			strHTML += "<br><font color=green><span>Proof-Of-Loyalty Weight: " + QString::fromStdString(sPolWeight) + "</span></font></b>";
+		sIPFSLink = "https://ipfs.io/ipfs/" + sIPFSHash;
+		std::string sAltLink = "http://ipfs.biblepay.org:8080/ipfs/" + sIPFSHash;
+		WriteCache("ipfs", "openlink", sAltLink, GetAdjustedTime());
+		strHTML += "<br><br><font color=green>IPFS Document: <a href='" + QString::fromStdString(sIPFSLink) + "'>" + QString::fromStdString(sIPFSLink) + "</a> &nbsp;</font></b><br>";
+		strHTML += "<br><br><font color=green>IPFS Alternate Link: <a href='" + QString::fromStdString(sAltLink) + "'>" + QString::fromStdString(sAltLink) + "</a> &nbsp;</font></b><br>";
 	}
 	std::string sNarr = MessageTypeToNarr(sMT) + ": ";
 	std::string sNarrLong = sNarr + sMV;
 	std::string sDebug = strReplace(sNetworkMessage,"<","{");
 	sDebug = strReplace(sNetworkMessage,">","}");
-	strHTML += "<br><b><p><font color=red><span>" + QString::fromStdString(sNarrLong) + "</span></font></b><p>";
-    strHTML += "<b>" + tr("Transaction ID") + ":</b> " + TransactionRecord::formatSubTxId(wtx.GetHash(), rec->idx) + "<br>";
+	if (sNarrLong.find("ATTACHMENT") == std::string::npos)
+	{
+		strHTML += "<br><b><p><font color=red><span>" + QString::fromStdString(sNarrLong) + "</span></font></b><p>";
+	}
+    strHTML += "<br>" + tr("Transaction ID") + ":</b> " + TransactionRecord::formatSubTxId(wtx.GetHash(), rec->idx) + "<br>";
 
     // Message from normal biblepay:URI (biblepay:XyZ...?message=example)
     Q_FOREACH (const PAIRTYPE(std::string, std::string)& r, wtx.vOrderForm)

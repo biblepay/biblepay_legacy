@@ -398,7 +398,7 @@ static void SendMoney(const CTxDestination &address, CAmount nValue, bool fSubtr
     std::string strError;
     vector<CRecipient> vecSend;
     int nChangePosRet = -1;
-    CRecipient recipient = {scriptPubKey, nValue, fSubtractFeeFromAmount, false, false, false, "", "", ""};
+    CRecipient recipient = {scriptPubKey, nValue, fSubtractFeeFromAmount, false, false, false, "", "", "", ""};
     vecSend.push_back(recipient);
 	
     if (!pwalletMain->CreateTransaction(vecSend, wtxNew, reservekey, nFeeRequired, nChangePosRet,
@@ -432,7 +432,7 @@ static void SendColoredEscrow(const CTxDestination &address, CAmount nValue, boo
     std::string strError;
     vector<CRecipient> vecSend;
     int nChangePosRet = -1;
-    CRecipient recipient = {scriptPubKey, nValue, fSubtractFeeFromAmount, false, false, false, "", "", ""};
+    CRecipient recipient = {scriptPubKey, nValue, fSubtractFeeFromAmount, false, false, false, "", "", "", ""};
 	recipient.Message = sScriptComplexOrder;
     vecSend.push_back(recipient);
 	if (fDebugMaster) LogPrintf(" SENDING COINS OF COLOR %s with Script %s ",cct1.Color.c_str(), sScriptComplexOrder.c_str());
@@ -450,6 +450,12 @@ static void SendColoredEscrow(const CTxDestination &address, CAmount nValue, boo
 
 static void SendMoneyToDestinationWithMinimumBalance(const CTxDestination& address, CAmount nValue, CAmount nMinimumBalanceRequired, CWalletTx& wtxNew, std::string& sError)
 {
+	if (pwalletMain->IsLocked())
+	{
+		sError = "Wallet Unlock Required";
+		return;
+	}
+   
     if (pwalletMain->GetBalance() < nMinimumBalanceRequired || nValue > pwalletMain->GetBalance()) 
 	{
 		sError = "Insufficient funds";
@@ -1156,7 +1162,7 @@ UniValue sendmany(const UniValue& params, bool fHelp)
                 fSubtractFeeFromAmount = true;
         }
 
-        CRecipient recipient = {scriptPubKey, nAmount, fSubtractFeeFromAmount, false, false, false, "", "", ""};
+        CRecipient recipient = {scriptPubKey, nAmount, fSubtractFeeFromAmount, false, false, false, "", "", "", ""};
         vecSend.push_back(recipient);
     }
 
@@ -2259,7 +2265,7 @@ UniValue encryptwallet(const UniValue& params, bool fHelp)
     // BDB seems to have a bad habit of writing old data into
     // slack space in .dat files; that is bad if the old data is
     // unencrypted private keys. So:
-    StartShutdown();
+    StartShutdown(0);
     return "Wallet encrypted; Biblepay Core server stopping, restart to run with encrypted wallet. The keypool has been flushed, you need to make a new backup.";
 }
 

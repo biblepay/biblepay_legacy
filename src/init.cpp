@@ -97,11 +97,12 @@ CWallet* pwalletMain = NULL;
 void initkjv();
 uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight, const CBlockIndex* pindexLast, bool bRequireTxIndex, bool f7000, bool f8000, bool f9000, bool fTitheBlocksActive, unsigned int nNonce);
 std::string RetrieveMd5(std::string s1);
-void MemorizeBlockChainPrayers(bool fDuringConnectBlock);
+void MemorizeBlockChainPrayers(bool fDuringConnectBlock, bool fSubThread, bool fColdBoot, bool fDuringSanctuaryQuorum);
 extern CBlock CreateGenesisBlock(const char* pszTimestamp, const CScript& genesisOutputScript, uint32_t nTime, uint32_t nNonce, uint32_t nBits, int32_t nVersion, const CAmount& genesisReward);
 bool fFeeEstimatesInitialized = false;
 bool fRestartRequested = false;  // true: restart false: shutdown
 std::string FindResearcherCPIDByAddress(std::string sSearch, std::string& out_address, double& nTotalMagnitude);
+void KillBlockchainFiles();
 
 static const bool DEFAULT_PROXYRANDOMIZE = true;
 static const bool DEFAULT_REST_ENABLE = false;
@@ -165,14 +166,40 @@ CClientUIInterface uiInterface; // Declared but not defined in ui_interface.h
 //
 
 volatile bool fRequestShutdown = false;
+volatile bool fRequestRecovery = false;
 
-void StartShutdown()
+void PrepareShutdownLite()
 {
+    //StopHTTPRPC();
+    //StopREST();
+    StopRPC();
+    //StopHTTPServer();
+    StopNode();
+}
+
+void StartShutdown(int iCondition)
+{
+	if (iCondition == 1)
+	{
+		fReboot2 = true;
+		fRequestRecovery = true;
+	}
     fRequestShutdown = true;
 }
+
 bool ShutdownRequested()
 {
     return fRequestShutdown || fRestartRequested || fInternalRequestedShutdown;
+}
+
+bool RebootRequested()
+{
+	return fRequestRecovery;
+}
+
+std::string GetOS()
+{
+	return sOS;
 }
 
 class CCoinsViewErrorCatcher : public CCoinsViewBacked
@@ -214,11 +241,12 @@ void PrepareShutdown()
 {
     fRequestShutdown = true; // Needed when we shutdown the wallet
     fRestartRequested = true; // Needed when we restart the wallet
-    LogPrintf("%s: In progress...\n", __func__);
+    LogPrintf("%s: Prepare Shutdown In progress...\n", __func__);
     static CCriticalSection cs_Shutdown;
     TRY_LOCK(cs_Shutdown, lockShutdown);
     if (!lockShutdown)
         return;
+	LogPrintf(" Shutdown - renaming thread ... \n");
 
     /// Note: Shutdown() must be able to handle cases in which AppInit2() failed part of the way,
     /// for example if the data directory was found to be locked.
@@ -235,7 +263,9 @@ void PrepareShutdown()
         pwalletMain->Flush(false);
 #endif
     GenerateBiblecoins(false, 0, Params());
+	LogPrintf(" Stopped miner... stopping node \n");
     StopNode();
+	LogPrintf(" stopped node... \n");
 
     // STORE DATA CACHES INTO SERIALIZED DAT FILES
     CFlatDB<CMasternodeMan> flatdb1("mncache.dat", "magicMasternodeCache");
@@ -246,6 +276,7 @@ void PrepareShutdown()
     flatdb3.Dump(governance);
     CFlatDB<CNetFulfilledRequestManager> flatdb4("netfulfilled.dat", "magicFulfilledCache");
     flatdb4.Dump(netfulfilledman);
+	LogPrintf(" dumped database files ... \n");
 
     UnregisterNodeSignals(GetNodeSignals());
 
@@ -315,7 +346,8 @@ void PrepareShutdown()
 void Shutdown()
 {
     // Shutdown part 1: prepare shutdown
-    if(!fRestartRequested){
+    if(!fRestartRequested)
+	{
         PrepareShutdown();
     }
    // Shutdown part 2: Stop TOR thread and delete wallet instance
@@ -327,6 +359,8 @@ void Shutdown()
     globalVerifyHandle.reset();
     ECC_Stop();
     LogPrintf("%s: done\n", __func__);
+
+
 }
 
 /**
@@ -392,7 +426,7 @@ CBlock CreateGenesisBlock(const char* pszTimestamp, const CScript& genesisOutput
  */
 CBlock CreateGenesisBlock(uint32_t nTime, uint32_t nNonce, uint32_t nBits, int32_t nVersion, const CAmount& genesisReward)
 {
-	// Luke 21:36 "Watch therefore, and pray always that you may be counted worthy[a] to escape all these things that will come to pass, and to stand before the Son of Man.”
+	// Luke 21:36 "Watch therefore, and pray always that you may be counted worthy to escape all these things that will come to pass, and to stand before the Son of Man.”
 	// Note: The verse had to be shortened to comply with the script sig rules.
     const char* pszTimestamp = "Pray always that ye may be accounted worthy to stand before the Son of Man.";
     const CScript genesisOutputScript = CScript() << ParseHex("040184710fa689ad5023690c80f3a49c8f13f8d45b8c857fbcbc8bc4a8e4d3eb4b10f4d4604fa08dce601aaf0f470216fe1b51850b4acf21b179c45070ac7b03a9") << OP_CHECKSIG;
@@ -864,7 +898,7 @@ void ThreadImport(std::vector<boost::filesystem::path> vImportFiles)
 
     if (GetBoolArg("-stopafterblockimport", DEFAULT_STOPAFTERBLOCKIMPORT)) {
         LogPrintf("Stopping after block import\n");
-        StartShutdown();
+        StartShutdown(0);
     }
 }
 
@@ -1158,6 +1192,16 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
         InitWarning(strprintf(_("Reducing -maxconnections from %d to %d, because of system limitations."), nUserMaxConnections, nMaxConnections));
 
     // ********************************************************* Step 3: parameter-to-internal-flags
+	// Step 3.1 - do this before RPC server starts since it may be blocked from listening
+	bool fEmptyChain = GetBoolArg("-erasechain", false);
+	bool fDryRun = GetBoolArg("-dryrun", false);
+	// If performing a warm reboot, we must give the OS time to close the listening ports
+	if (fEmptyChain || fDryRun)
+	{
+		LogPrintf("...Pausing until ports are closed...\n");
+		uiInterface.InitMessage(_("Waiting for ports to close..."));
+		MilliSleep(11000);
+	}
 
     fDebug = !mapMultiArgs["-debug"].empty();
 	fDebugMaster = !mapMultiArgs["-debugmaster"].empty();
@@ -1415,6 +1459,9 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     CScheduler::Function serviceLoop = boost::bind(&CScheduler::serviceQueue, &scheduler);
     threadGroup.create_thread(boost::bind(&TraceThread<CScheduler::Function>, "scheduler", serviceLoop));
 
+
+
+
     /* Start the RPC server already.  It will be started in "warmup" mode
      * and not really process calls already (but it will signify connections
      * that the server is there and will be ready later).  Warmup mode will
@@ -1609,6 +1656,13 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
 	std::string s1 = RetrieveMd5("byte1");
 	std::string s2 = RetrieveMd5("BYTE");
 	LogPrintf("s1 %s, s2 %s\r\n", s1.c_str(),	s2.c_str());
+	// ******************************************************** Step 6.9 : Check if user wants an empty block chain
+	if (fEmptyChain)
+	{
+		LogPrintf(" Killing blockchain files ... \n");
+		KillBlockchainFiles();
+		LogPrintf(" Blockchain files erased. \n");
+	}
 
 
     // ********************************************************* Step 7: load block chain
@@ -2129,7 +2183,9 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
 	// Memorize Prayers
 
 	uiInterface.InitMessage(_("Memorizing Prayers..."));
-	MemorizeBlockChainPrayers(false);
+	// ROBERT ANDREWS - BIBLEPAY - JUNE 11th, 2018 - INCREASE BOOT TIME BY MEMORIZING PRAYERS, PODC UPDATES ON SEPARATE BACKGROUND THREAD:
+	
+    MemorizeBlockChainPrayers(false, false, true, false);
 
     //// debug print
     LogPrintf("mapBlockIndex.size() = %u\n",   mapBlockIndex.size());
@@ -2171,13 +2227,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     // ********************************************************* Step 13: finished
 	// Print the genesis hash for sanity
 	LogPrintf(" Genesis Hash %s \n", chainActive.Genesis()->GetBlockHash().GetHex().c_str());
-	// Initialize distributed-computing CPID
-	std::string out_address = "";
-	double nMagnitude = 0;
-	std::string sAddress = "";
-	FindResearcherCPIDByAddress(sAddress, out_address, nMagnitude);
-	mnMagnitude=nMagnitude;
-
+	
     SetRPCWarmupFinished();
 	fWalletLoaded = true;
     uiInterface.InitMessage(_("Done loading"));

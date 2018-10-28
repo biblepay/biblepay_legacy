@@ -110,12 +110,23 @@ extern std::string DefaultRecAddress(std::string sType);
 extern CAmount GetRetirementAccountContributionAmount(int nPrevHeight);
 extern std::string AmountToString(const CAmount& amount);
 extern CAmount StringToAmount(std::string sValue);
+void SerializePrayersToFile(int nHeight);
+int DeserializePrayersFromFile();
+extern void KillBlockchainFiles();
+extern void HealthCheckup();
+std::string GenerateNewAddress(std::string& sError, std::string sName);
+double GetQTPhase(double dPrice, int nEventHeight, double& out_PriorPrice, double& out_PriorPhase);
+
 bool CheckProofOfLoyalty(double dWeight, uint256 hash, unsigned int nBits, const Consensus::Params& params, 
 	int64_t nBlockTime, int64_t nPrevBlockTime, int nPrevHeight, unsigned int nNonce, const CBlockIndex* pindexPrev, bool bLoadingBlockIndex);
 double GetStakeWeight(CTransaction tx, int64_t nTipTime, std::string sXML, bool bVerifySignature, std::string& sMetrics, std::string& sError);
 extern std::string SignMessage(std::string sMsg, std::string sPrivateKey);
 extern void GetMiningParams(int nPrevHeight, bool& f7000, bool& f8000, bool& f9000, bool& fTitheBlocksActive);
-
+extern bool NonObnoxiousLog(std::string sLogSection, std::string sLogKey, std::string sValue, int64_t nAllowedSpan);
+extern bool TimerMain(std::string timer_name, int max_ms);
+std::string FindResearcherCPIDByAddress(std::string sSearch, std::string& out_address, double& nTotalMagnitude);
+extern bool IsMature(int64_t nTime, int64_t nMaturityAge);
+std::string GetMyPublicKeys();
 extern bool HasThisCPIDSolvedPriorBlocks(std::string CPID, CBlockIndex* pindexPrev);
 std::string VectorToString(std::vector<unsigned char> v);
 
@@ -145,13 +156,15 @@ bool fPoolMiningUseSSL = false;
 bool fCommunicatingWithPool = false;
 int iMinerThreadCount = 0;
 
+void RecoverOrphanedChainNew(int iCondition);
+void RecoverOrphanedChain(int iCondition);
 extern void SetOverviewStatus();
 extern const CBlockIndex* GetBlockIndexByTransactionHash(const uint256 &hash);
 extern int32_t ComputeBlockVersion(const CBlockIndex* pindexPrev, const Consensus::Params& params);
 extern std::string RetrieveTxOutInfo(const CBlockIndex* pindex, int iLookback, int iTxOffset, int ivOutOffset, int iDataType);
 UniValue GetDataList(std::string sType, int iMaxAgeInDays, int& iSpecificEntry, std::string sSearch, std::string& outEntry);
 double GetDifficulty(const CBlockIndex* blockindex);
-void MemorizePrayer(std::string sMessage, int64_t nTime, double dAmount, int iPos, std::string sTxID);
+void MemorizePrayer(std::string sMessage, int64_t nTime, double dAmount, int iPos, std::string sTxID, int nHeight, double dFoundationDonation);
 std::string PubKeyToAddress(const CScript& scriptPubKey);
 std::string GetSin(int iSinNumber, std::string& out_Description);
 std::string TimestampToHRDate(double dtm);
@@ -159,8 +172,8 @@ extern std::string GetArrayElement(std::string s, std::string delim, int iPos);
 double GetDifficultyN(const CBlockIndex* blockindex, double N);
 uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight, const CBlockIndex* pindexLast, bool bRequireTxIndex, bool f7000, bool f8000, bool f9000, bool fTitheBlocksActive, unsigned int nNonce);
 extern void PurgeCacheAsOfExpiration(std::string sSection, int64_t nExpiration);
-double GetUserMagnitude(double& nBudget, double& nTotalPaid, int& out_iLastSuperblock, std::string& out_Superblocks, int& out_SuperblockCount, int& out_HitCount, double& out_OneDayPaid, double& out_OneWeekPaid, double& out_OneDayBudget, double& out_OneWeekBudget);
-double GetPaymentByCPID(std::string CPID);
+double GetUserMagnitude(std::string sListOfPublicKeys, double& nBudget, double& nTotalPaid, int& out_iLastSuperblock, std::string& out_Superblocks, int& out_SuperblockCount, int& out_HitCount, double& out_OneDayPaid, double& out_OneWeekPaid, double& out_OneDayBudget, double& out_OneWeekBudget);
+double GetPaymentByCPID(std::string CPID, int nHeight);
 bool CheckStakeSignature(std::string sBitcoinAddress, std::string sSignature, std::string strMessage, std::string& strError);
 bool VerifyCPIDSignature(std::string sFullSig, bool bRequireEndToEndVerification, std::string& sError);
 double GetSporkDouble(std::string sName, double nDefault);
@@ -171,7 +184,7 @@ std::string GetBoincResearcherHexCodeAndCPID(std::string sProjectId, int nUserId
 std::string GetDCCElement(std::string sData, int iElement, bool fCheckSignature);
 
 extern std::string ReadCache(std::string sSection, std::string sKey);
-extern void WriteCache(std::string section, std::string key, std::string value, int64_t locktime);
+extern void WriteCache(std::string section, std::string key, std::string value, int64_t locktime, bool IgnoreCase=true);
 extern void ClearCache(std::string sSection);
 extern std::string ReadCacheWithMaxAge(std::string sSection, std::string sKey, int64_t nMaxAge);
 
@@ -194,6 +207,18 @@ size_t nCoinCacheUsage = 5000 * 300;
 std::string msGlobalStatus = "";
 std::string msGlobalStatus2 = "";
 std::string msGlobalStatus3 = "";
+std::string msProposalResult = "";
+int64_t nProposalStartTime = 0;
+int64_t nProposalModulus = 0;
+int64_t nLastHealthCheckup = 0;
+int64_t nLastAcceptBlock = 0;
+int nRecoveryAttempts = 0;
+
+uint256 uTxIdFee = uint256();
+int nProposalPrepareHeight = 0;
+std::string msProposalHex = "";
+
+bool fPrayersMemorized = false;
 double mnMagnitude = 0;
 double mnMagnitudeOneDay = 0;
 int mnPODCTried = 0;
@@ -212,7 +237,7 @@ CBlock cblockGenesis;
 uint64_t nPruneTarget = 0;
 bool fAlerts = DEFAULT_ALERTS;
 bool fEnableReplacement = DEFAULT_ENABLE_REPLACEMENT;
-extern void MemorizeBlockChainPrayers(bool fDuringConnectBlock);
+extern void MemorizeBlockChainPrayers(bool fDuringConnectBlock, bool fInBackground, bool fColdBoot, bool fDuringSanctuaryQuorum);
 
 /** Fees smaller than this (in duffs) are considered zero fee (for relaying, mining and transaction creation) */
 CFeeRate minRelayTxFee = CFeeRate(DEFAULT_MIN_RELAY_TX_FEE);
@@ -978,7 +1003,7 @@ bool TestLockPointValidity(const LockPoints* lp)
 bool InstantiateOneClickMiningEntries()
 {
 	WriteKey("addnode","node.biblepay.org");
-	WriteKey("addnode","biblepay-explorer.org");
+	WriteKey("addnode","node.biblepay-explorer.org");
 	WriteKey("addnode","vultr4.biblepay.org");
 	WriteKey("addnode","dnsseed.biblepay-explorer.org");
 	int iCores = GetNumCores();
@@ -2208,6 +2233,25 @@ const CBlockIndex* GetLookbackIndex(int64_t iMinimumBackSpacing, int64_t iFirstM
    if (BlockReading) { return BlockReading; } else { return NULL; }
 }
 
+CAmount GetQuantitativeTighteningAmount(CAmount nSubsidy, int nHeight)
+{
+	bool f14000 = ((nHeight > F14000_CUTOVER_HEIGHT_PROD && fProd)  ||  (nHeight > F14000_CUTOVER_HEIGHT_TESTNET && !fProd));
+	if (!f14000) return 0;
+	// Step 2: Verify the feature is enabled
+	double nMaximumTighteningPercentage = GetSporkDouble("qtmaxpercentage", 0);
+	if (nMaximumTighteningPercentage == 0) return 0;
+	// Step 3: Calculate the QT cumulative tightening value
+	double dPriorPrice = 0;
+	double dPriorPhase = 0;
+	GetQTPhase(-1, nHeight, dPriorPrice, dPriorPhase);
+	// If yesterdays phase was 0, don't modify the subsidy
+	if (dPriorPhase <= 0) return 0;
+	// Step 4: Modify the subsidy by the percent
+	double dQuantitativePercent = dPriorPhase / 100;
+	CAmount dReduction = nSubsidy * dQuantitativePercent;
+	return dReduction;
+}
+
 CAmount GetBlockSubsidy(const CBlockIndex* pindexPrev, int nPrevBits, int nPrevHeight, const Consensus::Params& consensusParams, bool fSuperblockPartOnly)
 {
 	double dDiff = 0;
@@ -2216,6 +2260,7 @@ CAmount GetBlockSubsidy(const CBlockIndex* pindexPrev, int nPrevBits, int nPrevH
 	if ((pindexPrev && !fProd && pindexPrev->nHeight >= 1) || (fProd && pindexPrev && pindexPrev->nHeight >= F7000_CUTOVER_HEIGHT && pindexPrev->nHeight < F7000_CUTOVER_HEIGHT_DIFF_END))
 	{
 		// This setting included in f7000 regulates the extent in which the block subsidy is lowered by increasing diff; once we remove the x11 component from the biblehash, it was necessary to recalculate the reduction to match the prior regulation level.
+		// Dark Gravity Wave Subsidy Decrease (a Higher difficulty equals a Lower total block reward):
 		dDiff = dDiff / 700;
 		/*		BiblePay Difficulty Level Chart:
 		 1            19998.2933653649 
@@ -2239,15 +2284,13 @@ CAmount GetBlockSubsidy(const CBlockIndex* pindexPrev, int nPrevBits, int nPrevH
     if(nSubsidyBase > 20000) nSubsidyBase = 20000;
         else if(nSubsidyBase < 5000) nSubsidyBase = 5000;
 
-    // LogPrintf("height %u diff %4.2f reward %d\n", nPrevHeight, dDiff, nSubsidyBase);
     CAmount nSubsidy = nSubsidyBase * COIN;
     // Yearly decline of production by ~19.5% per year, projected ~5.2 Billion coins max by year 2050+.
-
 	// http://wiki.biblepay.org/Emission_Schedule
 
 	bool fSuperblocksEnabled = (pindexPrev->nHeight >= consensusParams.nSuperblockStartBlock) && fMasternodesEnabled;
 	int iSubsidyDecreaseInterval = BLOCKS_PER_DAY * 365; // Yearly Initially
-	double iDeflationRate = .10; // 10% per year initially
+	double iDeflationRate = .10; // 10% deflation from July 2017 to Dec 2017 (until sanctuaries go live) - This bootstraps the coin
 	if (fSuperblocksEnabled)
 	{
 		iSubsidyDecreaseInterval = BLOCKS_PER_DAY * 30; // After sanctuaries go live, Monthly
@@ -2259,11 +2302,13 @@ CAmount GetBlockSubsidy(const CBlockIndex* pindexPrev, int nPrevBits, int nPrevH
     }
 		
     // When sanctuaries go live: The Tithe block is disabled, budgeting/superblocks are enabled, and the budget contains a max of : 
-	// 10% to Charity budget, 5% for the IT budget, 2.5% PR, 2.5% P2P.  The 80% remaining is split between the miner and the sanctuary.
+	// 10% to Charity budget, 5% for the IT budget, 2.5% PR, 2.5% P2P.  The 80% remaining is split between the miner, PODC rewards and the sanctuary.
+	// https://wiki.biblepay.org/Economics
 
-	// Distributed Computing - Give 10% to charity, 5% to IT, 5% to P2P+PR, 50% to Distributed-Computing, (leaving 27% for Sanctuary and 3% for POW mining)
+	// Distributed Computing - Give 10% to charity, 5% to IT, 5% to P2P+PR, 50% to Distributed-Computing
 	double dSuperblockMultiplier = fSuperblocksEnabled ? (!fProd ? .15 : .20) : .10;
 	bool fDCLive = (fProd && fDistributedComputingEnabled && pindexPrev->nHeight > F11000_CUTOVER_HEIGHT_PROD) || (!fProd && fDistributedComputingEnabled);
+	// POW Payment + Sanctuary Payment / .30 = Gross reward minus (Sanctuary payment - POW Payment) = Gross Total Coinbase reward - This equals the .70 escrow:
 	if (fDCLive) dSuperblockMultiplier = .70;
     CAmount nSuperblockPart = (nPrevHeight > consensusParams.nBudgetPaymentsStartBlock) ? nSubsidy * dSuperblockMultiplier : 0;
     return fSuperblockPartOnly ? nSuperblockPart : nSubsidy - nSuperblockPart;
@@ -2271,13 +2316,11 @@ CAmount GetBlockSubsidy(const CBlockIndex* pindexPrev, int nPrevBits, int nPrevH
 
 CAmount GetMasternodePayment(int nHeight, CAmount blockValue, CAmount nSanctuaryCollateral)
 {
-	// Give Sanctuaries 35% of the block reward after Christmas 2017 (leaving 20% for budgets (see budget breakdown below), 35% to DC and 10% to POW miner):
+	// https://wiki.biblepay.org/Economics
 	const Consensus::Params& consensusParams = Params().GetConsensus();
     bool fSuperblocksEnabled = (nHeight >= consensusParams.nSuperblockStartBlock) && fMasternodesEnabled;
 	// http://forum.biblepay.org/index.php?topic=33.0
-	// Should we carve out additional 1-10% from superblocks for PR and/or P2P Rewards?
-	// Poll ended 12-4-2017: Yes, carve an addl 2.5% for PR and 2.5% for P2P rewards (5% more) leaving 80% for miner/sanctuaries.
-	// Final Distribution: 10% Charity, 2.5% PR, 2.5% P2P, 5% for IT, 40% for miner, 40% for sanctuary
+	// Final Distribution: 10% Charity, 2.5% PR, 2.5% P2P, 5% for IT
 	CAmount ret = 0;
 	int nSpork8Height = fProd ? SPORK8_HEIGHT : SPORK8_HEIGHT_TESTNET;
 	if (fProd && nHeight > nSpork8Height)
@@ -2357,11 +2400,14 @@ void CheckForkWarningConditions()
         }
         else
         {
+			// 4-24-2018 - Found chain with more work - attempt recovery
             if(pindexBestInvalid->nHeight > chainActive.Height() + 6)
                 LogPrintf("%s: Warning: Found invalid chain at least ~6 blocks longer than our best chain.\nChain state database corruption likely.\n", __func__);
             else
                 LogPrintf("%s: Warning: Found invalid chain which has higher work (at least ~6 blocks worth of work) than our best chain.\nChain state database corruption likely.\n", __func__);
             fLargeWorkInvalidChainFound = true;
+			LogPrintf("\n ERROR: Found invalid chain with higher work (ChainState database corruption likely) \n");
+			RecoverOrphanedChainNew(1);
         }
     }
     else
@@ -2457,7 +2503,7 @@ void static InvalidBlockFound(CBlockIndex *pindex, const CValidationState &state
 	{
 		if (true)
 		{
-			pindex->nStatus |= BLOCK_FAILED_VALID;  // PODC - Dirty: Allow PODC to reorganize chain, this happens if Rosetta goes down, dirty blocks can become clean.
+			pindex->nStatus |= BLOCK_FAILED_VALID;  
 			setDirtyBlockIndex.insert(pindex);
 			setBlockIndexCandidates.erase(pindex);
 		}
@@ -2687,7 +2733,7 @@ bool AbortNode(const std::string& strMessage, const std::string& userMessage="")
     uiInterface.ThreadSafeMessageBox(
         userMessage.empty() ? _("Error: A fatal internal error occurred, see debug.log for details") : userMessage,
         "", CClientUIInterface::MSG_ERROR);
-    StartShutdown();
+    StartShutdown(0);
     return false;
 }
 
@@ -3358,7 +3404,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
             pindex->nStatus |= BLOCK_HAVE_UNDO;
         }
 
-        pindex->RaiseValidity(BLOCK_VALID_SCRIPTS);
+        pindex->RaiseValidity(BLOCK_VALID_SCRIPTS); // BiblePay - Keep BLOCK_VALID_SCRIPTS dirty block index.
         setDirtyBlockIndex.insert(pindex);
     }
 
@@ -3398,7 +3444,13 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     int64_t nTime6 = GetTimeMicros(); nTimeCallbacks += nTime6 - nTime5;
     if (fDebugMaster) LogPrint("bench", "    - Callbacks: %.2fms [%.2fs]\n", 0.001 * (nTime6 - nTime5), nTimeCallbacks * 0.000001);
 	// Note: The following feature only memorizes the new blocks prayers
-	if (!fLoadingIndex) MemorizeBlockChainPrayers(true);
+	if (!fLoadingIndex) 
+	{
+		LOCK(cs_main);
+		{
+			MemorizeBlockChainPrayers(true, false, false, false);
+		}
+	}
     return true;
 }
 
@@ -3727,7 +3779,8 @@ void ReprocessBlocks(int nBlocks)
     std::map<uint256, int64_t>::iterator it = mapRejectedBlocks.begin();
     while(it != mapRejectedBlocks.end()){
         //use a window twice as large as is usual for the nBlocks we want to reset
-        if((*it).second  > GetTime() - (nBlocks*60*5)) {
+        if((*it).second  > GetTime() - (nBlocks*60*7)) 
+		{
             BlockMap::iterator mi = mapBlockIndex.find((*it).first);
             if (mi != mapBlockIndex.end() && (*mi).second) {
 
@@ -3813,8 +3866,16 @@ static void PruneBlockIndexCandidates() {
     while (it != setBlockIndexCandidates.end() && setBlockIndexCandidates.value_comp()(*it, chainActive.Tip())) {
         setBlockIndexCandidates.erase(it++);
     }
+	if (setBlockIndexCandidates.empty())
+	{
+		LogPrintf("\nYour block index is corrupted.  Please delete chainstate and blocks and restart the wallet.\n");
+		RecoverOrphanedChainNew(1);
+		MilliSleep(1000);
+		return;
+	}
+
     // Either the current tip or a successor of it we're working towards is left in setBlockIndexCandidates.
-    assert(!setBlockIndexCandidates.empty());
+    /* assert(!setBlockIndexCandidates.empty()); Commenting out as this terminates biblepay */
 }
 
 /**
@@ -3983,14 +4044,14 @@ bool InvalidateBlock(CValidationState& state, const Consensus::Params& consensus
     // Mark the block itself as invalid.
 	if (true)
 	{
-		pindex->nStatus |= BLOCK_FAILED_VALID; // PODC - Dirty Blocks can become clean later
+		pindex->nStatus |= BLOCK_FAILED_VALID;
 		setDirtyBlockIndex.insert(pindex);
 		setBlockIndexCandidates.erase(pindex);
 	}
 	
     while (chainActive.Contains(pindex)) {
         CBlockIndex *pindexWalk = chainActive.Tip();
-        pindexWalk->nStatus |= BLOCK_FAILED_CHILD;  // PODC - Dirty Blocks can become clean later
+        pindexWalk->nStatus |= BLOCK_FAILED_CHILD;
         setDirtyBlockIndex.insert(pindexWalk);
         setBlockIndexCandidates.erase(pindexWalk);
         // ActivateBestChain considers blocks already in chainActive
@@ -4018,25 +4079,34 @@ bool InvalidateBlock(CValidationState& state, const Consensus::Params& consensus
     return true;
 }
 
-bool ReconsiderBlock(CValidationState& state, CBlockIndex *pindex) {
+bool ReconsiderBlock(CValidationState& state, CBlockIndex *pindex) 
+{
     AssertLockHeld(cs_main);
 
     int nHeight = pindex->nHeight;
 
     // Remove the invalidity flag from this block and all its descendants.
     BlockMap::iterator it = mapBlockIndex.begin();
-    while (it != mapBlockIndex.end()) {
-        if (!it->second->IsValid() && it->second->GetAncestor(nHeight) == pindex) {
-            it->second->nStatus &= ~BLOCK_FAILED_MASK;
-            setDirtyBlockIndex.insert(it->second);
-            if (it->second->IsValid(BLOCK_VALID_TRANSACTIONS) && it->second->nChainTx && setBlockIndexCandidates.value_comp()(chainActive.Tip(), it->second)) {
-                setBlockIndexCandidates.insert(it->second);
-            }
-            if (it->second == pindexBestInvalid) {
-                // Reset invalid block marker if it was pointing to one of those.
-                pindexBestInvalid = NULL;
-            }
-        }
+    while (it != mapBlockIndex.end()) 
+	{
+		if (it->second != NULL)
+		{
+			if (it->second->GetAncestor(nHeight) == pindex) 
+			{
+				if (!it->second->IsValid())
+				{
+					it->second->nStatus &= ~BLOCK_FAILED_MASK;
+					setDirtyBlockIndex.insert(it->second);
+					if (it->second->IsValid(BLOCK_VALID_TRANSACTIONS) && it->second->nChainTx && setBlockIndexCandidates.value_comp()(chainActive.Tip(), it->second)) {
+						setBlockIndexCandidates.insert(it->second);
+					}
+					if (it->second == pindexBestInvalid) {
+						// Reset invalid block marker if it was pointing to one of those.
+						pindexBestInvalid = NULL;
+					}
+				}
+			}
+		}
         it++;
     }
 
@@ -4382,7 +4452,7 @@ bool HasThisCPIDSolvedPriorBlocks(std::string CPID, CBlockIndex* pindexPrev)
 	int iCheckWindow = fProd ? 4 : 1;
 	CBlockIndex* pindex = pindexPrev;
 	int64_t headerAge = GetAdjustedTime() - pindexPrev->nTime;
-	if (headerAge > (60*60*4)) return false;
+	if (headerAge > (60 * 60 * 4)) return false;
 	const CChainParams& chainparams = Params();
   
 	for (int i = 0; i < iCheckWindow; i++)
@@ -4397,7 +4467,11 @@ bool HasThisCPIDSolvedPriorBlocks(std::string CPID, CBlockIndex* pindexPrev)
 				if (!lastcpid.empty() && !sCPIDSig.empty())
 				{
 					// LogPrintf(" Current CPID %s, LastCPID %s, Height %f --- ", CPID.c_str(), lastcpid.c_str(), (double)pindex->nHeight);
-					if (lastcpid == CPID) return true;
+					if (lastcpid == CPID) 
+					{
+						// if (fDebugMaster) LogPrintf(" CPID %s has solvd prior blx @ height %f in prod %f iteration i %f ", CPID.c_str(), (double)pindex->nHeight, fProd, i);
+						return true;
+					}
 					pindex = pindexPrev->pprev;
 				}
 			}
@@ -4481,33 +4555,32 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIn
 		 return false;
 	}
 
-	// Rob A., Biblepay, 02-10-2018, Check Proof-Of-Loyalty
-	if (fProofOfLoyaltyEnabled && fCheckPOW)
+	// Rob A. - BiblePay - 8-29-2018
+	if (fDistributedComputingEnabled && ((nHeight > F14000_CUTOVER_HEIGHT_PROD && fProd)  ||  (nHeight > F14000_CUTOVER_HEIGHT_TESTNET && !fProd)))
 	{
+		// Verify the block is signed by a CPID
 		std::string sError = "";
-		std::string sMetrics = "";
-		int64_t nAncestorTime = (pindexPrev==NULL) ? 0 : pindexPrev->nTime;
-		int nAncestorHeight = (pindexPrev==NULL) ? 0 : pindexPrev->nHeight;
-
-		// Check Stake Signature, and retrieve stake weight
-		double dStakeWeight = 0;
-		if (block.vtx.size() > 1)
-			 dStakeWeight = GetStakeWeight(block.vtx[1], block.GetBlockTime(), block.vtx[0].vout[0].sTxOutMessage, true, sMetrics, sError);
-	    bool bPass = CheckProofOfLoyalty(dStakeWeight, 
-			block.GetHash(), block.nBits, consensusParams, 
-			block.GetBlockTime(), nAncestorTime, nAncestorHeight, 
-			block.nNonce, pindexPrev, false);
-		if (!bPass)
+		std::string sCPIDSignature = ExtractXML(block.vtx[0].vout[0].sTxOutMessage, "<cpidsig>","</cpidsig>");
+		if (sCPIDSignature.empty())
 		{
-			LogPrintf("ContextualCheckBlock::ERROR - CheckProofOfLoyalty failed at height %f \n",(double)nHeight);
-			return false;
+		    return state.DoS(1, error("%s: CPID Signature empty. ", __func__), REJECT_INVALID, "cpid-empty");
+		}
+		bool fCheckCPIDSignature = VerifyCPIDSignature(sCPIDSignature, false, sError);
+		if (!fCheckCPIDSignature)
+		{
+			return state.DoS(1, error("%s: CPID Signature Check Failed.  CPID %s, Error %s", __func__, block.sBlockMessage.c_str(), sError.c_str()), REJECT_INVALID, "cpid-signature-invalid");
+		}
+		// Ensure this CPID has not solved any of the last N blocks in prod or last block in testnet if header age is < 1 hour:
+		std::string sCPID = GetElement(sCPIDSignature, ";", 0);
+		bool bSolvedPriorBlocks = HasThisCPIDSolvedPriorBlocks(sCPID, pindexPrev);
+		if (bSolvedPriorBlocks)
+		{
+			return state.DoS(1, error("%s: CPID %s has solved prior blocks. ", __func__, sCPID.c_str()), REJECT_INVALID, "cpid-solved-prior-blocks");
 		}
 	}
-
-
-	// Rob A. - Biblepay - 2/8/2018 - Contextual check CPID signature on each block to prevent botnet from forming - level 2
-	if (fDistributedComputingEnabled && nHeight > F11000_CUTOVER_HEIGHT_PROD && !fMining)
+	else if (fDistributedComputingEnabled && nHeight > F11000_CUTOVER_HEIGHT_PROD)
 	{
+		// Rob A. - Biblepay - 2/8/2018 - Contextual check CPID signature on each block to prevent botnet from forming - level 2
 		int64_t nHeaderAge = GetAdjustedTime() - pindexPrev->nTime;
 		bool bActiveRACCheck = nHeaderAge < (60 * 15) ? true : false;
 		if (bActiveRACCheck)
@@ -4517,13 +4590,12 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIn
 			std::string sCPIDSignature = ExtractXML(block.vtx[0].vout[0].sTxOutMessage, "<cpidsig>","</cpidsig>");
 			if (sCPIDSignature.empty())
 			{
-				if (!fMining) LogPrintf(" CPID Signature empty.  Contextual Check Block Failed at height %f. \n", (double)pindexPrev->nHeight+1);
-				fCPIDFailed=true;
+				return state.DoS(1, error("%s: [Legacy] CPID-Signature empty. ", __func__), REJECT_INVALID, "cpid-empty");
 			}
 			bool fCheckCPIDSignature = VerifyCPIDSignature(sCPIDSignature, true, sError);
 			if (!fCheckCPIDSignature)
 			{
-				if (!fMining) LogPrintf(" CPID Signature Check Failed.  CPID %s, Error %s \n", block.sBlockMessage.c_str(), sError.c_str());
+				if (fDebugMaster) LogPrintf(" CPID Signature Check Failed.  CPID %s, Error %s \n", block.sBlockMessage.c_str(), sError.c_str());
 				fCPIDFailed=true;
 			}
 			// Ensure this CPID has not solved any of the last N blocks in prod or last block in testnet if header age is < 1 hour:
@@ -4531,21 +4603,20 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIn
 			bool bSolvedPriorBlocks = HasThisCPIDSolvedPriorBlocks(sCPID, pindexPrev);
 			if (bSolvedPriorBlocks)
 			{
-				if (!fMining) LogPrintf(" CPID has solved prior blocks.  Contextual check block failed.  CPID %s ",sCPID.c_str());
+				if (fDebugMaster) LogPrintf(" CPID has solved prior blocks.  Contextual check block failed.  CPID %s ",sCPID.c_str());
 				fCPIDFailed=true;
 			}
 			// Ensure this block can only be solved if this CPID was in the last superblock with a payment - but only if the header age is recent (this allows the chain to continue rolling if PODC goes down)
-			double nRecentlyPaid = GetPaymentByCPID(sCPID);
+			double nRecentlyPaid = GetPaymentByCPID(sCPID, nHeight);
 			if (nRecentlyPaid >= 0 && nRecentlyPaid < .50)
 			{
-				if (!fMining) LogPrintf(" CPID is not in prior superblock.  Contextual check block failed.  CPID %s, Payments: %f  ", sCPID.c_str(), (double)nRecentlyPaid);
+				if (fDebugMaster) LogPrintf(" CPID is not in prior superblock.  Contextual check block failed.  CPID %s, Payments: %f  ", sCPID.c_str(), (double)nRecentlyPaid);
 				fCPIDFailed=true;
 			}
 			if (fCPIDFailed)
 			{
 				return false;
 			}
-			
 		}
 	}
 
@@ -4573,7 +4644,13 @@ static bool AcceptBlockHeader(const CBlockHeader& block, CValidationState& state
 			if (!pindex) return false;
 
             if (pindex->nStatus & BLOCK_FAILED_MASK)
+			{
+				// 4-24-2018 - This happens second - Found Chain with Blocks marked as invalid
+				// 8-12-2018 - R Andrews - We had a minor fork on August 10th at block 63828 and it appears 25% of our sancs took the lower diff route (due to marking a block as invalid on the high diff chain).  Forensically this block is marked as invalid and when we try 'reconsiderblock' we segfault.  The segfault appears to be because the mapblockindex pointer to the invalid block header is null.  Therefore the recoverorphanedchain will not work in this case.  So now the new plan is to prune the block index by restarting the wallet with the -eraseblockindex flag and let the client resync.  This seems to happen about twice a year so we are going to test with the heavy handed method this quarter.
+				// RecoverOrphanedChainNew(2);
+				LogPrintf("\n ERROR: Found chain with blocks marked invalid \n");
                 return state.Invalid(error("%s: block is marked invalid", __func__), 0, "duplicate");
+			}
             return true;
         }
 
@@ -4583,16 +4660,31 @@ static bool AcceptBlockHeader(const CBlockHeader& block, CValidationState& state
         if (mi != mapBlockIndex.end()) pindexAncestor = (*mi).second;
 	    
         if (mi == mapBlockIndex.end())
+		{
+			// This happens first 4-24-2018
             return state.DoS(21, error("%s: prev block not found", __func__), 0, "bad-prevblk");
+		}
 	
 		// R Andrews - Biblepay - 02/20/2018 : Process ended with SIG11 Access not within a mapped region (pindexAncestor->nStatus)
 		if (!pindexAncestor || pindexAncestor==NULL)
 		{
-			return state.Invalid(error("Block has no ancestor. \n"));
+			// This happens 3rd - 4-24-2018 - Found chain with no ancestor
+			// RecoverOrphanedChain(3);
+
+			// Why do we have a mapBlockIndex pointing to a NULL pindex?
+			mapBlockIndex.erase(block.hashPrevBlock);
+			LogPrintf("\n ERROR: Found block with no ancestor \n");
+			return state.DoS(3, error("Block has no ancestor. \n"));
         }
 
         if (pindexAncestor->nStatus & BLOCK_FAILED_MASK)
-            return state.DoS(100, error("%s: prev block invalid", __func__), REJECT_INVALID, "bad-prevblk");
+		{
+			// R Andrews - Since PODC blocks can in rare occasions turn from invalid to valid (edge cases where the heat miners CPID was not in memory and the pindex age is approaching 15 mins)
+			// We need to decide the correct DOS penalty in BiblePay
+			int nAge = GetAdjustedTime() - pindexAncestor->nTime;
+			int nDosPenalty = nAge > 7200 ? 50 : 5;
+            return state.DoS(nDosPenalty, error("%s: prev block invalid", __func__), REJECT_INVALID, "bad-prevblk");
+		}
 
 		// Alex873434:Valgrind (Starting without testnet3 folder causes SIG11 process termination because the following line has no mapBlockIndex iterator)- fixing by reordering the call
 		if (!CheckBlockHeader(block, state, true, block.GetBlockTime(), pindexAncestor ? pindexAncestor->nTime : 0, pindexAncestor ? pindexAncestor->nHeight : 0, pindexAncestor))
@@ -4658,7 +4750,7 @@ static bool AcceptBlock(const CBlock& block, CValidationState& state, const CCha
 		{
 			if (true)
 			{
-				pindex->nStatus |= BLOCK_FAILED_VALID; // PODC - Dirty Blocks can become clean later
+				pindex->nStatus |= BLOCK_FAILED_VALID; // PODC - Dirty Blocks can become clean later 8-22-2018
 				setDirtyBlockIndex.insert(pindex);
 			}
         }
@@ -4697,6 +4789,7 @@ static bool AcceptBlock(const CBlock& block, CValidationState& state, const CCha
 		}
 	}
 
+	nLastAcceptBlock = GetAdjustedTime();
     return true;
 }
 
@@ -4924,6 +5017,20 @@ FILE* OpenDiskFile(const CDiskBlockPos &pos, const char *prefix, bool fReadOnly)
     }
     return file;
 }
+
+void KillBlockchainFiles()
+{
+    boost::filesystem::path pathBlocks = GetDataDir() / "blocks";
+	boost::filesystem::remove_all(pathBlocks);
+	boost::filesystem::path pathChainstate = GetDataDir() / "chainstate";
+	boost::filesystem::remove_all(pathChainstate);
+	boost::filesystem::path pathMnpayments = GetDataDir() / "mnpayments.dat";
+	if(boost::filesystem::exists(pathMnpayments)) boost::filesystem::remove(pathMnpayments); 
+	boost::filesystem::path pathGov = GetDataDir() / "governance.dat";
+	if(boost::filesystem::exists(pathGov)) boost::filesystem::remove(pathGov); 
+	boost::filesystem::path pathMncache = GetDataDir() / "mncache.dat";
+	if(boost::filesystem::exists(pathMncache)) boost::filesystem::remove(pathMncache); 
+}  
 
 FILE* OpenBlockFile(const CDiskBlockPos &pos, bool fReadOnly) {
     return OpenDiskFile(pos, "blk", fReadOnly);
@@ -7376,7 +7483,9 @@ void UpdateMagnitude()
 		double out_OneWeekPaid = 0;
 		double out_d1 = 0;
 		double out_d2 = 0;
-		mnMagnitude = GetUserMagnitude(nBudget, nTotalPaid, iLastSuperblock, out_Superblocks, out_SuperblockCount, out_HitCount, out_OneDayPaid, out_OneWeekPaid, out_d1, out_d2);
+		std::string sPK = GetMyPublicKeys();
+
+		mnMagnitude = GetUserMagnitude(sPK, nBudget, nTotalPaid, iLastSuperblock, out_Superblocks, out_SuperblockCount, out_HitCount, out_OneDayPaid, out_OneWeekPaid, out_d1, out_d2);
 }
 
 std::string GetVersionAlert()
@@ -7400,7 +7509,13 @@ void SetOverviewStatus()
 {
 	double dDiff = GetDifficultyN(chainActive.Tip(), 10);
 	double dPOWDifficulty = GetDifficulty(chainActive.Tip()) * 10;
-
+	// QuantitativeTightening - QT - RANDREWS - BIBLEPAY
+	// double dPriorPrice = 0;
+	// double dPriorPhase = 0;
+	// GetQTPhase(-1, chainActive.Tip()->nHeight-1, dPriorPrice, dPriorPhase);
+	// std::string sQT = "QT: " + RoundToString(dPriorPhase, 0) + "%";
+	// std::string sQTColor = (dPriorPhase == 0) ? "<font color=blue>" : "<font color=green>";
+	// End of QT
 	if (fDistributedComputingEnabled) UpdateMagnitude();
 	std::string sPrayer = "NA";
 	GetDataList("PRAYER", 7, iPrayerIndex, "", sPrayer);
@@ -7411,7 +7526,8 @@ void SetOverviewStatus()
 	msGlobalStatus += "</font>";
 	std::string sVersionAlert = GetVersionAlert();
 	if (!sVersionAlert.empty()) msGlobalStatus += " <font color=purple>" + sVersionAlert + "</font> ;";
-	// std::string sPrayers = FormatHTML(sPrayer, 12, "<br>");
+	// if (false) msGlobalStatus += " " + sQTColor + sQT + "</font>;<font color=green> Price: " + RoundToString(dPriorPrice, 8) + "</font>;";
+	std::string sPrayers = FormatHTML(sPrayer, 12, "<br>");
 	msGlobalStatus2 = "<font color=maroon><b>" + sPrayer + "</font></b><br>&nbsp;";
 }
 
@@ -7432,12 +7548,29 @@ bool TimerMain(std::string timer_name, int max_ms)
 	return false;
 }
 
+bool NonObnoxiousLog(std::string sLogSection, std::string sLogKey, std::string sValue, int64_t nAllowedSpan)
+{
+	boost::to_upper(sLogSection);
+	boost::to_upper(sLogKey);
+	int64_t nElapsed = GetAdjustedTime() - mvApplicationCacheTimestamp[sLogSection + ";" + sLogKey];
+	WriteCache(sLogSection, sLogKey, "1", GetAdjustedTime());
+	bool bAllowed = (nElapsed > nAllowedSpan) ? true : false;
+	if (bAllowed)
+	{
+		LogPrintf("[%s], [%s]: %s (elapsed %f)", sLogSection.c_str(), sLogKey.c_str(), sValue.c_str(), (double)nElapsed);
+		mvApplicationCacheTimestamp[sLogSection + ";" + sLogKey] = GetAdjustedTime();
+	}
+	return bAllowed;
+}
 
-void WriteCache(std::string sSection, std::string sKey, std::string sValue, int64_t locktime)
+void WriteCache(std::string sSection, std::string sKey, std::string sValue, int64_t locktime, bool IgnoreCase)
 {
 	if (sSection.empty() || sKey.empty()) return;
-	boost::to_upper(sSection);
-	boost::to_upper(sKey);
+	if (IgnoreCase)
+	{
+		boost::to_upper(sSection);
+		boost::to_upper(sKey);
+	}
 	std::string temp_value = mvApplicationCache[sSection + ";" + sKey];
 	if (temp_value.empty())
 	{
@@ -7454,8 +7587,6 @@ void WriteCache(std::string sSection, std::string sKey, std::string sValue, int6
 	}
 	mvApplicationCacheTimestamp[sSection + ";" + sKey] = locktime;
 }
-
-
 
 void PurgeCacheAsOfExpiration(std::string sSection, int64_t nExpiration)
 {
@@ -7524,34 +7655,82 @@ std::string GetMessagesFromBlock(const CBlock& block, std::string sTargetType)
 }
 
 
-void MemorizeBlockChainPrayers(bool fDuringConnectBlock)
+void MemorizeBlockChainPrayers(bool fDuringConnectBlock, bool fSubThread, bool fColdBoot, bool fDuringSanctuaryQuorum)
 {
-	int nMaxDepth = chainActive.Tip()->nHeight;
-    int nMinDepth = fDuringConnectBlock ? nMaxDepth - 2 : nMaxDepth - (BLOCKS_PER_DAY * 30 * 12);  // One year
-	if (nMinDepth < 0) nMinDepth = 0;
-	CBlockIndex* pindex = FindBlockByHeight(nMinDepth);
-	const Consensus::Params& consensusParams = Params().GetConsensus();
-    while (pindex && pindex->nHeight < nMaxDepth)
-	{
-		if (pindex) if (pindex->nHeight < chainActive.Tip()->nHeight) pindex = chainActive.Next(pindex);
-		if (!pindex) break;
-	    
-		CBlock block;
-		if (ReadBlockFromDisk(block, pindex, consensusParams, "MemorizeBlockChainPrayers")) 
+		int nDeserializedHeight = 0;
+		if (fColdBoot)
 		{
-        	BOOST_FOREACH(const CTransaction &tx, block.vtx)
+			nDeserializedHeight = DeserializePrayersFromFile();
+			if (chainActive.Tip()->nHeight < nDeserializedHeight && nDeserializedHeight > 0) nDeserializedHeight=0;
+		}
+
+		int nMaxDepth = chainActive.Tip()->nHeight;
+		int nMinDepth = fDuringConnectBlock ? nMaxDepth - 2 : nMaxDepth - (BLOCKS_PER_DAY * 30 * 12);  // One year
+		if (fDuringSanctuaryQuorum) nMinDepth = nMaxDepth - (BLOCKS_PER_DAY * 14); // Two Weeks
+
+		if (nDeserializedHeight > 0 && nDeserializedHeight < nMaxDepth) nMinDepth = nDeserializedHeight;
+
+		if (nMinDepth < 0) nMinDepth = 0;
+		CBlockIndex* pindex = FindBlockByHeight(nMinDepth);
+		const Consensus::Params& consensusParams = Params().GetConsensus();
+		if (fSubThread && !fPrayersMemorized) LogPrintf("MemorizeBlockChainPrayers @ %f ",GetAdjustedTime());
+		int64_t nMaxPaymentAge = 60 * 60 * 24 * 7;
+		while (pindex && pindex->nHeight < nMaxDepth)
+		{
+			if (pindex) if (pindex->nHeight < chainActive.Tip()->nHeight) pindex = chainActive.Next(pindex);
+			if (!pindex) break;
+			CBlock block;
+			if (ReadBlockFromDisk(block, pindex, consensusParams, "MemorizeBlockChainPrayers")) 
 			{
-				double dTotalSent = 0;
-				std::string sPrayer = "";
-				for (unsigned int i = 0; i < tx.vout.size(); i++)
-				{
-					dTotalSent += tx.vout[i].nValue / COIN;
-					sPrayer += tx.vout[i].sTxOutMessage;
+	  			for (unsigned int n = 0; n < block.vtx.size(); n++)
+       			{
+					double dTotalSent = 0;
+					std::string sPrayer = "";
+					double dFoundationDonation = 0;
+					for (unsigned int i = 0; i < block.vtx[n].vout.size(); i++)
+					{
+						sPrayer += block.vtx[n].vout[i].sTxOutMessage;
+						double dAmount = block.vtx[n].vout[i].nValue / COIN;
+						dTotalSent += dAmount;
+
+						// As of F14000, we no longer need to tally cancer payments by public key, remove this to respect anonymity
+						if (!(fDistributedComputingEnabled && ((pindex->nHeight > F14000_CUTOVER_HEIGHT_PROD && fProd)  ||  (pindex->nHeight > F14000_CUTOVER_HEIGHT_TESTNET && !fProd))))
+						{
+							if (n==0 && i > 0 && block.vtx[n].vout.size() > 4)
+							{
+								std::string sRecipient = PubKeyToAddress(block.vtx[n].vout[i].scriptPubKey);
+								double dTally = cdbl(ReadCacheWithMaxAge("AddressPayment", sRecipient, nMaxPaymentAge), 0) + dAmount;
+								WriteCache("AddressPayment", sRecipient, RoundToString(dTally, 0), block.GetBlockTime());
+							}
+						}
+						// The following 3 lines are used for PODS (Proof of document storage); allowing persistence of paid documents in IPFS
+						std::string sPK = PubKeyToAddress(block.vtx[n].vout[i].scriptPubKey);
+						if (sPK == consensusParams.FoundationAddress || sPK == consensusParams.FoundationPODSAddress)
+						{
+							dFoundationDonation += dAmount;
+						}
+					}
+					MemorizePrayer(sPrayer, block.GetBlockTime(), dTotalSent, 0, block.vtx[n].GetHash().GetHex(), pindex->nHeight, dFoundationDonation);
 				}
-			    MemorizePrayer(sPrayer, block.GetBlockTime(), dTotalSent, 0, tx.GetHash().GetHex());
+	  		}
+		}
+		if (fColdBoot) 
+		{
+			// ** Initialize distributed-computing CPID
+			std::string out_address = "";
+			double nMagnitude = 0;
+			std::string sAddress = "";
+			// Race Condition - Reported by Snat21 & Dave_BBP - Rob Andrews - 6/13/2018
+			FindResearcherCPIDByAddress(sAddress, out_address, nMagnitude);
+			mnMagnitude=nMagnitude;
+			// ** End of Initializing distributed-computing CPID
+			fPrayersMemorized = true;
+			if (nMaxDepth > (nDeserializedHeight-1000))
+			{
+				SerializePrayersToFile(nMaxDepth-1);
 			}
-	  	}
-	}
+		}
+		if (fSubThread && !fPrayersMemorized) LogPrintf("Finished MemorizeBlockChainPrayers @ %f ",GetAdjustedTime());
 }
 
 
@@ -7617,86 +7796,244 @@ std::string SignMessage(std::string sMsg, std::string sPrivateKey)
      return SignedMessage;
 }
 
-void MemorizePrayer(std::string sMessage, int64_t nTime, double dAmount, int iPosition, std::string sTxID)
+bool IsMature(int64_t nTime, int64_t nMaturityAge)
+{
+	int64_t nNow = GetAdjustedTime();
+	int64_t nRemainder = nNow % nMaturityAge;
+	int64_t nCutoff = nNow - nRemainder;
+	bool bMature = nTime <= nCutoff;
+	return bMature;
+}
+
+
+struct TxMessage
+{
+  std::string sMessageType;
+  std::string sMessageKey;
+  std::string sMessageValue;
+  std::string sSig;
+  std::string sNonce;
+  std::string sSporkSig;
+  std::string sIPFSHash;
+  std::string sBOSig;
+  std::string sBOSigner;
+  std::string sTimestamp;
+  std::string sIPFSSize;
+  std::string sCPIDSig;
+  std::string sCPID;
+  std::string sPODCTasks;
+  std::string sTxId;
+  std::string sVoteSignal;
+  std::string sVoteHash;
+  double      nNonce;
+  double      dAmount;
+  bool        fNonceValid;
+  bool        fPrayersMustBeSigned;
+  bool        fSporkSigValid;
+  bool        fBOSigValid;
+  bool        fPassedSecurityCheck;
+  int64_t     nAge;
+  int64_t     nTime;
+};
+
+void MemorizeUTXOWeight(TxMessage t, double dAmount)
+{
+	if (t.sPODCTasks.empty()) return;
+	double nMaximumChatterAge = GetSporkDouble("podcmaximumchatterage", (60 * 60 * 24));
+	if (t.nAge < nMaximumChatterAge)
+	{
+		std::string sError = "";
+		bool fSigValid = VerifyCPIDSignature(t.sCPIDSig, true, sError);
+		if (fSigValid)
+		{
+			WriteCache("UTXOWeight", t.sCPID, RoundToString(dAmount, 0), t.nTime);
+			WriteCache("CPIDTasks", t.sCPID, t.sPODCTasks, t.nTime);
+			if (IsMature(t.nTime, 14400))
+			{
+				WriteCache("MatureUTXOWeight", t.sCPID, RoundToString(dAmount, 0), t.nTime);
+				WriteCache("MatureCPIDTasks", t.sCPID, t.sPODCTasks, t.nTime);
+			}
+		}
+	}
+
+}
+
+bool CheckSporkSig(TxMessage t)
+{
+	std::string sError = "";
+	const CChainParams& chainparams = Params();
+	bool fSigValid = CheckStakeSignature(chainparams.GetConsensus().FoundationAddress, t.sSporkSig, t.sMessageValue + t.sNonce, sError);
+    bool bValid = (fSigValid && t.fNonceValid);
+	if (!bValid)
+	{
+		if (fDebugMaster) LogPrintf(" CheckSporkSig:SigFailed - Type %s, Nonce %f, Time %f, Bad spork Sig %s on message %s on TXID %s \n", t.sMessageType.c_str(), t.nNonce, t.nTime, 
+			               t.sSporkSig.c_str(), t.sMessageValue.c_str(), t.sTxId.c_str());
+	}
+	return bValid;
+}
+
+bool CheckBusinessObjectSig(TxMessage t)
+{
+	if (!t.sBOSig.empty() && !t.sBOSigner.empty())
+	{	
+		std::string sError = "";
+		bool fBOSigValid = CheckStakeSignature(t.sBOSigner, t.sBOSig, t.sMessageValue + t.sNonce, sError);
+   		if (!fBOSigValid)
+		{
+			if (fDebugMaster) LogPrintf(" MemorizePrayers::BO_SignatureFailed - Type %s, Nonce %f, Time %f, Bad BO Sig %s on message %s on TXID %s \n", 
+				t.sMessageType.c_str(),	t.nNonce, t.nTime, t.sBOSig.c_str(), t.sMessageValue.c_str(), t.sTxId.c_str());
+	   	}
+		return fBOSigValid;
+	}
+	return false;
+}
+
+TxMessage GetTxMessage(std::string sMessage, int64_t nTime, int iPosition, std::string sTxId, double dAmount)
+{
+	TxMessage t;
+	t.sMessageType = ExtractXML(sMessage,"<MT>","</MT>");
+	t.sMessageKey  = ExtractXML(sMessage,"<MK>","</MK>");
+	t.sMessageValue= ExtractXML(sMessage,"<MV>","</MV>");
+	t.sSig         = ExtractXML(sMessage,"<MS>","</MS>");
+	t.sNonce       = ExtractXML(sMessage,"<NONCE>","</NONCE>");
+	t.nNonce       = cdbl(t.sNonce, 0);
+	t.sSporkSig    = ExtractXML(sMessage,"<SPORKSIG>","</SPORKSIG>");
+	t.sIPFSHash    = ExtractXML(sMessage,"<IPFSHASH>", "</IPFSHASH>");
+	t.sBOSig       = ExtractXML(sMessage,"<BOSIG>", "</BOSIG>");
+	t.sBOSigner    = ExtractXML(sMessage,"<BOSIGNER>", "</BOSIGNER>");
+	t.sIPFSHash    = ExtractXML(sMessage,"<ipfshash>", "</ipfshash>");
+	t.sIPFSSize    = ExtractXML(sMessage,"<ipfssize>", "</ipfssize>");
+	t.sCPIDSig     = ExtractXML(sMessage,"<cpidsig>","</cpidsig>");
+	t.sCPID        = GetElement(t.sCPIDSig, ";", 0);
+	t.sPODCTasks   = ExtractXML(sMessage, "<PODC_TASKS>", "</PODC_TASKS>");
+	t.sTxId        = sTxId;
+	t.nTime        = nTime;
+	t.dAmount      = dAmount;
+    boost::to_upper(t.sMessageType);
+	boost::to_upper(t.sMessageKey);
+	t.sTimestamp = TimestampToHRDate((double)nTime + iPosition);
+	t.fNonceValid = (!(t.nNonce > (nTime+(60 * 60)) || t.nNonce < (nTime-(60 * 60))));
+	t.nAge = GetAdjustedTime() - nTime;
+	t.fPrayersMustBeSigned = (GetSporkDouble("prayersmustbesigned", 0) == 1);
+
+	if (t.sMessageType == "PRAYER" && (!(Contains(t.sMessageKey, "(") ))) t.sMessageKey += " (" + t.sTimestamp + ")";
+	if (t.sMessageType == "SPORK" || (t.sMessageType == "PRAYER" && t.fPrayersMustBeSigned))
+	{
+		t.fSporkSigValid = CheckSporkSig(t);
+		if (!t.fSporkSigValid) t.sMessageValue  = "";
+		t.fPassedSecurityCheck = t.fSporkSigValid;
+	}
+	else if (t.sMessageType == "PRAYER" && !t.fPrayersMustBeSigned)
+	{
+		// We allow unsigned prayers, as long as abusers don't deface the system (if they do, we set the spork requiring signed prayers and we manually remove the offensive prayers using a signed update)
+		t.fPassedSecurityCheck = true; 
+	}
+	else if (t.sMessageType == "ATTACHMENT" || t.sMessageType=="CPIDTASKS")
+	{
+		t.fPassedSecurityCheck = true;
+	}
+	else if (t.sMessageType == "REPENT")
+	{
+		t.fPassedSecurityCheck = true;
+	}
+	else if (t.sMessageType == "MESSAGE")
+	{
+		// these are sent by our users to each other
+		t.fPassedSecurityCheck = true;
+	}
+	else if (t.sMessageType == "DCC")
+	{
+		if (IsMature(nTime, 14400) && !t.sMessageValue.empty()) WriteCache("MatureDCC", t.sMessageKey, t.sMessageValue, nTime);
+		// These are checked in the memory pool (since we have some unbanked CPIDs who didn't sign the CPID from the wallet)
+		t.fPassedSecurityCheck = true;
+	}
+	else if (t.sMessageType == "EXPENSE" || t.sMessageType == "REVENUE")
+	{
+		t.sSporkSig = t.sBOSig;
+		t.fSporkSigValid = CheckSporkSig(t);
+		if (!t.fSporkSigValid) 
+		{
+			t.sMessageValue  = "";
+		}
+		t.fPassedSecurityCheck = t.fSporkSigValid;
+	}
+	else if (t.sMessageType == "VOTE")
+	{
+		t.fBOSigValid = CheckBusinessObjectSig(t);
+		t.fPassedSecurityCheck = t.fBOSigValid;
+	}
+	else
+	{
+		// We assume this is a business object
+		t.fBOSigValid = CheckBusinessObjectSig(t);
+		if (!t.fBOSigValid) t.sMessageValue = "";
+		t.fPassedSecurityCheck = t.fBOSigValid;
+	}
+	return t;
+}
+
+
+void MemorizePrayer(std::string sMessage, int64_t nTime, double dAmount, int iPosition, std::string sTxID, int nHeight, double dFoundationDonation)
 {
 	if (sMessage.empty()) return;
-	int64_t nAge = GetAdjustedTime() - nTime;
-	std::string sPODC = ExtractXML(sMessage, "<PODC_TASKS>", "</PODC_TASKS>");
-	if (!sPODC.empty())
+	TxMessage t = GetTxMessage(sMessage, nTime, iPosition, sTxID, dAmount);
+	if (!t.sIPFSHash.empty())
 	{
-		double nMaximumChatterAge = GetSporkDouble("podcmaximumchatterage", (60 * 60 * 24));
-		if (nAge < nMaximumChatterAge)
-		{
-			std::string sErr2 = "";
-			std::string sMySig = ExtractXML(sMessage,"<cpidsig>","</cpidsig>");
-			bool fSigChecked = VerifyCPIDSignature(sMySig, true, sErr2);
-			if (fSigChecked)
-			{
-				std::string sCPID = GetElement(sMySig, ";", 0);
-				WriteCache("UTXOWeight", sCPID, RoundToString(dAmount, 0), nTime);
-				WriteCache("CPIDTasks", sCPID, sPODC, nTime);
-			}
-			else
-			{
-				if (fDebugMaster && false) LogPrintf("\n Time %f SigFailure %s SigLen %f ", (double)nTime, sMySig.c_str(), (double)sMySig.length());
-			}
-		}
-		return;
+		WriteCache("IPFS", t.sIPFSHash, RoundToString(nHeight, 0), nTime, false);
+		WriteCache("IPFSFEE" + RoundToString(nTime, 0), t.sIPFSHash, RoundToString(dFoundationDonation, 0), nTime);
+		WriteCache("IPFSSIZE" + RoundToString(nTime, 0), t.sIPFSHash, t.sIPFSSize, nTime);
 	}
-    if (Contains(sMessage,"<MT>"))
+	MemorizeUTXOWeight(t, dAmount);
+	if (t.fPassedSecurityCheck && !t.sMessageType.empty() && !t.sMessageKey.empty() && !t.sMessageValue.empty())
 	{
-		  std::string sMessageType      = ExtractXML(sMessage,"<MT>","</MT>");
-  		  std::string sMessageKey       = ExtractXML(sMessage,"<MK>","</MK>");
-		  std::string sMessageValue     = ExtractXML(sMessage,"<MV>","</MV>");
-		  std::string sSig              = ExtractXML(sMessage,"<MS>","</MS>");
-		  std::string sNonce            = ExtractXML(sMessage,"<NONCE>","</NONCE>");
-		  std::string sSporkSig         = ExtractXML(sMessage,"<SPORKSIG>","</SPORKSIG>");
-		  boost::to_upper(sMessageType);
-		  boost::to_upper(sMessageKey);
-		  bool bRequiresSignature = (sMessageType=="SPORK") ? true : false;
-		  if (sMessageType=="NEWS") sMessageValue = sTxID;
-		  if (!sSporkSig.empty())
-		  {
-			  double dNonce = cdbl(sNonce, 0);
-			  bool bSigInvalid = false;
-			  if (dNonce > (nTime+(60 * 60)) || dNonce < (nTime-(60 * 60))) bSigInvalid = true;
-			  std::string sError = "";
-			  const CChainParams& chainparams = Params();
-			  bool fSigValid = CheckStakeSignature(chainparams.GetConsensus().FoundationAddress, sSporkSig, sMessageValue + sNonce, sError);
-    		  bool bValid = (fSigValid && !bSigInvalid);
-			  if (!bValid)
-			  {
-					if (fDebugMaster) LogPrintf(" MemorizePrayers::CPIDSignatureFailed - Nonce %f, Time %f , Bad spork Sig %s on message %s on TXID %s \n", (double)dNonce, (double)nTime, sSporkSig.c_str(),
-						sMessageValue.c_str(), sTxID.c_str());
-					sMessageValue = "";
-			  }
-			  if (!bValid && bRequiresSignature) sMessageValue = "";
-		}
-		else
-		{
-			  if (bRequiresSignature) sMessageValue = "";
-		}
-		  
-		if (!sMessageType.empty() && !sMessageKey.empty() && !sMessageValue.empty())
-		{
-			std::string sTimestamp = TimestampToHRDate((double)nTime + iPosition);
-			// Were using the Block time here because tx time returns seconds past epoch, and adjusting the time by the vout position (so the user can see what time the prayer was accepted in the block).
-			std::string sAdjMessageKey = sMessageKey;
-			bool bDCC = (sMessageType == "DCC" || sMessageType == "SPORK");
-			if (!bDCC)
-			{
-				if (!(Contains(sMessageKey, "(") && Contains(sMessageKey,")")))
-				{
-			       sAdjMessageKey = sMessageKey + " (" + sTimestamp + ")";
-				}
-			}
-			WriteCache(sMessageType, sAdjMessageKey, sMessageValue, nTime);
-		}
+		WriteCache(t.sMessageType, t.sMessageKey, t.sMessageValue, nTime);
 	}
 }
 
 
-
+void HealthCheckup()
+{
+	if (nLastHealthCheckup == 0)
+	{
+		nLastHealthCheckup = 1;
+		return;
+	}
+	int64_t nAge = GetTime() - nLastHealthCheckup;
+	double dLowPOWDifficultyThreshhold = 50;
+			
+	if (nAge > (60 * 60 * 24) && fProd && !fLoadingIndex && fWalletLoaded)
+	{
+		nLastHealthCheckup = GetTime();
+		int64_t nLastAcceptBlockAge = GetAdjustedTime() - nLastAcceptBlock;
+		if (chainActive.Tip() != NULL)
+		{
+			double dPOWDifficulty = GetDifficulty(chainActive.Tip()) * 10;
+			int64_t nLastBlockAge =  GetAdjustedTime() - chainActive.Tip()->GetBlockTime();
+			LogPrintf(" CheckingHealth... LastBlockAge %f, LastAcceptBlockAge %f, Diff %f ... ",nLastBlockAge, nLastAcceptBlockAge, dPOWDifficulty);
+			if ((nLastBlockAge > (60 * 60) && nLastAcceptBlockAge > (60 * 60)) || (dPOWDifficulty < dLowPOWDifficultyThreshhold && nLastAcceptBlockAge > (60 * 60)))
+			{
+				nRecoveryAttempts++;
+				if (nRecoveryAttempts == 1)
+				{
+					LogPrintf("\nHealthCheckup::Attempting Recovery method 1: Reprocessing 24 hours of blocks... Please wait... \n");
+					// On the first attempt, try to recover the node by replaying the last day of blocks and reconsidering bad blocks within 24 hours
+					ReprocessBlocks(BLOCKS_PER_DAY);
+				}
+				else if (nRecoveryAttempts > 2)
+				{
+					// If we still don't recover, we erase the chain and reboot
+					LogPrintf("\nHealthCheckup::Attempting Recovery method 2: Erasing chain... Rebooting... \n");
+					RecoverOrphanedChainNew(1);
+				}
+			}
+			else if (nLastBlockAge < (60 * 60) && dPOWDifficulty > dLowPOWDifficultyThreshhold)
+			{
+				LogPrintf("\nHealthCheckup::Healthy.\n");
+				nRecoveryAttempts = 0;
+			}
+		}
+	}
+}
 
 
 bool SendMessages(CNode* pto)
@@ -8100,6 +8437,15 @@ std::string DefaultRecAddress(std::string sType)
 			}
 		}
     }
+
+	// IPFS-PODS (9-9-2018) R ANDREWS - One biblepay public key is associated with each type of signed business object
+	if (!sType.empty())
+	{
+		std::string sError = "";
+		sDefaultRecAddress = GenerateNewAddress(sError, sType);
+		if (sError.empty()) return sDefaultRecAddress;
+	}
+	
 	return sDefaultRecAddress;
 }
 

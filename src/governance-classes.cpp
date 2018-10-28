@@ -21,7 +21,8 @@
 std::vector<std::string> Split(std::string s, std::string delim);
 void GetDistributedComputingGovObjByHeight(int nHeight, uint256 uOptFilter, int& out_nVotes, uint256& out_uGovObjHash, std::string& out_PaymentAddresses, std::string& out_PaymentAmounts);
 int GetRequiredQuorumLevel(int nHeight);
-
+bool NonObnoxiousLog(std::string sLogSection, std::string sLogKey, std::string sValue, int64_t nAllowedSpan);
+std::string SignPrice(std::string sValue);
 
 // DECLARE GLOBAL VARIABLES FOR GOVERNANCE CLASSES
 CGovernanceTriggerManager triggerman;
@@ -134,7 +135,9 @@ bool CGovernanceTriggerManager::AddNewTrigger(uint256 nHash)
         DBG( cout << "CGovernanceTriggerManager::AddNewTrigger Error creating superblock"
              << ", e.what() = " << e.what()
              << endl; );
-        LogPrintf("CGovernanceTriggerManager::AddNewTrigger -- Error creating superblock: %s\n", e.what());
+		std::string sErr(e.what());
+        std::string sNOL = "CGovernanceTriggerManager::AddNewTrigger -- Error creating superblock: " + sErr;
+		NonObnoxiousLog("CGovernanceTriggerManager", "AddNewTrigger", sNOL, 300);
         return false;
     }
     catch(...) {
@@ -439,119 +442,23 @@ bool CSuperblockManager::GetBestSuperblock(CSuperblock_sptr& pSuperblockRet, int
 }
 
 
-
-/*
-void CSuperblockManager::uperblock(CMutableTransaction& txNewRet, int nBlockHeight, std::vector<CTxOut>& voutSuperblockRet)
+std::string GetQTPhaseXML(CSuperblock_sptr pSuperblock)
 {
-
-	if (!putingEnabled) return;
-    LOCK(governance.cs);
-
-    // Create the Distributed Computing Superblock For This Height - This happens Daily
-    voutSuperblockRet.clear();
-    // Superblock payments are appended to the end of the coinbase vout vector
-    // TO DO: How many payments can we add before things blow up?  According to the Bitcoins largest transaction, about 32767 payments
-	// (We should be OK for at least 5 years, then we will need to upgrade to multiple daily superblocks)
-	CAmount nDCPaymentsTotal = CSuperblockLimit(nBlockHeight);
-	int iPendingVotes = 0;
-	uint256 uGovObjHash;
-	vObjByHeight(nBlockHeight, uint256S("0x0"), iPendingVotes, uGovObjHash);
-
-	bool bPending = iPendingVotes >= uorumLevel();
-	LogPrintf(" Checking for Pending DCC - Votes %f ",(double)iPendingVotes);
-	if (!bPending)
+	CGovernanceObject* pObj = pSuperblock->GetGovernanceObject();
+	if (pObj)
 	{
-		LogPrintf("\n ** uperblock::SUPERBLOCK DOES NOT HAVE ENOUGH VOTES : Required %f, Votes %f ", (double)uorumLevel(), (double)iPendingVotes);
-		return;
-	}
-	std::string sContract = upcomingVote.contract;
-	uint256 uHash = ash(sContract);
-	double nTotalMagnitude = 0;
-	int iCPIDCount = (sContract, nTotalMagnitude);
-	if (nTotalMagnitude < .01) 
-	{
-		LogPrintf(" \n ** uperblock::SUPERBLOCK CONTAINS NO MAGNITUDE height %f (cpid count %f ), hash %s %s** \n", (double)nBlockHeight, 
-			(double)iCPIDCount, uHash.GetHex().c_str(), sContract.c_str());
-		return;
-	}
-	double dDCPaymentsTotal = nDCPaymentsTotal / COIN;
-	if (dDCPaymentsTotal < 1)
-	{
-		LogPrintf(" \n ** uperblock::Superblock Payment Budget is lower than 1 BBP ** \n");
-		return;
-	}
-	double PaymentPerMagnitude = (dDCPaymentsTotal-1) / nTotalMagnitude;
-	std::vector<std::string> vRows = sContract.c_str(),"<ROW>");
-	double dTotalPaid = 0;
-	for (int i = 0; i < (int)vRows.size(); i++)
-	{
-		std::vector<std::string> vCPID = vRows[i].c_str(),",");
-		if (vCPID.size() >= 3)
+		UniValue obj = pObj->GetJSONObject();
+		if (obj.size() > 0)
 		{
-			std::string sCpid = vCPID[1];
-			std::string sAddress = vCPID[0];
-			double dMagnitude = cdbl(vCPID[2],2);
-			if (!sCpid.empty() && dMagnitude > 0)
-			{
-				double dOwed = PaymentPerMagnitude * dMagnitude;
-				dTotalPaid += dOwed;
-			    CBitcoinAddress cbaAddress(sAddress);
-				CScript scriptPubKey = GetScriptForDestination(cbaAddress.Get());
-     	        CTxOut txout = CTxOut(dOwed * COIN, scriptPubKey);
-			    txNewRet.vout.push_back(txout);
-	            voutSuperblockRet.push_back(txout);
-	            // PRINT NICE LOG OUTPUT FOR SUPERBLOCK PAYMENT
-                LogPrintf("uperblock::DCC Superblock : output %d (addr %s, amount %f)\n", i, sAddress.c_str(), (double)dOwed);
-			}
+			std::string sPrice = obj["price"].getValStr();
+			std::string sQTPhase = obj["qtphase"].getValStr();
+			std::string sDarkSig = obj["sig"].getValStr();
+			std::string sXML = "<price>" + sPrice + "</price><qtphase>" + sQTPhase + "</qtphase>" + sDarkSig;
+			return sXML;
 		}
 	}
-	// Add SanctuaryQuorum Signatures
-	
-	std::string sSigs = mnpayments.SerializeSanctuaryQuorumSignatures(nBlockHeight, uHash);
-	std::string sContractFinal = "<CONTRACT>" + sContract + "</CONTRACT>" + sSigs;
-	int iStepLength = 990 - txNewRet.vout[0].sTxOutMessage.length();
-	int iParts = cdbl(RoundToString(sContractFinal.length()/iStepLength,2),0);
-	if (iParts < 1) iParts = 1;
-	int iPtr = 0;
-	for (int i = 0; i <= (int)sContractFinal.length(); i += iStepLength)
-	{
-		int iChunkLength = sContractFinal.length() - i;
-		//if (iChunkLength <= iStepLength) bLastStep = true;
-		if (iChunkLength > iStepLength) 
-		{
-			iChunkLength = iStepLength;
-		} 
-		std::string sChunk = sContractFinal.substr(i, iChunkLength);
-		if ((iPtr+1) > (int)txNewRet.vout.size())
-		{
-			// Superblock too small to hold data
-			CAmount nExtendedAmount = .000001 * COIN;
-     	    CTxOut txoutExtension = CTxOut(nExtendedAmount, txNewRet.vout[iPtr].scriptPubKey);
-			txNewRet.vout.push_back(txoutExtension);
-			voutSuperblockRet.push_back(txoutExtension);
-		}
-		txNewRet.vout[iPtr].sTxOutMessage = sChunk;
-		iPtr++;
-	}
-
-
-	// End of SanctuaryQuorum Signatures
-
-	if (dTotalPaid > dDCPaymentsTotal)
-	{
-		LogPrintf("uperblock::DCC Superblock failure: Total Paid Available Daily Budget.  Creation Failed.  Paid %f - Budget %f\n", dTotalPaid, dDCPaymentsTotal);
-        voutSuperblockRet.clear();
-		return;
-	}
-	LogPrintf("\nuperblock::Success\n");
-	return;
-
+	return "<price>-0.00</price><qtphase>-0.00</qtphase>";
 }
-
-
-*/
-
-
 
 /**
 *   Create Superblock Payments
@@ -594,6 +501,7 @@ void CSuperblockManager::CreateSuperblock(CMutableTransaction& txNewRet, int nBl
     //          - max coinbase tx size
     //          - max "budget" available
 	if (fDebugMaster) LogPrintf(" Creating superblock with %f payments \n", (double)pSuperblock->CountPayments());
+	bool bQTPhaseEmitted = false;
 
     for(int i = 0; i < pSuperblock->CountPayments(); i++) {
         CGovernancePayment payment;
@@ -604,6 +512,11 @@ void CSuperblockManager::CreateSuperblock(CMutableTransaction& txNewRet, int nBl
             // SET COINBASE OUTPUT TO SUPERBLOCK SETTING
 
             CTxOut txout = CTxOut(payment.nAmount, payment.script);
+			if (!bQTPhaseEmitted) 
+			{
+				txout.sTxOutMessage = GetQTPhaseXML(pSuperblock);
+				bQTPhaseEmitted = true;
+			}
             txNewRet.vout.push_back(txout);
             voutSuperblockRet.push_back(txout);
 
@@ -720,8 +633,16 @@ bool CSuperblock::IsValidBlockHeight(int nBlockHeight)
 bool CSuperblock::IsDCCSuperblock(int nHeight)
 {
 	if (!fDistributedComputingEnabled) return false;
-    return nHeight >= Params().GetConsensus().nDCCSuperblockStartBlock &&
+	if ((nHeight > F13000_CUTOVER_HEIGHT_PROD && fProd) || (nHeight > F13000_CUTOVER_HEIGHT_TESTNET && !fProd))
+	{
+		return nHeight >= Params().GetConsensus().nDCCSuperblockStartBlock &&
+            ((nHeight % Params().GetConsensus().nDCCSuperblockCycle) == 10);
+	}
+	else
+	{
+		return nHeight >= Params().GetConsensus().nDCCSuperblockStartBlock &&
             ((nHeight % Params().GetConsensus().nDCCSuperblockCycle) == 0);
+	}
 }
 
 CAmount CSuperblock::GetPaymentsLimit(int nBlockHeight)
@@ -739,7 +660,8 @@ CAmount CSuperblock::GetPaymentsLimit(int nBlockHeight)
     int nBits = consensusParams.fPowAllowMinDifficultyBlocks ? UintToArith256(consensusParams.powLimit).GetCompact() : 1;
 
 	bool fDCLive = (fProd && fDistributedComputingEnabled && nBlockHeight > F11000_CUTOVER_HEIGHT_PROD) || (!fProd && fDistributedComputingEnabled);
-
+	// bool F14000 = (((nBlockHeight > F14000_CUTOVER_HEIGHT_PROD && fProd) || (nBlockHeight > F14000_CUTOVER_HEIGHT_TESTNET && !fProd)));
+					
     // some part of all blocks issued during the cycle goes to superblock, see GetBlockSubsidy
 	if (fDCLive) 
 	{
@@ -747,7 +669,11 @@ CAmount CSuperblock::GetPaymentsLimit(int nBlockHeight)
 	}
 	int nSuperblockCycle = IsValidBlockHeight(nBlockHeight) ? consensusParams.nSuperblockCycle : consensusParams.nDCCSuperblockCycle;
 	double nBudgetAvailable = (fDCLive && IsValidBlockHeight(nBlockHeight) && !IsDCCSuperblock(nBlockHeight)) ? .20 : 1;
+	// The first call to GetBlockSubsidy calculates the future reward (and this has our standard deflation of 19% per year in it)
+	// int nAssessmentHeight = F14000 ? (nBlockHeight-nSuperblockCycle) : nBlockHeight;
+		
     CAmount nSuperblockPartOfSubsidy = GetBlockSubsidy(pindexBestHeader->pprev, nBits, nBlockHeight, consensusParams, true);
+	
     CAmount nPaymentsLimit = 0;
 	if (nBudgetAvailable == 1)
 	{
@@ -784,14 +710,17 @@ void CSuperblock::ParsePaymentSchedule(std::string& strPaymentAddresses, std::st
 
     // IF THESE DONT MATCH, SOMETHING IS WRONG
 
-    if (vecParsed1.size() != vecParsed2.size()) {
+    if (vecParsed1.size() != vecParsed2.size()) 
+	{
         std::ostringstream ostr;
-        ostr << "CSuperblock::ParsePaymentSchedule -- Mismatched payments and amounts";
-        LogPrintf("%s\n", ostr.str());
-        throw std::runtime_error(ostr.str());
+		// 4-24-2018 - Prevent Obnoxious Repetetive Logging of this message
+		std::string sLogMe = "CSuperblock::ParsePaymentSchedule -- Mismatched payments and amounts";
+		NonObnoxiousLog("superblock", "ParsePaymentSchedule", sLogMe, 300);
+        throw std::runtime_error(sLogMe);
     }
 
-    if (vecParsed1.size() == 0) {
+    if (vecParsed1.size() == 0) 
+	{
         std::ostringstream ostr;
         ostr << "CSuperblock::ParsePaymentSchedule -- Error no payments";
         LogPrintf("%s\n", ostr.str());

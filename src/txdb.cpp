@@ -7,6 +7,7 @@
 
 #include "chain.h"
 #include "chainparams.h"
+#include "checkpoints.h"
 #include "hash.h"
 #include "main.h"
 #include "pow.h"
@@ -316,14 +317,20 @@ bool CBlockTreeDB::LoadBlockIndexGuts()
     pcursor->Seek(make_pair(DB_BLOCK_INDEX, uint256()));
 	fLoadingIndex=true;
 	int iBlock = 0;
+	const CChainParams& chainparams = Params();
+	int nCheckpointHeight = Checkpoints::GetTotalBlocksEstimate(chainparams.Checkpoints());
+    LogPrintf(" Last Checkpoint Height %f ",nCheckpointHeight);
+
     // Load mapBlockIndex
     while (pcursor->Valid()) 
 	{
 		iBlock++;
-		if (iBlock % 1000 == 0)
+		if (iBlock % 10000 == 0)
 		{
 			boost::this_thread::interruption_point();
-			LogPrintf(" block %f @ %f ",(double)iBlock, (double)GetTime());
+			int64_t nMilli = GetTimeMillis();
+
+			if (true) LogPrintf(" block %f @ %f %f",(double)iBlock, (double)GetTime(), (double)nMilli);
 		}
         std::pair<char, uint256> key;
         if (pcursor->GetKey(key) && key.first == DB_BLOCK_INDEX) {
@@ -345,13 +352,15 @@ bool CBlockTreeDB::LoadBlockIndexGuts()
                 pindexNew->nTx            = diskindex.nTx;
 				// pindexNew->sBlockMessage  = diskindex.sBlockMessage;
 				pindexNew->hashBibleHash  = diskindex.hashBibleHash;
-
-                if (!CheckProofOfWork(pindexNew->GetBlockHash(), pindexNew->nBits, Params().GetConsensus(), 
-					pindexNew->nTime,
-					(pindexNew->pprev) ? pindexNew->pprev->nTime : 0,
-					(pindexNew->pprev) ? pindexNew->pprev->nHeight : 0, pindexNew->nNonce, 
-					pindexNew->pprev, true))
-                    return error("LoadBlockIndex(): CheckProofOfWork failed: %s", pindexNew->ToString());
+				if (diskindex.nHeight > nCheckpointHeight || diskindex.nHeight % 10 == 0)
+				{
+					if (!CheckProofOfWork(pindexNew->GetBlockHash(), pindexNew->nBits, Params().GetConsensus(), 
+						pindexNew->nTime,
+						(pindexNew->pprev) ? pindexNew->pprev->nTime : 0,
+						(pindexNew->pprev) ? pindexNew->pprev->nHeight : 0, pindexNew->nNonce, 
+						pindexNew->pprev, true))
+						return error("LoadBlockIndex(): CheckProofOfWork failed: %s", pindexNew->ToString());
+				}
 
                 pcursor->Next();
             } else {

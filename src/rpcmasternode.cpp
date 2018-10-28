@@ -300,34 +300,39 @@ UniValue masternode(const UniValue& params, bool fHelp)
         int nFailed = 0;
 
         UniValue resultsObj(UniValue::VOBJ);
+	
+		LOCK(cs_main);
+		{
+    
+			BOOST_FOREACH(CMasternodeConfig::CMasternodeEntry mne, masternodeConfig.getEntries()) 
+			{
+				std::string strError;
 
-        BOOST_FOREACH(CMasternodeConfig::CMasternodeEntry mne, masternodeConfig.getEntries()) {
-            std::string strError;
+				CTxIn vin = CTxIn(uint256S(mne.getTxHash()), uint32_t(atoi(mne.getOutputIndex().c_str())));
+				CMasternode *pmn = mnodeman.Find(vin);
+				CMasternodeBroadcast mnb;
 
-            CTxIn vin = CTxIn(uint256S(mne.getTxHash()), uint32_t(atoi(mne.getOutputIndex().c_str())));
-            CMasternode *pmn = mnodeman.Find(vin);
-            CMasternodeBroadcast mnb;
+				if(strCommand == "start-missing" && pmn) continue;
+				if(strCommand == "start-disabled" && pmn && pmn->IsEnabled()) continue;
 
-            if(strCommand == "start-missing" && pmn) continue;
-            if(strCommand == "start-disabled" && pmn && pmn->IsEnabled()) continue;
+				bool fResult = CMasternodeBroadcast::Create(mne.getIp(), mne.getPrivKey(), mne.getTxHash(), mne.getOutputIndex(), strError, mnb);
 
-            bool fResult = CMasternodeBroadcast::Create(mne.getIp(), mne.getPrivKey(), mne.getTxHash(), mne.getOutputIndex(), strError, mnb);
+				UniValue statusObj(UniValue::VOBJ);
+				statusObj.push_back(Pair("alias", mne.getAlias()));
+				statusObj.push_back(Pair("result", fResult ? "successful" : "failed"));
 
-            UniValue statusObj(UniValue::VOBJ);
-            statusObj.push_back(Pair("alias", mne.getAlias()));
-            statusObj.push_back(Pair("result", fResult ? "successful" : "failed"));
+				if (fResult) {
+					nSuccessful++;
+					mnodeman.UpdateMasternodeList(mnb);
+					mnb.Relay();
+				} else {
+					nFailed++;
+					statusObj.push_back(Pair("errorMessage", strError));
+				}
 
-            if (fResult) {
-                nSuccessful++;
-                mnodeman.UpdateMasternodeList(mnb);
-                mnb.Relay();
-            } else {
-                nFailed++;
-                statusObj.push_back(Pair("errorMessage", strError));
-            }
-
-            resultsObj.push_back(Pair("status", statusObj));
-        }
+				resultsObj.push_back(Pair("status", statusObj));
+			}
+		}
         mnodeman.NotifyMasternodeUpdates();
 
         UniValue returnObj(UniValue::VOBJ);
@@ -502,8 +507,11 @@ UniValue masternodelist(const UniValue& params, bool fHelp)
                 if (strFilter !="" && strAddress.find(strFilter) == std::string::npos &&
                     strOutpoint.find(strFilter) == std::string::npos) continue;
                 obj.push_back(Pair(strOutpoint, strAddress));
-            } else if (strMode == "full") {
+            } else if (strMode == "full") 
+			{
                 std::ostringstream streamFull;
+				std::string sIsValid = mn.IsValidForPayment() ? "Yes" : "No";
+				
                 streamFull << std::setw(18) <<
                                mn.GetStatus() << " " <<
                                mn.nProtocolVersion << " " <<
@@ -511,7 +519,7 @@ UniValue masternodelist(const UniValue& params, bool fHelp)
                                (int64_t)mn.lastPing.sigTime << " " << std::setw(8) <<
                                (int64_t)(mn.lastPing.sigTime - mn.sigTime) << " " << std::setw(10) <<
                                mn.GetLastPaidTime() << " "  << std::setw(6) <<
-                               mn.GetLastPaidBlock() << " " <<
+                               mn.GetLastPaidBlock() << " " << " " << sIsValid << " " <<
                                mn.addr.ToString();
                 std::string strFull = streamFull.str();
                 if (strFilter !="" && strFull.find(strFilter) == std::string::npos &&

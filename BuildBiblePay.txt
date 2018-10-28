@@ -1,19 +1,38 @@
 Build BiblePay - Unix
 
-cd /home/yourname
+
+apt-get install build-essential libtool autotools-dev automake pkg-config libssl-dev libevent-dev bsdmainutils
+apt-get install libboost-system-dev libboost-filesystem-dev libboost-chrono-dev libboost-program-options-dev libboost-test-dev libboost-thread-dev
+apt-get install libqt5gui5 libqt5core5a libqt5dbus5 qttools5-dev qttools5-dev-tools libprotobuf-dev protobuf-compiler
+apt-get install git
+
+
+How to install Berkley DB 4.8:
+cd ~
 git clone https://github.com/biblepay/biblepay
 cd biblepay
 sudo chmod 777 share/genbuild.sh
 sudo chmod 777 autogen.sh
-./autogen.sh
-
-sudo apt-get install libqtwebkit-dev qt4-dev-tools
-
 BP_ROOT=$(pwd)
 # Note: Berkeley DB4.8 must be installed, the next step points to the db4 location
 BDB_PREFIX="${BP_ROOT}/db4"
+wget http://download.oracle.com/berkeley-db/db-4.8.30.NC.tar.gz
+tar -xzvf db-4.8.30.NC.tar.gz
+cd db-4.8.30.NC/build_unix
+-- Static Build so it can be used by BiblePay
+../dist/configure --enable-cxx --disable-shared --with-pic --prefix=$BDB_PREFIX
+make install
+
+Compiling BiblePay from Source:
+# Note: Berkeley DB4.8 must be installed, the next step points to the db4 location
+cd ~/biblepay
+BDB_PREFIX="${BP_ROOT}/db4"
+./autogen.sh
 ./configure LDFLAGS="-L${BDB_PREFIX}/lib/" CPPFLAGS="-I${BDB_PREFIX}/include/"
-sudo make
+cd src
+make
+
+
 
 Gitian Builder:
 
@@ -24,15 +43,6 @@ sudo chown debian depends -R
 cp /inputs/biblepay/depends/*.* /inputs/biblepay/depends
 cp /inputs/biblepay/src/univalue/gen/*.* /inputs/biblepay/univalue/gen
 
-
-How to install Berkley DB 4.8 on Debian:
-
-wget http://download.oracle.com/berkeley-db/db-4.8.30.NC.tar.gz
-tar -xzvf db-4.8.30.NC.tar.gz
-cd db-4.8.30.NC/build_unix
--- Static Build so it can be used by BiblePay
-../dist/configure --enable-cxx --disable-shared --with-pic --prefix=$BDB_PREFIX
-make install
 
 How to upgrade BiblePay:
 cd /biblepay/biblepay/src/..

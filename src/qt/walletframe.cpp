@@ -141,6 +141,35 @@ void WalletFrame::gotoDistributedComputingPage()
         i.value()->gotoDistributedComputingPage();
 }
 
+
+void WalletFrame::gotoProposalListPage()
+{
+    QMap<QString, WalletView*>::const_iterator i;
+    for (i = mapWalletViews.constBegin(); i != mapWalletViews.constEnd(); ++i)
+        i.value()->gotoProposalListPage();
+}
+
+void WalletFrame::gotoProposalAddPage()
+{
+    QMap<QString, WalletView*>::const_iterator i;
+    for (i = mapWalletViews.constBegin(); i != mapWalletViews.constEnd(); ++i)
+        i.value()->gotoProposalAddPage();
+}
+
+void WalletFrame::gotoContactAddPage()
+{
+    QMap<QString, WalletView*>::const_iterator i;
+    for (i = mapWalletViews.constBegin(); i != mapWalletViews.constEnd(); ++i)
+        i.value()->gotoContactAddPage();
+}
+
+void WalletFrame::gotoBusinessObjectListPage()
+{
+    QMap<QString, WalletView*>::const_iterator i;
+    for (i = mapWalletViews.constBegin(); i != mapWalletViews.constEnd(); ++i)
+        i.value()->gotoBusinessObjectListPage();
+}
+
 void WalletFrame::gotoReceiveCoinsPage()
 {
     QMap<QString, WalletView*>::const_iterator i;

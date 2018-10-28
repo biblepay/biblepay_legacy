@@ -960,7 +960,8 @@ UniValue getgovernanceinfo(const UniValue& params, bool fHelp)
     UniValue obj(UniValue::VOBJ);
     obj.push_back(Pair("governanceminquorum", Params().GetConsensus().nGovernanceMinQuorum));
     obj.push_back(Pair("masternodewatchdogmaxseconds", MASTERNODE_WATCHDOG_MAX_SECONDS));
-    obj.push_back(Pair("proposalfee", ValueFromAmount(GOVERNANCE_PROPOSAL_FEE_TX)));
+	CAmount nFee = GetAdjustedTime() > 1533081700 ? GOVERNANCE_PROPOSAL_FEE_TX2 : GOVERNANCE_PROPOSAL_FEE_TX;
+    obj.push_back(Pair("proposalfee", ValueFromAmount(nFee)));
     obj.push_back(Pair("superblockcycle", Params().GetConsensus().nSuperblockCycle));
     obj.push_back(Pair("lastsuperblock", nLastSuperblock));
     obj.push_back(Pair("nextsuperblock", nNextSuperblock));

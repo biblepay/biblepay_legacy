@@ -35,10 +35,15 @@ QT_FORMS_UI = \
   qt/forms/receivecoinsdialog.ui \
   qt/forms/receiverequestdialog.ui \
   qt/forms/distributedcomputingdialog.ui \
+  qt/forms/proposaladddialog.ui \
+  qt/forms/contactadddialog.ui \
+  qt/forms/businessobjectlist.ui \
   qt/forms/debugwindow.ui \
   qt/forms/sendcoinsdialog.ui \
   qt/forms/sendcoinsentry.ui \
   qt/forms/signverifymessagedialog.ui \
+  qt/forms/proposals.ui \
+  qt/forms/secdialog.ui \
   qt/forms/transactiondescdialog.ui
 
 QT_MOC_CPP = \
@@ -73,6 +78,9 @@ QT_MOC_CPP = \
   qt/moc_receivecoinsdialog.cpp \
   qt/moc_receiverequestdialog.cpp \
   qt/moc_distributedcomputingdialog.cpp \
+  qt/moc_proposaladddialog.cpp \
+  qt/moc_contactadddialog.cpp \
+  qt/moc_businessobjectlist.cpp \
   qt/moc_recentrequeststablemodel.cpp \
   qt/moc_rpcconsole.cpp \
   qt/moc_sendcoinsdialog.cpp \
@@ -88,7 +96,9 @@ QT_MOC_CPP = \
   qt/moc_utilitydialog.cpp \
   qt/moc_walletframe.cpp \
   qt/moc_walletmodel.cpp \
-  qt/moc_walletview.cpp
+  qt/moc_walletview.cpp \
+  qt/moc_proposals.cpp \
+  qt/moc_secdialog.cpp
 
 BITCOIN_MM = \
   qt/macdockiconhandler.mm \
@@ -146,6 +156,9 @@ BITCOIN_QT_H = \
   qt/receivecoinsdialog.h \
   qt/receiverequestdialog.h \
   qt/distributedcomputingdialog.h \
+  qt/proposaladddialog.h \
+  qt/contactadddialog.h \
+  qt/businessobjectlist.h \
   qt/recentrequeststablemodel.h \
   qt/rpcconsole.h \
   qt/sendcoinsdialog.h \
@@ -164,6 +177,8 @@ BITCOIN_QT_H = \
   qt/walletmodel.h \
   qt/walletmodeltransaction.h \
   qt/walletview.h \
+  qt/proposals.h \
+  qt/secdialog.h \
   qt/winshutdownmonitor.h
 
 RES_ICONS = \
@@ -458,6 +473,9 @@ BITCOIN_QT_CPP += \
   qt/receivecoinsdialog.cpp \
   qt/receiverequestdialog.cpp \
   qt/distributedcomputingdialog.cpp \
+  qt/proposaladddialog.cpp \
+  qt/contactadddialog.cpp \
+  qt/businessobjectlist.cpp \
   qt/recentrequeststablemodel.cpp \
   qt/sendcoinsdialog.cpp \
   qt/sendcoinsentry.cpp \
@@ -471,7 +489,9 @@ BITCOIN_QT_CPP += \
   qt/walletframe.cpp \
   qt/walletmodel.cpp \
   qt/walletmodeltransaction.cpp \
-  qt/walletview.cpp
+  qt/walletview.cpp \
+  qt/proposals.cpp \
+  qt/secdialog.cpp
 endif
 
 RES_IMAGES = \
@@ -529,6 +549,7 @@ RES_IMAGES = \
   qt/res/images/bezaleel/splash.png \
   qt/res/images/bezaleel/splash_testnet.png \
   qt/res/images/bezaleel/biblepay_logo_horizontal.png \
+  qt/res/images/bezaleel/biblepay_logo.png \
   qt/res/images/bezaleel/unchecked.png \
   qt/res/images/bezaleel/checked.png \
   qt/res/images/bezaleel/bezaleel_downArrow.png \

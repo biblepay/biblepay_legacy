@@ -71,12 +71,14 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                 sub.involvesWatchAddress = mine & ISMINE_WATCH_ONLY;
 				sub.IsPODCPayment = wtx.IsPODCPayment();
 				sub.IsSuperblockPayment = wtx.IsSuperblockPayment();
+				sub.IsIPFSAttachment = wtx.IsIPFSAttachment();
 
                 if (ExtractDestination(txout.scriptPubKey, address) && IsMine(*wallet, address))
                 {
                     // Received by Biblepay Address
                     sub.type = TransactionRecord::RecvWithAddress;
                     sub.address = CBitcoinAddress(address).ToString();
+					if (wtx.IsIPFSAttachment()) sub.type = TransactionRecord::IPFSAttachment;
                 }
                 else
                 {
@@ -84,10 +86,23 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                     sub.type = TransactionRecord::RecvFromOther;
                     sub.address = mapValue["from"];
                 }
+
                 if (wtx.IsCoinBase())
                 {
                     // Generated
-                    sub.type = TransactionRecord::Generated;
+                    // Check if PODC or Mined EB: 2018-06-022
+                    if (sub.IsPODCPayment) 
+					{
+                        sub.type = TransactionRecord::PODCPayment;
+                    } 
+					else if (sub.IsSuperblockPayment) 
+					{
+                        sub.type = TransactionRecord::SuperBlockPayment;  
+                    }
+                    else
+                    {
+						sub.type = TransactionRecord::Generated;
+                	}
                 }
 
                 parts.append(sub);
@@ -100,6 +115,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
         int nFromMe = 0;
         bool involvesWatchAddress = false;
         isminetype fAllFromMe = ISMINE_SPENDABLE;
+
         BOOST_FOREACH(const CTxIn& txin, wtx.vin)
         {
             if(wallet->IsMine(txin)) {
@@ -132,17 +148,16 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
         {
 
 			// Biblepay - R Andrews - 03-04-2018 - Show PODC Update in Transaction Record
-
-            // Payment to self
-            // TO DO: this section still not accurate but covers most cases,
-            // might need some additional work however
-			std::string sMessage = GetEntireMessage(wtx);
+			// Payment to self
+    		std::string sMessage = GetEntireMessage(wtx);
 		    std::string sTasks = ExtractXML(sMessage, "<PODC_TASKS>", "</PODC_TASKS>");
 			std::string sDCC = ExtractXML(sMessage, "<MT>", "</MT>");
 
             TransactionRecord sub(hash, nTime);
             // Payment to self by default
             sub.type = TransactionRecord::SendToSelf;
+			sub.IsIPFSAttachment = wtx.IsIPFSAttachment();
+
 			if (fDistributedComputingEnabled && sDCC == "DCC")
 			{
 				sub.type=TransactionRecord::PODCAssociation;
@@ -207,6 +222,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                 TransactionRecord sub(hash, nTime);
                 sub.idx = parts.size();
                 sub.involvesWatchAddress = involvesWatchAddress;
+				sub.IsIPFSAttachment = wtx.IsIPFSAttachment();
 
                 if(wallet->IsMine(txout))
                 {

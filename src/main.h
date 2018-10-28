@@ -29,6 +29,7 @@
 #include <vector>
 #include <boost/unordered_map.hpp>
 #include "support/allocators/secure.h"
+#include <univalue.h>
 
 class CBlockIndex;
 class CBlockTreeDB;
@@ -55,6 +56,8 @@ static const bool DEFAULT_WHITELISTFORCERELAY = true;
  */
 static const unsigned int DEFAULT_MIN_RELAY_TX_FEE = 10000; // was 1000
 static const unsigned int TITHE_MODULUS = 10; // Number of blocks that pass between charitable tithe contributions
+
+static const std::string BUSINESS_OBJECTS = "BUSINESS_OBJECTS";
 static const int F8000_CUTOVER_HEIGHT = 21350;
 static const int F1000_END_HEIGHT_TESTNET = 1199;
 static const int F8000_CUTOVER_HEIGHT_TESTNET = 12200;
@@ -70,7 +73,11 @@ static const int F10000_CUTOVER_HEIGHT = 25910;
 static const int F11000_CUTOVER_HEIGHT_PROD = 33440;
 static const int F11000_CUTOVER_HEIGHT_TESTNET = 1;
 static const int F12000_CUTOVER_HEIGHT_PROD = 35110;
-
+static const int F13000_CUTOVER_HEIGHT_PROD = 57700; // July 11th, 2018
+static const int F13000_CUTOVER_HEIGHT_TESTNET = 16600;
+static const int F14000_CUTOVER_HEIGHT_PROD = 77000; // October 14th, 2018
+static const int F14000_CUTOVER_HEIGHT_TESTNET = 54300; // Sep. 1, 2018
+static const int MINIMUM_EMAIL_LENGTH = 5; // 3 character domain + . + 1 character name
 /** Default for -maxorphantx, maximum number of orphan transactions kept in memory */
 static const unsigned int DEFAULT_MAX_ORPHAN_TRANSACTIONS = 100;
 /** Default for -limitancestorcount, max number of in-mempool ancestors */
@@ -164,6 +171,17 @@ struct BlockHasher
     size_t operator()(const uint256& hash) const { return hash.GetCheapHash(); }
 };
 
+struct UserVote
+{
+	int nTotalYesCount;
+	int nTotalNoCount;
+	int nTotalAbstainCount;
+	int nTotalYesWeight;
+	int nTotalNoWeight;
+	int nTotalAbstainWeight;
+};
+
+
 extern CScript COINBASE_FLAGS;
 extern CCriticalSection cs_main;
 
@@ -204,6 +222,17 @@ extern bool fEnableReplacement;
 extern std::string msGlobalStatus;
 extern std::string msGlobalStatus2;
 extern std::string msGlobalStatus3;
+extern std::string msProposalResult;
+extern int64_t nProposalStartTime;
+extern int64_t nProposalModulus;
+extern int64_t nLastHealthCheckup;
+extern int64_t nLastAcceptBlock;
+extern int nRecoveryAttempts;
+extern uint256 uTxIdFee;
+extern int nProposalPrepareHeight;
+extern std::string msProposalHex;
+
+extern bool fPrayersMemorized;
 extern double mnMagnitude;
 extern double mnMagnitudeOneDay;
 extern std::string msGlobalCPID;

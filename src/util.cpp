@@ -124,8 +124,10 @@ bool fDebug = false;
 bool fDebugMaster = false;
 bool fDebug10 = false;
 bool fReboot2 = false;
+bool fProposalNeedsSubmitted = false;
 bool fPrintToConsole = false;
 bool fPrintToDebugLog = true;
+
 bool fDaemon = false;
 bool fServer = false;
 
@@ -1067,6 +1069,14 @@ std::string SystemCommand2(const char* cmd)
     return result;
 }
 
+std::string SystemCommandAsync(const char* cmd)
+{
+    FILE* pipe = popen(cmd, "r");
+    if (!pipe) return "ERROR";
+    return "";
+}
+
+
 std::vector<std::string> Split(std::string s, std::string delim)
 {
 	size_t pos = 0;
@@ -1093,6 +1103,17 @@ std::string int_to_hex( T i )
   return stream.str();
 }
 
+std::string GetFileNameFromPath(std::string sPath)
+{
+	sPath = strReplace(sPath, "/", "\\");
+	std::vector<std::string> vRows = Split(sPath.c_str(), "\\");
+	std::string sFN = "";
+	for (int i = 0; i < (int)vRows.size(); i++)
+	{
+		sFN = vRows[i];
+	}
+	return sFN;
+}
 
 std::string DoubleToHexStr(double d, int iPlaces)
 {
