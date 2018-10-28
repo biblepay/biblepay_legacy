@@ -1,4 +1,4 @@
-Build BiblePay - Unix
+Build BiblePay - Ubuntu
 
 
 apt-get install build-essential libtool autotools-dev automake pkg-config libssl-dev libevent-dev bsdmainutils
