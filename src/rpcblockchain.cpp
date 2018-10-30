@@ -1849,7 +1849,6 @@ UniValue exec(const UniValue& params, bool fHelp)
 		"totalrac - Give a report of the total RAC and stake reward level BBP requirements\r\n"
 		"unbanked - Get a list of Unbanked CPID's and payments\r\n"
 		"leaderboard - Show PODC Mag Leaderboard\r\n"
-
 		"\r\n IPFS Options\r\n"
 		" bolist - List Business Objects\r\n"
 		" bosearch - Search Business Objects\r\n"
@@ -1861,14 +1860,10 @@ UniValue exec(const UniValue& params, bool fHelp)
 		" ipfsquality\r\n"
 		" votecount - Get count of an IPFS Object votes.\r\n"
 		" vote - Vote for an IPFS Object"
-
 		"\r\n Accountability Commmands\r\n"
 		"contributions - Tally payments to the orphan foundation wallet\r\n"
-		"theymos - Report for theymos from BitCoinTalk\r\n"
-
-        );
-        throw runtime_error(
-);
+		"theymos - Report showing total BiblePay accountability - summaries by object type\r\n"
+    );
 
     std::string sItem = params[0].get_str();
 	if (sItem=="") throw runtime_error("Command argument invalid.");
