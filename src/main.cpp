@@ -7947,7 +7947,7 @@ TxMessage GetTxMessage(std::string sMessage, int64_t nTime, int iPosition, std::
 		// These are checked in the memory pool (since we have some unbanked CPIDs who didn't sign the CPID from the wallet)
 		t.fPassedSecurityCheck = true;
 	}
-	else if (t.sMessageType == "EXPENSE" || t.sMessageType == "REVENUE")
+	else if (t.sMessageType == "EXPENSE" || t.sMessageType == "REVENUE" || t.sMessageType == "ORPHAN")
 	{
 		t.sSporkSig = t.sBOSig;
 		t.fSporkSigValid = CheckSporkSig(t);

@@ -38,6 +38,7 @@ QT_FORMS_UI = \
   qt/forms/proposaladddialog.ui \
   qt/forms/contactadddialog.ui \
   qt/forms/businessobjectlist.ui \
+  qt/forms/writeorphan.ui \
   qt/forms/debugwindow.ui \
   qt/forms/sendcoinsdialog.ui \
   qt/forms/sendcoinsentry.ui \
@@ -81,6 +82,7 @@ QT_MOC_CPP = \
   qt/moc_proposaladddialog.cpp \
   qt/moc_contactadddialog.cpp \
   qt/moc_businessobjectlist.cpp \
+  qt/moc_writeorphan.cpp \
   qt/moc_recentrequeststablemodel.cpp \
   qt/moc_rpcconsole.cpp \
   qt/moc_sendcoinsdialog.cpp \
@@ -159,6 +161,7 @@ BITCOIN_QT_H = \
   qt/proposaladddialog.h \
   qt/contactadddialog.h \
   qt/businessobjectlist.h \
+  qt/writeorphan.h \
   qt/recentrequeststablemodel.h \
   qt/rpcconsole.h \
   qt/sendcoinsdialog.h \
@@ -476,6 +479,7 @@ BITCOIN_QT_CPP += \
   qt/proposaladddialog.cpp \
   qt/contactadddialog.cpp \
   qt/businessobjectlist.cpp \
+  qt/writeorphan.cpp \
   qt/recentrequeststablemodel.cpp \
   qt/sendcoinsdialog.cpp \
   qt/sendcoinsentry.cpp \

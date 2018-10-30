@@ -393,7 +393,17 @@ UniValue gobject(const UniValue& params, bool fHelp)
         hash = ParseHashV(params[1], "Object hash");
         std::string strVoteSignal = params[2].get_str();
         std::string strVoteOutcome = params[3].get_str();
+		std::string sWildcard = "";
+		if (params.size() == 5)
+		{
+			sWildcard = params[4].get_str();
+		}
 
+		double dRest = 0;
+		if (params.size() == 6)
+		{
+			dRest = cdbl(params[5].get_str(), 0);
+		}
 
         vote_signal_enum_t eVoteSignal = CGovernanceVoting::ConvertVoteSignal(strVoteSignal);
         if(eVoteSignal == VOTE_SIGNAL_NONE) {
@@ -415,7 +425,8 @@ UniValue gobject(const UniValue& params, bool fHelp)
 
         UniValue resultsObj(UniValue::VOBJ);
 
-        BOOST_FOREACH(CMasternodeConfig::CMasternodeEntry mne, masternodeConfig.getEntries()) {
+        BOOST_FOREACH(CMasternodeConfig::CMasternodeEntry mne, masternodeConfig.getEntries()) 
+		{
             std::string strError;
             std::vector<unsigned char> vchMasterNodeSignature;
             std::string strMasterNodeSignMessage;
@@ -434,7 +445,8 @@ UniValue gobject(const UniValue& params, bool fHelp)
                 resultsObj.push_back(Pair(mne.getAlias(), statusObj));
                 continue;
             }
-
+			if (!sWildcard.empty()) if (!Contains(mne.getAlias(), sWildcard)) continue;
+			
             uint256 nTxHash;
             nTxHash.SetHex(mne.getTxHash());
 
@@ -448,7 +460,8 @@ UniValue gobject(const UniValue& params, bool fHelp)
             CMasternode mn;
             bool fMnFound = mnodeman.Get(vin, mn);
 
-            if(!fMnFound) {
+            if(!fMnFound) 
+			{
                 nFailed++;
                 statusObj.push_back(Pair("result", "failed"));
                 statusObj.push_back(Pair("errorMessage", "Can't find masternode by collateral output"));
@@ -457,7 +470,8 @@ UniValue gobject(const UniValue& params, bool fHelp)
             }
 
             CGovernanceVote vote(mn.vin, hash, eVoteSignal, eVoteOutcome);
-            if(!vote.Sign(keyMasternode, pubKeyMasternode)){
+            if(!vote.Sign(keyMasternode, pubKeyMasternode))
+			{
                 nFailed++;
                 statusObj.push_back(Pair("result", "failed"));
                 statusObj.push_back(Pair("errorMessage", "Failure to sign."));
@@ -466,17 +480,24 @@ UniValue gobject(const UniValue& params, bool fHelp)
             }
 
             CGovernanceException exception;
-            if(governance.ProcessVoteAndRelay(vote, exception)) {
+            if(governance.ProcessVoteAndRelay(vote, exception)) 
+			{
                 nSuccessful++;
                 statusObj.push_back(Pair("result", "success"));
             }
-            else {
+            else 
+			{
                 nFailed++;
                 statusObj.push_back(Pair("result", "failed"));
                 statusObj.push_back(Pair("errorMessage", exception.GetMessage()));
             }
 
             resultsObj.push_back(Pair(mne.getAlias(), statusObj));
+			if (dRest > 0)
+			{
+				int iRest = rand() % 1000;
+				MilliSleep(dRest * iRest);
+			}
         }
 
         UniValue returnObj(UniValue::VOBJ);

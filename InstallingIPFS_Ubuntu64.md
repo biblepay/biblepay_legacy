@@ -45,5 +45,10 @@ crontab -e
 */5 * * * * /home/start_ipfs.sh > /dev/null 2>&1
 
 
+Or Method #2:
+sed -i -e '$i /bin/su ipfs -c "/usr/local/bin/ipfs daemon &"\n' /etc/rc.local
+
+
+
 
 

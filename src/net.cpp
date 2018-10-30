@@ -79,7 +79,7 @@ bool AddSeedNode(std::string sNode);
 void HealthCheckup();
 
 extern std::string BiblepayHttpPost(bool bPost, int iThreadID, std::string sActionName, std::string sDistinctUser, std::string sPayload, std::string sBaseURL, 
-	std::string sPage, int iPort, std::string sSolution);
+	std::string sPage, int iPort, std::string sSolution, int iOptBreak);
 extern std::string BiblepayHTTPSPost(bool bPost, int iThreadID, std::string sActionName, std::string sDistinctUser, std::string sPayload, std::string sBaseURL, std::string sPage, int iPort,
 	std::string sSolution, int iTimeoutSecs, int iMaxSize, int iBreakOnError = 0);
 extern std::string BiblepayIPFSPost(std::string sFN, std::string sPayload);
@@ -93,7 +93,7 @@ bool FilterFile(int iBufferSize, int iNextSuperblock, std::string& sError);
 std::string GetSporkValue(std::string sKey);
 int ipfs_socket_connect(string ip_address, int port);
 int ipfs_http_get(const string& request, const string& ip_address, int port, const string& fname, double dTimeoutSecs);
-extern int ipfs_download(const string& url, const string& filename, double dTimeoutSecs);
+extern int ipfs_download(const string& url, const string& filename, double dTimeoutSecs, double dRangeRequestMin, double dRangeRequestMax);
 int64_t GetFileSize(std::string sPath);
 
 using namespace std;
@@ -2857,7 +2857,7 @@ bool RecvHttpLine(SOCKET hSocket, string& strLine, int iMaxLineSize, int iTimeou
 
 
 
-std::string GetHTTPContent(const CService& addrConnect, std::string getdata, int iTimeoutSecs)
+std::string GetHTTPContent(const CService& addrConnect, std::string getdata, int iTimeoutSecs, int iOptBreak)
 {
 	try
 	{
@@ -2890,6 +2890,7 @@ std::string GetHTTPContent(const CService& addrConnect, std::string getdata, int
 			if (strLine.find("<eof>") != string::npos) break;
 			if (strLine.find("</html>") != string::npos) break;
 			if (strLine.find("</HTML>") != string::npos) break;
+			if (iOptBreak == 1) if (strLine.find("}") != string::npos) break;
 		}
 		CloseSocket(hSocket);
 		return strOut;
@@ -2944,7 +2945,7 @@ std::string SQL(std::string sCommand, std::string sAddress, std::string sArgumen
 	std::string sSQLURL = GetArg("-sqlnode", "http://pool.biblepay.org");
 	int iPort = (int)cdbl(GetArg("-sqlport", "80"),0);
 	std::string sSqlPage = "Action.aspx";
-	std::string sMultiResponse = BiblepayHttpPost(true, 0, "POST", sAddress, sCommand, sSQLURL, sSqlPage, iPort, sArguments);
+	std::string sMultiResponse = BiblepayHttpPost(true, 0, "POST", sAddress, sCommand, sSQLURL, sSqlPage, iPort, sArguments, 0);
 	sError = ExtractXML(sMultiResponse,"<ERROR>","</ERROR>");
 	std::string sResponse = ExtractXML(sMultiResponse,"<RESPONSE>","</RESPONSE>");
 	if (!sError.empty())
@@ -2955,7 +2956,8 @@ std::string SQL(std::string sCommand, std::string sAddress, std::string sArgumen
 }
 
 
-std::string BiblepayHttpPost(bool bPost, int iThreadID, std::string sActionName, std::string sDistinctUser, std::string sPayload, std::string sBaseURL, std::string sPage, int iPort, std::string sSolution)
+std::string BiblepayHttpPost(bool bPost, int iThreadID, std::string sActionName, std::string sDistinctUser, 
+	std::string sPayload, std::string sBaseURL, std::string sPage, int iPort, std::string sSolution, int iOptBreak)
 {
 	try
 	{
@@ -2983,7 +2985,7 @@ std::string BiblepayHttpPost(bool bPost, int iThreadID, std::string sActionName,
   				return "DNS_ERROR"; 
 			}
 			std::string sPost = PrepareHTTPPost(bPost, sPage, sDomain, sPayload, mapRequestHeaders);
-			std::string sResponse = GetHTTPContent(addrConnect, sPost, 15);
+			std::string sResponse = GetHTTPContent(addrConnect, sPost, 15, iOptBreak);
 			if (fDebug10) LogPrintf("\r\n  HTTP_RESPONSE:    %s    \r\n",sResponse.c_str());
 			return sResponse;
 	}
@@ -3483,7 +3485,7 @@ int ipfs_http_get(const string& request, const string& ip_address, int port, con
 }
 
 
-int ipfs_download(const string& url, const string& filename, double dTimeoutSecs)
+int ipfs_download(const string& url, const string& filename, double dTimeoutSecs, double dRangeRequestMin, double dRangeRequestMax)
 {
 	int port = 0;
     string protocol, domain, path, query, url_port;
@@ -3528,7 +3530,14 @@ int ipfs_download(const string& url, const string& filename, double dTimeoutSecs
         stringstream(url_port) >> port;
         stringstream request;
         request << "GET " << path << " HTTP/1.1\r\n";
-        request << "Host: " << domain << "\r\n\r\n";
+        request << "Host: " << domain << "\r\n";
+		if (dRangeRequestMax > 0)
+		{
+			request << "Range: bytes=" + (RoundToString(dRangeRequestMin, 0) + "-" + RoundToString(dRangeRequestMax, 0)) << "\r\n";
+		}
+
+		request << "\r\n";
+
 		int ix = ip_addresses.size();
 
         for(int i = 0; i < ix; i++)

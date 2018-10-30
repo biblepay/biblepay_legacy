@@ -658,9 +658,7 @@ CAmount CSuperblock::GetPaymentsLimit(int nBlockHeight)
 
     // min subsidy for high diff networks and vice versa
     int nBits = consensusParams.fPowAllowMinDifficultyBlocks ? UintToArith256(consensusParams.powLimit).GetCompact() : 1;
-
 	bool fDCLive = (fProd && fDistributedComputingEnabled && nBlockHeight > F11000_CUTOVER_HEIGHT_PROD) || (!fProd && fDistributedComputingEnabled);
-	// bool F14000 = (((nBlockHeight > F14000_CUTOVER_HEIGHT_PROD && fProd) || (nBlockHeight > F14000_CUTOVER_HEIGHT_TESTNET && !fProd)));
 					
     // some part of all blocks issued during the cycle goes to superblock, see GetBlockSubsidy
 	if (fDCLive) 
@@ -670,19 +668,10 @@ CAmount CSuperblock::GetPaymentsLimit(int nBlockHeight)
 	int nSuperblockCycle = IsValidBlockHeight(nBlockHeight) ? consensusParams.nSuperblockCycle : consensusParams.nDCCSuperblockCycle;
 	double nBudgetAvailable = (fDCLive && IsValidBlockHeight(nBlockHeight) && !IsDCCSuperblock(nBlockHeight)) ? .20 : 1;
 	// The first call to GetBlockSubsidy calculates the future reward (and this has our standard deflation of 19% per year in it)
-	// int nAssessmentHeight = F14000 ? (nBlockHeight-nSuperblockCycle) : nBlockHeight;
-		
     CAmount nSuperblockPartOfSubsidy = GetBlockSubsidy(pindexBestHeader->pprev, nBits, nBlockHeight, consensusParams, true);
 	
     CAmount nPaymentsLimit = 0;
-	if (nBudgetAvailable == 1)
-	{
-		nPaymentsLimit = nSuperblockPartOfSubsidy * nSuperblockCycle;  // Avoid floating point math problems here
-	}
-	else
-	{
-		nPaymentsLimit = nSuperblockPartOfSubsidy * nSuperblockCycle * nBudgetAvailable;
-	}
+	nPaymentsLimit = nSuperblockPartOfSubsidy * nSuperblockCycle * nBudgetAvailable;
 
 	CAmount nAbsoluteMaxMonthlyBudget = 12500 * BLOCKS_PER_DAY * 30 * .20 * COIN; // Ensure monthly budget is never > 20% of avg monthly total block emission regardless of low difficulty in PODC
 	// If this is a DC Superblock, and we exceed F12000 Cutover Height, due to cascading superblocks, the DC superblock budget should be 70% of the budget:
@@ -906,85 +895,6 @@ bool CSuperblock::IsValidSuperblock(const CTransaction& txNew, int nBlockHeight,
 				return false;
 			}
 	}
-	
-	
-
-	/*
-		
-		std::string sData = GetBlockData(txNew);
-		std::string sContract = ExtractXML(sData,"<CONTRACT>","</CONTRACT>");
-		std::string sSigs = ExtractXML(sData,"<SIGS>","</SIGS>");
-		int64_t nAge = GetAdjustedTime() - nBlockTime;
-		uint256 uHash = ash(sContract);
-		// ENSURE DC RECIPIENTS MATCH SUPERBLOCK RECIPIENTS
-		CAmount nDCPaymentsTotal = CSuperblock::(nBlockHeight);
-		double dDCPaymentsTotal = nDCPaymentsTotal / COIN;
-		double nTotalMagnitude = 0;
-		int iCPIDCount = (sContract, nTotalMagnitude);
-		double PaymentPerMagnitude = (dDCPaymentsTotal-1) / nTotalMagnitude;
-		std::vector<std::string> vRows = sContract.c_str(),"<ROW>");
-		LogPrintf(" ** IS VALID SUPERBLOCK:  Contract %s,   Sigs %s   \n  ", sContract.c_str(), sSigs.c_str());
-		
-		for (int i = 0; i < (int)vRows.size(); i++)
-		{
-			std::vector<std::string> vCPID = vRows[i].c_str(),",");
-			if (vCPID.size() >= 3)
-			{
-				std::string sCpid = vCPID[1];
-				std::string sAddress = vCPID[0];
-				double dMagnitude = cdbl(vCPID[2],2);
-				if (!sCpid.empty() && dMagnitude > 0)
-				{
-					double dOwed = PaymentPerMagnitude * dMagnitude;
-				    CBitcoinAddress cbaAddress(sAddress);
-					CScript scriptPubKey = GetScriptForDestination(cbaAddress.Get());
-     				CAmount nAmount = dOwed * COIN;
-					
-					bool fPaymentMatch = false;
-					for (int j = 0; j < nOutputs; j++) 
-					{
-						// Find superblock payment
-						fPaymentMatch = ((scriptPubKey == txNew.vout[j].scriptPubKey) && (nAmount == txNew.vout[j].nValue));
-						if (fPaymentMatch) 
-						{
-							LogPrintf(" VERIFY DCSUPERBLOCK - PAYMENT MATCH Address %s \n", sAddress.c_str());
-							break;
-						}
-					}
-					if (!fPaymentMatch) 
-					{
-						LogPrintf(" ISVALIDSUPERBLOCK::CANT FIND RESEARCHER PAYMENT FOR CPID %s, Amount %f, Address %s, cpidcount %f \n", sCpid.c_str(), (double)nAmount/COIN, sAddress.c_str(), (double)iCPIDCount);
-						return false;
-					}
-				}
-			}
-		}
-	
-		if (nAge < 86400)
-		{
-			// Verify DC Hash matches todays SanctuaryQuorum Hash:
-			CDistributedComputingVote upcomingVote;
-			
-
-			int iVotes = 0;
-			uint256 uGovObjHash;
-			vObjByHeight(nBlockHeight, uint256S("0x0"), iVotes, uGovObjHash);
-
-
-			bool bPending = iVotes >= uorumLevel();
-			LogPrintf(" ** VERIFY DCSUPERBLOCK - VOTES %f \n", (double)iVotes);
-
-			if (!bPending)
-			{
-				LogPrintf("\n ** SUPERBLOCK DOES NOT HAVE ENOUGH VOTES : Required %f, Votes %f, ContractHash %s  ", 
-					(double)uorumLevel(), (double)iVotes, uHash.GetHex().c_str());
-				return false;
-			}
-	
-		}
-
-	}
-	*/
 	
 	LogPrintf(" VERIFY DCSUPERBLOCK - ACCEPTED \n");
     return true;

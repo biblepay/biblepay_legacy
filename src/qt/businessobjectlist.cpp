@@ -3,6 +3,7 @@
 #include "ui_businessobjectlist.h"
 #include "secdialog.h"
 #include "ui_secdialog.h"
+#include "writeorphan.h"
 #include "walletmodel.h"
 #include <QPainter>
 #include <QTableWidget>
@@ -20,6 +21,7 @@ UniValue GetBusinessObject(std::string sType, std::string sPrimaryKey, std::stri
 double cdbl(std::string s, int place);
 std::string ObjectType = "";
 extern int GetUrlColumn(std::string sTarget);
+bool bSlotsCreated = false;
 
 QStringList BusinessObjectList::GetHeaders()
 {
@@ -54,13 +56,9 @@ void BusinessObjectList::setModel(WalletModel *model)
 void BusinessObjectList::UpdateObject(std::string objType)
 {
 	ObjectType = objType;
-
-	LogPrintf(" objType changed to ObjType %s ",ObjectType.c_str());
-
 	UniValue aBO = GetBusinessObjectByFieldValue("object", "object_name", ObjectType);
 	std::string sFields = aBO["fields"].getValStr();	
     QString pString = ToQstring(GetBusinessObjectList(ObjectType, sFields));
-
     QStringList pHeaders = GetHeaders();
     this->createUI(pHeaders, pString);
 }
@@ -114,8 +112,11 @@ void BusinessObjectList::createUI(const QStringList &headers, const QString &pSt
 		ui->tableWidget->setColumnWidth(j, 128);
 	}
 
-    // Connect SLOT to context menu
-    connect(ui->tableWidget, SIGNAL(customContextMenuRequested(QPoint)), this, SLOT(slotCustomMenuRequested(QPoint)));
+	if (!bSlotsCreated)
+	{
+		connect(ui->tableWidget, SIGNAL(customContextMenuRequested(QPoint)), this, SLOT(slotCustomMenuRequested(QPoint)));
+		bSlotsCreated = true;
+	}
 }
 
 void BusinessObjectList::slotCustomMenuRequested(QPoint pos)
@@ -126,6 +127,10 @@ void BusinessObjectList::slotCustomMenuRequested(QPoint pos)
     menu->addAction(tr("Navigate To"), this, SLOT(slotNavigateTo()));
 	menu->addAction(tr("List"), this, SLOT(slotList()));
 	menu->addAction(tr("View"), this, SLOT(slotView()));
+	if (ObjectType=="orphan")
+	{
+		if (Params().NetworkIDString() != "main") menu->addAction(tr("Write Orphan"), this, SLOT(slotWriteOrphan()));
+	}
 
     menu->popup(ui->tableWidget->viewport()->mapToGlobal(pos));
 }
@@ -181,11 +186,24 @@ void BusinessObjectList::slotList()
 		if (iCol > -1)
 		{
 			std::string sTarget = FromQStringW(ui->tableWidget->item(row, iCol)->text());
+			// Close existing menu
+
 			UpdateObject(sTarget);
 		}
     }
 }
 
+void BusinessObjectList::slotWriteOrphan()
+{
+	int row = ui->tableWidget->selectionModel()->currentIndex().row();
+    if(row >= 0)
+    {
+        QMessageBox msgBox;
+        std::string id = FromQStringW(ui->tableWidget->item(row, 0)->text()); // PK-2PK-IPFS Hash of business object
+		WriteOrphan dlg(this);
+		dlg.exec();
+    }
+}
 void BusinessObjectList::slotView()
 {
     int row = ui->tableWidget->selectionModel()->currentIndex().row();

@@ -49,7 +49,7 @@ using namespace std;
 
 extern void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry);
 int32_t ComputeBlockVersion(const CBlockIndex* pindexPrev, const Consensus::Params& params);
-std::string BiblepayHttpPost(bool bPost, int iThreadID, std::string sActionName, std::string sDistinctUser, std::string sPayload, std::string sBaseURL, std::string sPage, int iPort, std::string sSolution);
+std::string BiblepayHttpPost(bool bPost, int iThreadID, std::string sActionName, std::string sDistinctUser, std::string sPayload, std::string sBaseURL, std::string sPage, int iPort, std::string sSolution, int iOptBreak);
 void ScriptPubKeyToJSON(const CScript& scriptPubKey, UniValue& out, bool fIncludeHex);
 std::string DefaultRecAddress(std::string sType);
 std::string PubKeyToAddress(const CScript& scriptPubKey);
@@ -78,6 +78,9 @@ std::string RSA_Encrypt_String(std::string sPubKeyPath, std::string sData, std::
 std::string RSA_Decrypt_String(std::string sPrivKeyPath, std::string sData, std::string& sError);
 extern std::string RosettaDiagnostics(std::string sEmail, std::string sPass, std::string& sError);
 extern std::string FixRosetta(std::string sEmail, std::string sPass, std::string& sError);
+extern std::string IPFSAPICommand(std::string sCmd, std::string sArgs, std::string& sError);
+
+
 std::vector<char> ReadAllBytes(char const* filename);
 extern double GetPBase();
 extern std::string GetDataFromIPFS(std::string sURL, std::string& sError);
@@ -87,7 +90,7 @@ extern std::string GetAccountAuthenticator(std::string sEmail, std::string sPass
 extern double GetRosettaLocalRAC();
 extern std::string GetCPID();
 
-bool ipfs_download(const string& url, const string& filename, double dTimeoutSecs);
+bool ipfs_download(const string& url, const string& filename, double dTimeoutSecs, double dRangeRequestMin, double dRangeRequestMax);
 extern int CheckSanctuaryIPFSHealth(std::string sAddress);
 extern std::string AssociateDCAccount(std::string sProjectId, std::string sBoincEmail, std::string sBoincPassword, std::string sUnbankedPublicKey, bool fForce);
 extern std::string SubmitToIPFS(std::string sPath, std::string& sError);
@@ -1963,10 +1966,10 @@ UniValue exec(const UniValue& params, bool fHelp)
 	}
 	else if (sItem == "betatestpoolpost")
 	{
-		std::string sResponse = BiblepayHttpPost(true, 0, "POST","USER_A","PostSpeed","http://www.biblepay.org","home.html",80,"");
+		std::string sResponse = BiblepayHttpPost(true, 0, "POST","USER_A","PostSpeed","http://www.biblepay.org","home.html",80,"", 0);
 		results.push_back(Pair("beta_post", sResponse));
 		results.push_back(Pair("beta_post_length", (double)sResponse.length()));
-		std::string sResponse2 = BiblepayHttpPost(true, 0,"POST","USER_A","PostSpeed","http://www.biblepay.org","404.html",80,"");
+		std::string sResponse2 = BiblepayHttpPost(true, 0,"POST","USER_A","PostSpeed","http://www.biblepay.org","404.html",80,"", 0);
 		results.push_back(Pair("beta_post_404", sResponse2));
 		results.push_back(Pair("beta_post_length_404", (double)sResponse2.length()));
 	}
@@ -2113,7 +2116,6 @@ UniValue exec(const UniValue& params, bool fHelp)
 			int64_t nTime = item.first;
 			results.push_back(Pair(RoundToString(nTime,0), sMsg));
 		}
-
 	}
 	else if (sItem == "listproducts")
 	{
@@ -2289,7 +2291,7 @@ UniValue exec(const UniValue& params, bool fHelp)
 			throw runtime_error("You must specify source IPFSURL and target filename.");
 		std::string sURL = params[1].get_str();
 		std::string sPath = params[2].get_str();
-		int i = ipfs_download(sURL, sPath, 375);
+		int i = ipfs_download(sURL, sPath, 375, 0, 0);
 		results.push_back(Pair("Results", i));
 	}
 	else if (sItem == "ipfsget")
@@ -2300,8 +2302,22 @@ UniValue exec(const UniValue& params, bool fHelp)
 		std::string sPath = params[2].get_str();
 		std::string sFN = GetFileNameFromPath(sPath);
 		std::string sURL = "http://ipfs.biblepay.org:8080/ipfs/" + sHash;
-		int i = ipfs_download(sURL, sPath, 375);
+		int i = ipfs_download(sURL, sPath, 375, 0, 0);
 		results.push_back(Pair("Results", i));
+	}
+	else if (sItem == "ipfsgetrange")
+	{
+		if (params.size() < 3)
+			throw runtime_error("You must specify source IPFS hash and target filename.");
+		std::string sHash = params[1].get_str();
+		std::string sPath = params[2].get_str();
+		std::string sFN = GetFileNameFromPath(sPath);
+		std::string sURL = "http://ipfs.biblepay.org:8080/ipfs/" + sHash;
+		int i = ipfs_download(sURL, sPath, 375, 0, 1024);
+		results.push_back(Pair("Results", i));
+		sURL = "http://45.63.22.219:8080/ipfs/" + sHash;
+		i = ipfs_download(sURL, sPath + "2", 375, 0, 1024);
+		results.push_back(Pair("Results 2", i));
 	}
 	else if (sItem == "ipfsadd")
 	{
@@ -3401,6 +3417,39 @@ UniValue exec(const UniValue& params, bool fHelp)
 		results.push_back(Pair("TXID", txid));
 		results.push_back(Pair("Error", sError));
 	}
+	else if (sItem == "addorphan")
+	{
+		if (params.size() != 2)
+			throw runtime_error("You must specify \"orphanid|amount|name|url|charity.\"");
+		std::string sData = params[1].getValStr();
+		std::vector<std::string> vData = Split(sData.c_str(),"|");
+		if (vData.size() != 5)
+			throw runtime_error("You must specify \"orphanid|amount|name|url|charity.\"");
+		std::string sOrphanID     = vData[0];
+		std::string sAmt          = vData[1];
+		std::string sName         = vData[2];
+		std::string sURL          = vData[3];
+		std::string sCharity      = vData[4];
+		const Consensus::Params& consensusParams = Params().GetConsensus();
+	    std::string sFoundationAddress = consensusParams.FoundationAddress;
+		UniValue oBO(UniValue::VOBJ);
+		oBO.push_back(Pair("objecttype", "orphan"));
+		oBO.push_back(Pair("primarykey", "orphan"));
+		oBO.push_back(Pair("secondarykey", RoundToString(GetAdjustedTime(), 0)));
+		oBO.push_back(Pair("signingkey", sFoundationAddress));
+		oBO.push_back(Pair("orphanid", sOrphanID));
+		oBO.push_back(Pair("amount", sAmt));
+		oBO.push_back(Pair("name", sName));
+		oBO.push_back(Pair("url", sURL));
+		oBO.push_back(Pair("charity", sCharity));
+		oBO.push_back(Pair("added", RoundToString(GetAdjustedTime(), 0)));
+		oBO.push_back(Pair("deleted", "0"));
+		std::string sError = "";
+		std::string txid = StoreBusinessObjectWithPK(oBO, sError);
+		results.push_back(Pair("TXID", txid));
+		results.push_back(Pair("Error", sError));
+	}
+
 	else if (sItem == "vote")
 	{
 		if (params.size() != 3)
@@ -3468,6 +3517,18 @@ UniValue exec(const UniValue& params, bool fHelp)
 		results.push_back(Pair("Total Expenses in USD", dTotalExpenses));
 		results.push_back(Pair("Note:", "See Business Objects | Expenses or Revenue for more details and attached PDF receipts.  Click Navigate_To to view the PDF."));
     }
+	else if (sItem == "ipfspin")
+	{
+		if (params.size() != 2)
+			throw runtime_error("You must specify type: IE 'exec pin ipfshash.");
+		std::string sHash = params[1].get_str();
+		//curl "http://localhost:5001/api/v0/pin/add?arg=<ipfs-path>&recursive=true&progress=<value>"
+
+		std::string sError = "";
+		std::string sResponse = IPFSAPICommand("pin/add", "?arg=" + sHash + "&recursive=true", sError);
+		results.push_back(Pair("Result", sResponse));
+		results.push_back(Pair("Error", sError));
+	}
 	else if (sItem == "datalist")
 	{
 		if (params.size() != 2 && params.size() != 3)
@@ -3848,7 +3909,7 @@ int CheckSanctuaryIPFSHealth(std::string sAddress)
 	std::string sSporkHash = GetSporkValue("ipfshealthhash");
 	std::string sURL = "http://" + sIP + ":8080/ipfs/" + sHash;
 	std::string sHealthFN = GetSANDirectory2() + "checkhealth.dat";
-	int i = ipfs_download(sURL, sHealthFN, 5);
+	int i = ipfs_download(sURL, sHealthFN, 5, 0, 0);
 	LogPrintf(" Checking %s, Result %i ",sAddress.c_str(), i);
 	return i;
 }
@@ -5580,7 +5641,6 @@ bool FilterFile(int iBufferSize, int iNextSuperblock, std::string& sError)
 	double dReqSPM = GetSporkDouble("requiredspm", 500);
 	double dReqSPR = GetSporkDouble("requiredspr", 0);
 	double dRACThreshhold = GetSporkDouble("racthreshhold", 0);
-	//double dNonBiblepayTeamPercentage = cdbl(GetSporkValue("nonbiblepayteampercentage"), 2);
 
 	std::string sTeamBlacklist = GetSporkValue("teamblacklist");
 	std::string sConcatCPIDs = "";
@@ -6045,7 +6105,6 @@ void GetDistributedComputingGovObjByHeight(int nHeight, uint256 uOptFilter, int&
 
             if (nLocalHeight == nHeight)
 			{
-				
 				int iVotes = pGovObj->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING);
 				std::string sPAD = obj["payment_addresses"].get_str();
 				std::string sPAM = obj["payment_amounts"].get_str();
@@ -6405,9 +6464,6 @@ bool SubmitDistributedComputingTrigger(std::string sHex, std::string& gobjecthas
 	  return true;
 }
 
-
-
-
 std::string GetSporkValue(std::string sKey)
 {
 	boost::to_upper(sKey);
@@ -6415,8 +6471,6 @@ std::string GetSporkValue(std::string sKey)
     const std::string& value = mvApplicationCache[key];
 	return value;
 }
-
-
 
 std::string GetBoincAuthenticator(std::string sProjectID, std::string sProjectEmail, std::string sPasswordHash)
 {
@@ -7414,7 +7468,7 @@ std::string GetDataFromIPFS(std::string sURL, std::string& sError)
 	fd.write(sEmptyData.c_str(), sizeof(char)*sEmptyData.size());
 	fd.close();
 
-	int i = ipfs_download(sURL, sPath, 15);
+	int i = ipfs_download(sURL, sPath, 15, 0, 0);
 	if (i != 1) 
 	{
 		sError = "IPFS Download error.";
@@ -7734,4 +7788,12 @@ int GetBoincTaskCount()
 		if (!Contains(sState, "SUSPENDED") && !sState.empty()) nTasks++;
 	}
 	return nTasks;
+}
+
+std::string IPFSAPICommand(std::string sCmd, std::string sArgs, std::string& sError)
+{
+	std::string sURL3 = "api/v0/" + sCmd + sArgs;
+	std::string sResponse = BiblepayHttpPost(true, 0,"POST", "USER", "PS1", "http://127.0.0.1", sURL3, 5001, "", 1);
+	LogPrintf("\n IPFS_APICommand %s,  Error %s",sResponse.c_str(), sError.c_str());
+	return sResponse;
 }

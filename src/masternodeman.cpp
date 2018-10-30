@@ -14,12 +14,11 @@
 
 /** Masternode manager */
 CMasternodeMan mnodeman;
-
 const std::string CMasternodeMan::SERIALIZATION_VERSION_STRING = "CMasternodeMan-Version-4";
 std::string GetUndownloadedIPFSHash();
 std::string GetIPFromAddress(std::string sAddress);
 double GetSporkDouble(std::string sName, double nDefault);
-int ipfs_download(const string& url, const string& filename, double dTimeoutSecs);
+int ipfs_download(const string& url, const string& filename, double dTimeoutSecs, double dMinRange, double dMaxRange);
 int CheckSanctuaryIPFSHealth(std::string sAddress);
 void WriteCache(std::string section, std::string key, std::string value, int64_t locktime, bool IgnoreCase=true);
 
@@ -1171,7 +1170,7 @@ bool CMasternodeMan::SendVerifyRequest(const CAddress& addr, const std::vector<C
 					std::string sIP = GetIPFromAddress(addr.ToString());
 					std::string sURL = "http://" + sIP + ":8080/ipfs/" + sHash;
 					// Mark as downloaded so we don't keep trying the same file if it fails		
-					int iStatus = ipfs_download(sURL, GetSANDirectory2() + sHash, 15);
+					int iStatus = ipfs_download(sURL, GetSANDirectory2() + sHash, 15, 0, 0);
 					WriteCache("ipfs_downloaded", sHash, RoundToString(iStatus, 0), GetAdjustedTime());
 					// If we are in strict mode (1), do not vote on this Sanc payment if we can't download the file
 					if (iStatus != 1 && dPODSMode == 1) 

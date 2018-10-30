@@ -346,6 +346,8 @@ void SendCoinsDialog::send(QList<SendCoinsRecipient> recipients, QString strFee,
 
     CAmount txFee = currentTransaction.getTransactionFee();
 	CAmount aIPFSFee = 0;
+	CAmount aTithe = 0;
+
 	double dTotalFileSize = 0;
     // Format confirmation message
     QStringList formatted;
@@ -392,14 +394,14 @@ void SendCoinsDialog::send(QList<SendCoinsRecipient> recipients, QString strFee,
 			double dCostPerByte = GetSporkDouble("ipfscostperbyte", .0002);
 			aIPFSFee += dCostPerByte * nFileSize * COIN;
 		}
-
-
+		// https://github.com/biblepay/biblepay/issues/39 - Add 10% tithe to confirmation dialog before sending - 10/27/2018
+		if (rcp.fTithe) aTithe += (rcp.amount * .10);
     }
 
     QString questionString = tr("Are you sure you want to send?");
     questionString.append("<br /><br />%1");
 
-    if(txFee > 0 || aIPFSFee > 0)
+	if(txFee > 0 || aIPFSFee > 0 || aTithe > 0)
     {
         // append fee string if a fee is required
         questionString.append("<hr /><span style='color:#aa0000;'>");
@@ -421,11 +423,21 @@ void SendCoinsDialog::send(QList<SendCoinsRecipient> recipients, QString strFee,
 			questionString.append(tr("are added as PODS fee "));
 			questionString.append(" (" + QString::number(dTotalFileSize / 1000) + " kB)");
 		}
+
+		// append Tithe amount
+		if (aTithe > 0)
+		{
+			questionString.append("<br><span style='color:#aa0000;'>");
+			questionString.append(BitcoinUnits::formatHtmlWithUnit(model->getOptionsModel()->getDisplayUnit(), aTithe));
+			questionString.append("</span> ");
+			questionString.append(tr("are added as Orphan Tithe "));
+			questionString.append(QString::number((aTithe/COIN)));
+		}
     }
 
     // add total amount in all subdivision units
     questionString.append("<hr />");
-    CAmount totalAmount = currentTransaction.getTotalTransactionAmount() + txFee;
+    CAmount totalAmount = currentTransaction.getTotalTransactionAmount() + txFee + aIPFSFee + aTithe;
     QStringList alternativeUnits;
     Q_FOREACH(BitcoinUnits::Unit u, BitcoinUnits::availableUnits())
     {
