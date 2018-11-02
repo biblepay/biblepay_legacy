@@ -2,8 +2,7 @@
 
 
 URL:
-https://github.com/biblepay/biblepay/blob/master/contrib/masternode-install.sh
-
+https://raw.githubusercontent.com/biblepay/biblepay/master/contrib/masternode-install.sh
 
 Instructions:
 1.  Lease a VMS (for example the Vultr Ubuntu 18/64) 
