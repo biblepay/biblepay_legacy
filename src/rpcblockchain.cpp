@@ -44,6 +44,10 @@
 #include <fstream>
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
+#include <boost/process/system.hpp>        // for ShellCommand
+#include <boost/process/io.hpp>
+
+namespace bp = boost::process;
 
 using namespace std;
 
@@ -84,7 +88,7 @@ extern std::string IPFSAPICommand(std::string sCmd, std::string sArgs, std::stri
 std::vector<char> ReadAllBytes(char const* filename);
 extern double GetPBase();
 extern std::string GetDataFromIPFS(std::string sURL, std::string& sError);
-extern bool IsBoincInstalled();
+extern bool IsBoincInstalled(std::string& sError);
 extern std::string CreateNewRosettaAccount(std::string sEmail, std::string sPass, std::string sNickname);
 extern std::string GetAccountAuthenticator(std::string sEmail, std::string sPass);
 extern double GetRosettaLocalRAC();
@@ -7585,26 +7589,75 @@ std::string SysCommandStdErr(std::string sCommand, std::string sTempFileName, st
 	return sStdErr;
 }
 
-std::string BoincCommand(std::string sCommand, std::string sError)
+int ShellCommand(std::string sCommand, std::string &sOutput, std::string &sError)
 {
-	std::string sPath = GetSANDirectory2() + "boinctemp";
-	// Boinc sends some output to stderr, some to stdout
+    try
+    {
+        bp::ipstream output;
+        bp::ipstream error;
+        
+        bp::system(sCommand, bp::std_out > output, bp::std_err > error);
+        //int nResult = bp::system(sCommand);
+        
+        std::string line;
+        while (std::getline(output, line)) {
+            sOutput += line + "\n";
+        }
+        while (std::getline(error, line)) {
+            sError += line + "\n";
+        }
+        return 0;
+    }
+    catch (std::exception& e)
+    {
+        sError += e.what();
+        return 1;
+    }
 
-	std::string sEXEPath = sOS == "WIN" ? "\"c:\\program files\\BOINC\\boinccmd\"" : "boinccmd";
-
-	std::string sCmd = sEXEPath + " >" + sPath + " " + sCommand + " 2>&1";
-	std::string sStandardOut = "";
-	std::string sResult = SysCommandStdErr(sCmd, "boinctemp", sStandardOut);
-	// We handle Not installed, account exists, boincinstalled and account does not exist
-	// Boinc is not installed when stderr contains "not found"
-	sResult += "<EOF>";
-	return sResult;
 }
 
-bool IsBoincInstalled()
+std::string BoincCommand(std::string sCommand, std::string &sError)
 {
-	std::string sError = "";
-	std::string sData = BoincCommand("help", sError);
+	// Boinc sends some output to stderr, some to stdout
+    std::string sEXEPath = "";
+    std::string sErrorNotFound = "";
+    
+    if (sOS=="WIN")
+    {
+        sEXEPath = "\"c:\\program files\\BOINC\\boinccmd\"";
+        sErrorNotFound += "Boinc is not installed.  Please run BOINC installer and make sure boinccmd.exe is found in "+sEXEPath;
+    }
+    else if (sOS=="LIN")
+    {
+        sEXEPath = "boinccmd";
+        sErrorNotFound += "Boinc is not installed.  Please run 'sudo apt-get install boincmgr boinc'.";
+    }
+    else // (sOS=="MAC")
+    {
+        sEXEPath = "\"/Library/Application Support/BOINC Data/boinccmd\"";
+        sErrorNotFound += "boinccmd is not found. Download 'Unix command-line version' for MacOS separately. Then copy 'move_to_boinc_dir' contents into /Library/Application Support/BOINC Data/ folder and try again.";
+    }
+
+	//std::string sCmd = sEXEPath + " >" + sPath + " " + sCommand + " 2>&1";
+    std::string sCmd = sEXEPath + " " + sCommand; // + " 2";
+	std::string sStandardOut = "";
+    std::string sStandardErr = "";
+	//std::string sResult = SysCommandStdErr(sCmd, "boinctemp", sStandardOut);
+    // nResult == 0 ok, 1 failure
+    int bNotFound = ShellCommand(sCmd, sStandardOut , sStandardErr);
+	// We handle Not installed, account exists, boincinstalled and account does not exist
+	// Boinc is not installed when stderr contains "not found". Otherwise there is another problem
+    if (bNotFound)
+    {
+        sError += sErrorNotFound;
+    }
+	sStandardErr += "<EOF>";
+	return sStandardErr;
+}
+
+bool IsBoincInstalled(std::string& sError)
+{
+	std::string sData = BoincCommand("--help", sError);
 	bool bInstalled = (Contains(sData, "project_attach"));
 	return bInstalled;						
 }
@@ -7665,8 +7718,7 @@ std::string RosettaDiagnostics(std::string sEmail, std::string sPass, std::strin
 		std::string sHTML = "";
 		if (sEmail.empty()) sError = "E-mail must be populated.";
 		if (sPass.empty()) sError += "Password must be populated.";
-		bool fBoincInstalled = IsBoincInstalled();
-		if (!fBoincInstalled) sError += "Boinc is not installed.  Please run 'sudo apt-get install boincmgr boinc'.";
+		bool fBoincInstalled = IsBoincInstalled(sError);
 		std::string sAuth = "";
 		if (sError.empty())
 		{
@@ -7716,8 +7768,7 @@ std::string FixRosetta(std::string sEmail, std::string sPass, std::string& sErro
 	if (sEmail.empty()) sError = "E-mail must be populated.";
 	if (sPass.empty()) sError += "Password must be populated.";
 
-	bool fBoincInstalled = IsBoincInstalled();
-	if (!fBoincInstalled) sError += "Boinc is not installed.  Please run 'sudo apt-get install boincmgr boinc'.\n";
+	bool fBoincInstalled = IsBoincInstalled(sError);
 	sHTML += "Boinc_Installed: " + ToYesNo(fBoincInstalled) + "\n";
 	std::string sAuth = "";
 	if (sError.empty())
