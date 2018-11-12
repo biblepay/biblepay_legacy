@@ -7622,8 +7622,8 @@ int ShellCommand(std::string sCommand, std::string &sOutput, std::string &sError
 #else
 int ShellCommand(std::string sCommand, std::string &sOutput, std::string &sError)
 {
-    sError = SysCommandStdErr(sCommand, "boinctemp", std::string& sOutput);
-    return (Contains(sError, "not found"))?1:0;
+    sError = SysCommandStdErr(sCommand, "boinctemp", sOutput);
+    return (Contains(sError, "not found") || Contains(sOutput, "not found"))?1:0;
 }
 #endif
 
