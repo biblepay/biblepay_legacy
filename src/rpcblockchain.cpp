@@ -44,10 +44,13 @@
 #include <fstream>
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
+
+#ifdef MAC_OSX
 #include <boost/process/system.hpp>        // for ShellCommand
 #include <boost/process/io.hpp>
-
 namespace bp = boost::process;
+#endif
+
 
 using namespace std;
 
@@ -7589,6 +7592,7 @@ std::string SysCommandStdErr(std::string sCommand, std::string sTempFileName, st
 	return sStdErr;
 }
 
+#ifdef MAC_OSX
 int ShellCommand(std::string sCommand, std::string &sOutput, std::string &sError)
 {
     try
@@ -7615,6 +7619,13 @@ int ShellCommand(std::string sCommand, std::string &sOutput, std::string &sError
     }
 
 }
+#else
+int ShellCommand(std::string sCommand, std::string &sOutput, std::string &sError)
+{
+    sError = SysCommandStdErr(sCommand, "boinctemp", std::string& sOutput);
+    return (Contains(sError, "not found"))?1:0;
+}
+#endif
 
 std::string BoincCommand(std::string sCommand, std::string &sError)
 {
