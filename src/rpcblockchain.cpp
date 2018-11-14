@@ -7630,35 +7630,37 @@ int ShellCommand(std::string sCommand, std::string &sOutput, std::string &sError
 std::string BoincCommand(std::string sCommand, std::string &sError)
 {
 	// Boinc sends some output to stderr, some to stdout
+    std::string sPath = GetSANDirectory2() + "boinctemp";
     std::string sEXEPath = "";
     std::string sErrorNotFound = "";
-    
+    std::string sCmd;
+
     if (sOS=="WIN")
     {
         sEXEPath = "\"c:\\program files\\BOINC\\boinccmd\"";
         sErrorNotFound += "Boinc is not installed.  Please run BOINC installer and make sure boinccmd.exe is found in "+sEXEPath;
+        sCmd = sEXEPath + " >" + sPath + " " + sCommand + " 2>&1";
     }
     else if (sOS=="LIN")
     {
         sEXEPath = "boinccmd";
         sErrorNotFound += "Boinc is not installed.  Please run 'sudo apt-get install boincmgr boinc'.";
+        sCmd = sEXEPath + " >" + sPath + " " + sCommand + " 2>&1";
     }
     else // (sOS=="MAC")
     {
         sEXEPath = "\"/Library/Application Support/BOINC Data/boinccmd\"";
         sErrorNotFound += "boinccmd is not found. Download 'Unix command-line version' for MacOS separately. Then copy 'move_to_boinc_dir' contents into /Library/Application Support/BOINC Data/ folder and try again.";
+        sCmd = sEXEPath + " " + sCommand + " 2";
     }
 
-	//std::string sCmd = sEXEPath + " >" + sPath + " " + sCommand + " 2>&1";
-    std::string sCmd = sEXEPath + " " + sCommand; // + " 2";
 	std::string sStandardOut = "";
     std::string sStandardErr = "";
 	//std::string sResult = SysCommandStdErr(sCmd, "boinctemp", sStandardOut);
     // nResult == 0 ok, 1 failure
-    int bNotFound = ShellCommand(sCmd, sStandardOut , sStandardErr);
+    int nNotFound = ShellCommand(sCmd, sStandardOut , sStandardErr);
 	// We handle Not installed, account exists, boincinstalled and account does not exist
-	// Boinc is not installed when stderr contains "not found". Otherwise there is another problem
-    if (bNotFound)
+    if (nNotFound==1)
     {
         sError += sErrorNotFound;
     }
