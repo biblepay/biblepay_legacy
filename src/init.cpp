@@ -177,7 +177,7 @@ void PrepareShutdownLite()
     StopNode();
 }
 
-void StartShutdown(int iCondition)
+void StartShutdown(int iCondition )
 {
 	if (iCondition == 1)
 	{
@@ -1210,10 +1210,10 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
 	// Set flag for platform
 	sOS="LIN";
 
-	#ifdef Q_OS_MAC
+	#ifdef MAC_OSX
 		sOS="MAC";
 	#endif
-
+    
 	#ifdef WIN32
 		sOS="WIN";
 	#endif
