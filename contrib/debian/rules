@@ -20,5 +20,5 @@ override_dh_auto_configure:
 	./autogen.sh
 	./configure --without-miniupnpc --with-gui=qt5
 
-override_dh_auto_test:
-	make check
+#override_dh_auto_test:
+#	make check
