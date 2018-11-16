@@ -117,3 +117,5 @@ biblepay-cli
 biblepayd
 biblepay-qt
 make
+
+*.suo

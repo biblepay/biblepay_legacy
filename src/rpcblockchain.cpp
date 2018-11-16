@@ -6507,11 +6507,11 @@ std::string GetBoincResearcherHexCodeAndCPID(std::string sProjectId, int nUserId
 
 std::string GetBoincUnbankedReport(std::string sProjectID)
 {
-	std::string sProjectURL = "https://" + GetSporkValue(sProjectID);
-	std::string sRestfulURL = "Action.aspx";
-	std::string sArgs = "?action=unbanked";
-	std::string sURL = sProjectURL + sRestfulURL + sArgs;
-	std::string sResponse = BiblepayHTTPSPost(true, 0, "", sProjectID, "", sProjectURL, sRestfulURL + sArgs, 443, "", 20, 25000, 1);
+	// Legacy URL = https://host/Action.aspx?action=unbanked
+	std::string sHost = "https://" + GetSporkValue("unbankedhost");
+	std::string sPage = GetSporkValue("unbankedpage"); // "page.php?action=unbanked";
+	std::string sURL = sHost + sPage;
+	std::string sResponse = BiblepayHTTPSPost(true, 0, "", sProjectID, "", sHost, sPage, 443, "", 20, 25000, 1);
 	std::string sUnbanked = ExtractXML(sResponse, "<UNBANKED>","</UNBANKED>");
 	return sUnbanked;
 }
