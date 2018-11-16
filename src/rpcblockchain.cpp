@@ -6521,7 +6521,7 @@ std::string GetBoincUnbankedReport(std::string sProjectID)
 	std::string sResponse = BiblepayHTTPSPost(true, 0, "", sProjectID, "", sHost, sPage, 443, "", 20, 25000, 1);
 	std::string sUnbanked = ExtractXML(sResponse, "<UNBANKED>","</UNBANKED>");
 	return sUnbanked;
-}
+} 
 
 std::string SetBoincResearcherHexCode(std::string sProjectId, std::string sAuthCode, std::string sHexKey)
 {
