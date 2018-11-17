@@ -7,6 +7,7 @@
 
 DEB_INSTALL_EXAMPLES_biblepayd += debian/examples/*
 DEB_INSTALL_MANPAGES_biblepayd += debian/manpages/*
+DEB_BUILD_OPTIONS=nocheck
 
 %:
 	dh --with bash-completion $@
