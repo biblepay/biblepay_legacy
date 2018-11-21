@@ -189,7 +189,6 @@ extern void ClearCache(std::string sSection);
 extern std::string ReadCacheWithMaxAge(std::string sSection, std::string sKey, int64_t nMaxAge);
 
 
-
 bool fImporting = false;
 bool fReindex = false;
 bool fTxIndex = true;
@@ -7888,7 +7887,7 @@ bool CheckBusinessObjectSig(TxMessage t)
 	return false;
 }
 
-TxMessage GetTxMessage(std::string sMessage, int64_t nTime, int iPosition, std::string sTxId, double dAmount)
+TxMessage GetTxMessage(std::string sMessage, int64_t nTime, int iPosition, std::string sTxId, double dAmount, double dFoundationDonation, int nHeight)
 {
 	TxMessage t;
 	t.sMessageType = ExtractXML(sMessage,"<MT>","</MT>");
@@ -7936,6 +7935,14 @@ TxMessage GetTxMessage(std::string sMessage, int64_t nTime, int iPosition, std::
 	{
 		t.fPassedSecurityCheck = true;
 	}
+	else if (t.sMessageType == "TITHE")
+	{
+		if (dFoundationDonation > 0)
+		{
+			t.fPassedSecurityCheck = true;
+			WriteCache("TITHE_" + RoundToString(nHeight, 0), t.sBOSigner, RoundToString(dFoundationDonation, 0), nTime, false);
+		}
+	}
 	else if (t.sMessageType == "MESSAGE")
 	{
 		// these are sent by our users to each other
@@ -7976,7 +7983,7 @@ TxMessage GetTxMessage(std::string sMessage, int64_t nTime, int iPosition, std::
 void MemorizePrayer(std::string sMessage, int64_t nTime, double dAmount, int iPosition, std::string sTxID, int nHeight, double dFoundationDonation)
 {
 	if (sMessage.empty()) return;
-	TxMessage t = GetTxMessage(sMessage, nTime, iPosition, sTxID, dAmount);
+	TxMessage t = GetTxMessage(sMessage, nTime, iPosition, sTxID, dAmount, dFoundationDonation, nHeight);
 	if (!t.sIPFSHash.empty())
 	{
 		WriteCache("IPFS", t.sIPFSHash, RoundToString(nHeight, 0), nTime, false);

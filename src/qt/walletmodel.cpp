@@ -34,6 +34,7 @@ extern std::string FromQStringW(QString qs);
 std::string SubmitToIPFS(std::string sPath, std::string& sError);
 double GetSporkDouble(std::string sName, double nDefault);
 int64_t GetFileSize(std::string sPath);
+std::string DefaultRecAddress(std::string sType);
 
 
 WalletModel::WalletModel(const PlatformStyle *platformStyle, CWallet *wallet, OptionsModel *optionsModel, QObject *parent) :
@@ -303,6 +304,14 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
 			//If TITHE is Checked, add a recipient here
 
 			std::string sAddress = PubKeyToAddress(scriptPubKey);
+			std::string sTitheAddress = DefaultRecAddress("TITHES");
+			const Consensus::Params& consensusParams = Params().GetConsensus();
+			
+			if (sAddress == consensusParams.FoundationAddress)
+			{
+				// Donate to Foundation was checked
+				sMessages += "<PACK><MT>TITHE</MT><MK>" + sTitheAddress + "</MK><MV>" + sTitheAddress + "<BOSIGNER>" + sTitheAddress + "</BOSIGNER></MV></PACK>";
+			}
 			std::string sRepentNarr = "";
 			LogPrintf(" \r\n Created Tx for Outbound Money %f to address %s  ",(double)rcp.amount,sAddress.c_str());
 
@@ -310,16 +319,17 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
 
 			if (rcp.fTithe)
 			{
-					CAmount aTitheAmount = rcp.amount*.10;
-					const Consensus::Params& consensusParams = Params().GetConsensus();
-					CScript spkFoundation = GetScriptForDestination(CBitcoinAddress(consensusParams.FoundationAddress).Get());
-		            CRecipient recFoundation = {spkFoundation, aTitheAmount, false, true, rcp.fPrayer, rcp.fRepent, FromQStringW(rcp.txtMessage), 
-						FromQStringW(rcp.txtRepent), FromQStringW(""), FromQStringW(rcp.ipfshash) };
-					std::string sAddrF = PubKeyToAddress(spkFoundation);
-					setAddress.insert(ToQstring(sAddrF));
-            		++nAddresses;
-					LogPrintf(" \r\n Created Tithe Tx for Outbound Money %f to address %s ",(double)aTitheAmount,sAddrF.c_str());
-					vecSend.push_back(recFoundation);
+				CAmount aTitheAmount = rcp.amount*.10;
+				CScript spkFoundation = GetScriptForDestination(CBitcoinAddress(consensusParams.FoundationAddress).Get());
+	            CRecipient recFoundation = {spkFoundation, aTitheAmount, false, true, rcp.fPrayer, rcp.fRepent, FromQStringW(rcp.txtMessage), 
+					FromQStringW(rcp.txtRepent), FromQStringW(""), FromQStringW(rcp.ipfshash) };
+				std::string sAddrF = PubKeyToAddress(spkFoundation);
+				setAddress.insert(ToQstring(sAddrF));
+           		++nAddresses;
+				// POG - R ANDREWS - 11/20/2018
+				sMessages += "<PACK><MT>TITHE</MT><MK>" + sTitheAddress + "</MK><MV>" + sTitheAddress + "<BOSIGNER>" + sTitheAddress + "</BOSIGNER></MV></PACK>";
+				LogPrintf(" \r\n Created Tithe Tx for Outbound Money %f to address %s ",(double)aTitheAmount, sAddrF.c_str());
+				vecSend.push_back(recFoundation);
 			}
 
 			if (rcp.ipfshash.length() > 0)

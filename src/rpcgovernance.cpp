@@ -384,8 +384,8 @@ UniValue gobject(const UniValue& params, bool fHelp)
 
     if(strCommand == "vote-many")
     {
-        if(params.size() != 4)
-            throw JSONRPCError(RPC_INVALID_PARAMETER, "Correct usage is 'gobject vote-many <governance-hash> [funding|valid|delete] [yes|no|abstain]'");
+        if(params.size() != 4 && params.size() != 5 && params.size() != 6)
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Correct usage is 'gobject vote-many <governance-hash> [funding|valid|delete] [yes|no|abstain] [sanctuary_name_wildcard] [sleep_ms]'");
 
         uint256 hash;
         std::string strVote;

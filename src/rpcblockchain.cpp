@@ -68,6 +68,7 @@ extern std::string SignPrice(std::string sValue);
 std::string GetFileNameFromPath(std::string sPath);
 extern bool VerifyDarkSendSigner(std::string sXML);
 extern double GetQTPhase(double dPrice, int nEventHeight, double& out_PriorPrice, double& out_PriorPhase);
+extern CPoolObject GetTitheVector(int iHeight);
 extern UniValue GetIPFSList(int iMaxDays, std::string& out_Files);
 extern UniValue GetSancIPFSQualityReport();
 extern UniValue GetBusinessObjectByFieldValue(std::string sType, std::string sFieldName, std::string sSearchValue);
@@ -3531,6 +3532,27 @@ UniValue exec(const UniValue& params, bool fHelp)
 		results.push_back(Pair("Result", sResponse));
 		results.push_back(Pair("Error", sError));
 	}
+	else if (sItem == "poolvector")
+	{
+		CPoolObject c = GetTitheVector(chainActive.Tip()->nHeight);
+		//	double oTrancheRecipients[15] = {};
+		//	double oTrancheTotals[15] = {};
+
+		BOOST_FOREACH(const PAIRTYPE(std::string, CTitheObject)& item, c.mapTithes)
+	    {
+			CTitheObject oTithe = item.second;
+			std::string sRow = "Amount: " + RoundToString(oTithe.Amount,2) + ", Weight: " + RoundToString(oTithe.Weight, 4) + ", Tranche: " + RoundToString(oTithe.Tranche, 0);
+			results.push_back(Pair(oTithe.Address, sRow));
+		}
+
+		for (int i = 0; i < 16; i++)
+		{
+			std::string sRow = "Count: " + RoundToString(c.oTrancheRecipients[i], 0) + ", Total: " + RoundToString(c.oTrancheTotals[i], 0);
+			results.push_back(Pair(RoundToString(i, 0), sRow));
+		}
+
+
+	}
 	else if (sItem == "datalist")
 	{
 		if (params.size() != 2 && params.size() != 3)
@@ -4140,6 +4162,93 @@ std::string GetBusinessObjectList(std::string sType, std::string sFields)
 	LogPrintf("BOList data %s \n",sData.c_str());
 	return sData;
 }
+
+
+CPoolObject GetTitheVector(int iHeight)
+{
+	double dHighTithe = 0;
+	CPoolObject cPool;
+	cPool.nHeightFirst = iHeight - 205;
+	cPool.nHeightLast = iHeight;
+	if (cPool.nHeightFirst < 1) cPool.nHeightFirst = iHeight;
+	
+    for(map<string,string>::iterator ii=mvApplicationCache.begin(); ii!=mvApplicationCache.end(); ++ii) 
+    {
+		std::string sKey = (*ii).first;
+		std::vector<std::string> vTitheObject = Split(sKey, ";");
+	    if (vTitheObject.size() > 1)
+		{
+			std::vector<std::string> vTitheFirst = Split(vTitheObject[0], "_");
+			if (vTitheFirst.size() > 1)
+			{  
+				if (vTitheFirst[0] == "TITHE")
+				{
+					double dHeight = cdbl(vTitheFirst[1], 0);
+					std::string sRecip = vTitheObject[1];
+					LogPrintf(" Tithe Found height %f  recip %s ",dHeight, sRecip.c_str());
+
+					if (dHeight >= cPool.nHeightFirst && dHeight <= cPool.nHeightLast)
+					{
+						//int64_t nTimestamp = mvApplicationCacheTimestamp[(*ii).first];
+						double dTithe = cdbl(mvApplicationCache[(*ii).first], 2);
+						CBitcoinAddress cbaAddress(sRecip);
+						if (cbaAddress.IsValid() && dTithe > 0)
+						{		
+							if (dTithe > dHighTithe) dHighTithe = dTithe;
+							CTitheObject cTithe;
+							cPool.itTithes = cPool.mapTithes.find(sRecip);
+							if (cPool.itTithes == cPool.mapTithes.end())
+							{
+								cTithe.Address = sRecip;
+								cTithe.Amount = 0;
+								cPool.mapTithes.insert(std::make_pair(sRecip, cTithe));
+							}
+							else
+							{
+								cTithe = cPool.mapTithes[sRecip];
+							}
+							cTithe.Amount += dTithe;
+							cPool.mapTithes[sRecip] = cTithe;
+							LogPrintf(" amt %f ",dTithe);
+						}
+					}
+				}
+			}
+		}
+	}
+	// Classify the tithes into tranches
+	if (dHighTithe < 100) dHighTithe = 100;
+	double dIntervals = dHighTithe / 16;
+	// Tally recipients per tranche
+	
+	BOOST_FOREACH(const PAIRTYPE(std::string, CTitheObject)& item, cPool.mapTithes)
+    {
+		CTitheObject oTithe = item.second;
+		int iTranche = (oTithe.Amount / dIntervals) - 1;
+		if (iTranche < 0) iTranche = 0;
+		if (iTranche > 15) iTranche = 15;
+		oTithe.Tranche = iTranche;
+		//oTithe.HighTithe = dHighTithe;
+		cPool.oTrancheRecipients[oTithe.Tranche]++;
+		cPool.oTrancheTotals[oTithe.Tranche] += oTithe.Amount;
+		cPool.mapTithes[oTithe.Address] = oTithe;
+ 	}
+	// Calculate tithe_weight
+	BOOST_FOREACH(const PAIRTYPE(std::string, CTitheObject)& item, cPool.mapTithes)
+    {
+		CTitheObject oTithe = item.second;
+		if (cPool.oTrancheTotals[oTithe.Tranche] > 0)
+		{
+			double oWeight = oTithe.Amount / cPool.oTrancheTotals[oTithe.Tranche];
+			oTithe.Weight = oWeight;
+			cPool.mapTithes[oTithe.Address] = oTithe;
+		}
+	}
+
+	return cPool;
+}
+
+
 
 
 UniValue GetIPFSList(int iMaxAgeInDays, std::string& out_Files)

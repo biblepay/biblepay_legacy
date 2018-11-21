@@ -3304,7 +3304,7 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
                             // Insert change txn at random position:
 							// PODC Support - do not duplicate cpid signature due to change, this will actually corrupt the base64 in the signature - R ANDREWS - 3/20/2018
                             nChangePosRet = GetRandInt(txNew.vout.size()+1);
-                            vector<CTxOut>::iterator position = txNew.vout.begin()+nChangePosRet;
+                            vector<CTxOut>::iterator position = txNew.vout.begin() + nChangePosRet;
                             txNew.vout.insert(position, newTxOut);
 							txNew.vout[nChangePosRet].sTxOutMessage = "<change>1</change>";
                         }
