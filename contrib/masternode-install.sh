@@ -131,7 +131,7 @@ downloadWallet() {
     let "CURRSTEP++"
     echo
     echo -e "[${CURRSTEP}/${MAX}] Downloading wallet binaries. Please wait, this might take a while to complete..."
-    sudo add-apt-repository ppa:biblepay/stable -y > /dev/null 2>&1
+    sudo add-apt-repository ppa:biblepay-official/mainnet -y > /dev/null 2>&1
     sudo apt-get update -y > /dev/null 2>&1
     sudo apt-get install biblepayd -qq -y > /dev/null 2>&1
     echo -e "${NONE}${GREEN}* Done${NONE}";

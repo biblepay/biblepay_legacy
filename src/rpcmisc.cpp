@@ -1,6 +1,6 @@
 // Copyright (c) 2010 Satoshi Nakamoto
 // Copyright (c) 2009-2015 The Bitcoin Core developers
-// Copyright (c) 2014-2017 The Däsh Core developers
+// Copyright (c) 2014-2017 The DÃ¤sh Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -31,6 +31,8 @@
 
 using namespace std;
 double CAmountToRetirementDouble(CAmount Amount);
+double GetSporkDouble(std::string sName, double nDefault);
+string GetSporkValue(std::string sKey);
 
 /**
  * @note Do not add or change anything in the information returned by this
@@ -232,6 +234,49 @@ UniValue spork(const UniValue& params, bool fHelp)
             if(sporkManager.GetSporkNameByID(nSporkID) != "Unknown")
                 ret.push_back(Pair(sporkManager.GetSporkNameByID(nSporkID), sporkManager.GetSporkValue(nSporkID)));
         }
+        //Take BBP specific sporks, handled outside the main system. -thesnat21 2018-10-05
+       
+        ret.push_back(Pair("------------------", ""));
+        ret.push_back(Pair("Other", "Settings"));
+        ret.push_back(Pair("pool", GetSporkValue("pool")));
+        ret.push_back(Pair("prayersmustbesigned", GetSporkDouble("prayersmustbesigned", 0)));
+
+        ret.push_back(Pair("------------------", ""));
+        ret.push_back(Pair("PODC", "Settings"));
+        ret.push_back(Pair("dr", GetSporkDouble("dr", 0)));
+        ret.push_back(Pair("project1", GetSporkValue("project1")));
+        ret.push_back(Pair("project2", GetSporkValue("project2")));
+        ret.push_back(Pair("podcupdatefrequency", GetSporkDouble("podcupdatefrequency", 0)));
+        ret.push_back(Pair("podcminimumchatterage", GetSporkDouble("podcminimumchatterage", (60 * 60 * 4))));
+        ret.push_back(Pair("podcmaximumchatterage", GetSporkDouble("podcmaximumchatterage", (60 * 60 * 24))));
+        ret.push_back(Pair("team", GetSporkDouble("team", 0)));
+        ret.push_back(Pair("team2", GetSporkDouble("team2", 0)));
+        ret.push_back(Pair("project2factor", GetSporkDouble("project2factor", 0)));
+        ret.push_back(Pair("teamblacklist", GetSporkValue("teamblacklist")));
+        ret.push_back(Pair("nonbiblepayteampercentage", GetSporkDouble("nonbiblepayteampercentage", 2)));
+        ret.push_back(Pair("requiredspm", GetSporkDouble("requiredspm", 500)));
+        ret.push_back(Pair("requiredspr", GetSporkDouble("requiredspr", 0)));
+        ret.push_back(Pair("racthreshhold", GetSporkDouble("racthreshhold", 0)));
+
+        ret.push_back(Pair("------------------", ""));
+        ret.push_back(Pair("IPFS", "Settings"));
+        ret.push_back(Pair("ipfshealthhash", GetSporkValue("ipfshealthhash")));
+        ret.push_back(Pair("podsfileleaseduration", GetSporkDouble("podsfileleaseduration", 7)));
+        ret.push_back(Pair("podsmode", GetSporkDouble("podsmode", 0)));
+        ret.push_back(Pair("ipfscostperbyte", GetSporkDouble("ipfscostperbyte", 0.0002)));
+
+        ret.push_back(Pair("------------------", ""));
+        ret.push_back(Pair("Quantitative Tightening", "Settings"));
+        ret.push_back(Pair("qtmaxpercentage", GetSporkDouble("qtmaxpercentage", 0)));
+        ret.push_back(Pair("pbase1", DecodeBase64(GetSporkValue("pbase1"))));
+        ret.push_back(Pair("pbase2", DecodeBase64(GetSporkValue("pbase2"))));
+        ret.push_back(Pair("pbase3", DecodeBase64(GetSporkValue("pbase3"))));
+
+
+
+
+
+
         return ret;
     } else if(params.size() == 1 && params[0].get_str() == "active"){
         UniValue ret(UniValue::VOBJ);

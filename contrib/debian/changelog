@@ -1,4 +1,4 @@
-mainnet (1.1.6.0-1) UNRELEASED; urgency=low
+mainnet (1.1.6.0-xenial1) xenial; urgency=low
 
   * Improves BOINC cmd interactions.
     

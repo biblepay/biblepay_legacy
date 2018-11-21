@@ -4,7 +4,7 @@
  *
  * ==========================(LICENSE BEGIN)============================
  *
- * Copyright (c) 2007-2018  Projet Biblepay
+ * Copyright (c) 2007-2018  Project Biblepay
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
