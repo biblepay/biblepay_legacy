@@ -414,7 +414,7 @@
       </property>
      </widget>
     </item>
-    <item row="5" column="1">
+    <item row="6" column="1">
      <widget class="QLabel" name="messageTextLabel">
       <property name="toolTip">
        <string>A message that was attached to the Biblepay: URI which will be stored with the transaction for your reference. Note: This message will not be sent over the Biblepay network.</string>
@@ -424,7 +424,30 @@
       </property>
      </widget>
     </item>
-    <item row="7" column="0" colspan="2">
+    <item row="7" column="0">
+     <widget class="QLabel" name="lblPogDifficultyCaption">
+      <property name="text">
+       <string>POG Difficulty:</string>
+      </property>
+      <property name="alignment">
+       <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+      </property>
+     </widget>
+    </item>
+    <item row="7" column="1">
+     <widget class="QLabel" name="lblPogDifficulty">
+      <property name="toolTip">
+       <string>POG Difficulty</string>
+      </property>
+      <property name="text">
+       <string>.</string>
+      </property>
+      <property name="textFormat">
+       <enum>Qt::PlainText</enum>
+      </property>
+     </widget>
+    </item>
+    <item row="8" column="0" colspan="2">
      <widget class="Line" name="line">
       <property name="orientation">
        <enum>Qt::Horizontal</enum>

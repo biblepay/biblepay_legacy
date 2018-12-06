@@ -20,6 +20,17 @@ uint256 CBlockHeader::GetHashBible() const
 	return HashBiblePay(BEGIN(nVersion),END(nNonce));
 }
 
+uint256 CTitheObject::GetHash() const
+{
+	return uint256S("0x0");
+	/*
+	std::string sKey = Address + RoundToString(Amount, 4) + RoundToString(Height, 0) + RoundToString(HeightLast, 0) + LastBlockHash.GetHex();
+		std::string sHash = RetrieveMd5(sKey);
+		uint256 hash = uint256S("0x" + sHash);
+		return hash;
+		*/
+}
+
 std::string CBlock::ToString() const
 {
     std::stringstream s;

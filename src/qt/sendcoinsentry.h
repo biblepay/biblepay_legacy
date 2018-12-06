@@ -66,6 +66,8 @@ private Q_SLOTS:
     void updateDisplayUnit();
     void updateFoundationAddress();
 	void initRepentanceDropDown();
+	void initPOGDifficulty();
+
 	void makeRepentanceVisible();
 	void checkboxPrayerClicked();
 

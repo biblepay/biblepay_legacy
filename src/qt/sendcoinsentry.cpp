@@ -12,6 +12,7 @@
 #include "optionsmodel.h"
 #include "platformstyle.h"
 #include "walletmodel.h"
+#include "main.cpp"
 
 #include <QApplication>
 #include <QClipboard>
@@ -21,6 +22,12 @@ QString ToQstring(std::string s);
 std::string FromQStringW(QString qs);
 std::string GetSin(int iSinNumber, std::string& out_Description);
 bool Contains(std::string data, std::string instring);
+
+// POG
+TitheDifficultyParams GetTitheParams(int nHeight);
+double GetPOGDifficulty(int nBlockHeight);
+// End of POG
+
 
 
 SendCoinsEntry::SendCoinsEntry(const PlatformStyle *platformStyle, QWidget *parent) :
@@ -82,6 +89,7 @@ SendCoinsEntry::SendCoinsEntry(const PlatformStyle *platformStyle, QWidget *pare
 
 	// Initialize Repentance Combo
 	initRepentanceDropDown();
+	initPOGDifficulty();
 
 }
 
@@ -101,6 +109,7 @@ void SendCoinsEntry::updateFoundationAddress()
 {
 	const CChainParams& chainparams = Params();
     ui->payTo->setText(ToQstring(chainparams.GetConsensus().FoundationAddress));
+	initPOGDifficulty();
     ui->payAmount->setFocus();
 }
 
@@ -125,6 +134,30 @@ void SendCoinsEntry::makeRepentanceVisible()
 	if (bChecked)
 	{
 		ui->checkboxPrayer->setCheckState(Qt::Unchecked);
+	}
+}
+
+void SendCoinsEntry::initPOGDifficulty()
+{	// Initialize Pog difficulty (12-6-2018)
+	bool bDonateFoundation = (ui->checkboxFoundation->checkState() == Qt::Checked);
+	if (fPOGEnabled && bDonateFoundation)
+	{
+		TitheDifficultyParams tdp = GetTitheParams(chainActive.Tip()->nHeight);
+		double pog_diff = GetPOGDifficulty(chainActive.Tip()->nHeight);
+		std::string sValue = "POG Difficulty: " + RoundToString(pog_diff, 4) + ", MinCoinAge: " + RoundToString(tdp.min_coin_age, 4) + ", MinCoinValue: " + RoundToString(tdp.min_coin_amount, 4) 
+				+ ", MaxTitheAmount: " + RoundToString((double)(tdp.max_tithe_amount/COIN), 4);
+		std::string sCSS = "QLabel { background-color : transparent; color: red; }";
+		ui->lblPogDifficulty->setStyleSheet(ToQstring(sCSS));
+		ui->lblPogDifficultyCaption->setStyleSheet(ToQstring(sCSS));
+		ui->lblPogDifficultyCaption->setVisible(true);
+		ui->lblPogDifficultyCaption->setText(ToQstring("POG:"));
+		ui->lblPogDifficulty->setText(ToQstring(sValue));
+		ui->lblPogDifficulty->setVisible(true);
+    }
+	else
+	{
+		ui->lblPogDifficultyCaption->setVisible(false);
+		ui->lblPogDifficulty->setVisible(false);
 	}
 }
 
@@ -325,6 +358,8 @@ void SendCoinsEntry::setValue(const SendCoinsRecipient &value)
 		ui->txtMessage->setText(recipient.txtMessage);
         ui->messageLabel->setVisible(!recipient.message.isEmpty());
         ui->addAsLabel->clear();
+		initPOGDifficulty();
+
         ui->payTo->setText(recipient.address); // this may set a label from addressbook
         if (!recipient.label.isEmpty()) // if a label had been set from the addressbook, don't overwrite with an empty label
             ui->addAsLabel->setText(recipient.label);

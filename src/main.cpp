@@ -83,7 +83,8 @@ bool fDistributedComputingCycle = false;
 bool fDistributedComputingEnabled = false;
 bool fDistributedComputingCycleDownloading = false;
 bool fInternalRequestedShutdown = false;
-
+bool fPOGEnabled = false;
+bool fPOGPaymentsEnabled = false;
 
 int nDistributedComputingCycles = 0;
 
@@ -116,6 +117,16 @@ extern void KillBlockchainFiles();
 extern void HealthCheckup();
 std::string GenerateNewAddress(std::string& sError, std::string sName);
 double GetQTPhase(double dPrice, int nEventHeight, double& out_PriorPrice, double& out_PriorPhase);
+
+// POG
+extern CAmount SelectCoinsForTithing(int nHeight);
+CPoolObject GetPoolVector(int iHeight, int nPaymentTier, uint256 uHash);
+extern TitheDifficultyParams GetTitheParams(int nHeight);
+extern void UpdatePogPool(int nHeight, int nSize);
+extern CAmount GetTitheCap(int nBlockHeight);
+extern double GetPOGDifficulty(int nBlockHeight);
+extern CBlockIndex* FindBlockByHeight(int nHeight);
+// End of POG
 
 bool CheckProofOfLoyalty(double dWeight, uint256 hash, unsigned int nBits, const Consensus::Params& params, 
 	int64_t nBlockTime, int64_t nPrevBlockTime, int nPrevHeight, unsigned int nNonce, const CBlockIndex* pindexPrev, bool bLoadingBlockIndex);
@@ -207,6 +218,7 @@ std::string msGlobalStatus = "";
 std::string msGlobalStatus2 = "";
 std::string msGlobalStatus3 = "";
 std::string msProposalResult = "";
+std::string msNickName = "";
 int64_t nProposalStartTime = 0;
 int64_t nProposalModulus = 0;
 int64_t nLastHealthCheckup = 0;
@@ -3037,6 +3049,96 @@ int32_t ComputeBlockVersion(const CBlockIndex* pindexPrev, const Consensus::Para
     return nVersion;
 }
 
+double GetPOGDifficulty(int nBlockHeight)
+{
+	if (!chainActive.Tip()) return 0;
+	if (nBlockHeight < 1 || nBlockHeight > chainActive.Tip()->nHeight) return 0;
+
+	CBlockIndex* pindexOld = FindBlockByHeight(nBlockHeight);
+	if (!pindexOld) return 0;
+
+	CAmount nTitheCap = GetTitheCap(nBlockHeight);
+	if (nTitheCap < 1) return 0;
+	double nDiff = (((double)pindexOld->n24HourTithes/COIN) / ((double)nTitheCap/COIN)) * 65535;
+	return nDiff;
+}
+
+
+double R2X(double var) 
+{ 
+    double value = (int)(var * 100 + .5); 
+    return (double)value / 100; 
+} 
+
+double Quantize(double nFloor, double nCeiling, double nValue)
+{
+	double nSpan = nCeiling - nFloor;
+	double nLevel = nSpan * nValue;
+	double nOut = nFloor + nLevel;
+	if (nOut > std::max(nFloor,nCeiling))  nOut = std::max(nFloor, nCeiling);
+	if (nOut < std::min(nCeiling, nFloor)) nOut = std::min(nCeiling, nFloor);
+	return nOut;
+}
+
+
+TitheDifficultyParams GetTitheParams(int nBlockHeight)
+{
+	// Tithe Parameter Ranges:
+
+	// min_coin_age  : 0 - 60 (days)
+	// min_coin_amount : 1 - 25000
+	// max_tithe_amount: 300 - 1 (descending)
+
+	TitheDifficultyParams td;
+	td.min_coin_age = 99999;
+	td.min_coin_amount = 0;
+	td.max_tithe_amount = 0;
+
+	if (nBlockHeight < 1 || nBlockHeight > chainActive.Tip()->nHeight) 
+	{
+		return td;
+	}
+	CBlockIndex* pindexOld = FindBlockByHeight(nBlockHeight);
+	if (!pindexOld) return td;
+
+	CAmount nTitheCap = GetTitheCap(nBlockHeight);
+	if (nTitheCap < 1) return td;
+	double nQLevel = (((double)pindexOld->n24HourTithes/COIN) / ((double)nTitheCap/COIN));
+
+	td.min_coin_age = R2X(Quantize(0, 60, nQLevel));
+	td.min_coin_amount = R2X(Quantize(1, 25000, nQLevel));
+	td.max_tithe_amount = R2X(Quantize(300, 1, nQLevel)) * COIN; // Descending tithe amount
+	return td;
+}
+
+CAmount SelectCoinsForTithing(int nHeight)
+{
+	TitheDifficultyParams tdp = GetTitheParams(nHeight);
+	std::map<double, CAmount> dtb = pwalletMain->GetDimensionalCoins(tdp.min_coin_age, tdp.min_coin_amount);
+	CAmount nBigCoin = 0;
+	BOOST_FOREACH(const PAIRTYPE(double, CAmount)& item, dtb)
+   	{
+		CAmount nCoinAmount = item.second;
+		if (nCoinAmount > nBigCoin) nBigCoin = nCoinAmount;
+	}
+	return nBigCoin;
+}
+
+
+CAmount GetTitheCap(int nBlockHeight)
+{
+    const Consensus::Params& consensusParams = Params().GetConsensus();
+	int nBits = 486585255;  // Set diff at about 1.42 for Superblocks (This preserves compatibility with our getgovernanceinfo cap)
+	// The first call to GetBlockSubsidy calculates the future reward (and this has our standard deflation of 19% per year in it)
+	if (chainActive.Tip() == NULL) return 0;
+    CAmount nSuperblockPartOfSubsidy = GetBlockSubsidy(pindexBestHeader->pprev, nBits, nBlockHeight, consensusParams, true);
+	// R ANDREWS - POG - 12/6/2018 - CRITICAL - If we go with POG + PODC, the Tithe Cap must be lower to ensure miner profitability
+	// .05 = 3.6MM per month, .025 = 1.8MM per month
+    CAmount nPaymentsLimit = nSuperblockPartOfSubsidy * consensusParams.nSuperblockCycle * .025; // Half of monthly charity budget - with deflation
+	return nPaymentsLimit;
+}
+
+
 bool GetBlockHash(uint256& hashRet, int nBlockHeight)
 {
     LOCK(cs_main);
@@ -3085,6 +3187,7 @@ static int64_t nTimeTotal = 0;
 bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pindex, CCoinsViewCache& view, bool fJustCheck)
 {
     const CChainParams& chainparams = Params();
+	const Consensus::Params& consensusParams = Params().GetConsensus();
     AssertLockHeld(cs_main);
 
     int64_t nTimeStart = GetTimeMicros();
@@ -3202,7 +3305,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     std::vector<std::pair<CAddressIndexKey, CAmount> > addressIndex;
     std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue> > addressUnspentIndex;
     std::vector<std::pair<CSpentIndexKey, CSpentIndexValue> > spentIndex;
-
+	
     for (unsigned int i = 0; i < block.vtx.size(); i++)
     {
         const CTransaction &tx = block.vtx[i];
@@ -3377,6 +3480,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
 		}
 	}
 
+
     // END biblepay
 
     if (!control.Wait())
@@ -3445,10 +3549,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
 	// Note: The following feature only memorizes the new blocks prayers
 	if (!fLoadingIndex) 
 	{
-		LOCK(cs_main);
-		{
-			MemorizeBlockChainPrayers(true, false, false, false);
-		}
+		MemorizeBlockChainPrayers(true, false, false, false);
 	}
     return true;
 }
@@ -3738,6 +3839,8 @@ bool static ConnectTip(CValidationState& state, const CChainParams& chainparams,
     mempool.removeForBlock(pblock->vtx, pindexNew->nHeight, txConflicted, !IsInitialBlockDownload());
     // Update chainActive & related variables.
     UpdateTip(pindexNew);
+	UpdatePogPool(pindexNew->nHeight, 0);
+
     // Tell wallet about transactions that went from mempool
     // to conflicted:
     BOOST_FOREACH(const CTransaction &tx, txConflicted) {
@@ -4511,6 +4614,51 @@ bool ContextualCheckBlockHeader(const CBlockHeader& block, CValidationState& sta
     return true;
 }
 
+bool CheckPOGPoolRecipients(int nHeight, const CBlock& block)
+{
+	bool bSuperblock= (CSuperblock::IsValidBlockHeight(nHeight) || (fDistributedComputingEnabled && CSuperblock::IsDCCSuperblock(nHeight)));
+	if (bSuperblock) return true;
+	
+	int nPoolHeight = nHeight - 10;
+	CPoolObject cPool = GetPoolVector(nPoolHeight, nPoolHeight % 16, uint256S("0x0"));
+
+	CAmount nBlockReward = 0;
+	for (unsigned int i = 1; i < block.vtx[0].vout.size(); i++)
+	{
+		nBlockReward += block.vtx[0].vout[i].nValue;
+	}
+	// CAmount caBlockReward = nFees + GetBlockSubsidy(pindex->pprev, pindex->pprev->nBits, pindex->pprev->nHeight, chainparams.GetConsensus());
+  
+	CAmount caMasternodePortion = GetMasternodePayment(nHeight, nBlockReward, 0);
+	CAmount nPOWReward = nBlockReward - caMasternodePortion;
+	CAmount nPOGReward = nPOWReward * .80;
+	BOOST_FOREACH(const PAIRTYPE(std::string, CTitheObject)& item, cPool.mapPoolPayments)
+	{
+		CTitheObject oTithe = item.second;
+		if (oTithe.Weight > 0)
+		{
+			CBitcoinAddress cbAddress(oTithe.Address);
+			if (cbAddress.IsValid()) 
+			{
+				CAmount caPoolPayment = oTithe.Weight * nPOGReward;
+				bool bFound = false;
+				for (unsigned int i = 1; i < block.vtx[0].vout.size(); i++)
+				{
+					std::string sRecipient = PubKeyToAddress(block.vtx[0].vout[i].scriptPubKey);
+					if (sRecipient == oTithe.Address && block.vtx[0].vout[i].nValue == caPoolPayment) bFound = true;
+				}
+				if (bFound == false) 
+				{
+					LogPrintf(" CheckPoolRecipients Height %f  TotalBlockReward %f, MN Reward %f, Recip Missing %s ", 
+						nHeight, nPOWReward/COIN, caMasternodePortion/COIN, oTithe.Address.c_str());
+					return false;
+				}
+			}
+		}
+	}
+	return true;
+}
+
 bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIndex * const pindexPrev, bool fCheckPOW, bool fMining)
 {
     const int nHeight = pindexPrev == NULL ? 0 : pindexPrev->nHeight + 1;
@@ -4554,8 +4702,29 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIn
 		 return false;
 	}
 
-	// Rob A. - BiblePay - 8-29-2018
-	if (fDistributedComputingEnabled && ((nHeight > F14000_CUTOVER_HEIGHT_PROD && fProd)  ||  (nHeight > F14000_CUTOVER_HEIGHT_TESTNET && !fProd)))
+	if (!fProd && nHeight > FPOG_CUTOVER_HEIGHT_TESTNET && dBlockVersion < 1162)
+	{
+		 LogPrintf("ContextualCheckBlock::ERROR Rejecting testnet block version %f at height %f \n",(double)dBlockVersion,(double)nHeight);
+		 return false;
+	}
+
+	// Rob A. - BiblePay - 12/3/2018
+	if (fPOGEnabled && !fProd)
+	{
+		// Contextual Checkblock Rules for POG
+		if (fPOGPaymentsEnabled)
+		{
+			if (nHeight > FPOG_CUTOVER_HEIGHT_TESTNET)
+			{
+				bool fVerified = CheckPOGPoolRecipients(nHeight, block);
+				if (!fVerified)
+				{
+					LogPrintf("\nContextualCheckBlock::ERROR - POG Recipients invalid at height %f ", nHeight);
+				}
+			}
+		}
+	}
+	else if (fDistributedComputingEnabled && ((nHeight > F14000_CUTOVER_HEIGHT_PROD && fProd)  ||  (nHeight > F14000_CUTOVER_HEIGHT_TESTNET && !fProd)))
 	{
 		// Verify the block is signed by a CPID
 		std::string sError = "";
@@ -4577,6 +4746,11 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIn
 			return state.DoS(1, error("%s: CPID %s has solved prior blocks. ", __func__, sCPID.c_str()), REJECT_INVALID, "cpid-solved-prior-blocks");
 		}
 	}
+
+	/*
+
+	R ANDREWS - BIBLEPAY - Since we are now past block F14000, the following legacy code can be removed:
+
 	else if (fDistributedComputingEnabled && nHeight > F11000_CUTOVER_HEIGHT_PROD)
 	{
 		// Rob A. - Biblepay - 2/8/2018 - Contextual check CPID signature on each block to prevent botnet from forming - level 2
@@ -4618,6 +4792,7 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIn
 			}
 		}
 	}
+	*/
 
 
     return true;
@@ -5056,6 +5231,7 @@ CBlockIndex * InsertBlockIndex(uint256 hash)
 
     // Create new
     CBlockIndex* pindexNew = new CBlockIndex();
+
     if (!pindexNew)
         throw runtime_error("LoadBlockIndex(): new CBlockIndex failed");
     mi = mapBlockIndex.insert(make_pair(hash, pindexNew)).first;
@@ -6244,7 +6420,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
 		sVersion = strReplace(sVersion, ".", "");
 		double dPeerVersion = cdbl(sVersion, 0);
 		if (!fProd && dPeerVersion == 109) dPeerVersion=1090;
-		if (dPeerVersion < 1093 && dPeerVersion > 1000 && !fProd)
+		if (dPeerVersion < 1162 && dPeerVersion > 1000 && !fProd)
 		{
 		    LogPrint("net","Disconnecting unauthorized peer in TestNet using old version %f\r\n",(double)dPeerVersion);
 			Misbehaving(pfrom->GetId(), 14);
@@ -7417,6 +7593,8 @@ static CBlockIndex* pblockindexFBBHLast;
 CBlockIndex* FindBlockByHeight(int nHeight)
 {
     CBlockIndex *pblockindex;
+	if (nHeight < 0 || nHeight > chainActive.Tip()->nHeight) return NULL;
+
     if (nHeight < chainActive.Tip()->nHeight / 2)
 		pblockindex = mapBlockIndex[cblockGenesis.GetHash()];
     else
@@ -7529,6 +7707,168 @@ void SetOverviewStatus()
 	std::string sPrayers = FormatHTML(sPrayer, 12, "<br>");
 	msGlobalStatus2 = "<font color=maroon><b>" + sPrayer + "</font></b><br>&nbsp;";
 }
+
+CAmount Get24HourTithes(int nHeight, int nSize)
+{
+	int nMaxDepth = nHeight;
+	int nMinDepth = nHeight - nSize;
+	CAmount nTotal = 0;
+	for (int i = nMinDepth; i <= nMaxDepth; i++)
+	{
+		CBlockIndex* pindex = FindBlockByHeight(i);
+		if (pindex)
+		{
+			nTotal += pindex->nBlockTithes;
+		}
+	}
+	return nTotal;
+}
+
+std::string GetTitherAddress(CTransaction ctx, std::string& sNickName)
+{
+	std::string sMsg = "";
+	std::string sTither = "";
+	const Consensus::Params& consensusParams = Params().GetConsensus();
+	
+	for (unsigned int z = 0; z < ctx.vout.size(); z++)
+	{
+		sMsg += ctx.vout[z].sTxOutMessage;
+	}
+	for (unsigned int z = 0; z < ctx.vout.size(); z++)
+	{
+		sTither = PubKeyToAddress(ctx.vout[z].scriptPubKey);
+		if (sTither != consensusParams.FoundationAddress) break;
+	}
+
+	std::string sSignedTither = ExtractXML(sMsg, "<TITHER>", "</TITHER>");
+	sNickName = ExtractXML(sMsg, "<NICKNAME>", "</NICKNAME>");
+	if (!sSignedTither.empty())
+	{
+		CBitcoinAddress cbaAddress(sSignedTither);
+		if (cbaAddress.IsValid()) return sSignedTither;
+	}
+
+	CBitcoinAddress cbaAddress(sTither);
+	if (cbaAddress.IsValid()) return sTither;
+
+	return "";
+}
+
+
+bool IsTitheLegal(CTransaction ctx, CBlockIndex* pindex, CAmount tithe_amount)
+{
+	BOOST_FOREACH(const CTxIn &txin, ctx.vin)
+	{
+		uint256 hashInput = txin.prevout.hash;
+		const CBlockIndex* pindexHistorical = GetBlockIndexByTransactionHash(hashInput);
+		if (pindexHistorical)
+		{
+			double nTitheAge = (double)(pindex->GetBlockTime() - pindexHistorical->GetBlockTime()) / 86400;
+			CTransaction tx1;
+			uint256 hashBlock1;
+			if (GetTransaction(hashInput, tx1, Params().GetConsensus(), hashBlock1, true))
+			{
+				CAmount nPriorCoinSpent = tx1.vout[txin.prevout.n].nValue;
+				LogPrintf(" Prior Coin Amount %f, Tithe Amt %f, Tithe_height # %f, Spend_height %f, Age %f        ", (double)nPriorCoinSpent/COIN, 
+												(double)tithe_amount/COIN, pindex->nHeight, pindexHistorical->nHeight, (double)nTitheAge);
+				if (nTitheAge >= pindex->nMinCoinAge && nPriorCoinSpent >= pindex->nMinCoinAmount)
+				{
+					return true;
+				}
+			}
+
+		}
+	}
+	return false;
+}
+
+void UpdatePogPool(int nHeight, int nSize)
+{
+	int nMaxDepth = nHeight;
+	int nMinDepth = nHeight - nSize;
+	const Consensus::Params& consensusParams = Params().GetConsensus();
+	std::map<std::string, CTitheObject>::iterator itTithes;
+	
+	for (int ix = nMinDepth; ix <= nMaxDepth; ix++)
+	{
+		CBlockIndex* pindex = FindBlockByHeight(ix);
+		if (pindex)
+		{
+			CBlock block;
+			if (ReadBlockFromDisk(block, pindex, consensusParams, "UpdatePogPool")) 
+			{
+				CAmount nTithes = 0;
+				pindex->n24HourTithes = Get24HourTithes(pindex->nHeight - 1, BLOCKS_PER_DAY); // Gather tithes up to Last block
+				pindex->nPOGDifficulty = GetPOGDifficulty(pindex->nHeight); 
+				// Set the block parameters based on current difficulty level
+				TitheDifficultyParams tdp = GetTitheParams(pindex->nHeight);
+				pindex->nMinCoinAge = tdp.min_coin_age;
+				pindex->nMinCoinAmount = tdp.min_coin_amount;
+				pindex->nMaxTitheAmount = tdp.max_tithe_amount;
+				pindex->mapTithes.clear();
+
+				// Induct the Legal tithes - skipping the out-of-bounds tithes
+				for (unsigned int nTx = 0; nTx < block.vtx.size(); nTx++)
+				{
+					for (unsigned int i = 0; i < block.vtx[nTx].vout.size(); i++)
+					{
+						std::string sPK = PubKeyToAddress(block.vtx[nTx].vout[i].scriptPubKey);
+						if (sPK == consensusParams.FoundationAddress)
+						{
+							std::string sNickName = "";
+							std::string sTither = GetTitherAddress(block.vtx[nTx], sNickName);
+
+							if (!sTither.empty() && block.vtx[nTx].vout[i].nValue <= tdp.max_tithe_amount)
+							{
+								bool bLegalTithe = IsTitheLegal(block.vtx[nTx], pindex, block.vtx[nTx].vout[i].nValue);
+								// BiblePay:  In this section, a user can only get credit once per transaction for a legal tithe
+								if (bLegalTithe)		
+								{
+									nTithes += block.vtx[nTx].vout[i].nValue;
+									CTitheObject cTithe;
+									itTithes = pindex->mapTithes.find(sTither);
+									
+									if (itTithes == pindex->mapTithes.end())
+									{
+										cTithe.Amount = 0;
+										cTithe.Address = sTither;
+										cTithe.NickName = sNickName;
+										pindex->mapTithes.insert(std::make_pair(sTither, cTithe));
+									}
+									else
+									{
+										cTithe = pindex->mapTithes[sTither];
+									}
+									
+									cTithe.Amount += block.vtx[nTx].vout[i].nValue;
+									cTithe.Height = pindex->nHeight;
+									cTithe.NickName = sNickName;
+									pindex->mapTithes[sTither] = cTithe;
+					
+									break;
+								}
+							}
+						}
+					}
+				}	
+				pindex->nBlockTithes = nTithes;
+			}
+			
+			/*
+			if (pindex && pindex->nBlockTithes > 0)
+			{
+				if (false) LogPrintf("\nTithes height %f    24hr tithes %f   TotalTithes %f , diff %f ", pindex->nHeight, (double)pindex->n24HourTithes, (double)(pindex->nBlockTithes/COIN), pindex->nPOGDifficulty);
+			}
+			*/
+
+		}
+	}
+}
+
+
+
+
+
 
 void ResetTimerMain(std::string timer_name)
 {
@@ -7732,7 +8072,7 @@ void MemorizeBlockChainPrayers(bool fDuringConnectBlock, bool fSubThread, bool f
 		if (fSubThread && !fPrayersMemorized) LogPrintf("Finished MemorizeBlockChainPrayers @ %f ",GetAdjustedTime());
 }
 
-
+	
 std::string RetrieveTxOutInfo(const CBlockIndex* pindexLast, int iLookback, int iTxOffset, int ivOutOffset, int iDataType)
 {
 	// When DataType == 1, returns txOut Address
@@ -7934,14 +8274,6 @@ TxMessage GetTxMessage(std::string sMessage, int64_t nTime, int iPosition, std::
 	else if (t.sMessageType == "REPENT")
 	{
 		t.fPassedSecurityCheck = true;
-	}
-	else if (t.sMessageType == "TITHE")
-	{
-		if (dFoundationDonation > 0)
-		{
-			t.fPassedSecurityCheck = true;
-			WriteCache("TITHE_" + RoundToString(nHeight, 0), t.sBOSigner, RoundToString(dFoundationDonation, 0), nTime, false);
-		}
 	}
 	else if (t.sMessageType == "MESSAGE")
 	{

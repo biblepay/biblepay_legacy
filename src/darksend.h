@@ -210,47 +210,40 @@ public:
 };
 
 
-/** Class to facilitate a BiblePay Tithe Object **/
-class CTitheObject
-{
-public:
-	std::string Address;
-	double Amount;
-	double Weight;
-	int Tranche;
-
-	CTitheObject(std::string xAddress, double xAmount, double xWeight) :
-        Address(xAddress),
-        Amount(xAmount), Weight(xWeight)
-    {
-		Tranche = 0;
-	}
-
-	CTitheObject() : Address(""), Amount(0), Weight(0), Tranche(0)
-	{}
-
-};
-
-
 
 /** Class to facilitate the state of the BiblePay Internal Pool **/
 class CPoolObject
 {
 public:
 	std::map<std::string, CTitheObject> mapTithes;
+	std::map<std::string, CTitheObject> mapPoolPayments;
 	std::map<std::string, CTitheObject>::iterator itTithes;
-	double oTrancheRecipients[16];
-	double oTrancheTotals[16];
+	double oTierRecipients[16];
+	CAmount oTierTotals[16];
+	CAmount oPaymentTotals[16];
+	CAmount UserTithes;
+	CAmount TotalTithes;
+
 	int nHeightFirst;
 	int nHeightLast;
-	
+	int nPaymentTier;
+	CAmount nHighTithe;
+
 	CPoolObject() : nHeightFirst(0)
 	{
+		nHeightFirst = 0;
 		nHeightLast = 0;
+		nPaymentTier = 0;
+		nHighTithe = 0;
+
+		UserTithes = 0;
+		TotalTithes = 0;
+	
 		for (int j = 0; j < 16; j++)
 		{
-			oTrancheRecipients[j] = 0;
-			oTrancheTotals[j] = 0;
+			oTierRecipients[j] = 0;
+			oTierTotals[j] = 0;
+			oPaymentTotals[j] = 0;
 		}
 	}
 

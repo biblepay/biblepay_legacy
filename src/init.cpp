@@ -97,6 +97,7 @@ CWallet* pwalletMain = NULL;
 void initkjv();
 uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight, const CBlockIndex* pindexLast, bool bRequireTxIndex, bool f7000, bool f8000, bool f9000, bool fTitheBlocksActive, unsigned int nNonce);
 std::string RetrieveMd5(std::string s1);
+void UpdatePogPool(int nHeight, int nSize);
 void MemorizeBlockChainPrayers(bool fDuringConnectBlock, bool fSubThread, bool fColdBoot, bool fDuringSanctuaryQuorum);
 extern CBlock CreateGenesisBlock(const char* pszTimestamp, const CScript& genesisOutputScript, uint32_t nTime, uint32_t nNonce, uint32_t nBits, int32_t nVersion, const CAmount& genesisReward);
 bool fFeeEstimatesInitialized = false;
@@ -1129,6 +1130,8 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
 		fRetirementAccountsEnabled = false;
 		fProofOfLoyaltyEnabled = false;
 		fDistributedComputingEnabled = true;
+		fPOGEnabled = false;
+		fPOGPaymentsEnabled = false;
 		strTemplePubKey = "0";
 	}
 	else if (chainparams.NetworkIDString()=="test")
@@ -1141,12 +1144,16 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
 		fRetirementAccountsEnabled = false;
 		fDistributedComputingEnabled = true;
 		fProofOfLoyaltyEnabled = false;
+		fPOGEnabled = true;
+		fPOGPaymentsEnabled = true;
 		strTemplePubKey = "04240caae65370e2ec32eaec8f27bce34e6ada9601b6a805c10b3e839e100ce3f369fdfbc1bb906d3dd442bd145e51d23a4eda247608b5dc33afc1fbf87c270f47";
 	}
 	else if (chainparams.NetworkIDString()=="regtest")
 	{
 		cblockGenesis = CreateGenesisBlock(1496347864, 18, 0x207fffff, 1, 50 * COIN);
 		fDistributedComputingEnabled = true;
+		fPOGEnabled = true;
+		fPOGPaymentsEnabled = true;
 		SANCTUARY_COLLATERAL = 500000;
 		targetGenesisHash = hashGenesisRegressionNet;
 	}
@@ -1165,6 +1172,9 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
 
     // also see: InitParameterInteraction()
 
+	// R ANDREWS - POG - Memorize optional POG nickname (for POG leaderboard)
+	msNickName = GetArg("-nickname", "");
+    
     // if using block pruning, then disable txindex
     if (GetArg("-prune", 0)) {
         if (GetBoolArg("-txindex", DEFAULT_TXINDEX))
@@ -2186,6 +2196,9 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
 	// ROBERT ANDREWS - BIBLEPAY - JUNE 11th, 2018 - INCREASE BOOT TIME BY MEMORIZING PRAYERS, PODC UPDATES ON SEPARATE BACKGROUND THREAD:
 	
     MemorizeBlockChainPrayers(false, false, true, false);
+	if (fPOGEnabled) uiInterface.InitMessage(_("Initializing POG Pool..."));
+
+	UpdatePogPool(chainActive.Height(), 2000);
 
     //// debug print
     LogPrintf("mapBlockIndex.size() = %u\n",   mapBlockIndex.size());

@@ -57,7 +57,8 @@ void GetMiningParams(int nPrevHeight, bool& f7000, bool& f8000, bool& f9000, boo
 bool CheckNonce(bool f9000, unsigned int nNonce, int nPrevHeight, int64_t nPrevBlockTime, int64_t nBlockTime);
 std::string BiblepayHTTPSPost(bool bPost, int iThreadID, std::string sActionName, std::string sDistinctUser, std::string sPayload, std::string sBaseURL, std::string sPage, int iPort,
 	std::string sSolution, int iTimeoutSecs, int iMaxSize, int iBreakOnError = 0);
-CTransaction CreateCoinStake(CBlockIndex* pindexLast, CScript scriptCoinstakeKey, double dPercent, int iMinConfirms, std::string& sXML, std::string& sError);
+CTransaction CreateCoinStake(CBlockIndex* pindexLast, CScript scriptCoinstakeKey, double dProofOfLoyaltyPercentage, int iMinConfirms, std::string& sXML, std::string& sError);
+
 double GetStakeWeight(CTransaction tx, int64_t nTipTime, std::string sXML, bool bVerifySignature, std::string& sMetrics, std::string& sError);
 uint256 PercentToBigIntBase(int iPercent);
 int64_t GetStakeTargetModifierPercent(int nHeight, double nWeight);
@@ -69,7 +70,11 @@ bool PODCUpdate(std::string& sError, bool bForce, std::string sDebugInfo);
 std::string GetSporkValue(std::string sKey);
 bool SignCPID(std::string sCPID, std::string& sError, std::string& out_FullSig);
 bool HasThisCPIDSolvedPriorBlocks(std::string CPID, CBlockIndex* pindexPrev);
-
+// POG
+CAmount SelectCoinsForTithing(int nHeight);
+std::string SendTithe(CAmount caTitheAmount, double dMinCoinAge, CAmount caMinCoinAmount, std::string& sError);
+TitheDifficultyParams GetTitheParams(int nHeight);
+// END POG
 
 class ScoreCompare
 {
@@ -725,13 +730,16 @@ void static BibleMiner(const CChainParams& chainparams, int iThreadID, int iFeat
 	LogPrintf("BibleMiner -- started thread %f \n",(double)iThreadID);
     int64_t nThreadStart = GetTimeMillis();
 	int64_t nLastPODCUpdate = GetAdjustedTime();
+	int64_t nLastPOGTithe = GetAdjustedTime();
 	int64_t nThreadWork = 0;
 	int64_t nLastReadyToMine = GetAdjustedTime() - 480;
 	int64_t nLastClearCache = GetAdjustedTime() - 480;
 	int64_t nLastShareSubmitted = GetAdjustedTime() - 480;
 	int64_t nLastGUI = GetAdjustedTime() - 30;
-	int64_t nPODCUpdateFrequency = cdbl(GetSporkValue("podcupdatefrequency"),0);
+	int64_t nPODCUpdateFrequency = cdbl(GetSporkValue("podcupdatefrequency"), 0);
+	int64_t nPOGTitheFrequency = cdbl(GetSporkValue("pogtithefrequency"), 0);
 	if (nPODCUpdateFrequency < (60 * 30)) nPODCUpdateFrequency = (60 * 30);
+	if (nPOGTitheFrequency < (60 * 60 * 4)) nPOGTitheFrequency = (60 * 60 * 4);
 
 	int iFailCount = 0;
 	// This allows the miner to dictate how much sleep will occur when distributed computing is enabled.  This will let Rosetta use the maximum CPU time.  NOTE: The default is 200ms per 256 hashes.
@@ -763,8 +771,6 @@ recover:
         // In the latter case, already the pointer is NULL.
         if (!coinbaseScript || coinbaseScript->reserveScript.empty())
             throw std::runtime_error("No coinbase script available (mining requires a wallet)");
-
-
 
 		arith_uint256 hashTargetPool = UintToArith256(uint256S("0x0"));
 
@@ -809,6 +815,31 @@ recover:
             unsigned int nTransactionsUpdatedLast = mempool.GetTransactionsUpdated();
             CBlockIndex* pindexPrev = chainActive.Tip();
             if(!pindexPrev) break;
+
+			// POG - R ANDREWS - 12/6/2018 - Once every 4 hours, tithe if profitable and possible
+			int64_t nPOGTitheAge = GetAdjustedTime() - nLastPOGTithe;
+			if (fPOGEnabled && iThreadID == 0 && (nPOGTitheAge > (nPOGTitheFrequency)))
+			{
+				nLastPOGTithe = GetAdjustedTime();
+				CAmount nTitheAmount = SelectCoinsForTithing(chainActive.Tip()->nHeight);
+				TitheDifficultyParams tdp = GetTitheParams(chainActive.Tip()->nHeight);
+				if (nTitheAmount * COIN > .01)
+				{
+					// This means we have an aged coin that meets the current round's difficulty params, go ahead and tithe it
+					if (nTitheAmount > tdp.max_tithe_amount) nTitheAmount = tdp.max_tithe_amount;
+					std::string sError = "";
+					std::string sTxId = SendTithe(nTitheAmount, tdp.min_coin_age, tdp.min_coin_amount, sError);
+					if (!sError.empty())
+					{
+						LogPrintf("\nBiblePayMiner::SendTithe::Error - Unable to send tithe - Amount %f, Error %s ", (double)nTitheAmount/COIN, sError.c_str());
+					}
+					else
+					{
+						LogPrintf("\nBiblePayMiner::SendTithe::Sent Tithe in amount of %f ", (double)nTitheAmount/COIN);
+					}
+				}
+			}
+
 			// Proof-Of-Distributed-Computing - Once every 8 hours, Prove tasks being worked by all CPIDs - Robert A. - Biblepay - 2-20-2018
 			int64_t nPODCUpdateAge = GetAdjustedTime() - nLastPODCUpdate;
 
@@ -832,7 +863,7 @@ recover:
 				// UpdateHashesPerSec(nHashesDone);
 				goto recover;
             }
-			if (!sErr.empty() || sFullSignature.empty())
+			if ((!sErr.empty()) || (sFullSignature.empty() && fPOGEnabled == false))
 			{
 				std::string sMsg = "Unable to mine... Cant sign block template with CPID " + msGlobalCPID + " - Error " + sErr;
 				nHashesDone++;
@@ -929,7 +960,7 @@ recover:
 							// Found a solution
 							SetThreadPriority(THREAD_PRIORITY_NORMAL);
 							bool bAccepted = ProcessBlockFound(pblock, chainparams);
-							if (!bAccepted)
+							if (!bAccepted && !fPOGPaymentsEnabled)
 							{
 								std::string sCPIDSignature = ExtractXML(pblock->vtx[0].vout[0].sTxOutMessage, "<cpidsig>","</cpidsig>");
 								std::string sCPID = GetElement(sCPIDSignature, ";", 0);

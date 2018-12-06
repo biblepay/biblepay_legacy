@@ -378,7 +378,7 @@ UniValue getaddressesbyaccount(const UniValue& params, bool fHelp)
 
 
 static void SendMoney(const CTxDestination &address, CAmount nValue, bool fSubtractFeeFromAmount, CWalletTx& wtxNew, 
-	bool fUseInstantSend=false, bool fUsePrivateSend=false, bool fUseSanctuaryFunds=false)
+	bool fUseInstantSend=false, bool fUsePrivateSend=false, bool fUseSanctuaryFunds=false, double nMinCoinAge = 0, CAmount nMinCoinAmount = 0)
 {
     CAmount curBalance = pwalletMain->GetBalance();
 
@@ -400,10 +400,11 @@ static void SendMoney(const CTxDestination &address, CAmount nValue, bool fSubtr
     int nChangePosRet = -1;
     CRecipient recipient = {scriptPubKey, nValue, fSubtractFeeFromAmount, false, false, false, "", "", "", ""};
     vecSend.push_back(recipient);
-	
+	int nMinConfirms = 0;
+
     if (!pwalletMain->CreateTransaction(vecSend, wtxNew, reservekey, nFeeRequired, nChangePosRet,
                                          strError, NULL, true, fUsePrivateSend ? ONLY_DENOMINATED : (fUseSanctuaryFunds ? ALL_COINS : ONLY_NOT1000IFMN), 
-										 fUseInstantSend)) 
+										 fUseInstantSend, nMinConfirms, nMinCoinAge, nMinCoinAmount)) 
 	{
         if (!fSubtractFeeFromAmount && nValue + nFeeRequired > pwalletMain->GetBalance())
             strError = strprintf("Error: This transaction requires a transaction fee of at least %s because of its amount, complexity, or use of recently received funds!", FormatMoney(nFeeRequired));
@@ -448,7 +449,8 @@ static void SendColoredEscrow(const CTxDestination &address, CAmount nValue, boo
 }
 
 
-static void SendMoneyToDestinationWithMinimumBalance(const CTxDestination& address, CAmount nValue, CAmount nMinimumBalanceRequired, CWalletTx& wtxNew, std::string& sError)
+static void SendMoneyToDestinationWithMinimumBalance(const CTxDestination& address, CAmount nValue, CAmount nMinimumBalanceRequired, double dMinCoinAge, CAmount caMinCoinValue, 
+	CWalletTx& wtxNew, std::string& sError)
 {
 	if (pwalletMain->IsLocked())
 	{
@@ -461,7 +463,7 @@ static void SendMoneyToDestinationWithMinimumBalance(const CTxDestination& addre
 		sError = "Insufficient funds";
 		return;
 	}
-    SendMoney(address, nValue, false, wtxNew, false, false, false);
+    SendMoney(address, nValue, false, wtxNew, false, false, false, dMinCoinAge, caMinCoinValue);
 }
 
 

@@ -166,7 +166,14 @@
               </widget>
              </item>
              <item>
-              <widget class="QPushButton" name="UpdateButton">
+                        <widget class="QPushButton" name="startNewStartRequiredButton">
+	                    <property name="text">
+	                     <string>Start &amp;NEW START REQUIRED</string>
+	                    </property>
+	                   </widget>
+	                  </item>
+	    <item>
+            <widget class="QPushButton" name="UpdateButton">
                <property name="text">
                 <string>&amp;Update status</string>
                </property>

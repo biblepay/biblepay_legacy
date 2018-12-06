@@ -11,7 +11,6 @@
 #include "pow.h"
 #include "tinyformat.h"
 #include "uint256.h"
-
 #include <vector>
 
 struct CDiskBlockPos
@@ -148,6 +147,17 @@ public:
     //! (memory only) Sequential id assigned to distinguish order in which blocks are received.
     uint32_t nSequenceId;
 
+	// Proof-of-Giving (POG) - R Andrews - 12/2/2018 (memory only)
+	double nPOGDifficulty;
+	CAmount nBlockTithes;
+	CAmount n24HourTithes;
+	double nMinCoinAge;
+	CAmount nMinCoinAmount;
+	CAmount nMaxTitheAmount;
+
+	std::map<std::string, CTitheObject> mapTithes;
+
+
     void SetNull()
     {
         phashBlock = NULL;
@@ -163,12 +173,19 @@ public:
         nStatus = 0;
         nSequenceId = 0;
 
-        nVersion       = 0;
-        hashMerkleRoot = uint256();
-        nTime          = 0;
-        nBits          = 0;
-        nNonce         = 0;
-		sBlockMessage  = "";
+        nVersion        = 0;
+        hashMerkleRoot  = uint256();
+        nTime           = 0;
+        nBits           = 0;
+        nNonce          = 0;
+		sBlockMessage   = "";
+		nPOGDifficulty  = 0;
+		nBlockTithes    = 0;
+		n24HourTithes   = 0;
+		nMinCoinAge     = 0;
+        nMinCoinAmount  = 0;
+		nMaxTitheAmount = 0;
+		mapTithes.clear();
     }
 
     CBlockIndex()

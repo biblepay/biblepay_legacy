@@ -68,12 +68,21 @@ extern std::string SignPrice(std::string sValue);
 std::string GetFileNameFromPath(std::string sPath);
 extern bool VerifyDarkSendSigner(std::string sXML);
 extern double GetQTPhase(double dPrice, int nEventHeight, double& out_PriorPrice, double& out_PriorPhase);
-extern CPoolObject GetTitheVector(int iHeight);
 extern UniValue GetIPFSList(int iMaxDays, std::string& out_Files);
 extern UniValue GetSancIPFSQualityReport();
 extern UniValue GetBusinessObjectByFieldValue(std::string sType, std::string sFieldName, std::string sSearchValue);
 extern std::string GetBusinessObjectList(std::string sType, std::string sFields);
 extern std::string StoreBusinessObjectWithPK(UniValue& oBusinessObject, std::string& sError);
+// POG
+
+TitheDifficultyParams GetTitheParams(int nHeight);
+extern std::string SendTithe(CAmount caTitheAmount, double dMinCoinAge, CAmount caMinCoinAmount, std::string& sError);
+CAmount GetTitheCap(int nBlockHeight);
+double GetPOGDifficulty(int nBlockHeight);
+extern CPoolObject GetPoolVector(int iHeight, int nPaymentTier, uint256 uHash);
+void UpdatePogPool(int nHeight, int nSize);
+// END of POG
+
 extern double GetBusinessObjectTotal(std::string sType, std::string sFieldName, int iAggregationType);
 extern int GetBoincTaskCount();
 void TestRSA();
@@ -132,7 +141,9 @@ std::string GetDomainFromURL(std::string sURL);
 std::string BiblepayHTTPSPost(bool bPost, int iThreadID, std::string sActionName, std::string sDistinctUser, std::string sPayload, std::string sBaseURL, std::string sPage, int iPort,
 	std::string sSolution, int iTimeoutSecs, int iMaxSize, int iBreakOnError = 0);
 std::string BiblepayIPFSPost(std::string sFN, std::string sPayload);
-extern CTransaction CreateCoinStake(CBlockIndex* pindexLast, CScript scriptCoinstakeKey, CAmount nTargetValue, int iMinConfirms, std::string& sXML, std::string& sError);
+extern CTransaction CreateCoinStake(CBlockIndex* pindexLast, CScript scriptCoinstakeKey, double dProofOfLoyaltyPercentage, int iMinConfirms, std::string& sXML, std::string& sError);
+
+
 extern bool IsStakeSigned(std::string sXML);
 extern int64_t GetStakeTargetModifierPercent(int nHeight, double nWeight);
 extern bool SubmitProposalToNetwork(uint256 txidFee, int64_t nStartTime, std::string sHex, std::string& sError, std::string& out_sGovObj);
@@ -441,6 +452,16 @@ UniValue blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool tx
 			std::string sError = "";
 			bool fCheckCPIDSignature = VerifyCPIDSignature(sCPIDSignature, true, sError);
 			result.push_back(Pair("CPID_Signature", fCheckCPIDSignature));
+		}
+		// POG - 12/3/2018 - Rob A.
+		if (fPOGEnabled)
+		{
+			result.push_back(Pair("block_tithes", (double)blockindex->nBlockTithes / COIN));
+			result.push_back(Pair("24_hour_tithes", (double)blockindex->n24HourTithes / COIN));
+			result.push_back(Pair("pog_difficulty", blockindex->nPOGDifficulty));
+			result.push_back(Pair("min_coin_age", blockindex->nMinCoinAge));
+			result.push_back(Pair("min_coin_amt", blockindex->nMinCoinAmount));
+			result.push_back(Pair("max_tithe_amount",(double)blockindex->nMaxTitheAmount / COIN));
 		}
 		// Proof-Of-Loyalty - 01-18-2018 - Rob A.
 		if (fProofOfLoyaltyEnabled)
@@ -1759,16 +1780,13 @@ CTransaction CreateCoinStake(CBlockIndex* pindexLast, CScript scriptCoinstakeKey
 
 	CWalletTx wtx;
 
-	bool fCreated = pwalletMain->CreateTransaction(vecSend, wtx, reservekey, nFeeRequired, nChangePosRet, 
-		strError, NULL, true, ONLY_NOT1000IFMN, false, iMinConfirms);
+	bool fCreated = pwalletMain->CreateTransaction(vecSend, wtx, reservekey, nFeeRequired, nChangePosRet, strError, NULL, true, ONLY_NOT1000IFMN, false, iMinConfirms);
 	if (!fCreated)    
 	{
 		sError = "INSUFFICIENT FUNDS";
 		return ctx;
 	}
 
-			
-	//ctx = (CTransaction)wtx;
 	ctx = (CTransaction)wtx;
 
 	std::string sMetrics = "";
@@ -3160,6 +3178,16 @@ UniValue exec(const UniValue& params, bool fHelp)
 		results.push_back(Pair("Results", sHTML));
 		if (!sError.empty()) results.push_back(Pair("Errors", sError));
 	}
+	else if (sItem == "testsyscmd")
+	{
+		/*
+		std::string sCommand = params[1].get_str();
+		std::string sStandardOut = "";
+	    std::string sStandardErr = "";
+	    int nNotFound = ShellCommand(sCmd, sStandardOut , sStandardErr);
+		results.push_back(Pair(sCommand, sStandardOut + "_" + sStandardErr));
+		*/
+	}
 	else if (sItem == "syscmd")
 	{
 		if (params.size() != 2 && params.size() != 3)
@@ -3532,25 +3560,88 @@ UniValue exec(const UniValue& params, bool fHelp)
 		results.push_back(Pair("Result", sResponse));
 		results.push_back(Pair("Error", sError));
 	}
-	else if (sItem == "poolvector")
+	else if (sItem == "pogpool")
 	{
-		CPoolObject c = GetTitheVector(chainActive.Tip()->nHeight);
-		//	double oTrancheRecipients[15] = {};
-		//	double oTrancheTotals[15] = {};
+		int nHeight = chainActive.Tip()->nHeight;
+		if (params.size() == 2)	nHeight = cdbl(params[1].get_str(), 0);
+		CPoolObject c = GetPoolVector(nHeight, 0, chainActive.Tip()->GetBlockHash());
 
 		BOOST_FOREACH(const PAIRTYPE(std::string, CTitheObject)& item, c.mapTithes)
 	    {
 			CTitheObject oTithe = item.second;
-			std::string sRow = "Amount: " + RoundToString(oTithe.Amount,2) + ", Weight: " + RoundToString(oTithe.Weight, 4) + ", Tranche: " + RoundToString(oTithe.Tranche, 0);
+			std::string sRow = "Amount: " + RoundToString((double)(oTithe.Amount/COIN),2) 
+				+ ", Weight: " + RoundToString(oTithe.Weight, 4) 
+				+ ", Payment_Tier: " + RoundToString(oTithe.PaymentTier, 0) 
+				+ ", Height: " + RoundToString(oTithe.Height, 0) + ", Address: " + oTithe.Address + ", NickName: " + oTithe.NickName;
+
 			results.push_back(Pair(oTithe.Address, sRow));
 		}
 
 		for (int i = 0; i < 16; i++)
 		{
-			std::string sRow = "Count: " + RoundToString(c.oTrancheRecipients[i], 0) + ", Total: " + RoundToString(c.oTrancheTotals[i], 0);
+			std::string sRow = "Count: " + RoundToString(c.oTierRecipients[i], 0) + ", Total: " + RoundToString((double)(c.oTierTotals[i]/COIN), 4);
 			results.push_back(Pair(RoundToString(i, 0), sRow));
 		}
+		results.push_back(Pair("High Tithe", (double)c.nHighTithe/COIN));
 
+		// Show the user their own stats 
+		results.push_back(Pair("My Tithes", (double)c.UserTithes/COIN));
+
+	}
+	else if (sItem == "getdimensionalbalance")
+	{
+		if (params.size() != 3)
+			throw runtime_error("You must specify min_coin_age (days), min_coin_amount.  IE: exec getdimensionalbalance 1 1000.");
+
+		double dMinAge = cdbl(params[1].get_str(), 4);
+		CAmount caMinAmt = cdbl(params[2].get_str(), 4) * COIN;
+		std::map<double, CAmount> dtb = pwalletMain->GetDimensionalCoins(dMinAge, caMinAmt);
+		CAmount nTotal = 0;
+		BOOST_FOREACH(const PAIRTYPE(double, CAmount)& item, dtb)
+    	{
+			CAmount nAmount = item.second;
+			results.push_back(Pair("Amount " + RoundToString(((double)nAmount / COIN), 4) , "Age " + RoundToString(item.first, 2)));
+			nTotal += nAmount;
+		}
+		results.push_back(Pair("Tithe_Balance_Available", (double)(nTotal / COIN)));
+	}
+	else if (sItem == "titheinfo")
+	{
+		CAmount caTC = GetTitheCap(chainActive.Tip()->nHeight);
+		double dTC = caTC / COIN;
+		results.push_back(Pair("Tithe Cap", dTC));
+		double dPD = GetPOGDifficulty(chainActive.Tip()->nHeight);
+		results.push_back(Pair("POG Difficulty", dPD));
+		results.push_back(Pair("24 Hour Tithes", chainActive.Tip()->n24HourTithes));
+		results.push_back(Pair("24 Hour Tithes_pprev", chainActive.Tip()->pprev->n24HourTithes));
+		results.push_back(Pair("pog_diff_chain_tip", chainActive.Tip()->nPOGDifficulty));
+
+		// check the tithe params
+		TitheDifficultyParams tdp = GetTitheParams(chainActive.Tip()->nHeight);
+		results.push_back(Pair("min_coin_age", tdp.min_coin_age));
+		results.push_back(Pair("min_coin_amt", tdp.min_coin_amount));
+		results.push_back(Pair("max_tithe_amount", tdp.max_tithe_amount / COIN));
+		UpdatePogPool(chainActive.Tip()->nHeight, 1);
+
+	}
+	else if (sItem == "tithe")
+	{
+		if (params.size() != 4)
+			throw runtime_error("You must specify amount, min_coin_age (days), min_coin_amount.  IE: exec tithe 200 1 1000.");
+
+		CAmount caAmount = cdbl(params[1].get_str(), 4) * COIN;
+		double dMinCoinAge = cdbl(params[2].get_str(), 4);
+		CAmount caMinCoinAmount = cdbl(params[3].get_str(), 4) * COIN;
+		std::string sError = "";
+		std::string sTxId = SendTithe(caAmount, dMinCoinAge, caMinCoinAmount, sError);
+		if (!sError.empty())
+		{
+			results.push_back(Pair("Error", sError));
+		}
+		else
+		{
+			results.push_back(Pair("TXID", sTxId));
+		}
 
 	}
 	else if (sItem == "datalist")
@@ -3759,6 +3850,7 @@ std::string AddBlockchainMessages(std::string sAddress, std::string sType, std::
     
 	bool fUseInstantSend = false;
 	// 3-12-2018; Never spend sanctuary funds - R ANDREWS - BIBLEPAY
+	// 12-5-2018; ToDo: Ensure PODC Age > .75 days old (TheSnat)
     if (!pwalletMain->CreateTransaction(vecSend, wtx, reservekey, nFeeRequired, nChangePosRet,
                                          sError, NULL, true, ONLY_NOT1000IFMN, fUseInstantSend)) 
 	{
@@ -3782,6 +3874,25 @@ std::string AddBlockchainMessages(std::string sAddress, std::string sType, std::
 	std::string sTxId = wtx.GetHash().GetHex();
 	return sTxId;
 }
+
+std::string SendTithe(CAmount caTitheAmount, double dMinCoinAge, CAmount caMinCoinAmount, std::string& sError)
+{
+	const Consensus::Params& consensusParams = Params().GetConsensus();
+    std::string sAddress = consensusParams.FoundationAddress;
+    CBitcoinAddress address(sAddress);
+    if (!address.IsValid())
+	{
+		sError = "Invalid Destination Address";
+		return sError;
+	}
+    CWalletTx wtx;
+	std::string sTitheAddress = DefaultRecAddress("TITHES");
+	wtx.sTxMessageConveyed = "<TITHER>" + sTitheAddress + "</TITHER><NICKNAME>" + msNickName + "</NICKNAME><TITHESIGNER>" + sTitheAddress + "</TITHESIGNER>";
+    SendMoneyToDestinationWithMinimumBalance(address.Get(), caTitheAmount, caTitheAmount, dMinCoinAge, caMinCoinAmount, wtx, sError);
+	if (!sError.empty()) return "";
+    return wtx.GetHash().GetHex().c_str();
+}
+
 
 std::string SendBlockchainMessage(std::string sType, std::string sPrimaryKey, std::string sValue, double dStorageFee, bool Sign, std::string& sError)
 {
@@ -3817,7 +3928,7 @@ std::string SendBlockchainMessage(std::string sType, std::string sPrimaryKey, st
 
 	std::string s1 = sMessageType + sMessageKey + sMessageValue + sNonce + sMessageSig;
 	wtx.sTxMessageConveyed = s1;
-    SendMoneyToDestinationWithMinimumBalance(address.Get(), nAmount, nMinimumBalance, wtx, sError);
+    SendMoneyToDestinationWithMinimumBalance(address.Get(), nAmount, nMinimumBalance, 0, 0, wtx, sError);
 	if (!sError.empty()) return "";
     return wtx.GetHash().GetHex().c_str();
 }
@@ -3836,7 +3947,7 @@ std::string SendCPIDMessage(std::string sAddress, CAmount nAmount, std::string s
 	}
     CWalletTx wtx;
 	wtx.sTxMessageConveyed = sXML;
-    SendMoneyToDestinationWithMinimumBalance(address.Get(), nAmount, nAmount, wtx, sError);
+    tinationWithMinimumBalance(address.Get(), nAmount, nAmount, wtx, sError);
 	if (!sError.empty())
 	{
 		return "";
@@ -4164,92 +4275,89 @@ std::string GetBusinessObjectList(std::string sType, std::string sFields)
 }
 
 
-CPoolObject GetTitheVector(int iHeight)
+CPoolObject GetPoolVector(int iHeight, int iPaymentTier, uint256 LastBlockHash)
 {
-	double dHighTithe = 0;
 	CPoolObject cPool;
+	cPool.nPaymentTier = iPaymentTier;
 	cPool.nHeightFirst = iHeight - 205;
 	cPool.nHeightLast = iHeight;
 	if (cPool.nHeightFirst < 1) cPool.nHeightFirst = iHeight;
-	
-    for(map<string,string>::iterator ii=mvApplicationCache.begin(); ii!=mvApplicationCache.end(); ++ii) 
-    {
-		std::string sKey = (*ii).first;
-		std::vector<std::string> vTitheObject = Split(sKey, ";");
-	    if (vTitheObject.size() > 1)
-		{
-			std::vector<std::string> vTitheFirst = Split(vTitheObject[0], "_");
-			if (vTitheFirst.size() > 1)
-			{  
-				if (vTitheFirst[0] == "TITHE")
-				{
-					double dHeight = cdbl(vTitheFirst[1], 0);
-					std::string sRecip = vTitheObject[1];
-					LogPrintf(" Tithe Found height %f  recip %s ",dHeight, sRecip.c_str());
+	cPool.mapTithes.clear();
+	std::string sMyTitheAddress = DefaultRecAddress("TITHES");
 
-					if (dHeight >= cPool.nHeightFirst && dHeight <= cPool.nHeightLast)
+	const Consensus::Params& consensusParams = Params().GetConsensus();
+	std::map<std::string, CTitheObject>::iterator itTithes;
+	
+	for (int ix = cPool.nHeightFirst; ix <= cPool.nHeightLast; ix++)
+	{
+		CBlockIndex* pindex = FindBlockByHeight(ix);
+		if (pindex)
+		{
+			BOOST_FOREACH(const PAIRTYPE(std::string, CTitheObject)& item, pindex->mapTithes)
+		    {
+				CTitheObject oTithe = item.second;
+	
+				CBitcoinAddress cbaAddress(oTithe.Address);
+				if (cbaAddress.IsValid() && (oTithe.Amount*COIN) > 0.01)
+				{		
+					CTitheObject cTithe;
+					cPool.itTithes = cPool.mapTithes.find(oTithe.Address);
+					if (cPool.itTithes == cPool.mapTithes.end())
 					{
-						//int64_t nTimestamp = mvApplicationCacheTimestamp[(*ii).first];
-						double dTithe = cdbl(mvApplicationCache[(*ii).first], 2);
-						CBitcoinAddress cbaAddress(sRecip);
-						if (cbaAddress.IsValid() && dTithe > 0)
-						{		
-							if (dTithe > dHighTithe) dHighTithe = dTithe;
-							CTitheObject cTithe;
-							cPool.itTithes = cPool.mapTithes.find(sRecip);
-							if (cPool.itTithes == cPool.mapTithes.end())
-							{
-								cTithe.Address = sRecip;
-								cTithe.Amount = 0;
-								cPool.mapTithes.insert(std::make_pair(sRecip, cTithe));
-							}
-							else
-							{
-								cTithe = cPool.mapTithes[sRecip];
-							}
-							cTithe.Amount += dTithe;
-							cPool.mapTithes[sRecip] = cTithe;
-							LogPrintf(" amt %f ",dTithe);
-						}
+						cTithe.Address = oTithe.Address;
+						cTithe.Amount = 0;
+						cPool.mapTithes.insert(std::make_pair(oTithe.Address, cTithe));
 					}
+					else
+					{
+						cTithe = cPool.mapTithes[oTithe.Address];
+					}
+					cTithe.Amount += oTithe.Amount;
+					cTithe.Height = oTithe.Height;
+					cTithe.PaymentTier = oTithe.Height % 16;
+					cTithe.NickName = oTithe.NickName;
+					cPool.mapTithes[oTithe.Address] = cTithe;
+					// LogPrintf(" Pool Source insert: amt %f ", cTithe.Amount / COIN);
 				}
 			}
 		}
-	}
-	// Classify the tithes into tranches
-	if (dHighTithe < 100) dHighTithe = 100;
-	double dIntervals = dHighTithe / 16;
-	// Tally recipients per tranche
 	
+	}
+	// Classify the tithes into Tiers
 	BOOST_FOREACH(const PAIRTYPE(std::string, CTitheObject)& item, cPool.mapTithes)
     {
 		CTitheObject oTithe = item.second;
-		int iTranche = (oTithe.Amount / dIntervals) - 1;
-		if (iTranche < 0) iTranche = 0;
-		if (iTranche > 15) iTranche = 15;
-		oTithe.Tranche = iTranche;
-		//oTithe.HighTithe = dHighTithe;
-		cPool.oTrancheRecipients[oTithe.Tranche]++;
-		cPool.oTrancheTotals[oTithe.Tranche] += oTithe.Amount;
+		if (oTithe.Amount > cPool.nHighTithe) cPool.nHighTithe = oTithe.Amount;
+		cPool.oTierRecipients[oTithe.PaymentTier]++;
+		cPool.oTierTotals[oTithe.PaymentTier] += oTithe.Amount;
+		cPool.oPaymentTotals[0] += oTithe.Amount;
+		cPool.TotalTithes += oTithe.Amount;
 		cPool.mapTithes[oTithe.Address] = oTithe;
+		// Track User Tithes
+		if (oTithe.Address == sMyTitheAddress) cPool.UserTithes += oTithe.Amount;
  	}
 	// Calculate tithe_weight
 	BOOST_FOREACH(const PAIRTYPE(std::string, CTitheObject)& item, cPool.mapTithes)
     {
 		CTitheObject oTithe = item.second;
-		if (cPool.oTrancheTotals[oTithe.Tranche] > 0)
+		if (cPool.oTierTotals[oTithe.PaymentTier] > 0)
 		{
-			double oWeight = oTithe.Amount / cPool.oTrancheTotals[oTithe.Tranche];
-			oTithe.Weight = oWeight;
+			oTithe.Weight = (double)((double)(oTithe.Amount / COIN) / (double)(cPool.oTierTotals[oTithe.PaymentTier] / COIN));
 			cPool.mapTithes[oTithe.Address] = oTithe;
 		}
 	}
-
+	// Insert the tithes into the payment vector
+	BOOST_FOREACH(const PAIRTYPE(std::string, CTitheObject)& item, cPool.mapTithes)
+    {
+		CTitheObject oTithe = item.second;
+		if (oTithe.Weight > 0 && oTithe.PaymentTier == iPaymentTier)
+		{
+			cPool.mapPoolPayments.insert(std::make_pair(oTithe.Address, oTithe));
+		}
+	}
+	
 	return cPool;
 }
-
-
-
 
 UniValue GetIPFSList(int iMaxAgeInDays, std::string& out_Files)
 {
@@ -7514,7 +7622,7 @@ std::string SendBusinessObject(std::string sType, std::string sPrimaryKey, std::
 	wtx.sTxMessageConveyed = s1;
 	LOCK2(cs_main, pwalletMain->cs_wallet);
 	{
-		SendMoneyToDestinationWithMinimumBalance(address.Get(), nAmount, nMinimumBalance, wtx, sError);
+		SendMoneyToDestinationWithMinimumBalance(address.Get(), nAmount, nMinimumBalance, 0, 0, wtx, sError);
 	}
 	if (!sError.empty()) return "";
     return wtx.GetHash().GetHex().c_str();
@@ -7700,6 +7808,8 @@ std::string SysCommandStdErr(std::string sCommand, std::string sTempFileName, st
 
 	return sStdErr;
 }
+
+
 
 #ifdef MAC_OSX
 int ShellCommand(std::string sCommand, std::string &sOutput, std::string &sError)

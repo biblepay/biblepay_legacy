@@ -37,6 +37,7 @@ std::string RoundToString(double d, int place);
 CAmount GetRetirementAccountContributionAmount(int nPrevHeight);
 extern CAmount GetTxSanctuaryCollateral(const CTransaction& txNew);
 extern CAmount GetSanctuaryCollateral(CTxIn vin);
+CPoolObject GetPoolVector(int iHeight, int nPaymentTier, uint256 uHash);
 
 
 std::string GetTxOutScript(const CTransaction& tx1)
@@ -368,6 +369,7 @@ void CMasternodePayments::FillBlockPayee(CMutableTransaction& txNew, int nBlockH
 	}
 	*/
 
+	
     txoutMasternodeRet = CTxOut();
     CScript payee;
 	CAmount nCollateral = 0;
@@ -400,6 +402,39 @@ void CMasternodePayments::FillBlockPayee(CMutableTransaction& txNew, int nBlockH
     ExtractDestination(payee, address1);
     CBitcoinAddress address2(address1);
     LogPrint("mnpayments","CMasternodePayments::FillBlockPayee -- Masternode payment %f to %s\n", (double)masternodePayment, address2.ToString().c_str());
+
+	// POG POOL PAYMENTS - 12/5/2018 - PAY POOL After Reaper and after Sanctuary
+
+	if (fPOGPaymentsEnabled)
+	{
+		int nPoolHeight = chainActive.Tip()->nHeight - 10;
+		CPoolObject cPool = GetPoolVector(nPoolHeight, nPoolHeight % 16, uint256S("0x0"));
+		CAmount nPOWReward = txNew.vout[0].nValue;
+		CAmount nPOGReward = nPOWReward * .80;
+
+		BOOST_FOREACH(const PAIRTYPE(std::string, CTitheObject)& item, cPool.mapPoolPayments)
+		{
+			CTitheObject oTithe = item.second;
+			if (oTithe.Weight > 0)
+			{
+				CBitcoinAddress cbAddress(oTithe.Address);
+				if (cbAddress.IsValid()) 
+				{
+					CAmount caPoolPayment = oTithe.Weight * nPOGReward;
+					txNew.vout.resize(txNew.vout.size() + 1);
+					txNew.vout[0].nValue -= caPoolPayment;
+					CScript spkPoolRecipient = GetScriptForDestination(cbAddress.Get());
+					txNew.vout[txNew.vout.size()-1].scriptPubKey = spkPoolRecipient;
+					txNew.vout[txNew.vout.size()-1].nValue = caPoolPayment;
+					txNew.vout[txNew.vout.size()-1].sTxOutMessage += "<POOL>" + oTithe.NickName + "</POOL>";
+					LogPrintf(" Creating Pool Payment for Amount %f  to %s \n", (double)caPoolPayment/COIN, oTithe.Address.c_str());
+				}
+			}
+		}
+	}
+
+
+
 }
 
 

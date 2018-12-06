@@ -35,6 +35,9 @@ std::string SubmitToIPFS(std::string sPath, std::string& sError);
 double GetSporkDouble(std::string sName, double nDefault);
 int64_t GetFileSize(std::string sPath);
 std::string DefaultRecAddress(std::string sType);
+// POG
+TitheDifficultyParams GetTitheParams(int nHeight);
+// END OF POG
 
 
 WalletModel::WalletModel(const PlatformStyle *platformStyle, CWallet *wallet, OptionsModel *optionsModel, QObject *parent) :
@@ -256,6 +259,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
     int nAddresses = 0;
 
 	std::string sMessages = "";
+	bool fTithed = false;
 
     // Pre-check input data for validity
     Q_FOREACH(const SendCoinsRecipient &rcp, recipients)
@@ -310,7 +314,8 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
 			if (sAddress == consensusParams.FoundationAddress)
 			{
 				// Donate to Foundation was checked
-				sMessages += "<PACK><MT>TITHE</MT><MK>" + sTitheAddress + "</MK><MV>" + sTitheAddress + "<BOSIGNER>" + sTitheAddress + "</BOSIGNER></MV></PACK>";
+				sMessages += "<TITHER>" + sTitheAddress + "</TITHER><NICKNAME>" + msNickName + "</NICKNAME><TITHESIGNER>" + sTitheAddress + "</TITHESIGNER>";
+				fTithed = true;
 			}
 			std::string sRepentNarr = "";
 			LogPrintf(" \r\n Created Tx for Outbound Money %f to address %s  ",(double)rcp.amount,sAddress.c_str());
@@ -319,7 +324,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
 
 			if (rcp.fTithe)
 			{
-				CAmount aTitheAmount = rcp.amount*.10;
+				CAmount aTitheAmount = rcp.amount * .10;
 				CScript spkFoundation = GetScriptForDestination(CBitcoinAddress(consensusParams.FoundationAddress).Get());
 	            CRecipient recFoundation = {spkFoundation, aTitheAmount, false, true, rcp.fPrayer, rcp.fRepent, FromQStringW(rcp.txtMessage), 
 					FromQStringW(rcp.txtRepent), FromQStringW(""), FromQStringW(rcp.ipfshash) };
@@ -327,7 +332,6 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
 				setAddress.insert(ToQstring(sAddrF));
            		++nAddresses;
 				// POG - R ANDREWS - 11/20/2018
-				sMessages += "<PACK><MT>TITHE</MT><MK>" + sTitheAddress + "</MK><MV>" + sTitheAddress + "<BOSIGNER>" + sTitheAddress + "</BOSIGNER></MV></PACK>";
 				LogPrintf(" \r\n Created Tithe Tx for Outbound Money %f to address %s ",(double)aTitheAmount, sAddrF.c_str());
 				vecSend.push_back(recFoundation);
 			}
@@ -419,10 +423,33 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
 		newTx->sTxMessageConveyed = sMessages;
 		LogPrintf("Creating Tx Message %s ",newTx->sTxMessageConveyed.c_str());
 
-        bool fCreated = wallet->CreateTransaction(vecSend, *newTx, *keyChange, nFeeRequired, nChangePosRet, strFailReason, coinControl, true, recipients[0].inputType, recipients[0].fUseInstantSend);
+	    // R ANDREWS - POG - 12/6/2018 - If this is a tithe, we must tack on the difficulty params:
+		// bool fUseInstantSend=false, int iMinConfirms = 0, double dMinCoinAge = 0, CAmount caMinCoinAmount = 0);
+
+		double dMinCoinAge = 0;
+		CAmount caMinCoinAmount = 0;
+		CAmount caMaxTitheAmount = 0;
+		if (fTithed && fPOGEnabled)
+		{
+			TitheDifficultyParams tdp = GetTitheParams(chainActive.Tip()->nHeight);
+			dMinCoinAge = tdp.min_coin_age;
+			caMinCoinAmount = tdp.min_coin_amount;
+			caMaxTitheAmount = tdp.max_tithe_amount;
+		}
+	
+
+        bool fCreated = wallet->CreateTransaction(vecSend, *newTx, *keyChange, nFeeRequired, nChangePosRet, strFailReason, coinControl, true, recipients[0].inputType, recipients[0].fUseInstantSend, 0, dMinCoinAge, caMinCoinAmount);
+
         transaction.setTransactionFee(nFeeRequired);
         if (fSubtractFeeFromAmount && fCreated)
             transaction.reassignAmounts(nChangePosRet);
+
+		if (fTithed && newTx->GetValueOut() > caMaxTitheAmount)
+		{
+			Q_EMIT message(tr("Send Coins"), tr("Your tithe exceeds the current maximum tithe for this difficulty level of %1 biblepay.").arg(caMaxTitheAmount/COIN),
+                             CClientUIInterface::MSG_ERROR);
+                return TransactionCreationFailed;
+        }
 
         if(recipients[0].fUseInstantSend) {
             if(newTx->GetValueOut() > sporkManager.GetSporkValue(SPORK_5_INSTANTSEND_MAX_VALUE)*COIN) {
@@ -435,7 +462,6 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
                              CClientUIInterface::MSG_WARNING);
             }
         }
-
 
 
         if(!fCreated)

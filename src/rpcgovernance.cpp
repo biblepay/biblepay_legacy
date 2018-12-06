@@ -21,6 +21,7 @@
 #include <boost/lexical_cast.hpp>
 #include "podc.h"
 
+CAmount GetTitheCap(int nBlockHeight);
 
 UniValue gobject(const UniValue& params, bool fHelp)
 {
@@ -988,7 +989,9 @@ UniValue getgovernanceinfo(const UniValue& params, bool fHelp)
     obj.push_back(Pair("nextsuperblock", nNextSuperblock));
 	double nBudget = CSuperblock::GetPaymentsLimit(nNextSuperblock) / COIN;
 	obj.push_back(Pair("nextbudget", nBudget));
-			
+	CAmount caTithe_Cap = GetTitheCap(nNextSuperblock);
+	if (fPOGEnabled) obj.push_back(Pair("next_monthly_pog_budget", caTithe_Cap / COIN));
+				
     return obj;
 }
 

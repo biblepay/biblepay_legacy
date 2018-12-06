@@ -126,7 +126,8 @@ void MasternodeList::StartAll(std::string strCommand)
     int nCountFailed = 0;
     std::string strFailedHtml;
 
-    BOOST_FOREACH(CMasternodeConfig::CMasternodeEntry mne, masternodeConfig.getEntries()) {
+    BOOST_FOREACH(CMasternodeConfig::CMasternodeEntry mne, masternodeConfig.getEntries()) 
+	{
         std::string strError;
         CMasternodeBroadcast mnb;
 
@@ -138,7 +139,11 @@ void MasternodeList::StartAll(std::string strCommand)
         CTxIn txin = CTxIn(uint256S(mne.getTxHash()), nOutputIndex);
 
         if(strCommand == "start-missing" && mnodeman.Has(txin)) continue;
+		
+        masternode_info_t infoMn = mnodeman.GetMasternodeInfo(txin);
+		std::string sStatus = CMasternode::StateToString(infoMn.nActiveState);  // ENABLED or NEW_START_REQUIRED
 
+		if(strCommand == "start-new-start-required" && sStatus != "NEW_START_REQUIRED") continue;
         bool fSuccess = CMasternodeBroadcast::Create(mne.getIp(), mne.getPrivKey(), mne.getTxHash(), mne.getOutputIndex(), strError, mnb);
 
         if(fSuccess) {
@@ -401,6 +406,39 @@ void MasternodeList::on_startMissingButton_clicked()
 
     StartAll("start-missing");
 }
+
+void MasternodeList::on_startNewStartRequiredButton_clicked()
+{
+
+    if(!masternodeSync.IsMasternodeListSynced()) {
+        QMessageBox::critical(this, tr("Command is not available right now"),
+            tr("You can't use this command until masternode list is synced"));
+        return;
+    }
+
+    // Display message box
+    QMessageBox::StandardButton retval = QMessageBox::question(this,
+        tr("Confirm New Start Required masternodes start"),
+        tr("Are you sure you want to start NEW-START-REQUIRED masternodes?"),
+        QMessageBox::Yes | QMessageBox::Cancel,
+        QMessageBox::Cancel);
+
+    if(retval != QMessageBox::Yes) return;
+
+    WalletModel::EncryptionStatus encStatus = walletModel->getEncryptionStatus();
+
+    if(encStatus == walletModel->Locked || encStatus == walletModel->UnlockedForMixingOnly) {
+        WalletModel::UnlockContext ctx(walletModel->requestUnlock());
+
+        if(!ctx.isValid()) return; // Unlock wallet was cancelled
+
+        StartAll("start-new-start-required");
+        return;
+    }
+
+    StartAll("start-new-start-required");
+}
+
 
 void MasternodeList::on_tableWidgetMyMasternodes_itemSelectionChanged()
 {

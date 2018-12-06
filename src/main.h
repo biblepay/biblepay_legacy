@@ -77,6 +77,8 @@ static const int F13000_CUTOVER_HEIGHT_PROD = 57700; // July 11th, 2018
 static const int F13000_CUTOVER_HEIGHT_TESTNET = 16600;
 static const int F14000_CUTOVER_HEIGHT_PROD = 77000; // October 14th, 2018
 static const int F14000_CUTOVER_HEIGHT_TESTNET = 54300; // Sep. 1, 2018
+static const int FPOG_CUTOVER_HEIGHT_TESTNET = 81587;  // Dec. 10th, 2018
+static const int FPOG_CUTOVER_HEIGHT_PROD = 700000; 
 static const int MINIMUM_EMAIL_LENGTH = 5; // 3 character domain + . + 1 character name
 /** Default for -maxorphantx, maximum number of orphan transactions kept in memory */
 static const unsigned int DEFAULT_MAX_ORPHAN_TRANSACTIONS = 100;
@@ -223,6 +225,7 @@ extern std::string msGlobalStatus;
 extern std::string msGlobalStatus2;
 extern std::string msGlobalStatus3;
 extern std::string msProposalResult;
+extern std::string msNickName;
 extern int64_t nProposalStartTime;
 extern int64_t nProposalModulus;
 extern int64_t nLastHealthCheckup;
@@ -261,6 +264,8 @@ extern bool fDistributedComputingCycle;
 extern int nDistributedComputingCycles;
 extern bool fInternalRequestedShutdown;
 extern bool fDistributedComputingEnabled;
+extern bool fPOGEnabled;
+extern bool fPOGPaymentsEnabled;
 extern bool fDistributedComputingCycleDownloading;
 
 extern int64_t nLastTradingActivity;
@@ -438,6 +443,13 @@ struct CNodeStateStats {
     int nSyncHeight;
     int nCommonHeight;
     std::vector<int> vHeightInFlight;
+};
+
+struct TitheDifficultyParams
+{
+  double min_coin_age;
+  CAmount min_coin_amount;
+  CAmount max_tithe_amount;
 };
 
 struct CTimestampIndexIteratorKey {

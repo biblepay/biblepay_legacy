@@ -74,6 +74,42 @@ public:
 };
 
 
+/** Class to facilitate a BiblePay Tithe Object **/
+class CTitheObject
+{
+public:
+	std::string Address;
+	std::string NickName;
+	CAmount Amount;
+	double Weight;
+	int PaymentTier;
+	int Height;
+	int HeightLast;
+	uint256 LastBlockHash;
+
+	CTitheObject(std::string xAddress, CAmount xAmount, double xWeight) :
+        Address(xAddress), Amount(xAmount), Weight(xWeight)
+    {
+		PaymentTier = 0;
+		Height = 0;
+		HeightLast = 0;
+		LastBlockHash = uint256S("0x0");
+		NickName = "";
+	}
+
+	CTitheObject() : Address(""), Amount(0), Weight(0), PaymentTier(0), Height(0), HeightLast(0)
+	{
+		LastBlockHash = uint256S("0x0");
+		NickName = "";
+	}
+
+    uint256 GetHash() const;
+
+};
+
+
+
+
 class CBlock : public CBlockHeader
 {
 public:

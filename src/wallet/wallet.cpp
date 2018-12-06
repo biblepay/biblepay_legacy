@@ -1902,6 +1902,28 @@ CAmount CWallet::GetUnlockedBalance() const
     return nTotal;
 }
 
+std::map<double, CAmount> CWallet::GetDimensionalCoins(double nMinAge, CAmount nMinAmount) const
+{
+	map<double, CAmount> mapTithes;
+    LOCK2(cs_main, cs_wallet);
+	{
+        for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it)
+        {
+            const CWalletTx* pcoin = &(*it).second;
+            if (pcoin->IsTrusted())
+			{
+                CAmount nAmount = pcoin->GetAvailableCredit(true,"");
+				double nAge = (double)(GetAdjustedTime() - pcoin->GetTxTime()) / 86400;
+                bool fLocked = (nAmount == (SANCTUARY_COLLATERAL * COIN));
+				if (!fLocked && nAge >= nMinAge && nAmount >= nMinAmount)
+				{
+					mapTithes.insert(make_pair(nAge, nAmount));
+				}
+			}
+        }
+    }
+    return mapTithes;
+}
 
 
 CAmount CWallet::GetAnonymizableBalance(bool fSkipDenominated) const
@@ -2202,7 +2224,7 @@ CAmount CWallet::GetImmatureWatchOnlyBalance() const
 }
 
 void CWallet::AvailableCoins(vector<COutput>& vCoins, bool fOnlyConfirmed, const CCoinControl *coinControl, 
-	bool fIncludeZeroValue, AvailableCoinsType nCoinType, bool fUseInstantSend, int iMinConfirms) const
+	bool fIncludeZeroValue, AvailableCoinsType nCoinType, bool fUseInstantSend, int iMinConfirms, double nMinAge, CAmount nMinAmount) const
 {
     vCoins.clear();
     {
@@ -2238,12 +2260,17 @@ void CWallet::AvailableCoins(vector<COutput>& vCoins, bool fOnlyConfirmed, const
 			{
                 bool found = false;
 				CComplexTransaction cct(pcoin->vout[i]);
+				double nAge = (double)(GetAdjustedTime() - pcoin->GetTxTime()) / 86400;
+
 				if (cct.Color=="401" && nCoinType != ONLY_RETIREMENT_COINS) continue;
+				if (nMinAmount > 0 && pcoin->vout[i].nValue < nMinAmount) continue;
+				if (nMinAge    > 0 && nAge < nMinAge) continue;
 
 				if (nCoinType == ONLY_RETIREMENT_COINS && cct.Color=="401")
 				{
 					found = true;
 				}
+				
 				else if(nCoinType == ONLY_DENOMINATED) 
 				{
                     found = IsDenominatedAmount(pcoin->vout[i].nValue);
@@ -2490,12 +2517,12 @@ bool CWallet::SelectCoinsMinConf(const CAmount& nTargetValue, int nConfMine, int
 }
 
 bool CWallet::SelectCoins(const CAmount& nTargetValue, set<pair<const CWalletTx*,unsigned int> >& setCoinsRet, CAmount& nValueRet, 
-	const CCoinControl* coinControl, AvailableCoinsType nCoinType, bool fUseInstantSend, int iMinConfirms) const
+	const CCoinControl* coinControl, AvailableCoinsType nCoinType, bool fUseInstantSend, int iMinConfirms, double dMinCoinAge, CAmount caMinCoinAmount) const
 {
     // Note: this function should never be used for "always free" tx types like dstx
 
     vector<COutput> vCoins;
-    AvailableCoins(vCoins, true, coinControl, false, nCoinType, fUseInstantSend, iMinConfirms);
+    AvailableCoins(vCoins, true, coinControl, false, nCoinType, fUseInstantSend, iMinConfirms, dMinCoinAge, caMinCoinAmount);
 
     // coin control -> return all selected outputs (we want all selected to go into the transaction for sure)
     if (coinControl && coinControl->HasSelected() && !coinControl->fAllowOtherInputs)
@@ -2640,7 +2667,8 @@ bool CWallet::FundTransaction(CMutableTransaction& tx, CAmount &nFeeRet, int& nC
     return true;
 }
 
-bool CWallet::SelectCoinsByDenominations(int nDenom, CAmount nValueMin, CAmount nValueMax, std::vector<CTxIn>& vecTxInRet, std::vector<COutput>& vCoinsRet, CAmount& nValueRet, int nPrivateSendRoundsMin, int nPrivateSendRoundsMax)
+bool CWallet::SelectCoinsByDenominations(int nDenom, CAmount nValueMin, CAmount nValueMax, std::vector<CTxIn>& vecTxInRet, std::vector<COutput>& vCoinsRet, CAmount& nValueRet, 
+	int nPrivateSendRoundsMin, int nPrivateSendRoundsMax)
 {
     vecTxInRet.clear();
     vCoinsRet.clear();
@@ -3056,12 +3084,17 @@ std::string SimpleLimitedString(std::string sMyLimitedString, int MAXLENGTH)
 
 bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wtxNew, CReserveKey& reservekey, CAmount& nFeeRet,
                                 int& nChangePosRet, std::string& strFailReason, 
-								const CCoinControl* coinControl, bool sign, AvailableCoinsType nCoinType, bool fUseInstantSend, int iMinConfirms)
+								const CCoinControl* coinControl, bool sign, AvailableCoinsType nCoinType, bool fUseInstantSend, int iMinConfirms, double dMinCoinAge, CAmount caMinCoinAmount)
 
 {
     CAmount nFeePay = fUseInstantSend ? CTxLockRequest().GetMinFee() : 0;
     CAmount nValue = 0;
     unsigned int nSubtractFeeFromAmount = 0;
+	if (dMinCoinAge > 0)
+	{
+		LogPrintf(" CreateTransaction::Requiring specific coin age %f and coin amount %f ", dMinCoinAge, caMinCoinAmount/COIN);
+	}
+
     BOOST_FOREACH (const CRecipient& recipient, vecSend)
     {
         if (nValue < 0 || recipient.nAmount < 0)
@@ -3186,11 +3219,22 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
                 CAmount nValueIn = 0;
 
 
-                if (!SelectCoins(nValueToSelect, setCoins, nValueIn, coinControl, nCoinType, fUseInstantSend, iMinConfirms))
+                if (!SelectCoins(nValueToSelect, setCoins, nValueIn, coinControl, nCoinType, fUseInstantSend, iMinConfirms, dMinCoinAge, caMinCoinAmount))
                 {
-                    if (nCoinType == ONLY_NOT1000IFMN) {
-                        strFailReason = _("Unable to locate enough unlocked funds not equal to 1,550,001 biblepay.");
-                    } else if (nCoinType == ONLY_NONDENOMINATED_NOT1000IFMN) {
+
+ 					if (dMinCoinAge > 0)
+					{
+						strFailReason = _("Unable to locate coins older than minimum_tithe_coin_age.");
+					}
+					else if (caMinCoinAmount > 0)
+					{
+						strFailReason = _("Unable to locate coins greater than minimum_tithe_coin_amount.");
+					}
+					else if (nCoinType == ONLY_NOT1000IFMN) 
+					{
+                        strFailReason = _("Unable to locate enough unlocked funds not locked in a Sanctuary.");
+                    }
+					else if (nCoinType == ONLY_NONDENOMINATED_NOT1000IFMN) {
                         strFailReason = _("Unable to locate enough PrivateSend non-denominated funds for this transaction that are not equal 1000 biblepay.");
                     } else if (nCoinType == ONLY_DENOMINATED) {
                         strFailReason = _("Unable to locate enough PrivateSend denominated funds for this transaction.");

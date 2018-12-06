@@ -22,6 +22,7 @@
 #include "txmempool.h"
 #include "util.h"
 #include "podc.h"
+#include "darksend.h"
 
 #ifdef ENABLE_WALLET
 #include "masternode-sync.h"
@@ -37,12 +38,13 @@ using namespace std;
 
 uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight, const CBlockIndex* pindexLast, bool bRequireTxIndex, 
 	bool f7000, bool f8000, bool f9000, bool fTitheBlocksActive, unsigned int nNonce);
-
 std::string ReadCache(std::string sSection, std::string sKey);
 double GetBlockMagnitude(int nChainHeight);
-
 std::string TimestampToHRDate(double dtm);
 double GetDifficultyN(const CBlockIndex* blockindex, double N);
+CPoolObject GetPoolVector(int iHeight, int nPaymentTier, uint256 uHash);
+TitheDifficultyParams GetTitheParams(int nHeight);
+double GetPOGDifficulty(int nBlockHeight);
 
 /**
  * Return average network hashes per second based on the last 'lookup' blocks,
@@ -303,6 +305,9 @@ UniValue getmininginfo(const UniValue& params, bool fHelp)
 		
     UniValue obj(UniValue::VOBJ);
     obj.push_back(Pair("blocks",           (int)chainActive.Height()));
+	obj.push_back(Pair("blocks_tip",           (int)chainActive.Tip()->nHeight));
+
+
     obj.push_back(Pair("currentblocksize", (uint64_t)nLastBlockSize));
     obj.push_back(Pair("currentblocktx",   (uint64_t)nLastBlockTx));
 	if (fDistributedComputingEnabled)
@@ -358,6 +363,18 @@ UniValue getmininginfo(const UniValue& params, bool fHelp)
 		obj.push_back(Pair("proof_of_loyalty_weight", nGlobalPOLWeight));
 		obj.push_back(Pair("proof_of_loyalty_influence_percentage", nGlobalInfluencePercentage));
 		obj.push_back(Pair("proof_of_loyalty_errors", sGlobalPOLError));
+	}
+	if (fPOGEnabled)
+	{
+		CPoolObject c = GetPoolVector(chainActive.Tip()->nHeight, 0, chainActive.Tip()->GetBlockHash());
+		obj.push_back(Pair("pool_high_tithe", (double)c.nHighTithe/COIN));
+		obj.push_back(Pair("pool_my_total_tithes", (double)c.UserTithes/COIN));
+		obj.push_back(Pair("pool_total_tithes", (double)c.TotalTithes/COIN));
+		obj.push_back(Pair("pog_difficulty", GetPOGDifficulty(chainActive.Tip()->nHeight))); 
+		TitheDifficultyParams tdp = GetTitheParams(chainActive.Tip()->nHeight);
+		obj.push_back(Pair("pog_min_coin_age", tdp.min_coin_age));
+		obj.push_back(Pair("pog_min_coin_amount", tdp.min_coin_amount));
+		obj.push_back(Pair("pog_max_tithe_amount", (double)tdp.max_tithe_amount/COIN));
 	}
     return obj;
 }
