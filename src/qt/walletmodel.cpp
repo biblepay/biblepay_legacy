@@ -444,7 +444,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
         if (fSubtractFeeFromAmount && fCreated)
             transaction.reassignAmounts(nChangePosRet);
 
-		if (fTithed && newTx->GetValueOut() > caMaxTitheAmount)
+		if (fTithed && total > caMaxTitheAmount)
 		{
 			Q_EMIT message(tr("Send Coins"), tr("Your tithe exceeds the current maximum tithe for this difficulty level of %1 biblepay.").arg(caMaxTitheAmount/COIN),
                              CClientUIInterface::MSG_ERROR);
