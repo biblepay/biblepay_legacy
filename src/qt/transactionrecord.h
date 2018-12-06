@@ -90,6 +90,7 @@ public:
 		PODCUpdate,
 		PODCAssociation,
 		PODCPayment,
+		POGPayment,
 		SuperBlockPayment,
 		IPFSAttachment
     };
@@ -142,6 +143,9 @@ public:
 
 	/** If this is a PODC Research Payment */
 	bool IsPODCPayment;
+
+	/** If this is a POG Reward */
+	bool IsPOGPayment;
 
 	/** If this is an IPFS Attachment */
 	bool IsIPFSAttachment;

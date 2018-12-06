@@ -4616,7 +4616,7 @@ bool ContextualCheckBlockHeader(const CBlockHeader& block, CValidationState& sta
 
 bool CheckPOGPoolRecipients(int nHeight, const CBlock& block)
 {
-	bool bSuperblock= (CSuperblock::IsValidBlockHeight(nHeight) || (fDistributedComputingEnabled && CSuperblock::IsDCCSuperblock(nHeight)));
+	bool bSuperblock = (CSuperblock::IsValidBlockHeight(nHeight) || (fDistributedComputingEnabled && CSuperblock::IsDCCSuperblock(nHeight)));
 	if (bSuperblock) return true;
 	
 	int nPoolHeight = nHeight - 10;

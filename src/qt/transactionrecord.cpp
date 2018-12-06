@@ -70,6 +70,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                 sub.credit = txout.nValue;
                 sub.involvesWatchAddress = mine & ISMINE_WATCH_ONLY;
 				sub.IsPODCPayment = wtx.IsPODCPayment();
+				sub.IsPOGPayment = wtx.IsPOGPayment();
 				sub.IsSuperblockPayment = wtx.IsSuperblockPayment();
 				sub.IsIPFSAttachment = wtx.IsIPFSAttachment();
 
@@ -91,7 +92,11 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                 {
                     // Generated
                     // Check if PODC or Mined EB: 2018-06-022
-                    if (sub.IsPODCPayment) 
+					if (sub.IsPOGPayment)
+					{
+						sub.type = TransactionRecord::POGPayment;
+					}
+					else if (sub.IsPODCPayment) 
 					{
                         sub.type = TransactionRecord::PODCPayment;
                     } 

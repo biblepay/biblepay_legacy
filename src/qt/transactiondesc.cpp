@@ -143,9 +143,25 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionReco
 	{
 	     strHTML += "<b>" + tr("Source") + ":</b> " + tr("PODC-Payment") + "<br>";
 	}
+	if (wtx.IsPOGPayment())
+	{
+		 strHTML += "<b>" + tr("Source") + ":</b>" + tr("POG-Payment") + "<br>";
+	}
 	else if (wtx.IsCoinBase())
     {
-		std::string sNarr = wtx.IsPODCPayment() ? "PODC Research" : "Generated";
+		std::string sNarr = "";
+		if (wtx.IsPOGPayment())
+		{
+			sNarr = "POG Payment";
+		}
+		else if (wtx.IsPODCPayment())
+		{
+			sNarr = "PODC Research";
+		}
+		else
+		{
+			sNarr = "Generated";
+		}
         strHTML += "<b>" + tr("Source") + ":</b> " + tr(sNarr.c_str()) + "<br>";
     }
     else if (wtx.mapValue.count("from") && !wtx.mapValue["from"].empty())

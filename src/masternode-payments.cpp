@@ -411,7 +411,7 @@ void CMasternodePayments::FillBlockPayee(CMutableTransaction& txNew, int nBlockH
 		CPoolObject cPool = GetPoolVector(nPoolHeight, nPoolHeight % 16, uint256S("0x0"));
 		CAmount nPOWReward = txNew.vout[0].nValue;
 		CAmount nPOGReward = nPOWReward * .80;
-
+		bool bStamped = false;
 		BOOST_FOREACH(const PAIRTYPE(std::string, CTitheObject)& item, cPool.mapPoolPayments)
 		{
 			CTitheObject oTithe = item.second;
@@ -427,13 +427,16 @@ void CMasternodePayments::FillBlockPayee(CMutableTransaction& txNew, int nBlockH
 					txNew.vout[txNew.vout.size()-1].scriptPubKey = spkPoolRecipient;
 					txNew.vout[txNew.vout.size()-1].nValue = caPoolPayment;
 					txNew.vout[txNew.vout.size()-1].sTxOutMessage += "<POOL>" + oTithe.NickName + "</POOL>";
+					if (!bStamped)
+					{
+						bStamped = true; //ToDo: In Evolution we want to set one bit value here to denote a POG coinbase; for now we still use XML
+						txNew.vout[0].sTxOutMessage += "<POG></POG>";
+					}
 					LogPrintf(" Creating Pool Payment for Amount %f  to %s \n", (double)caPoolPayment/COIN, oTithe.Address.c_str());
 				}
 			}
 		}
 	}
-
-
 
 }
 

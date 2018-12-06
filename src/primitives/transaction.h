@@ -317,6 +317,14 @@ public:
 		return false;
 	}
 
+	bool IsPOGPayment() const
+	{
+		if (vout.size() > 1)
+		{
+			if (Contains(vout[0].sTxOutMessage,"<POG>")) return true;
+		}
+		return false;
+	}
 
 	bool IsPODCPayment() const
 	{

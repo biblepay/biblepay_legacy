@@ -98,12 +98,12 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
     typeWidget->addItem(tr("PrivateSend Create Denominations"), TransactionFilterProxy::TYPE(TransactionRecord::PrivateSendCreateDenominations));
     typeWidget->addItem(tr("PrivateSend Denominate"), TransactionFilterProxy::TYPE(TransactionRecord::PrivateSendDenominate));
     typeWidget->addItem(tr("PrivateSend Collateral Payment"), TransactionFilterProxy::TYPE(TransactionRecord::PrivateSendCollateralPayment));
-	// Added PODC,a nd superblock options: EB: 2018-06-22
+	// Added PODC, and superblock options: EB: 2018-06-22
 	typeWidget->addItem(tr("PODC Update"), TransactionFilterProxy::TYPE(TransactionRecord::PODCUpdate));
-//    typeWidget->addItem(tr("PODC Association"), TransactionFilterProxy::TYPE(TransactionRecord::PODCAssociation)); // Does not appear to be set, no results found.
+    // typeWidget->addItem(tr("PODC Association"), TransactionFilterProxy::TYPE(TransactionRecord::PODCAssociation)); // Does not appear to be set, no results found.
     typeWidget->addItem(tr("PODC Payment"), TransactionFilterProxy::TYPE(TransactionRecord::PODCPayment));
+	typeWidget->addItem(tr("POG Payment"), TransactionFilterProxy::TYPE(TransactionRecord::POGPayment));
     typeWidget->addItem(tr("Superblock Payment"), TransactionFilterProxy::TYPE(TransactionRecord::SuperBlockPayment));
-        
     typeWidget->addItem(tr("To yourself"), TransactionFilterProxy::TYPE(TransactionRecord::SendToSelf));
     typeWidget->addItem(tr("Mined"), TransactionFilterProxy::TYPE(TransactionRecord::Generated));
     typeWidget->addItem(tr("Other"), TransactionFilterProxy::TYPE(TransactionRecord::Other));

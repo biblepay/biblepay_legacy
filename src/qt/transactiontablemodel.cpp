@@ -390,6 +390,8 @@ QString TransactionTableModel::formatTxType(const TransactionRecord *wtx) const
 		return tr("PODC Association");
     case TransactionRecord::SuperBlockPayment:
 		return tr("Superblock Payment");
+	case TransactionRecord::POGPayment:
+		return tr("POG Reward");
 	case TransactionRecord::PODCPayment:
         return tr("PODC Payment");
 	case TransactionRecord::IPFSAttachment:
@@ -420,10 +422,12 @@ QVariant TransactionTableModel::txAddressDecoration(const TransactionRecord *wtx
     {
 		case TransactionRecord::SuperBlockPayment:
 				return QIcon(":/icons/drkblue/eye_minus");
+		case TransactionRecord::POGPayment:
+			return QIcon(":/icons/drkblue/key");
 		case TransactionRecord::PODCPayment:
 			return QIcon(":/icons/drkblue/key");
 		case TransactionRecord::Generated:
-				return QIcon(":/icons/" + theme + "/tx_mined");
+			return QIcon(":/icons/" + theme + "/tx_mined");
 		case TransactionRecord::PODCUpdate:
 			return QIcon(":/icons/drkblue/key");
 		case TransactionRecord::IPFSAttachment:
@@ -458,6 +462,7 @@ QString TransactionTableModel::formatTxToAddress(const TransactionRecord *wtx, b
 		case TransactionRecord::SendToAddress:
 		case TransactionRecord::Generated:
 		case TransactionRecord::SuperBlockPayment:
+		case TransactionRecord::POGPayment:
 		case TransactionRecord::PODCPayment:
 		case TransactionRecord::PrivateSend:
 			return lookupAddress(wtx->address, tooltip) + watchAddress;
@@ -483,6 +488,7 @@ QVariant TransactionTableModel::addressColor(const TransactionRecord *wtx) const
     case TransactionRecord::Generated:
     case TransactionRecord::SuperBlockPayment:
     case TransactionRecord::PODCPayment:
+	case TransactionRecord::POGPayment:
     case TransactionRecord::PrivateSend:
     case TransactionRecord::RecvWithPrivateSend:
         {
