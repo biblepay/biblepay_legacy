@@ -280,7 +280,8 @@ bool IsBlockPayeeValid(const CTransaction& txNew, int nBlockHeight, CAmount bloc
     return true;
 }
 
-void FillBlockPayments(CMutableTransaction& txNew, int nBlockHeight, CAmount blockReward, CAmount caRetiredMiningTithe, CTxOut& txoutMasternodeRet, std::vector<CTxOut>& voutSuperblockRet)
+void FillBlockPayments(CMutableTransaction& txNew, int nBlockHeight, CAmount blockReward, CAmount blockRewardWithoutFees, CAmount nFees, 
+	CAmount caRetiredMiningTithe, CTxOut& txoutMasternodeRet, std::vector<CTxOut>& voutSuperblockRet)
 {
     // only create superblocks if spork is enabled AND if superblock is actually triggered
     // (height should be validated inside)
@@ -306,7 +307,7 @@ void FillBlockPayments(CMutableTransaction& txNew, int nBlockHeight, CAmount blo
 	if (fSuperblocksEnabled)
 	{
 		// FILL BLOCK PAYEE WITH MASTERNODE PAYMENT OTHERWISE
-		mnpayments.FillBlockPayee(txNew, nBlockHeight, blockReward, caRetiredMiningTithe, txoutMasternodeRet);
+		mnpayments.FillBlockPayee(txNew, nBlockHeight, blockReward, blockRewardWithoutFees, caRetiredMiningTithe, txoutMasternodeRet);
 		if (fDebug10) LogPrintf("FillBlockPayments -- nBlockHeight %d blockReward %f txoutMasternodeRet %s txNew %s",     
 			nBlockHeight, (double)blockReward, txoutMasternodeRet.ToString(), txNew.ToString());
 	}
@@ -343,73 +344,16 @@ bool CMasternodePayments::CanVote(COutPoint outMasternode, int nBlockHeight)
     return true;
 }
 
-/**
-*   FillBlockPayee
-*
-*   Fill Masternode ONLY payment block
-*/
 
-void CMasternodePayments::FillBlockPayee(CMutableTransaction& txNew, int nBlockHeight, CAmount blockReward, CAmount caRetiredMiningTithe, CTxOut& txoutMasternodeRet)
+void CMasternodePayments::PayPOGRecipients(CMutableTransaction& txNew, int nBlockHeight, CAmount blockRewardWithoutFees)
 {
-	/*
-	if (fRetirementAccountsEnabled)
-	{
-		// Award colored coins for retirement
-        CAmount retirementAmount = GetRetirementAccountContributionAmount(nBlockHeight);
-		// Ensure retirement emission per block is capped at a max of 10% of miner block subsidy
-		if (retirementAmount > (txNew.vout[0].nValue * .10)) retirementAmount = txNew.vout[0].nValue * .10;
-		txNew.vout.resize(txNew.vout.size()+1);
-	    txNew.vout[0].nValue -= retirementAmount;
-	    txNew.vout[txNew.vout.size()-1].scriptPubKey = txNew.vout[0].scriptPubKey;
-		txNew.vout[txNew.vout.size()-1].nValue = retirementAmount;
-		CComplexTransaction cct(txNew);
-		std::string sAssetColorScript = cct.GetScriptForAssetColor("401"); // Get the script for 401k coins
-		txNew.vout[txNew.vout.size()-1].sTxOutMessage += sAssetColorScript;
-		LogPrintf(" Creating Retirement Amount %f \n", (double)retirementAmount/COIN);
-	}
-	*/
-
-	
-    txoutMasternodeRet = CTxOut();
-    CScript payee;
-	CAmount nCollateral = 0;
-	std::string sCollateralScript = "";
-    if(!mnpayments.GetBlockPayeeAndCollateral(nBlockHeight, payee, nCollateral, sCollateralScript)) 
-	{
-        // no masternode detected...
-        int nCount = 0;
-        CMasternode *winningNode = mnodeman.GetNextMasternodeInQueueForPayment(nBlockHeight, true, nCount);
-        if(!winningNode) {
-            // ...and we can't calculate it on our own
-            if (fDebugMaster) LogPrint("mnpayments","CMasternodePayments::FillBlockPayee -- Failed to detect masternode to pay\n");
-            return;
-        }
-        // fill payee with locally calculated winner and hope for the best
-        payee = GetScriptForDestination(winningNode->pubKeyCollateralAddress.GetID());
-    }
-	if (false && fDebugMaster) LogPrint("mnpayments","Collateral amount %f, Coll Script %s ",(double)nCollateral/COIN,sCollateralScript.c_str());
-
-    // GET MASTERNODE PAYMENT VARIABLES SETUP
-    CAmount masternodePayment = GetMasternodePayment(nBlockHeight, blockReward, nCollateral);
-    // split reward between miner ...
-    txNew.vout[0].nValue -= masternodePayment;
-    // ... and masternode
-    txoutMasternodeRet = CTxOut(masternodePayment, payee);
-	
-    txNew.vout.push_back(txoutMasternodeRet);
-
-    CTxDestination address1;
-    ExtractDestination(payee, address1);
-    CBitcoinAddress address2(address1);
-    LogPrint("mnpayments","CMasternodePayments::FillBlockPayee -- Masternode payment %f to %s\n", (double)masternodePayment, address2.ToString().c_str());
-
-	// POG POOL PAYMENTS - 12/5/2018 - PAY POOL After Reaper and after Sanctuary
-
+	// POG POOL PAYMENTS - 12/7/2018 - PAY POOL After Reaper and after Sanctuary
 	if (fPOGPaymentsEnabled)
 	{
-		int nPoolHeight = chainActive.Tip()->nHeight - 10;
+		int nPoolHeight = nBlockHeight - 10;
 		CPoolObject cPool = GetPoolVector(nPoolHeight, nPoolHeight % 16, uint256S("0x0"));
-		CAmount nPOWReward = txNew.vout[0].nValue;
+		CAmount masternodePayment = GetMasternodePayment(nBlockHeight, blockRewardWithoutFees, 0);
+		CAmount nPOWReward = blockRewardWithoutFees - masternodePayment;
 		CAmount nPOGReward = nPOWReward * .80;
 		bool bStamped = false;
 		BOOST_FOREACH(const PAIRTYPE(std::string, CTitheObject)& item, cPool.mapPoolPayments)
@@ -437,6 +381,55 @@ void CMasternodePayments::FillBlockPayee(CMutableTransaction& txNew, int nBlockH
 			}
 		}
 	}
+}
+
+
+/**
+*   FillBlockPayee
+*
+*   Fill Masternode ONLY payment block
+*/
+
+void CMasternodePayments::FillBlockPayee(CMutableTransaction& txNew, int nBlockHeight, CAmount blockReward, CAmount blockRewardWithoutFee, CAmount caRetiredMiningTithe, CTxOut& txoutMasternodeRet)
+{
+	
+    txoutMasternodeRet = CTxOut();
+    CScript payee;
+	CAmount nCollateral = 0;
+	std::string sCollateralScript = "";
+	// GET MASTERNODE PAYMENT VARIABLES SETUP
+    CAmount masternodePayment = GetMasternodePayment(nBlockHeight, blockReward, nCollateral);
+   
+    if(!mnpayments.GetBlockPayeeAndCollateral(nBlockHeight, payee, nCollateral, sCollateralScript)) 
+	{
+        // no masternode detected...
+        int nCount = 0;
+        CMasternode *winningNode = mnodeman.GetNextMasternodeInQueueForPayment(nBlockHeight, true, nCount);
+        if(!winningNode) 
+		{
+            // ...and we can't calculate it on our own
+            if (fDebugMaster) LogPrint("mnpayments","CMasternodePayments::FillBlockPayee -- Failed to detect masternode to pay\n");
+			// Pay the POG Pool
+			if (fPOGEnabled && fPOGPaymentsEnabled) PayPOGRecipients(txNew, nBlockHeight, blockRewardWithoutFee);
+            return;
+        }
+        // fill payee with locally calculated winner and hope for the best
+        payee = GetScriptForDestination(winningNode->pubKeyCollateralAddress.GetID());
+    }
+	if (false && fDebugMaster) LogPrint("mnpayments","Collateral amount %f, Coll Script %s ",(double)nCollateral/COIN,sCollateralScript.c_str());
+
+    // split reward between miner ...
+    txNew.vout[0].nValue -= masternodePayment;
+    // ... and masternode
+    txoutMasternodeRet = CTxOut(masternodePayment, payee);
+    txNew.vout.push_back(txoutMasternodeRet);
+
+    CTxDestination address1;
+    ExtractDestination(payee, address1);
+    CBitcoinAddress address2(address1);
+    LogPrint("mnpayments","CMasternodePayments::FillBlockPayee -- Masternode payment %f to %s\n", (double)masternodePayment, address2.ToString().c_str());
+	// Pay the POG Pool
+	if (fPOGEnabled && fPOGPaymentsEnabled) PayPOGRecipients(txNew, nBlockHeight, blockRewardWithoutFee);
 
 }
 

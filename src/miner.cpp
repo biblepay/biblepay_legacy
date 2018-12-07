@@ -326,8 +326,9 @@ CBlockTemplate* CreateNewBlock(const CChainParams& chainparams, const CScript& s
         }
 
         // NOTE: unlike in bitcoin, we need to pass PREVIOUS block height here
-        CAmount blockReward = nFees + GetBlockSubsidy(pindexPrev, pindexPrev->nBits, pindexPrev->nHeight, Params().GetConsensus());
-
+		CAmount blockRewardWithoutFees = GetBlockSubsidy(pindexPrev, pindexPrev->nBits, pindexPrev->nHeight, Params().GetConsensus());
+        CAmount blockReward = nFees + blockRewardWithoutFees;
+		
         // Compute regular coinbase transaction.
         txNew.vout[0].nValue = blockReward;
         txNew.vin[0].scriptSig = CScript() << nHeight << OP_0;
@@ -347,7 +348,7 @@ CBlockTemplate* CreateNewBlock(const CChainParams& chainparams, const CScript& s
 
         // Update coinbase transaction with additional info about masternode and governance payments,
         // get some info back to pass to getblocktemplate
-        FillBlockPayments(txNew, nHeight, blockReward, 0, pblock->txoutMasternode, pblock->voutSuperblock);
+        FillBlockPayments(txNew, nHeight, blockReward, blockRewardWithoutFees, nFees, 0, pblock->txoutMasternode, pblock->voutSuperblock);
         nLastBlockTx = nBlockTx;
         nLastBlockSize = nBlockSize;
 		

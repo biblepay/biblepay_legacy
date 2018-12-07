@@ -4614,7 +4614,7 @@ bool ContextualCheckBlockHeader(const CBlockHeader& block, CValidationState& sta
     return true;
 }
 
-bool CheckPOGPoolRecipients(int nHeight, const CBlock& block)
+bool CheckPOGPoolRecipients(const Consensus::Params& params, int nHeight, const CBlock& block, CBlockIndex * const pindexPrev)
 {
 	bool bSuperblock = (CSuperblock::IsValidBlockHeight(nHeight) || (fDistributedComputingEnabled && CSuperblock::IsDCCSuperblock(nHeight)));
 	if (bSuperblock) return true;
@@ -4628,10 +4628,12 @@ bool CheckPOGPoolRecipients(int nHeight, const CBlock& block)
 		nBlockReward += block.vtx[0].vout[i].nValue;
 	}
 	// CAmount caBlockReward = nFees + GetBlockSubsidy(pindex->pprev, pindex->pprev->nBits, pindex->pprev->nHeight, chainparams.GetConsensus());
-  
-	CAmount caMasternodePortion = GetMasternodePayment(nHeight, nBlockReward, 0);
-	CAmount nPOWReward = nBlockReward - caMasternodePortion;
+    CAmount blockRewardWithoutFees = GetBlockSubsidy(pindexPrev, pindexPrev->nBits, pindexPrev->nHeight, params);
+	CAmount caMasternodePortion = GetMasternodePayment(nHeight, blockRewardWithoutFees, 0);
+	CAmount nPOWReward = blockRewardWithoutFees - caMasternodePortion;
 	CAmount nPOGReward = nPOWReward * .80;
+	CAmount nFees = nBlockReward - blockRewardWithoutFees + caMasternodePortion;
+	
 	BOOST_FOREACH(const PAIRTYPE(std::string, CTitheObject)& item, cPool.mapPoolPayments)
 	{
 		CTitheObject oTithe = item.second;
@@ -4649,8 +4651,9 @@ bool CheckPOGPoolRecipients(int nHeight, const CBlock& block)
 				}
 				if (bFound == false) 
 				{
-					LogPrintf(" CheckPoolRecipients Height %f  TotalBlockReward %f, MN Reward %f, Recip Missing %s ", 
-						nHeight, nPOWReward/COIN, caMasternodePortion/COIN, oTithe.Address.c_str());
+					LogPrintf("\nCheckPoolRecipients Height %f, pprevheight %f, PoolTier %f, POW Reward %f, MN Reward %f, RewardWithoutFees %f, Actual nBlockReward %f, Fees %f, Recip Missing %s ", 
+						nHeight, (double)pindexPrev->nHeight, (double)(nPoolHeight % 16), (double)nPOWReward/COIN, (double)caMasternodePortion/COIN, (double)blockRewardWithoutFees/COIN, 
+						(double)nBlockReward/COIN, (double)nFees/COIN, oTithe.Address.c_str());
 					return false;
 				}
 			}
@@ -4716,8 +4719,8 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIn
 		{
 			if (nHeight > FPOG_CUTOVER_HEIGHT_TESTNET)
 			{
-				bool fVerified = CheckPOGPoolRecipients(nHeight, block);
-				if (!fVerified)
+				bool fVerified = CheckPOGPoolRecipients(consensusParams, nHeight, block, pindexPrev);
+				if (!fVerified && nHeight > 82449)
 				{
 					LogPrintf("\nContextualCheckBlock::ERROR - POG Recipients invalid at height %f ", nHeight);
 				}
@@ -7864,10 +7867,6 @@ void UpdatePogPool(int nHeight, int nSize)
 		}
 	}
 }
-
-
-
-
 
 
 void ResetTimerMain(std::string timer_name)

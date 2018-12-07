@@ -227,6 +227,7 @@ public:
 	int nHeightFirst;
 	int nHeightLast;
 	int nPaymentTier;
+	int nUserPaymentTier;
 	CAmount nHighTithe;
 
 	CPoolObject() : nHeightFirst(0)
@@ -238,7 +239,8 @@ public:
 
 		UserTithes = 0;
 		TotalTithes = 0;
-	
+		nUserPaymentTier = 0;
+
 		for (int j = 0; j < 16; j++)
 		{
 			oTierRecipients[j] = 0;

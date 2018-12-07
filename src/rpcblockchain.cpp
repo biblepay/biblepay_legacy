@@ -74,7 +74,7 @@ extern UniValue GetBusinessObjectByFieldValue(std::string sType, std::string sFi
 extern std::string GetBusinessObjectList(std::string sType, std::string sFields);
 extern std::string StoreBusinessObjectWithPK(UniValue& oBusinessObject, std::string& sError);
 // POG
-
+extern std::string CreateBankrollDenominations(double nQuantity, CAmount denominationAmount, std::string& sError);
 TitheDifficultyParams GetTitheParams(int nHeight);
 extern std::string SendTithe(CAmount caTitheAmount, double dMinCoinAge, CAmount caMinCoinAmount, std::string& sError);
 CAmount GetTitheCap(int nBlockHeight);
@@ -3586,7 +3586,9 @@ UniValue exec(const UniValue& params, bool fHelp)
 
 		// Show the user their own stats 
 		results.push_back(Pair("My Tithes", (double)c.UserTithes/COIN));
-
+		// Show the user when they will be paid
+		int nPaymentHeight = ((chainActive.Tip()->nHeight - 10) % c.nUserPaymentTier) + chainActive.Tip()->nHeight;
+		results.push_back(Pair("My Payment Height", (double)nPaymentHeight));
 	}
 	else if (sItem == "getdimensionalbalance")
 	{
@@ -3643,6 +3645,23 @@ UniValue exec(const UniValue& params, bool fHelp)
 			results.push_back(Pair("TXID", sTxId));
 		}
 
+	}
+	else if (sItem == "bankroll")
+	{
+		if (params.size() != 3)
+			throw runtime_error("You must specify type: IE 'exec bankroll quantity denomination'.  IE exec bankroll 10 100 (creates ten 100 BBP bills).");
+		double nQty = cdbl(params[1].get_str(), 0);
+		CAmount denomination = cdbl(params[2].get_str(), 4) * COIN;
+		std::string sError = "";
+		std::string sTxId = CreateBankrollDenominations(nQty, denomination, sError);
+		if (!sError.empty())
+		{
+			results.push_back(Pair("Error", sError));
+		}
+		else
+		{
+			results.push_back(Pair("TXID", sTxId));
+		}
 	}
 	else if (sItem == "datalist")
 	{
@@ -3874,6 +3893,61 @@ std::string AddBlockchainMessages(std::string sAddress, std::string sType, std::
 	std::string sTxId = wtx.GetHash().GetHex();
 	return sTxId;
 }
+
+std::string CreateBankrollDenominations(double nQuantity, CAmount denominationAmount, std::string& sError)
+{
+	// First mark the denominations with the 1milliBBP TitheMarker (this saves them from being spent in PODC Updates):
+	denominationAmount += .001;
+
+	CAmount nTotal = denominationAmount * nQuantity;
+
+	CAmount curBalance = pwalletMain->GetUnlockedBalance();
+	if (curBalance < nTotal)
+	{
+		sError = "Insufficient funds (Unlock Wallet).";
+		return "";
+	}
+	std::string sTitheAddress = DefaultRecAddress("TITHES");
+	CBitcoinAddress cbAddress(sTitheAddress);
+	CWalletTx wtx;
+	
+    CScript scriptPubKey = GetScriptForDestination(cbAddress.Get());
+    CReserveKey reservekey(pwalletMain);
+    CAmount nFeeRequired;
+    vector<CRecipient> vecSend;
+    int nChangePosRet = -1;
+	for (int i = 0; i < nQuantity; i++)
+	{
+		bool fSubtractFeeFromAmount = false;
+	    CRecipient recipient = {scriptPubKey, denominationAmount, fSubtractFeeFromAmount, false, false, false, "", "", "", ""};
+		recipient.Message = "";
+		vecSend.push_back(recipient);
+	}
+	
+	bool fUseInstantSend = false;
+    if (!pwalletMain->CreateTransaction(vecSend, wtx, reservekey, nFeeRequired, nChangePosRet, sError, NULL, true, ONLY_NOT1000IFMN, fUseInstantSend)) 
+	{
+		if (!sError.empty())
+		{
+			return "";
+		}
+
+        if (nTotal + nFeeRequired > pwalletMain->GetBalance())
+		{
+            sError = strprintf("Error: This transaction requires a transaction fee of at least %s because of its amount, complexity, or use of recently received funds!", FormatMoney(nFeeRequired));
+			return "";
+		}
+    }
+    if (!pwalletMain->CommitTransaction(wtx, reservekey, fUseInstantSend ? NetMsgType::TXLOCKREQUEST : NetMsgType::TX))
+    {
+		sError = "Error: The transaction was rejected! This might happen if some of the coins in your wallet were already spent, such as if you used a copy of wallet.dat and coins were spent in the copy but not marked as spent here.";
+		return "";
+	}
+
+	std::string sTxId = wtx.GetHash().GetHex();
+	return sTxId;
+}
+
 
 std::string SendTithe(CAmount caTitheAmount, double dMinCoinAge, CAmount caMinCoinAmount, std::string& sError)
 {
@@ -4334,7 +4408,11 @@ CPoolObject GetPoolVector(int iHeight, int iPaymentTier, uint256 LastBlockHash)
 		cPool.TotalTithes += oTithe.Amount;
 		cPool.mapTithes[oTithe.Address] = oTithe;
 		// Track User Tithes
-		if (oTithe.Address == sMyTitheAddress) cPool.UserTithes += oTithe.Amount;
+		if (oTithe.Address == sMyTitheAddress) 
+		{
+			cPool.UserTithes += oTithe.Amount;
+			cPool.nUserPaymentTier = oTithe.PaymentTier;
+		}
  	}
 	// Calculate tithe_weight
 	BOOST_FOREACH(const PAIRTYPE(std::string, CTitheObject)& item, cPool.mapTithes)
