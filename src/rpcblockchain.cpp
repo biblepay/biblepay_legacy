@@ -3587,8 +3587,11 @@ UniValue exec(const UniValue& params, bool fHelp)
 		// Show the user their own stats 
 		results.push_back(Pair("My Tithes", (double)c.UserTithes/COIN));
 		// Show the user when they will be paid
-		int nPaymentHeight = ((chainActive.Tip()->nHeight - 10) % c.nUserPaymentTier) + chainActive.Tip()->nHeight;
-		results.push_back(Pair("My Payment Height", (double)nPaymentHeight));
+		if (c.nUserPaymentTier > 0)
+		{
+			int nPaymentHeight = ((chainActive.Tip()->nHeight - 10) % c.nUserPaymentTier) + chainActive.Tip()->nHeight;
+			results.push_back(Pair("My Payment Height", (double)nPaymentHeight));
+		}
 	}
 	else if (sItem == "getdimensionalbalance")
 	{
