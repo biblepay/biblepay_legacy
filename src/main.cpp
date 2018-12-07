@@ -4720,7 +4720,7 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIn
 			if (nHeight > FPOG_CUTOVER_HEIGHT_TESTNET)
 			{
 				bool fVerified = CheckPOGPoolRecipients(consensusParams, nHeight, block, pindexPrev);
-				if (!fVerified && nHeight > 82449)
+				if (!fVerified && nHeight > 82552)
 				{
 					LogPrintf("\nContextualCheckBlock::ERROR - POG Recipients invalid at height %f ", nHeight);
 				}

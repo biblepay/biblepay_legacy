@@ -4418,9 +4418,11 @@ CPoolObject GetPoolVector(int iHeight, int iPaymentTier, uint256 LastBlockHash)
 	BOOST_FOREACH(const PAIRTYPE(std::string, CTitheObject)& item, cPool.mapTithes)
     {
 		CTitheObject oTithe = item.second;
-		if (cPool.oTierTotals[oTithe.PaymentTier] > 0)
+		double dTierTotal = (double)(cPool.oTierTotals[oTithe.PaymentTier] / COIN);
+
+		if (dTierTotal > 0.01)
 		{
-			oTithe.Weight = (double)((double)(oTithe.Amount / COIN) / (double)(cPool.oTierTotals[oTithe.PaymentTier] / COIN));
+			oTithe.Weight = (double)((double)(oTithe.Amount / COIN) / dTierTotal);
 			cPool.mapTithes[oTithe.Address] = oTithe;
 		}
 	}
