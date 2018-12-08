@@ -138,7 +138,7 @@ void SendCoinsEntry::makeRepentanceVisible()
 }
 
 void SendCoinsEntry::initPOGDifficulty()
-{	// Initialize Pog difficulty (12-6-2018)
+{	// Initialize Pog difficulty (12-8-2018)
 	bool bDonateFoundation = (ui->checkboxFoundation->checkState() == Qt::Checked);
 	if (fPOGEnabled && bDonateFoundation)
 	{
@@ -153,11 +153,50 @@ void SendCoinsEntry::initPOGDifficulty()
 		ui->lblPogDifficultyCaption->setText(ToQstring("POG:"));
 		ui->lblPogDifficulty->setText(ToQstring(sValue));
 		ui->lblPogDifficulty->setVisible(true);
+
+		std::map<double, CAmount> dtb = pwalletMain->GetDimensionalCoins(tdp.min_coin_age, tdp.min_coin_amount);
+		CAmount nTotal = 0;
+		double nQty = 0;
+		double nAvgAge = 0;
+		double nTotalAge = 0;
+		CAmount nMaxCoin = 0;
+		BOOST_FOREACH(const PAIRTYPE(double, CAmount)& item, dtb)
+    	{
+			CAmount nAmount = item.second;
+			double dAge = item.first;
+			nQty++;
+			if (nAmount > nMaxCoin) nMaxCoin = nAmount;
+			nTotal += nAmount;
+			nTotalAge += dAge;
+		}
+		if (nQty > 0) nAvgAge = nTotalAge / nQty;
+
+		CAmount nTithability = nMaxCoin;
+		if (nTithability > tdp.max_tithe_amount) nTithability = tdp.max_tithe_amount;
+		std::string sSummary = (nTithability > 0) ? "YES" : "NO";
+
+		std::string sTitheValue = "Qty: " + RoundToString(nQty, 0) 
+			+ ", LargeCoin: " + RoundToString((double)nMaxCoin/COIN, 2) 
+			+ ", AvgAge: " 
+			+ RoundToString(nAvgAge, 4) 
+			+ ", TotalTitheBalance: " 
+			+ RoundToString((double)nTotal/COIN, 2) + ", Tithability: " + RoundToString((double)nTithability/COIN, 4) + ", Summary: " + sSummary;
+
+
+		ui->lblTitheAbility->setStyleSheet(ToQstring(sCSS));
+		ui->lblTitheAbilityCaption->setStyleSheet(ToQstring(sCSS));
+		ui->lblTitheAbilityCaption->setVisible(true);
+		ui->lblTitheAbilityCaption->setText(ToQstring("Tithe Ability:"));
+		ui->lblTitheAbility->setText(ToQstring(sTitheValue));
+		ui->lblTitheAbility->setVisible(true);
+
     }
 	else
 	{
 		ui->lblPogDifficultyCaption->setVisible(false);
 		ui->lblPogDifficulty->setVisible(false);
+		ui->lblTitheAbilityCaption->setVisible(false);
+		ui->lblTitheAbility->setVisible(false);
 	}
 }
 

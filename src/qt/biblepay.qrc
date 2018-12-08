@@ -40,6 +40,8 @@
         <file alias="tx_inout">res/icons/drkblue/tx_inout.png</file>
         <file alias="lock_closed">res/icons/drkblue/lock_closed.png</file>
         <file alias="lock_open">res/icons/drkblue/lock_open.png</file>
+        <file alias="cross3232">res/icons/drkblue/cross3232.png</file>
+        <file alias="donation32">res/icons/drkblue/donation32.png</file>
         <file alias="key">res/icons/drkblue/key.png</file>
         <file alias="filesave">res/icons/drkblue/filesave.png</file>
         <file alias="debugwindow">res/icons/drkblue/debugwindow.png</file>
@@ -90,6 +92,8 @@
         <file alias="tx_inout">res/icons/bezaleel/tx_inout.png</file>
         <file alias="lock_closed">res/icons/bezaleel/lock_closed.png</file>
         <file alias="lock_open">res/icons/bezaleel/lock_open.png</file>
+        <file alias="cross3232">res/icons/bezaleel/cross3232.png</file>
+        <file alias="donation32">res/icons/bezaleel/donation32.png</file>
         <file alias="key">res/icons/bezaleel/key.png</file>
         <file alias="filesave">res/icons/bezaleel/filesave.png</file>
         <file alias="debugwindow">res/icons/bezaleel/debugwindow.png</file>
@@ -140,6 +144,8 @@
         <file alias="tx_inout">res/icons/gradient/tx_inout.png</file>
         <file alias="lock_closed">res/icons/gradient/lock_closed.png</file>
         <file alias="lock_open">res/icons/gradient/lock_open.png</file>
+        <file alias="cross3232">res/icons/gradient/cross3232.png</file>
+        <file alias="donation32">res/icons/gradient/donation32.png</file>
         <file alias="key">res/icons/gradient/key.png</file>
         <file alias="filesave">res/icons/gradient/filesave.png</file>
         <file alias="debugwindow">res/icons/gradient/debugwindow.png</file>
@@ -190,6 +196,8 @@
         <file alias="tx_inout">res/icons/light/tx_inout.png</file>
         <file alias="lock_closed">res/icons/light/lock_closed.png</file>
         <file alias="lock_open">res/icons/light/lock_open.png</file>
+        <file alias="cross3232">res/icons/light/cross3232.png</file>
+        <file alias="donation32">res/icons/light/donation32.png</file>
         <file alias="key">res/icons/light/key.png</file>
         <file alias="filesave">res/icons/light/filesave.png</file>
         <file alias="debugwindow">res/icons/light/debugwindow.png</file>
@@ -240,6 +248,8 @@
         <file alias="tx_inout">res/icons/trad/tx_inout.png</file>
         <file alias="lock_closed">res/icons/trad/lock_closed.png</file>
         <file alias="lock_open">res/icons/trad/lock_open.png</file>
+        <file alias="cross3232">res/icons/trad/cross3232.png</file>
+        <file alias="donation32">res/icons/trad/donation32.png</file>
         <file alias="key">res/icons/trad/key.png</file>
         <file alias="filesave">res/icons/trad/filesave.png</file>
         <file alias="debugwindow">res/icons/trad/debugwindow.png</file>

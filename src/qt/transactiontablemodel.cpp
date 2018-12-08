@@ -423,7 +423,7 @@ QVariant TransactionTableModel::txAddressDecoration(const TransactionRecord *wtx
 		case TransactionRecord::SuperBlockPayment:
 				return QIcon(":/icons/drkblue/eye_minus");
 		case TransactionRecord::POGPayment:
-			return QIcon(":/icons/drkblue/key");
+			return QIcon(":/icons/drkblue/donation32");
 		case TransactionRecord::PODCPayment:
 			return QIcon(":/icons/drkblue/key");
 		case TransactionRecord::Generated:

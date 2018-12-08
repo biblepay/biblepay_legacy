@@ -216,6 +216,8 @@ RES_ICONS = \
   qt/res/icons/drkblue/filesave.png \
   qt/res/icons/drkblue/history.png \
   qt/res/icons/drkblue/key.png \
+  qt/res/icons/drkblue/cross3232.png \
+  qt/res/icons/drkblue/donation32.png \
   qt/res/icons/drkblue/lock_closed.png \
   qt/res/icons/drkblue/lock_open.png \
   qt/res/icons/drkblue/masternodes.png \
@@ -264,6 +266,8 @@ RES_ICONS = \
   qt/res/icons/gradient/filesave.png \
   qt/res/icons/gradient/history.png \
   qt/res/icons/gradient/key.png \
+  qt/res/icons/gradient/cross3232.png \
+  qt/res/icons/gradient/donation32.png \
   qt/res/icons/gradient/lock_closed.png \
   qt/res/icons/gradient/lock_open.png \
   qt/res/icons/gradient/masternodes.png \
@@ -311,6 +315,8 @@ RES_ICONS = \
   qt/res/icons/light/eye_plus.png \
   qt/res/icons/light/filesave.png \
   qt/res/icons/light/history.png \
+  qt/res/icons/light/cross3232.png \
+  qt/res/icons/light/donation32.png \
   qt/res/icons/light/key.png \
   qt/res/icons/light/lock_closed.png \
   qt/res/icons/light/lock_open.png \
@@ -359,6 +365,8 @@ RES_ICONS = \
   qt/res/icons/trad/eye_plus.png \
   qt/res/icons/trad/filesave.png \
   qt/res/icons/trad/history.png \
+  qt/res/icons/trad/cross3232.png \
+  qt/res/icons/trad/donation32.png \
   qt/res/icons/trad/key.png \
   qt/res/icons/trad/lock_closed.png \
   qt/res/icons/trad/lock_open.png \
@@ -407,6 +415,8 @@ RES_ICONS = \
   qt/res/icons/bezaleel/eye_plus.png \
   qt/res/icons/bezaleel/filesave.png \
   qt/res/icons/bezaleel/history.png \
+  qt/res/icons/bezaleel/cross3232.png \
+  qt/res/icons/bezaleel/donation32.png \
   qt/res/icons/bezaleel/key.png \
   qt/res/icons/bezaleel/lock_closed.png \
   qt/res/icons/bezaleel/lock_open.png \

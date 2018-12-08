@@ -3839,7 +3839,7 @@ bool static ConnectTip(CValidationState& state, const CChainParams& chainparams,
     mempool.removeForBlock(pblock->vtx, pindexNew->nHeight, txConflicted, !IsInitialBlockDownload());
     // Update chainActive & related variables.
     UpdateTip(pindexNew);
-	UpdatePogPool(pindexNew->nHeight, 0);
+	UpdatePogPool(pindexNew->nHeight, 205);
 
     // Tell wallet about transactions that went from mempool
     // to conflicted:
@@ -4623,7 +4623,7 @@ bool CheckPOGPoolRecipients(const Consensus::Params& params, int nHeight, const 
 	CPoolObject cPool = GetPoolVector(nPoolHeight, nPoolHeight % 16, uint256S("0x0"));
 
 	CAmount nBlockReward = 0;
-	for (unsigned int i = 1; i < block.vtx[0].vout.size(); i++)
+	for (unsigned int i = 0; i < block.vtx[0].vout.size(); i++)
 	{
 		nBlockReward += block.vtx[0].vout[i].nValue;
 	}
@@ -4651,7 +4651,7 @@ bool CheckPOGPoolRecipients(const Consensus::Params& params, int nHeight, const 
 				}
 				if (bFound == false) 
 				{
-					LogPrintf("\nCheckPoolRecipients Height %f, pprevheight %f, PoolTier %f, POW Reward %f, MN Reward %f, RewardWithoutFees %f, Actual nBlockReward %f, Fees %f, Recip Missing %s ", 
+					LogPrintf("\nCheckPoolRecipients Height %f, pprevheight %f, PoolTier %f, POW Reward %f, MN Reward %f, RewardWithoutFees %f, Entire nBlockReward %f, Fees %f, Recip Missing %s ", 
 						nHeight, (double)pindexPrev->nHeight, (double)(nPoolHeight % 16), (double)nPOWReward/COIN, (double)caMasternodePortion/COIN, (double)blockRewardWithoutFees/COIN, 
 						(double)nBlockReward/COIN, (double)nFees/COIN, oTithe.Address.c_str());
 					return false;

@@ -740,7 +740,7 @@ void static BibleMiner(const CChainParams& chainparams, int iThreadID, int iFeat
 	int64_t nPODCUpdateFrequency = cdbl(GetSporkValue("podcupdatefrequency"), 0);
 	int64_t nPOGTitheFrequency = cdbl(GetSporkValue("pogtithefrequency"), 0);
 	if (nPODCUpdateFrequency < (60 * 30)) nPODCUpdateFrequency = (60 * 30);
-	if (nPOGTitheFrequency < (60 * 60 * 4)) nPOGTitheFrequency = (60 * 60 * 4);
+	if (nPOGTitheFrequency == 0) nPOGTitheFrequency = (60 * 60 * 4);
 
 	int iFailCount = 0;
 	// This allows the miner to dictate how much sleep will occur when distributed computing is enabled.  This will let Rosetta use the maximum CPU time.  NOTE: The default is 200ms per 256 hashes.

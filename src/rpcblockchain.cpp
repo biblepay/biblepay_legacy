@@ -3617,8 +3617,7 @@ UniValue exec(const UniValue& params, bool fHelp)
 		results.push_back(Pair("Tithe Cap", dTC));
 		double dPD = GetPOGDifficulty(chainActive.Tip()->nHeight);
 		results.push_back(Pair("POG Difficulty", dPD));
-		results.push_back(Pair("24 Hour Tithes", chainActive.Tip()->n24HourTithes));
-		results.push_back(Pair("24 Hour Tithes_pprev", chainActive.Tip()->pprev->n24HourTithes));
+		results.push_back(Pair("24 Hour Tithes", (double)chainActive.Tip()->n24HourTithes/COIN));
 		results.push_back(Pair("pog_diff_chain_tip", chainActive.Tip()->nPOGDifficulty));
 
 		// check the tithe params
@@ -3626,8 +3625,32 @@ UniValue exec(const UniValue& params, bool fHelp)
 		results.push_back(Pair("min_coin_age", tdp.min_coin_age));
 		results.push_back(Pair("min_coin_amt", tdp.min_coin_amount));
 		results.push_back(Pair("max_tithe_amount", tdp.max_tithe_amount / COIN));
-		UpdatePogPool(chainActive.Tip()->nHeight, 1);
 
+		std::map<double, CAmount> dtb = pwalletMain->GetDimensionalCoins(tdp.min_coin_age, tdp.min_coin_amount);
+		CAmount nTotal = 0;
+		double nQty = 0;
+		double nAvgAge = 0;
+		double nTotalAge = 0;
+		CAmount nMaxCoin = 0;
+		BOOST_FOREACH(const PAIRTYPE(double, CAmount)& item, dtb)
+    	{
+			CAmount nAmount = item.second;
+			double dAge = item.first;
+			nQty++;
+			if (nAmount > nMaxCoin) nMaxCoin = nAmount;
+			nTotal += nAmount;
+			nTotalAge += dAge;
+		}
+		if (nQty > 0) nAvgAge = nTotalAge / nQty;
+		CAmount nTithability = nMaxCoin;
+		if (nTithability > tdp.max_tithe_amount) nTithability = tdp.max_tithe_amount;
+		std::string sSummary = (nTithability > 0) ? "YES" : "NO";
+		results.push_back(Pair("Tithable_Coin_Quantity", nQty));
+		results.push_back(Pair("Tithable_Largest_Coin", (double)nMaxCoin/COIN));
+		results.push_back(Pair("Tithable_Coin_Avg_Age", nAvgAge));
+		results.push_back(Pair("Tithable_Total_Coin_Balance", (double)nTotal/COIN));
+		results.push_back(Pair("Tithability_Amount", (double)nTithability/COIN));
+		results.push_back(Pair("Tithability_Summary", sSummary));
 	}
 	else if (sItem == "tithe")
 	{
@@ -3665,6 +3688,11 @@ UniValue exec(const UniValue& params, bool fHelp)
 		{
 			results.push_back(Pair("TXID", sTxId));
 		}
+	}
+	else if (sItem == "updatepogpool")
+	{
+		UpdatePogPool(chainActive.Tip()->nHeight, 205);
+		results.push_back(Pair("Updated", 1));
 	}
 	else if (sItem == "datalist")
 	{
@@ -3900,7 +3928,7 @@ std::string AddBlockchainMessages(std::string sAddress, std::string sType, std::
 std::string CreateBankrollDenominations(double nQuantity, CAmount denominationAmount, std::string& sError)
 {
 	// First mark the denominations with the 1milliBBP TitheMarker (this saves them from being spent in PODC Updates):
-	denominationAmount += .001;
+	denominationAmount += ((.001) * COIN);
 
 	CAmount nTotal = denominationAmount * nQuantity;
 
