@@ -170,7 +170,7 @@ std::vector<unsigned char> StringToVector(std::string sData);
 
 /* PODC */
 extern std::string FindResearcherCPIDByAddress(std::string sSearch, std::string& out_address, double& nTotalMagnitude);
-extern std::string AddBlockchainMessages(std::string sAddress, std::string sType, std::string sPrimaryKey, std::string sHTML, CAmount nAmount, std::string& sError);
+extern std::string AddBlockchainMessages(std::string sAddress, std::string sType, std::string sPrimaryKey, std::string sHTML, CAmount nAmount, double dMinCoinAge, std::string& sError);
 extern int GetNextSuperblock();
 
 
@@ -1930,7 +1930,7 @@ UniValue exec(const UniValue& params, bool fHelp)
 		const Consensus::Params& consensusParams = Params().GetConsensus();
 		std::string sAddress = consensusParams.FoundationAddress;
 		std::string sError = "";
-		std::string sTxId = AddBlockchainMessages(sAddress, "NEWS", "primarykey", "html", 250*COIN, sError);
+		std::string sTxId = AddBlockchainMessages(sAddress, "NEWS", "primarykey", "html", 250*COIN, 0, sError);
 		results.push_back(Pair("TXID", sTxId));
 		results.push_back(Pair("Error", sError));
 	}
@@ -3583,6 +3583,7 @@ UniValue exec(const UniValue& params, bool fHelp)
 			results.push_back(Pair(RoundToString(i, 0), sRow));
 		}
 		results.push_back(Pair("High Tithe", (double)c.nHighTithe/COIN));
+		results.push_back(Pair("Total Tithes", (double)c.TotalTithes/COIN));
 
 		// Show the user their own stats 
 		results.push_back(Pair("My Tithes", (double)c.UserTithes/COIN));
@@ -3837,7 +3838,7 @@ UniValue getmempoolinfo(const UniValue& params, bool fHelp)
 }
 
 std::string AddBlockchainMessages(std::string sAddress, std::string sType, std::string sPrimaryKey, 
-	std::string sHTML, CAmount nAmount, std::string& sError)
+	std::string sHTML, CAmount nAmount, double minCoinAge, std::string& sError)
 {
 	CBitcoinAddress cbAddress(sAddress);
     if (!cbAddress.IsValid()) 
@@ -3901,8 +3902,10 @@ std::string AddBlockchainMessages(std::string sAddress, std::string sType, std::
 	bool fUseInstantSend = false;
 	// 3-12-2018; Never spend sanctuary funds - R ANDREWS - BIBLEPAY
 	// 12-5-2018; ToDo: Ensure PODC Age > .75 days old (TheSnat)
+	// PODC_Update: Addl params required to enforce coin_age: bool fUseInstantSend=false, int iMinConfirms = 0, double dMinCoinAge = 0, CAmount caMinCoinAmount = 0
+
     if (!pwalletMain->CreateTransaction(vecSend, wtx, reservekey, nFeeRequired, nChangePosRet,
-                                         sError, NULL, true, ONLY_NOT1000IFMN, fUseInstantSend)) 
+                                         sError, NULL, true, ONLY_NOT1000IFMN, fUseInstantSend, 0, minCoinAge, 0)) 
 	{
 		if (!sError.empty())
 		{
@@ -5217,8 +5220,9 @@ bool PODCUpdate(std::string& sError, bool bForce, std::string sDebugInfo)
 							return false;
 						}
 						std::string sXML = "<PODC_TASKS>" + sOutstanding + "</PODC_TASKS>" + sFullSig;
-
-						AddBlockchainMessages(sAddress, "PODC_UPDATE", s1, sXML, nTargetValue, sErrorInternal);
+						double dMinCoinAge = cdbl(GetSporkValue("podcmincoinage"), 0);
+	
+						AddBlockchainMessages(sAddress, "PODC_UPDATE", s1, sXML, nTargetValue, dMinCoinAge, sErrorInternal);
 						if (bTriedToUnlock) pwalletMain->Lock();
 
 						if (!sErrorInternal.empty())

@@ -126,6 +126,7 @@ extern void UpdatePogPool(int nHeight, int nSize);
 extern CAmount GetTitheCap(int nBlockHeight);
 extern double GetPOGDifficulty(int nBlockHeight);
 extern CBlockIndex* FindBlockByHeight(int nHeight);
+std::string GetSporkValue(std::string sKey);
 // End of POG
 
 bool CheckProofOfLoyalty(double dWeight, uint256 hash, unsigned int nBits, const Consensus::Params& params, 
@@ -175,7 +176,7 @@ extern int32_t ComputeBlockVersion(const CBlockIndex* pindexPrev, const Consensu
 extern std::string RetrieveTxOutInfo(const CBlockIndex* pindex, int iLookback, int iTxOffset, int ivOutOffset, int iDataType);
 UniValue GetDataList(std::string sType, int iMaxAgeInDays, int& iSpecificEntry, std::string sSearch, std::string& outEntry);
 double GetDifficulty(const CBlockIndex* blockindex);
-void MemorizePrayer(std::string sMessage, int64_t nTime, double dAmount, int iPos, std::string sTxID, int nHeight, double dFoundationDonation);
+void MemorizePrayer(std::string sMessage, int64_t nTime, double dAmount, int iPos, std::string sTxID, int nHeight, double dFoundationDonation, double dAge, double dMinCoinAge);
 std::string PubKeyToAddress(const CScript& scriptPubKey);
 std::string GetSin(int iSinNumber, std::string& out_Description);
 std::string TimestampToHRDate(double dtm);
@@ -7772,7 +7773,7 @@ bool IsTitheLegal(CTransaction ctx, CBlockIndex* pindex, CAmount tithe_amount)
 			if (GetTransaction(hashInput, tx1, Params().GetConsensus(), hashBlock1, true))
 			{
 				CAmount nPriorCoinSpent = tx1.vout[txin.prevout.n].nValue;
-				LogPrintf(" Prior Coin Amount %f, Tithe Amt %f, Tithe_height # %f, Spend_height %f, Age %f        ", (double)nPriorCoinSpent/COIN, 
+				if (!fProd && fPOGEnabled && fDebugMaster) LogPrintf(" Prior Coin Amount %f, Tithe Amt %f, Tithe_height # %f, Spend_height %f, Age %f        ", (double)nPriorCoinSpent/COIN, 
 												(double)tithe_amount/COIN, pindex->nHeight, pindexHistorical->nHeight, (double)nTitheAge);
 				if (nTitheAge >= pindex->nMinCoinAge && nPriorCoinSpent >= pindex->nMinCoinAmount)
 				{
@@ -7787,6 +7788,8 @@ bool IsTitheLegal(CTransaction ctx, CBlockIndex* pindex, CAmount tithe_amount)
 
 void UpdatePogPool(int nHeight, int nSize)
 {
+	if (!fPOGEnabled) return;
+
 	int nMaxDepth = nHeight;
 	int nMinDepth = nHeight - nSize;
 	const Consensus::Params& consensusParams = Params().GetConsensus();
@@ -7993,6 +7996,31 @@ std::string GetMessagesFromBlock(const CBlock& block, std::string sTargetType)
 }
 
 
+double GetInputAge(CTransaction ctx, CBlockIndex* pindex)
+{
+	double nCount = 0;
+	double nAgeTotal = 0;
+
+	BOOST_FOREACH(const CTxIn &txin, ctx.vin)
+	{
+		uint256 hashInput = txin.prevout.hash;
+		const CBlockIndex* pindexHistorical = GetBlockIndexByTransactionHash(hashInput);
+		if (pindexHistorical)
+		{
+			double nAge = (double)(pindex->GetBlockTime() - pindexHistorical->GetBlockTime()) / 86400;
+			nAgeTotal += nAge;
+			nCount++;
+		}
+	}
+	if (nCount > 0)
+	{
+		return nAgeTotal / nCount;
+	}
+	return 0;
+}
+
+
+
 void MemorizeBlockChainPrayers(bool fDuringConnectBlock, bool fSubThread, bool fColdBoot, bool fDuringSanctuaryQuorum)
 {
 		int nDeserializedHeight = 0;
@@ -8007,7 +8035,8 @@ void MemorizeBlockChainPrayers(bool fDuringConnectBlock, bool fSubThread, bool f
 		if (fDuringSanctuaryQuorum) nMinDepth = nMaxDepth - (BLOCKS_PER_DAY * 14); // Two Weeks
 
 		if (nDeserializedHeight > 0 && nDeserializedHeight < nMaxDepth) nMinDepth = nDeserializedHeight;
-
+		double dMinCoinAge = cdbl(GetSporkValue("podcmincoinage"), 0);
+	
 		if (nMinDepth < 0) nMinDepth = 0;
 		CBlockIndex* pindex = FindBlockByHeight(nMinDepth);
 		const Consensus::Params& consensusParams = Params().GetConsensus();
@@ -8048,7 +8077,8 @@ void MemorizeBlockChainPrayers(bool fDuringConnectBlock, bool fSubThread, bool f
 							dFoundationDonation += dAmount;
 						}
 					}
-					MemorizePrayer(sPrayer, block.GetBlockTime(), dTotalSent, 0, block.vtx[n].GetHash().GetHex(), pindex->nHeight, dFoundationDonation);
+					double dAge = GetInputAge(block.vtx[n], pindex);
+					MemorizePrayer(sPrayer, block.GetBlockTime(), dTotalSent, 0, block.vtx[n].GetHash().GetHex(), pindex->nHeight, dFoundationDonation, dAge, dMinCoinAge);
 				}
 	  		}
 		}
@@ -8174,7 +8204,7 @@ struct TxMessage
   int64_t     nTime;
 };
 
-void MemorizeUTXOWeight(TxMessage t, double dAmount)
+void MemorizeUTXOWeight(TxMessage t, double dAmount, double dAge, double dMinCoinAge)
 {
 	if (t.sPODCTasks.empty()) return;
 	double nMaximumChatterAge = GetSporkDouble("podcmaximumchatterage", (60 * 60 * 24));
@@ -8182,8 +8212,11 @@ void MemorizeUTXOWeight(TxMessage t, double dAmount)
 	{
 		std::string sError = "";
 		bool fSigValid = VerifyCPIDSignature(t.sCPIDSig, true, sError);
-		if (fSigValid)
+		// Verify Age - 12/8/2018 - R Andrews
+		
+		if (fSigValid && dAge >= dMinCoinAge)
 		{
+			if (fDebugMaster) LogPrintf(" UTXOAge %f, Amount %f ", dAge, dAmount);
 			WriteCache("UTXOWeight", t.sCPID, RoundToString(dAmount, 0), t.nTime);
 			WriteCache("CPIDTasks", t.sCPID, t.sPODCTasks, t.nTime);
 			if (IsMature(t.nTime, 14400))
@@ -8311,7 +8344,7 @@ TxMessage GetTxMessage(std::string sMessage, int64_t nTime, int iPosition, std::
 }
 
 
-void MemorizePrayer(std::string sMessage, int64_t nTime, double dAmount, int iPosition, std::string sTxID, int nHeight, double dFoundationDonation)
+void MemorizePrayer(std::string sMessage, int64_t nTime, double dAmount, int iPosition, std::string sTxID, int nHeight, double dFoundationDonation, double dAge, double dMinCoinAge)
 {
 	if (sMessage.empty()) return;
 	TxMessage t = GetTxMessage(sMessage, nTime, iPosition, sTxID, dAmount, dFoundationDonation, nHeight);
@@ -8321,7 +8354,7 @@ void MemorizePrayer(std::string sMessage, int64_t nTime, double dAmount, int iPo
 		WriteCache("IPFSFEE" + RoundToString(nTime, 0), t.sIPFSHash, RoundToString(dFoundationDonation, 0), nTime);
 		WriteCache("IPFSSIZE" + RoundToString(nTime, 0), t.sIPFSHash, t.sIPFSSize, nTime);
 	}
-	MemorizeUTXOWeight(t, dAmount);
+	MemorizeUTXOWeight(t, dAmount, dAge, dMinCoinAge);
 	if (t.fPassedSecurityCheck && !t.sMessageType.empty() && !t.sMessageKey.empty() && !t.sMessageValue.empty())
 	{
 		WriteCache(t.sMessageType, t.sMessageKey, t.sMessageValue, nTime);

@@ -53,7 +53,7 @@ bool DownloadDistributedComputingFile(int iNextSuperblock, std::string& sError);
 void WriteCache(std::string section, std::string key, std::string value, int64_t locktime, bool IgnoreCase=true);
 std::string SendBlockchainMessage(std::string sType, std::string sPrimaryKey, std::string sValue, double dStorageFee, bool fSign, std::string& sError);
 std::string DefaultRecAddress(std::string sType);
-std::string AddBlockchainMessages(std::string sAddress, std::string sType, std::string sPrimaryKey, std::string sHTML, CAmount nAmount, std::string& sError);
+std::string AddBlockchainMessages(std::string sAddress, std::string sType, std::string sPrimaryKey, std::string sHTML, CAmount nAmount, double dMinCoinAge, std::string& sError);
 int GetMinimumResearcherParticipationLevel();
 double GetMinimumMagnitude();
 std::string GetBoincPasswordHash(std::string sProjectPassword, std::string sProjectEmail);

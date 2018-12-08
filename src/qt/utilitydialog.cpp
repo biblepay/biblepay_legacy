@@ -36,7 +36,7 @@ std::string GetVerse(std::string sBook, int iChapter, int iVerse, int iBookStart
 std::string GetBook(int iBookNumber);
 std::string GetBookByName(std::string sName);
 void GetBookStartEnd(std::string sBook, int& iStart, int& iEnd);
-std::string AddBlockchainMessages(std::string sAddress, std::string sType, std::string sPrimaryKey, std::string sHTML, CAmount nAmount, std::string& sError);
+std::string AddBlockchainMessages(std::string sAddress, std::string sType, std::string sPrimaryKey, std::string sHTML, CAmount nAmount, double dMinCoinAge, std::string& sError);
 
 QString FromEscapedToHTML(QString qsp);
 QString FromHTMLToEscaped(QString qsp);
@@ -441,7 +441,7 @@ void HelpMessageDialog::on_btnPublishClicked()
 			const Consensus::Params& consensusParams = Params().GetConsensus();
 			std::string sFoundation = consensusParams.FoundationAddress;
 			std::string sError = "";
-			std::string sTXID = AddBlockchainMessages(sFoundation, "NEWS", FromQStringW(qsHeadline), sPreview, dCost * COIN, sError);
+			std::string sTXID = AddBlockchainMessages(sFoundation, "NEWS", FromQStringW(qsHeadline), sPreview, dCost * COIN, 0, sError);
 
 			std::string sPublished = sTXID.empty() ? "Article not published successfully. " + sError + " [Unlock wallet]." : "Article published successfully.  TXID: " + sTXID;
 			QMessageBox::warning(this, tr("Publishing Result"), ToQstring(sPublished),QMessageBox::Ok, QMessageBox::Ok);
