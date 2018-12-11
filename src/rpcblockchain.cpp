@@ -81,6 +81,8 @@ CAmount GetTitheCap(int nBlockHeight);
 double GetPOGDifficulty(int nBlockHeight);
 extern CPoolObject GetPoolVector(int iHeight, int nPaymentTier, uint256 uHash);
 void UpdatePogPool(int nHeight, int nSize);
+extern CAmount GetTitheTotal(CTransaction tx);
+void GetTxTimeAndAmount(uint256 hashInput, int hashInputOrdinal, int64_t& out_nTime, CAmount& out_caAmount);
 // END of POG
 
 extern double GetBusinessObjectTotal(std::string sType, std::string sFieldName, int iAggregationType);
@@ -460,7 +462,7 @@ UniValue blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool tx
 			result.push_back(Pair("24_hour_tithes", (double)blockindex->n24HourTithes / COIN));
 			result.push_back(Pair("pog_difficulty", blockindex->nPOGDifficulty));
 			result.push_back(Pair("min_coin_age", blockindex->nMinCoinAge));
-			result.push_back(Pair("min_coin_amt", blockindex->nMinCoinAmount));
+			result.push_back(Pair("min_coin_amt", blockindex->nMinCoinAmount/COIN));
 			result.push_back(Pair("max_tithe_amount",(double)blockindex->nMaxTitheAmount / COIN));
 		}
 		// Proof-Of-Loyalty - 01-18-2018 - Rob A.
@@ -3572,7 +3574,7 @@ UniValue exec(const UniValue& params, bool fHelp)
 			std::string sRow = "Amount: " + RoundToString((double)(oTithe.Amount/COIN),2) 
 				+ ", Weight: " + RoundToString(oTithe.Weight, 4) 
 				+ ", Payment_Tier: " + RoundToString(oTithe.PaymentTier, 0) 
-				+ ", Height: " + RoundToString(oTithe.Height, 0) + ", Address: " + oTithe.Address + ", NickName: " + oTithe.NickName;
+				+ ", Height: " + RoundToString(oTithe.Height, 0) + ", NickName: " + oTithe.NickName;
 
 			results.push_back(Pair(oTithe.Address, sRow));
 		}
@@ -3584,6 +3586,8 @@ UniValue exec(const UniValue& params, bool fHelp)
 		}
 		results.push_back(Pair("High Tithe", (double)c.nHighTithe/COIN));
 		results.push_back(Pair("Total Tithes", (double)c.TotalTithes/COIN));
+		double dPD = GetPOGDifficulty(nHeight);
+		results.push_back(Pair("POG Difficulty", dPD));
 
 		// Show the user their own stats 
 		results.push_back(Pair("My Tithes", (double)c.UserTithes/COIN));
@@ -3624,7 +3628,7 @@ UniValue exec(const UniValue& params, bool fHelp)
 		// check the tithe params
 		TitheDifficultyParams tdp = GetTitheParams(chainActive.Tip()->nHeight);
 		results.push_back(Pair("min_coin_age", tdp.min_coin_age));
-		results.push_back(Pair("min_coin_amt", tdp.min_coin_amount));
+		results.push_back(Pair("min_coin_amt", tdp.min_coin_amount / COIN));
 		results.push_back(Pair("max_tithe_amount", tdp.max_tithe_amount / COIN));
 
 		std::map<double, CAmount> dtb = pwalletMain->GetDimensionalCoins(tdp.min_coin_age, tdp.min_coin_amount);
@@ -3694,6 +3698,43 @@ UniValue exec(const UniValue& params, bool fHelp)
 	{
 		UpdatePogPool(chainActive.Tip()->nHeight, 205);
 		results.push_back(Pair("Updated", 1));
+	}
+	else if (sItem == "istithelegal")
+	{
+		if (params.size() != 2)
+			throw runtime_error("You must specify txid.");
+		std::string sTxId = params[1].get_str();
+		CTransaction txTithe;
+		uint256 hashBlockTithe;
+		uint256 uTxTithe = ParseHashV(sTxId, "txid");
+
+		if (GetTransaction(uTxTithe, txTithe, Params().GetConsensus(), hashBlockTithe, true))
+		{
+			uint256 hashInput = txTithe.vin[0].prevout.hash;
+			int hashInputOrdinal = txTithe.vin[0].prevout.n;
+			int64_t nTxTime = 0;
+			CAmount caAmount = 0;
+			GetTxTimeAndAmount(hashInput, hashInputOrdinal, nTxTime, caAmount);
+			if (mapBlockIndex.count(hashBlockTithe) == 0) throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
+		    CBlockIndex* pindex = mapBlockIndex[hashBlockTithe];
+			double nTitheAge = (double)(pindex->GetBlockTime() - nTxTime) / 86400;
+			bool bTitheLegal = (nTitheAge >= pindex->nMinCoinAge && caAmount >= pindex->nMinCoinAmount);
+			
+			CAmount nTotal = GetTitheTotal(txTithe);
+
+			results.push_back(Pair("Tithe_Legal", bTitheLegal));
+			results.push_back(Pair("Tithe_Age", nTitheAge));
+			results.push_back(Pair("Tithe_Spent_Coin_Amount", (double)(caAmount/COIN)));
+			results.push_back(Pair("Tithe_Amount", (double)(nTotal/COIN)));
+			results.push_back(Pair("Block_diff_min_coin_age", pindex->nMinCoinAge));
+			results.push_back(Pair("Block_diff_min_coin_amt", (double)(pindex->nMinCoinAmount/COIN)));
+			results.push_back(Pair("Block_diff_max_tithe_amt", (double)(pindex->nMaxTitheAmount/COIN)));
+			results.push_back(Pair("Tithed_Height", pindex->nHeight));
+		}
+		else
+		{
+			results.push_back(Pair(sTxId,"Cant locate tithe."));
+		}
 	}
 	else if (sItem == "datalist")
 	{
@@ -3926,6 +3967,23 @@ std::string AddBlockchainMessages(std::string sAddress, std::string sType, std::
 
 	std::string sTxId = wtx.GetHash().GetHex();
 	return sTxId;
+}
+
+
+CAmount GetTitheTotal(CTransaction tx)
+{
+	CAmount nTotal = 0;
+	const Consensus::Params& consensusParams = Params().GetConsensus();
+    
+	for (int i=0; i < (int)tx.vout.size(); i++)
+	{
+ 		std::string sRecipient = PubKeyToAddress(tx.vout[i].scriptPubKey);
+		if (sRecipient == consensusParams.FoundationAddress)
+		{ 
+			nTotal += tx.vout[i].nValue;
+		}
+	 }
+	 return nTotal;
 }
 
 std::string CreateBankrollDenominations(double nQuantity, CAmount denominationAmount, std::string& sError)

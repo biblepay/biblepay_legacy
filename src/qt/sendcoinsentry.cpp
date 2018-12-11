@@ -144,7 +144,8 @@ void SendCoinsEntry::initPOGDifficulty()
 	{
 		TitheDifficultyParams tdp = GetTitheParams(chainActive.Tip()->nHeight);
 		double pog_diff = GetPOGDifficulty(chainActive.Tip()->nHeight);
-		std::string sValue = "POG Difficulty: " + RoundToString(pog_diff, 4) + ", MinCoinAge: " + RoundToString(tdp.min_coin_age, 4) + ", MinCoinValue: " + RoundToString(tdp.min_coin_amount, 4) 
+		std::string sValue = "POG Difficulty: " + RoundToString(pog_diff, 4) + ", MinCoinAge: " + RoundToString(tdp.min_coin_age, 4) 
+			+ ", MinCoinValue: " + RoundToString((double)(tdp.min_coin_amount/COIN), 4) 
 				+ ", MaxTitheAmount: " + RoundToString((double)(tdp.max_tithe_amount/COIN), 4);
 		std::string sCSS = "QLabel { background-color : transparent; color: red; }";
 		ui->lblPogDifficulty->setStyleSheet(ToQstring(sCSS));
@@ -181,15 +182,13 @@ void SendCoinsEntry::initPOGDifficulty()
 			+ RoundToString(nAvgAge, 4) 
 			+ ", TotalTitheBalance: " 
 			+ RoundToString((double)nTotal/COIN, 2) + ", Tithability: " + RoundToString((double)nTithability/COIN, 4) + ", Summary: " + sSummary;
-
-
+		
 		ui->lblTitheAbility->setStyleSheet(ToQstring(sCSS));
 		ui->lblTitheAbilityCaption->setStyleSheet(ToQstring(sCSS));
 		ui->lblTitheAbilityCaption->setVisible(true);
 		ui->lblTitheAbilityCaption->setText(ToQstring("Tithe Ability:"));
 		ui->lblTitheAbility->setText(ToQstring(sTitheValue));
 		ui->lblTitheAbility->setVisible(true);
-
     }
 	else
 	{
