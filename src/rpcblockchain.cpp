@@ -3669,7 +3669,7 @@ UniValue exec(const UniValue& params, bool fHelp)
 		TitheDifficultyParams tdp = GetTitheParams(chainActive.Tip()->nHeight);
 		if (params.size() == 2)
 		{	
-			dMinCoinAge = tdp.min_coinAge;
+			dMinCoinAge = tdp.min_coin_age;
 			caMinCoinAmount = tdp.min_coin_amount;
 		}
 
