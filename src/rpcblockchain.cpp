@@ -3659,12 +3659,20 @@ UniValue exec(const UniValue& params, bool fHelp)
 	}
 	else if (sItem == "tithe")
 	{
-		if (params.size() != 4)
+		if (params.size() != 4 && params.size() != 2)
 			throw runtime_error("You must specify amount, min_coin_age (days), min_coin_amount.  IE: exec tithe 200 1 1000.");
 
 		CAmount caAmount = cdbl(params[1].get_str(), 4) * COIN;
 		double dMinCoinAge = cdbl(params[2].get_str(), 4);
 		CAmount caMinCoinAmount = cdbl(params[3].get_str(), 4) * COIN;
+
+		TitheDifficultyParams tdp = GetTitheParams(chainActive.Tip()->nHeight);
+		if (params.size() == 2)
+		{	
+			dMinCoinAge = tdp.min_coinAge;
+			caMinCoinAmount = tdp.min_coin_amount;
+		}
+
 		std::string sError = "";
 		std::string sTxId = SendTithe(caAmount, dMinCoinAge, caMinCoinAmount, sError);
 		if (!sError.empty())
