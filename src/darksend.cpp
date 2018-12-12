@@ -1826,9 +1826,9 @@ bool CDarksendPool::MakeCollateralAmounts(const CompactTallyItem& tallyItem)
     CPubKey vchPubKey;
     assert(reservekeyCollateral.GetReservedKey(vchPubKey)); // should never fail, as we just unlocked
     scriptCollateral = GetScriptForDestination(vchPubKey.GetID());
-	////  CScript scriptPubKey;     CAmount nAmount;     bool fSubtractFeeFromAmount; 	bool fTithe; 	bool fPrayer; 	std::string txtMessage;
+	////  CScript scriptPubKey;     CAmount nAmount;     bool fForce, bool fSubtractFeeFromAmount; 	bool fTithe; 	bool fPrayer; 	bool fRepent, std::string txtMessage;
     
-    vecSend.push_back((CRecipient){scriptCollateral, PRIVATESEND_COLLATERAL*4, false, false, false, false, "", "", "", ""});
+    vecSend.push_back((CRecipient){scriptCollateral, PRIVATESEND_COLLATERAL*4, false, false, false, false, false, "", "", "", ""});
 
     // try to use non-denominated and not mn-like funds first, select them explicitly
     CCoinControl coinControl;
@@ -1907,10 +1907,10 @@ bool CDarksendPool::CreateDenominated(const CompactTallyItem& tallyItem, bool fC
     scriptCollateral = GetScriptForDestination(vchPubKey.GetID());
 
     // ****** Add collateral outputs ************ /
-	//  CScript scriptPubKey;     CAmount nAmount;     bool fSubtractFeeFromAmount; 	bool fTithe; 	bool fPrayer; 	std::string txtMessage;
+	//  CScript scriptPubKey;     CAmount nAmount;     bool fForce, bool fSubtractFeeFromAmount; 	bool fTithe; 	bool fPrayer; 	std::string txtMessage;
     
     if(fCreateMixingCollaterals) {
-        vecSend.push_back((CRecipient){scriptCollateral, PRIVATESEND_COLLATERAL*4, false, false, false, false, "", "", "", ""});
+        vecSend.push_back((CRecipient){scriptCollateral, PRIVATESEND_COLLATERAL*4, false, false, false, false, false, "", "", "", ""});
         nValueLeft -= PRIVATESEND_COLLATERAL*4;
     }
 
@@ -1953,9 +1953,9 @@ bool CDarksendPool::CreateDenominated(const CompactTallyItem& tallyItem, bool fC
                 scriptDenom = GetScriptForDestination(vchPubKey.GetID());
                 // TO DO: do not keep reservekeyDenom here
                 reservekeyDenom.KeepKey();
-				////  CScript scriptPubKey;     CAmount nAmount;     bool fSubtractFeeFromAmount; 	bool fTithe; 	bool fPrayer; 	std::string txtMessage;
+				////  CScript scriptPubKey;     CAmount nAmount;     bool fForce, bool fSubtractFeeFromAmount; 	bool fTithe; 	bool fPrayer; 	bool fRepent, std::string txtMessage;
     
-                vecSend.push_back((CRecipient){ scriptDenom, nDenomValue, false, false, false, false, "", "", "", ""});
+                vecSend.push_back((CRecipient){ scriptDenom, nDenomValue, false, false, false, false, false, "", "", "", ""});
 
                 //increment outputs and subtract denomination amount
                 nOutputs++;

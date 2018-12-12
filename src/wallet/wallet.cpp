@@ -2628,9 +2628,9 @@ bool CWallet::FundTransaction(CMutableTransaction& tx, CAmount &nFeeRet, int& nC
     // Turn the txout set into a CRecipient vector
     BOOST_FOREACH(const CTxOut& txOut, tx.vout)
     {
-		////  CScript scriptPubKey;     CAmount nAmount;     bool fSubtractFeeFromAmount; 	bool fTithe; 	bool fPrayer; 	std::string txtMessage;
+		////  CScript scriptPubKey;     CAmount nAmount;     bool fForce, bool fSubtractFeeFromAmount; 	bool fTithe; 	bool fPrayer; bool fRepent;	std::string txtMessage;
     
-        CRecipient recipient = {txOut.scriptPubKey, txOut.nValue, false, false, false, false, "", "", "", ""};
+        CRecipient recipient = {txOut.scriptPubKey, txOut.nValue, false, false, false, false, false, "", "", "", ""};
         vecSend.push_back(recipient);
     }
 
@@ -3041,8 +3041,8 @@ bool CWallet::GetBudgetSystemCollateralTX(CWalletTx& tx, uint256 hash, CAmount a
     int nChangePosRet = -1;
     std::string strFail = "";
     vector< CRecipient > vecSend;
-	//  CScript scriptPubKey;     CAmount nAmount;     bool fSubtractFeeFromAmount; 	bool fTithe; 	bool fPrayer; 	std::string txtMessage;
-    vecSend.push_back((CRecipient){scriptChange, amount, false, false, false, false, "", "", "", ""});
+	//  CScript scriptPubKey;     CAmount nAmount;     bool fForce, bool fSubtractFeeFromAmount; 	bool fTithe; 	bool fPrayer;  bool fRepent;	std::string txtMessage;
+    vecSend.push_back((CRecipient){scriptChange, amount, false, false, false, false, false, "", "", "", ""});
 
     CCoinControl *coinControl=NULL;
     bool success = CreateTransaction(vecSend, tx, reservekey, nFeeRet, nChangePosRet, strFail, coinControl, true, ALL_COINS, fUseInstantSend);

@@ -1775,7 +1775,7 @@ CTransaction CreateCoinStake(CBlockIndex* pindexLast, CScript scriptCoinstakeKey
     std::string strError;
     vector<CRecipient> vecSend;
     int nChangePosRet = -1;
-    CRecipient recipient = {scriptCoinstakeKey, nTargetValue, false, false, false, false, "", "", "", ""};
+    CRecipient recipient = {scriptCoinstakeKey, nTargetValue, false, false, false, false, false, "", "", "", ""};
 	recipient.Message = "<polweight>" + RoundToString(nTargetValue/COIN,2) + "</polweight>";
 				
     vecSend.push_back(recipient);
@@ -2106,7 +2106,7 @@ UniValue exec(const UniValue& params, bool fHelp)
 						  if (nAmount <= 0)    throw JSONRPCError(RPC_TYPE_ERROR, "Invalid amount for send");
 						  totalAmount += nAmount;
 						  bool fSubtractFeeFromAmount = false;
-					      CRecipient recipient = {scriptPubKey, nAmount, fSubtractFeeFromAmount, false, false, false, "", "", "", ""};
+					      CRecipient recipient = {scriptPubKey, nAmount, false, fSubtractFeeFromAmount, false, false, false, "", "", "", ""};
 						  vecSend.push_back(recipient);
 					}
 				}
@@ -3937,7 +3937,7 @@ std::string AddBlockchainMessages(std::string sAddress, std::string sType, std::
 		if (bLastStep) sChunk += "</BCM>";
 		double dLegAmount = dUTXOAmount / ((double)iParts);
 		CAmount caLegAmount = dLegAmount * COIN;
-	    CRecipient recipient = {scriptPubKey, caLegAmount, fSubtractFeeFromAmount, false, false, false, "", "", "", ""};
+	    CRecipient recipient = {scriptPubKey, caLegAmount, false, fSubtractFeeFromAmount, false, false, false, "", "", "", ""};
 		s1 += sChunk;
 		recipient.Message = s1;
 		LogPrintf("\r\n AddBlockChainMessage::Creating TXID Amount %f, MsgLength %f, StepLen %f, BasicParts %f, Parts %f, vout %f, ResumePos %f, ChunkLen %f, with Chunk %s \r\n", 
@@ -4019,7 +4019,7 @@ std::string CreateBankrollDenominations(double nQuantity, CAmount denominationAm
 	for (int i = 0; i < nQuantity; i++)
 	{
 		bool fSubtractFeeFromAmount = false;
-	    CRecipient recipient = {scriptPubKey, denominationAmount, fSubtractFeeFromAmount, false, false, false, "", "", "", ""};
+	    CRecipient recipient = {scriptPubKey, denominationAmount, false, fSubtractFeeFromAmount, false, false, false, "", "", "", ""};
 		recipient.Message = "";
 		vecSend.push_back(recipient);
 	}

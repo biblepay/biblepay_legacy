@@ -154,6 +154,7 @@ void SendCoinsEntry::initPOGDifficulty()
 		ui->lblPogDifficultyCaption->setText(ToQstring("POG:"));
 		ui->lblPogDifficulty->setText(ToQstring(sValue));
 		ui->lblPogDifficulty->setVisible(true);
+		ui->lblCheckboxes->setVisible(false);
 
 		std::map<double, CAmount> dtb = pwalletMain->GetDimensionalCoins(tdp.min_coin_age, tdp.min_coin_amount);
 		CAmount nTotal = 0;
@@ -196,6 +197,7 @@ void SendCoinsEntry::initPOGDifficulty()
 		ui->lblPogDifficulty->setVisible(false);
 		ui->lblTitheAbilityCaption->setVisible(false);
 		ui->lblTitheAbility->setVisible(false);
+		ui->lblCheckboxes->setVisible(false);
 	}
 }
 
@@ -341,6 +343,7 @@ SendCoinsRecipient SendCoinsEntry::getValue()
     recipient.amount = ui->payAmount->value();
     recipient.message = ui->messageTextLabel->text();
     recipient.fSubtractFeeFromAmount = (ui->checkboxSubtractFeeFromAmount->checkState() == Qt::Checked);
+	recipient.fForce = (ui->chkForceTithe->checkState() == Qt::Checked);
 	recipient.fTithe = (ui->checkboxTithe->checkState() == Qt::Checked);
 	recipient.fPrayer = (ui->checkboxPrayer->checkState() == Qt::Checked);
 	recipient.fRepent = (ui->checkboxRepent->checkState() == Qt::Checked);

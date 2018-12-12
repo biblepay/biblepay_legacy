@@ -978,6 +978,7 @@ void SendCoinsDialog::coinControlUpdateLabels()
     // set pay amounts
     CoinControlDialog::payAmounts.clear();
     CoinControlDialog::fSubtractFeeFromAmount = false;
+	CoinControlDialog::fForce = false;
 	CoinControlDialog::fTithe = false;
 	CoinControlDialog::fPrayer = false;
 	CoinControlDialog::fRepent = false;
@@ -991,6 +992,7 @@ void SendCoinsDialog::coinControlUpdateLabels()
             CoinControlDialog::payAmounts.append(rcp.amount);
             if (rcp.fSubtractFeeFromAmount)
                 CoinControlDialog::fSubtractFeeFromAmount = true;
+			if (rcp.fForce) CoinControlDialog::fForce = true;
 			if (rcp.fTithe) CoinControlDialog::fTithe = true;
 			if (rcp.fPrayer) CoinControlDialog::fPrayer = true;
 			if (rcp.fRepent) CoinControlDialog::fRepent = true;

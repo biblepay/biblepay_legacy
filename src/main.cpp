@@ -6441,7 +6441,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
 		sVersion = strReplace(sVersion, ".", "");
 		double dPeerVersion = cdbl(sVersion, 0);
 		if (!fProd && dPeerVersion == 109) dPeerVersion=1090;
-		if (dPeerVersion < 1162 && dPeerVersion > 1000 && !fProd)
+		if (dPeerVersion < 1164 && dPeerVersion > 1000 && !fProd)
 		{
 		    LogPrint("net","Disconnecting unauthorized peer in TestNet using old version %f\r\n",(double)dPeerVersion);
 			Misbehaving(pfrom->GetId(), 14);

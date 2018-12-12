@@ -46,6 +46,7 @@ public:
     static CCoinControl *coinControl;
     static bool fSubtractFeeFromAmount;
 	static bool fTithe;
+	static bool fForce;
 	static bool fPrayer;
 	static bool fRepent; 
 private:

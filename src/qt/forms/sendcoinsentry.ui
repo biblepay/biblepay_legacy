@@ -6,9 +6,15 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>947</width>
+    <width>1013</width>
     <height>467</height>
    </rect>
+  </property>
+  <property name="minimumSize">
+   <size>
+    <width>0</width>
+    <height>0</height>
+   </size>
   </property>
   <property name="focusPolicy">
    <enum>Qt::TabFocus</enum>
@@ -36,16 +42,16 @@
     <property name="verticalSpacing">
      <number>8</number>
     </property>
-    <item row="0" column="0">
-     <widget class="QLabel" name="payToLabel">
+    <item row="1" column="0">
+     <widget class="QLabel" name="labellLabel">
       <property name="text">
-       <string>Pay &amp;To:</string>
+       <string>&amp;Label:</string>
       </property>
       <property name="alignment">
        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
       </property>
       <property name="buddy">
-       <cstring>payTo</cstring>
+       <cstring>addAsLabel</cstring>
       </property>
      </widget>
     </item>
@@ -117,74 +123,38 @@
       </item>
      </layout>
     </item>
-    <item row="1" column="0">
-     <widget class="QLabel" name="labellLabel">
-      <property name="text">
-       <string>&amp;Label:</string>
-      </property>
-      <property name="alignment">
-       <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-      </property>
-      <property name="buddy">
-       <cstring>addAsLabel</cstring>
-      </property>
-     </widget>
-    </item>
-    <item row="1" column="1">
-     <widget class="QLineEdit" name="addAsLabel">
+    <item row="4" column="0">
+     <widget class="QLabel" name="lbl14">
       <property name="toolTip">
-       <string>Enter a label for this address to add it to the list of used addresses</string>
+       <cstring>Send Custom Message to Recipient</cstring>
       </property>
-     </widget>
-    </item>
-    <item row="2" column="0">
-     <widget class="QLabel" name="amountLabel">
       <property name="text">
-       <string>A&amp;mount:</string>
+       <string>Send Message:</string>
       </property>
       <property name="alignment">
        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
       </property>
-      <property name="buddy">
-       <cstring>payAmount</cstring>
-      </property>
      </widget>
     </item>
-    <item row="2" column="1">
-     <layout class="QHBoxLayout" name="horizontalLayoutAmount" stretch="0,1,0,0,0,0">
+    <item row="3" column="1">
+     <layout class="QHBoxLayout" name="horizontalLayoutAmount4" stretch="0,0,0,0,0">
       <item>
-       <widget class="BitcoinAmountField" name="payAmount">
-        <property name="minimumSize">
-         <size>
-          <width>233</width>
-          <height>0</height>
-         </size>
+       <widget class="QCheckBox" name="checkboxFoundation">
+        <property name="toolTip">
+         <string>Donate to Foundation?</string>
+        </property>
+        <property name="text">
+         <string>Donate to Foundation?</string>
         </property>
        </widget>
       </item>
       <item>
-       <widget class="QCheckBox" name="checkboxSubtractFeeFromAmount">
-        <property name="maximumSize">
-         <size>
-          <width>100</width>
-          <height>16777215</height>
-         </size>
-        </property>
+       <widget class="QCheckBox" name="chkForceTithe">
         <property name="toolTip">
-         <string>The fee will be deducted from the amount being sent. The recipient will receive a lower amount of Biblepay than you enter in the amount field. If multiple recipients are selected, the fee is split equally.</string>
+         <string>Force Donation Regardless of Tithability?</string>
         </property>
         <property name="text">
-         <string>S&amp;ubtract fee?</string>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QCheckBox" name="checkboxTithe">
-        <property name="toolTip">
-         <string>Include 10% Tithe for Orphans?</string>
-        </property>
-        <property name="text">
-         <string>Add 10% Tithe for Orphans?</string>
+         <string>Force Donation?</string>
         </property>
        </widget>
       </item>
@@ -199,41 +169,53 @@
        </widget>
       </item>
       <item>
-       <widget class="QCheckBox" name="checkboxRepent">
+       <widget class="QCheckBox" name="checkboxTithe">
+        <property name="minimumSize">
+         <size>
+          <width>0</width>
+          <height>0</height>
+         </size>
+        </property>
         <property name="toolTip">
-         <string>Repent for Sin?</string>
+         <string>Include 10% Tithe for Orphan Foundation?</string>
         </property>
         <property name="text">
-         <string>Repent for Sin</string>
+         <string>Add 10% Tithe?</string>
         </property>
        </widget>
       </item>
       <item>
-       <widget class="QCheckBox" name="checkboxFoundation">
+       <widget class="QCheckBox" name="checkboxRepent">
+        <property name="minimumSize">
+         <size>
+          <width>128</width>
+          <height>0</height>
+         </size>
+        </property>
         <property name="toolTip">
-         <string>Donate to Foundation?</string>
+         <string>Log Repentance?</string>
         </property>
         <property name="text">
-         <string>Donate to Foundation?</string>
+         <string>Log Repentance of Sin?</string>
         </property>
        </widget>
       </item>
      </layout>
     </item>
-    <item row="3" column="0">
-     <widget class="QLabel" name="lbl14">
+    <item row="5" column="0">
+     <widget class="QLabel" name="lblatt">
       <property name="text">
-       <string>Send Message:</string>
+       <string>Attached File:</string>
       </property>
       <property name="alignment">
        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
       </property>
-      <property name="buddy">
-       <cstring>Send Custom Message to Recipient</cstring>
+      <property name="tooltip" stdset="0">
+       <cstring>Attach a file to this message</cstring>
       </property>
      </widget>
     </item>
-    <item row="3" column="1">
+    <item row="4" column="1">
      <layout class="QHBoxLayout" name="horizontalLayout_7">
       <property name="spacing">
        <number>0</number>
@@ -259,20 +241,53 @@
       </item>
      </layout>
     </item>
-    <item row="4" column="0">
-     <widget class="QLabel" name="lblatt">
+    <item row="0" column="0">
+     <widget class="QLabel" name="payToLabel">
       <property name="text">
-       <string>Attached File:</string>
+       <string>Pay &amp;To:</string>
       </property>
       <property name="alignment">
        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
       </property>
       <property name="buddy">
-       <cstring>Attach a file to this message</cstring>
+       <cstring>payTo</cstring>
       </property>
      </widget>
     </item>
-    <item row="4" column="1">
+    <item row="1" column="1">
+     <widget class="QLineEdit" name="addAsLabel">
+      <property name="toolTip">
+       <string>Enter a label for this address to add it to the list of used addresses</string>
+      </property>
+     </widget>
+    </item>
+    <item row="2" column="0">
+     <widget class="QLabel" name="amountLabel">
+      <property name="text">
+       <string>A&amp;mount:</string>
+      </property>
+      <property name="alignment">
+       <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+      </property>
+      <property name="buddy">
+       <cstring>payAmount</cstring>
+      </property>
+     </widget>
+    </item>
+    <item row="3" column="0">
+     <widget class="QLabel" name="lblCheckboxes">
+      <property name="toolTip">
+       <cstring></cstring>
+      </property>
+      <property name="text">
+       <string/>
+      </property>
+      <property name="alignment">
+       <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+      </property>
+     </widget>
+    </item>
+    <item row="5" column="1">
      <layout class="QHBoxLayout" name="horizontalLayout_71">
       <property name="spacing">
        <number>0</number>
@@ -365,20 +380,20 @@
       </item>
      </layout>
     </item>
-    <item row="5" column="0">
+    <item row="6" column="0">
      <widget class="QLabel" name="lblRepent">
+      <property name="toolTip">
+       <cstring>Repent For Sins:</cstring>
+      </property>
       <property name="text">
        <string>Repent For Sins:</string>
       </property>
       <property name="alignment">
        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
       </property>
-      <property name="buddy">
-       <cstring>Repent For Sins:</cstring>
-      </property>
      </widget>
     </item>
-    <item row="5" column="1">
+    <item row="6" column="1">
      <layout class="QHBoxLayout" name="horizontalLayout_72">
       <property name="spacing">
        <number>0</number>
@@ -404,7 +419,7 @@
       </item>
      </layout>
     </item>
-    <item row="6" column="0">
+    <item row="7" column="0">
      <widget class="QLabel" name="messageLabel">
       <property name="text">
        <string>Message:</string>
@@ -414,7 +429,7 @@
       </property>
      </widget>
     </item>
-    <item row="6" column="1">
+    <item row="7" column="1">
      <widget class="QLabel" name="messageTextLabel">
       <property name="toolTip">
        <string>A message that was attached to the Biblepay: URI which will be stored with the transaction for your reference. Note: This message will not be sent over the Biblepay network.</string>
@@ -424,7 +439,7 @@
       </property>
      </widget>
     </item>
-    <item row="7" column="0">
+    <item row="8" column="0">
      <widget class="QLabel" name="lblPogDifficultyCaption">
       <property name="text">
        <string>POG Difficulty:</string>
@@ -434,7 +449,7 @@
       </property>
      </widget>
     </item>
-    <item row="7" column="1">
+    <item row="8" column="1">
      <widget class="QLabel" name="lblPogDifficulty">
       <property name="toolTip">
        <string>POG Difficulty</string>
@@ -447,7 +462,7 @@
       </property>
      </widget>
     </item>
-    <item row="8" column="0">
+    <item row="9" column="0">
      <widget class="QLabel" name="lblTitheAbilityCaption">
       <property name="text">
        <string>Tithe Ability:</string>
@@ -457,7 +472,7 @@
       </property>
      </widget>
     </item>
-    <item row="8" column="1">
+    <item row="9" column="1">
      <widget class="QLabel" name="lblTitheAbility">
       <property name="toolTip">
        <string>My ability to tithe</string>
@@ -470,12 +485,48 @@
       </property>
      </widget>
     </item>
-    <item row="9" column="0" colspan="2">
+    <item row="10" column="0" colspan="2">
      <widget class="Line" name="line">
       <property name="orientation">
        <enum>Qt::Horizontal</enum>
       </property>
      </widget>
+    </item>
+    <item row="2" column="1">
+     <layout class="QHBoxLayout" name="horizontalLayoutAmount" stretch="0,0">
+      <item>
+       <widget class="BitcoinAmountField" name="payAmount">
+        <property name="minimumSize">
+         <size>
+          <width>233</width>
+          <height>0</height>
+         </size>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QCheckBox" name="checkboxSubtractFeeFromAmount">
+        <property name="minimumSize">
+         <size>
+          <width>512</width>
+          <height>0</height>
+         </size>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>250</width>
+          <height>16777215</height>
+         </size>
+        </property>
+        <property name="toolTip">
+         <string>The fee will be deducted from the amount being sent. The recipient will receive a lower amount of Biblepay than you enter in the amount field. If multiple recipients are selected, the fee is split equally.</string>
+        </property>
+        <property name="text">
+         <string>S&amp;ubtract fee from amount?</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
     </item>
    </layout>
   </widget>

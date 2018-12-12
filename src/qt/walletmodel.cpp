@@ -242,6 +242,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
 {
     CAmount total = 0;
     bool fSubtractFeeFromAmount = false;
+	bool fForce = false;
     QList<SendCoinsRecipient> recipients = transaction.getRecipients();
     std::vector<CRecipient> vecSend;
 
@@ -266,6 +267,8 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
     {
         if (rcp.fSubtractFeeFromAmount)
             fSubtractFeeFromAmount = true;
+		if (rcp.fForce)
+			fForce = true;
 
         if (rcp.paymentRequest.IsInitialized())
         {   // PaymentRequest...
@@ -279,7 +282,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
                 const unsigned char* scriptStr = (const unsigned char*)out.script().data();
                 CScript scriptPubKey(scriptStr, scriptStr+out.script().size());
                 CAmount nAmount = out.amount();
-                CRecipient recipient = {scriptPubKey, nAmount, rcp.fSubtractFeeFromAmount, rcp.fTithe, rcp.fPrayer, rcp.fRepent, 
+                CRecipient recipient = {scriptPubKey, nAmount, rcp.fForce, rcp.fSubtractFeeFromAmount, rcp.fTithe, rcp.fPrayer, rcp.fRepent, 
 					FromQStringW(rcp.txtMessage), FromQStringW(rcp.txtRepent), FromQStringW(""), FromQStringW(rcp.ipfshash) };
                 vecSend.push_back(recipient);
             }
@@ -303,7 +306,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
             ++nAddresses;
 
             CScript scriptPubKey = GetScriptForDestination(CBitcoinAddress(rcp.address.toStdString()).Get());
-            CRecipient recipient = {scriptPubKey, rcp.amount, rcp.fSubtractFeeFromAmount, rcp.fTithe, rcp.fPrayer, rcp.fRepent, 
+            CRecipient recipient = {scriptPubKey, rcp.amount, rcp.fForce, rcp.fSubtractFeeFromAmount, rcp.fTithe, rcp.fPrayer, rcp.fRepent, 
 				FromQStringW(rcp.txtMessage), FromQStringW(rcp.txtRepent), FromQStringW(""), FromQStringW(rcp.ipfshash) };
 			//If TITHE is Checked, add a recipient here
 
@@ -326,7 +329,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
 			{
 				CAmount aTitheAmount = rcp.amount * .10;
 				CScript spkFoundation = GetScriptForDestination(CBitcoinAddress(consensusParams.FoundationAddress).Get());
-	            CRecipient recFoundation = {spkFoundation, aTitheAmount, false, true, rcp.fPrayer, rcp.fRepent, FromQStringW(rcp.txtMessage), 
+	            CRecipient recFoundation = {spkFoundation, aTitheAmount, rcp.fForce, false, true, rcp.fPrayer, rcp.fRepent, FromQStringW(rcp.txtMessage), 
 					FromQStringW(rcp.txtRepent), FromQStringW(""), FromQStringW(rcp.ipfshash) };
 				std::string sAddrF = PubKeyToAddress(spkFoundation);
 				setAddress.insert(ToQstring(sAddrF));
@@ -354,7 +357,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
 					CAmount aIPFSFee = dCostPerByte * nFileSize * COIN;
 					const Consensus::Params& consensusParams = Params().GetConsensus();
 					CScript spkFoundation = GetScriptForDestination(CBitcoinAddress(consensusParams.FoundationPODSAddress).Get());
-		            CRecipient recFoundation = {spkFoundation, aIPFSFee, false, true, rcp.fPrayer, rcp.fRepent, FromQStringW(rcp.txtMessage), FromQStringW(rcp.txtRepent), FromQStringW(""), FromQStringW(rcp.ipfshash) };
+		            CRecipient recFoundation = {spkFoundation, aIPFSFee, rcp.fForce, false, true, rcp.fPrayer, rcp.fRepent, FromQStringW(rcp.txtMessage), FromQStringW(rcp.txtRepent), FromQStringW(""), FromQStringW(rcp.ipfshash) };
 					std::string sAddrF = PubKeyToAddress(spkFoundation);
 					setAddress.insert(ToQstring(sAddrF));
             		++nAddresses;
@@ -437,19 +440,20 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
 			caMaxTitheAmount = tdp.max_tithe_amount;
 		}
 	
-
         bool fCreated = wallet->CreateTransaction(vecSend, *newTx, *keyChange, nFeeRequired, nChangePosRet, strFailReason, coinControl, true, recipients[0].inputType, recipients[0].fUseInstantSend, 0, dMinCoinAge, caMinCoinAmount);
 
         transaction.setTransactionFee(nFeeRequired);
         if (fSubtractFeeFromAmount && fCreated)
             transaction.reassignAmounts(nChangePosRet);
-
-		if (fTithed && total > caMaxTitheAmount)
+		if (!fForce)
 		{
-			Q_EMIT message(tr("Send Coins"), tr("Your tithe exceeds the current maximum tithe for this difficulty level of %1 biblepay.").arg(caMaxTitheAmount/COIN),
-                             CClientUIInterface::MSG_ERROR);
-                return TransactionCreationFailed;
-        }
+			if (fPOGEnabled && fTithed && total > caMaxTitheAmount)
+			{
+				Q_EMIT message(tr("Send Coins"), tr("Your tithe exceeds the current maximum tithe for this difficulty level of %1 biblepay.").arg(caMaxTitheAmount/COIN),
+								 CClientUIInterface::MSG_ERROR);
+					return TransactionCreationFailed;
+			}
+		}
 
         if(recipients[0].fUseInstantSend) {
             if(newTx->GetValueOut() > sporkManager.GetSporkValue(SPORK_5_INSTANTSEND_MAX_VALUE)*COIN) {

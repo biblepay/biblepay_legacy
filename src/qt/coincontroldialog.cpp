@@ -39,6 +39,7 @@ QList<CAmount> CoinControlDialog::payAmounts;
 CCoinControl* CoinControlDialog::coinControl = new CCoinControl();
 bool CoinControlDialog::fSubtractFeeFromAmount = false;
 bool CoinControlDialog::fTithe = false;
+bool CoinControlDialog::fForce = false;
 bool CoinControlDialog::fPrayer = false;
 bool CoinControlDialog::fRepent = false;
 

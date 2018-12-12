@@ -154,6 +154,7 @@ struct CRecipient
 {
     CScript scriptPubKey;
     CAmount nAmount;
+	bool fForce;
     bool fSubtractFeeFromAmount;
 	bool fTithe;
 	bool fPrayer;
