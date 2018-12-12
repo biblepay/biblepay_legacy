@@ -987,10 +987,13 @@ UniValue getgovernanceinfo(const UniValue& params, bool fHelp)
     obj.push_back(Pair("superblockcycle", Params().GetConsensus().nSuperblockCycle));
     obj.push_back(Pair("lastsuperblock", nLastSuperblock));
     obj.push_back(Pair("nextsuperblock", nNextSuperblock));
-	double nBudget = CSuperblock::GetPaymentsLimit(nNextSuperblock) / COIN;
-	obj.push_back(Pair("nextbudget", nBudget));
-	CAmount caTithe_Cap = GetTitheCap(nNextSuperblock);
-	if (fPOGEnabled) obj.push_back(Pair("next_monthly_pog_budget", caTithe_Cap / COIN));
+	if (nBlockHeight > 0 && nNextSuperblock > 0)
+	{
+		double nBudget = CSuperblock::GetPaymentsLimit(nNextSuperblock) / COIN;
+		obj.push_back(Pair("nextbudget", nBudget));
+		CAmount caTithe_Cap = GetTitheCap(nNextSuperblock);
+		if (fPOGEnabled) obj.push_back(Pair("next_monthly_pog_budget", caTithe_Cap / COIN));
+	}
 				
     return obj;
 }
