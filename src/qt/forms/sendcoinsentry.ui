@@ -508,7 +508,7 @@
        <widget class="QCheckBox" name="checkboxSubtractFeeFromAmount">
         <property name="minimumSize">
          <size>
-          <width>512</width>
+          <width>125</width>
           <height>0</height>
          </size>
         </property>
