@@ -347,9 +347,7 @@ CBlockTemplate* CreateNewBlock(const CChainParams& chainparams, const CScript& s
 			txNew.vout[0].sTxOutMessage += "<MINERGUID>" + sMinerGuid + "</MINERGUID>";
 		}
 
-		CAmount n24HourTithes = Get24HourTithes(pindexPrev->nHeight, BLOCKS_PER_DAY);
-		txNew.vout[0].sTxOutMessage += "<24HRTITHES>" + RoundToString((double)(n24HourTithes / COIN), 2) + "</24HRTITHES>";
-
+		
         // Update coinbase transaction with additional info about masternode and governance payments,
         // get some info back to pass to getblocktemplate
         FillBlockPayments(txNew, nHeight, blockReward, blockRewardWithoutFees, nFees, 0, pblock->txoutMasternode, pblock->voutSuperblock);

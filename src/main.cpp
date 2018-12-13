@@ -3845,7 +3845,7 @@ bool static ConnectTip(CValidationState& state, const CChainParams& chainparams,
     // Update chainActive & related variables.
     UpdateTip(pindexNew);
 	int64_t nAge = GetAdjustedTime() - pindexNew->GetBlockTime();
-	if (nAge < (60 * 60 * 24)) UpdatePogPool(pindexNew->nHeight, 2);
+	if (nAge < (60 * 60 * 24)) UpdatePogPool(pindexNew->nHeight, 205);
 
     // Tell wallet about transactions that went from mempool
     // to conflicted:
@@ -4711,9 +4711,9 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIn
 		 return false;
 	}
 
-	if (!fProd && nHeight > FPOG_CUTOVER_HEIGHT_TESTNET && dBlockVersion < 1164)
+	if (!fProd && nHeight > FPOG_CUTOVER_HEIGHT_TESTNET && dBlockVersion < 1165)
 	{
-		 LogPrintf("ContextualCheckBlock::ERROR Rejecting testnet block version %f at height %f \n",(double)dBlockVersion,(double)nHeight);
+		 if (false) LogPrintf("ContextualCheckBlock::ERROR Rejecting testnet block version %f at height %f \n",(double)dBlockVersion,(double)nHeight);
 		 return false;
 	}
 
@@ -4733,13 +4733,6 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIn
 					if (!fVerified && nHeight > 86630)
 					{
 						LogPrintf("\nContextualCheckBlock::ERROR - POG Recipients invalid at height %f ", nHeight);
-					}
-					CAmount cTitheNew = cdbl(ExtractXML(block.vtx[0].vout[0].sTxOutMessage, "<24HRTITHES>", "</24HRTITHES>"), 2) * COIN;
-					CAmount cTitheOld = Get24HourTithes(nHeight, 200);
-					if (cTitheNew < cTitheOld)
-					{
-						LogPrintf("\nContextualCheckBlock::ERROR - POG Recipients invalid - n24hour tithes %f < tithesOld %f, with tithes->Pprev %f ", 
-							(double)(cTitheNew/COIN), (double)(cTitheOld/COIN), (double)(pindexPrev->n24HourTithes/COIN));
 					}
 				}
 			}
@@ -6441,7 +6434,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
 		sVersion = strReplace(sVersion, ".", "");
 		double dPeerVersion = cdbl(sVersion, 0);
 		if (!fProd && dPeerVersion == 109) dPeerVersion=1090;
-		if (dPeerVersion < 1164 && dPeerVersion > 1000 && !fProd)
+		if (dPeerVersion < 1165 && dPeerVersion > 1000 && !fProd)
 		{
 		    LogPrint("net","Disconnecting unauthorized peer in TestNet using old version %f\r\n",(double)dPeerVersion);
 			Misbehaving(pfrom->GetId(), 14);
@@ -7827,6 +7820,8 @@ void UpdatePogPool(int nHeight, int nSize)
 
 	int nMaxDepth = nHeight;
 	int nMinDepth = nHeight - nSize;
+	if (nMinDepth < 1) return;
+
 	const Consensus::Params& consensusParams = Params().GetConsensus();
 	std::map<std::string, CTitheObject>::iterator itTithes;
 	
@@ -7839,7 +7834,7 @@ void UpdatePogPool(int nHeight, int nSize)
 			if (ReadBlockFromDisk(block, pindex, consensusParams, "UpdatePogPool")) 
 			{
 				CAmount nTithes = 0;
-				pindex->n24HourTithes = cdbl(ExtractXML(block.vtx[0].vout[0].sTxOutMessage, "<24HRTITHES>", "</24HRTITHES>"), 2) * COIN;
+				pindex->n24HourTithes = Get24HourTithes(pindex->nHeight - 1, BLOCKS_PER_DAY);
 				pindex->nPOGDifficulty = GetPOGDifficulty(pindex->nHeight); 
 				// Set the block parameters based on current difficulty level
 				TitheDifficultyParams tdp = GetTitheParams(pindex->nHeight);

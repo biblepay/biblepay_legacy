@@ -3566,6 +3566,7 @@ UniValue exec(const UniValue& params, bool fHelp)
 	{
 		int nHeight = chainActive.Tip()->nHeight;
 		if (params.size() == 2)	nHeight = cdbl(params[1].get_str(), 0);
+			
 		CPoolObject c = GetPoolVector(nHeight, 0, chainActive.Tip()->GetBlockHash());
 
 		BOOST_FOREACH(const PAIRTYPE(std::string, CTitheObject)& item, c.mapTithes)
@@ -3742,6 +3743,22 @@ UniValue exec(const UniValue& params, bool fHelp)
 		else
 		{
 			results.push_back(Pair(sTxId,"Cant locate tithe."));
+		}
+	}
+	else if (sItem == "mempool")
+	{
+        std::vector<uint256> vtxid;
+        mempool.queryHashes(vtxid);
+        BOOST_FOREACH(uint256& hash, vtxid) 
+		{
+             CTransaction tx;
+             bool fInMemPool = mempool.lookup(hash, tx);
+			 if (fInMemPool)
+			 {
+				 results.push_back(Pair("txid", tx.GetHash().GetHex()));
+				 std::string sRecipient = PubKeyToAddress(tx.vout[0].scriptPubKey);
+				 results.push_back(Pair("vout", sRecipient));
+			 }
 		}
 	}
 	else if (sItem == "datalist")
