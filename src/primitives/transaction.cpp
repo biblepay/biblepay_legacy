@@ -8,6 +8,7 @@
 #include "tinyformat.h"
 #include "utilstrencodings.h"
 
+bool Contains(std::string data, std::string instring);
 
 
 std::string COutPoint::ToString() const
