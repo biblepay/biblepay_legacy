@@ -8,8 +8,6 @@
 #include "tinyformat.h"
 #include "utilstrencodings.h"
 
-bool Contains(std::string data, std::string instring);
-
 
 std::string COutPoint::ToString() const
 {
@@ -64,10 +62,7 @@ uint256 CTxOut::GetHash() const
 
 std::string CTxOut::ToString() const
 {
-	// 12-12-2018 - R ANDREWS - Show User the vOut ordinal
-	std::string IsPog = (Contains(sTxOutMessage, "<POG>")) ? "POG" : "";
-	
-    return strprintf("CTxOut(nValue=%d.%08d, scriptPubKey=%s) %s", nValue / COIN, nValue % COIN, HexStr(scriptPubKey).substr(0, 30), IsPog);
+    return strprintf("CTxOut(nValue=%d.%08d, scriptPubKey=%s) ", nValue / COIN, nValue % COIN, HexStr(scriptPubKey).substr(0, 30));
 }
 
 CMutableTransaction::CMutableTransaction() : nVersion(CTransaction::CURRENT_VERSION), nLockTime(0) {}

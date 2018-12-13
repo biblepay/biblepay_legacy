@@ -497,6 +497,7 @@ UniValue gobject(const UniValue& params, bool fHelp)
 			if (dRest > 0)
 			{
 				int iRest = rand() % 1000;
+				if (iRest > 100) continue;
 				MilliSleep(dRest * iRest);
 			}
         }
