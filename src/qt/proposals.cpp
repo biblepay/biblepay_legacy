@@ -114,12 +114,14 @@ void Proposals::createUI(const QStringList &headers, const QString &pStr)
 	ui->tableWidget->setColumnWidth(1, 150);
 	ui->tableWidget->setColumnWidth(2, 80);  //Amount
 	ui->tableWidget->setColumnWidth(3, 80);  //Expense Type
-	ui->tableWidget->setColumnWidth(4, 100); //Created
+	ui->tableWidget->setColumnWidth(4, 100); //Created Date
 	ui->tableWidget->setColumnWidth(5, 50);
 
 	ui->tableWidget->setColumnWidth(6, 50);
 	ui->tableWidget->setColumnWidth(7, 65);
 	ui->tableWidget->setColumnWidth(8, 120);
+
+	ui->tableWidget->sortByColumn(4, Qt::AscendingOrder);
 
     // Connect SLOT to context menu
     connect(ui->tableWidget, SIGNAL(customContextMenuRequested(QPoint)), this, SLOT(slotCustomMenuRequested(QPoint)));

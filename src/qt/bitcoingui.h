@@ -123,7 +123,6 @@ private:
     QAction *receiveCoinsMenuAction;
 	QAction *distributedComputingAction;
 	QAction *distributedComputingMenuAction;
-	QAction *proposalAddAction;
 	QAction *proposalAddMenuAction;
 	QAction *contactAddMenuAction;
 	QAction *businessObjectListMenuAction;
@@ -150,7 +149,6 @@ private:
     QAction *showPrivateSendHelpAction;
 
     QAction *openProposalsAction;
-	QAction *openAddProposalAction;
     QAction *openFundedProposalsAction;
 
     QSystemTrayIcon *trayIcon;

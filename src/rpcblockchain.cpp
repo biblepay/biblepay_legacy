@@ -3562,6 +3562,25 @@ UniValue exec(const UniValue& params, bool fHelp)
 		results.push_back(Pair("Result", sResponse));
 		results.push_back(Pair("Error", sError));
 	}
+	else if (sItem == "pogaudit")
+	{
+		int nHeight = chainActive.Tip()->nHeight;
+		if (params.size() == 2)	nHeight = cdbl(params[1].get_str(), 0);
+		CBlockIndex* pindex = FindBlockByHeight(nHeight);
+		if (pindex)
+		{
+			BOOST_FOREACH(const PAIRTYPE(std::string, CTitheObject)& item, pindex->mapTithes)
+		    {
+				CTitheObject oTithe = item.second;
+				std::string sRow = "Amount: " + RoundToString((double)(oTithe.Amount/COIN),2) 
+					+ ", Weight: " + RoundToString(oTithe.Weight, 4) 
+					+ ", Payment_Tier: " + RoundToString(oTithe.PaymentTier, 0) 
+					+ ", Height: " + RoundToString(oTithe.Height, 0) + ", NickName: " + oTithe.NickName;
+
+				results.push_back(Pair(oTithe.Address, sRow));
+			}
+		}
+	}
 	else if (sItem == "pogpool")
 	{
 		int nHeight = chainActive.Tip()->nHeight;
@@ -4487,28 +4506,28 @@ CPoolObject GetPoolVector(int iHeight, int iPaymentTier, uint256 LastBlockHash)
 			BOOST_FOREACH(const PAIRTYPE(std::string, CTitheObject)& item, pindex->mapTithes)
 		    {
 				CTitheObject oTithe = item.second;
-	
 				CBitcoinAddress cbaAddress(oTithe.Address);
-				if (cbaAddress.IsValid() && (oTithe.Amount*COIN) > 0.01)
+				if (cbaAddress.IsValid() && (((double)(oTithe.Amount / COIN)) > 0.01))
 				{		
-					CTitheObject cTithe;
 					cPool.itTithes = cPool.mapTithes.find(oTithe.Address);
 					if (cPool.itTithes == cPool.mapTithes.end())
 					{
-						cTithe.Address = oTithe.Address;
-						cTithe.Amount = 0;
-						cPool.mapTithes.insert(std::make_pair(oTithe.Address, cTithe));
+						CTitheObject cNewTithe;
+						cNewTithe.Address = oTithe.Address;
+						cNewTithe.Amount = 0;
+						cPool.mapTithes.insert(std::make_pair(oTithe.Address, cNewTithe));
 					}
-					else
-					{
-						cTithe = cPool.mapTithes[oTithe.Address];
-					}
+					CTitheObject cTithe = cPool.mapTithes[oTithe.Address];
 					cTithe.Amount += oTithe.Amount;
 					cTithe.Height = oTithe.Height;
 					cTithe.PaymentTier = oTithe.Height % 16;
 					cTithe.NickName = oTithe.NickName;
 					cPool.mapTithes[oTithe.Address] = cTithe;
 					// LogPrintf(" Pool Source insert: amt %f ", cTithe.Amount / COIN);
+				}
+				else
+				{
+					LogPrintf(" \n Invalid-tithe found from address %s for amount of %f ", oTithe.Address.c_str(), (double)oTithe.Amount/COIN);
 				}
 			}
 		}
@@ -7464,6 +7483,43 @@ bool IsGovObjPaid(std::string sGobjId)
 	return false;
 }
 
+void GetGovSuperblockHeights(int& nNextSuperblock, int& nLastSuperblock)
+{
+    int nBlockHeight = 0;
+    {
+        LOCK(cs_main);
+        nBlockHeight = (int)chainActive.Height();
+    }
+    int nSuperblockStartBlock = Params().GetConsensus().nSuperblockStartBlock;
+    int nSuperblockCycle = Params().GetConsensus().nSuperblockCycle;
+    int nFirstSuperblockOffset = (nSuperblockCycle - nSuperblockStartBlock % nSuperblockCycle) % nSuperblockCycle;
+    int nFirstSuperblock = nSuperblockStartBlock + nFirstSuperblockOffset;
+    if(nBlockHeight < nFirstSuperblock)
+	{
+        nLastSuperblock = 0;
+        nNextSuperblock = nFirstSuperblock;
+    } else {
+        nLastSuperblock = nBlockHeight - nBlockHeight % nSuperblockCycle;
+        nNextSuperblock = nLastSuperblock + nSuperblockCycle;
+    }
+}
+
+int GetHeightByEpochTime(int64_t nEpoch)
+{
+	if (!chainActive.Tip()) return 0;
+	int nLast = chainActive.Tip()->nHeight;
+	if (nLast < 1) return 0;
+	for (int nHeight = nLast; nHeight > 0; nHeight--)
+	{
+		CBlockIndex* pindex = FindBlockByHeight(nHeight);
+		if (pindex)
+		{
+			int64_t nTime = pindex->GetBlockTime();
+			if (nEpoch > nTime) return nHeight;
+		}
+	}
+	return -1;
+}
 
 std::string GetActiveProposals()
 {
@@ -7484,6 +7540,11 @@ std::string GetActiveProposals()
 	int id = 0;
 	std::string sDelim = "|";
 	std::string sZero = "\0";
+	int nLastSuperblock = 0;
+	int nNextSuperblock = 0;
+	GetGovSuperblockHeights(nNextSuperblock, nLastSuperblock);
+
+
     BOOST_FOREACH(CGovernanceObject* pGovObj, objs)
     {
 		if(strType == "proposals" && pGovObj->GetObjectType() != GOVERNANCE_OBJECT_PROPOSAL) continue;
@@ -7491,8 +7552,12 @@ std::string GetActiveProposals()
         if(strType == "watchdogs" && pGovObj->GetObjectType() != GOVERNANCE_OBJECT_WATCHDOG) continue;
 		UniValue obj = pGovObj->GetJSONObject();
 		std::string sHash = pGovObj->GetHash().GetHex();
-		// First ensure it has not been paid already
-		bool bIsPaid = IsGovObjPaid(sHash);
+			
+		int64_t nEpoch = (int64_t)cdbl(obj["end_epoch"].get_str(), 0);
+		int nEpochHeight = GetHeightByEpochTime(nEpoch);
+
+		// First ensure the proposals gov height has not passed yet
+		bool bIsPaid = nEpochHeight < nLastSuperblock;
 		if (!bIsPaid)
 		{
 			int iYes = pGovObj->GetYesCount(VOTE_SIGNAL_FUNDING);

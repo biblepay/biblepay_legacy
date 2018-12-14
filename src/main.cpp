@@ -4711,7 +4711,7 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIn
 		 return false;
 	}
 
-	if (!fProd && nHeight > FPOG_CUTOVER_HEIGHT_TESTNET && dBlockVersion < 1165)
+	if (!fProd && nHeight > FPOG_CUTOVER_HEIGHT_TESTNET && dBlockVersion < 1166)
 	{
 		 if (false) LogPrintf("ContextualCheckBlock::ERROR Rejecting testnet block version %f at height %f \n",(double)dBlockVersion,(double)nHeight);
 		 return false;
@@ -6434,7 +6434,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
 		sVersion = strReplace(sVersion, ".", "");
 		double dPeerVersion = cdbl(sVersion, 0);
 		if (!fProd && dPeerVersion == 109) dPeerVersion=1090;
-		if (dPeerVersion < 1165 && dPeerVersion > 1000 && !fProd)
+		if (dPeerVersion < 1166 && dPeerVersion > 1000 && !fProd)
 		{
 		    LogPrint("net","Disconnecting unauthorized peer in TestNet using old version %f\r\n",(double)dPeerVersion);
 			Misbehaving(pfrom->GetId(), 14);
@@ -7738,6 +7738,22 @@ CAmount Get24HourTithes(int nHeight, int nSize)
 	return nTotal;
 }
 
+
+CAmount GetTitheAmount(CTransaction ctx)
+{
+	const Consensus::Params& consensusParams = Params().GetConsensus();
+	for (unsigned int z = 0; z < ctx.vout.size(); z++)
+	{
+		std::string sRecip = PubKeyToAddress(ctx.vout[z].scriptPubKey);
+		if (sRecip == consensusParams.FoundationAddress) 
+		{
+			return ctx.vout[z].nValue;  // First Tithe amount found in transaction counts
+		}
+	}
+	return 0;
+}
+
+
 std::string GetTitherAddress(CTransaction ctx, std::string& sNickName)
 {
 	std::string sMsg = "";
@@ -7804,8 +7820,8 @@ bool IsTitheLegal(CTransaction ctx, CBlockIndex* pindex, CAmount tithe_amount)
 	CAmount caAmount = 0;
 	GetTxTimeAndAmount(hashInput, hashInputOrdinal, nTxTime, caAmount);
 	double nTitheAge = (double)(pindex->GetBlockTime() - nTxTime) / 86400;
-	if (!fProd && fPOGEnabled && fDebugMaster) LogPrintf(" Prior Coin Amount %f, Tithe Amt %f, Tithe_height # %f, Spend_time %f, Age %f        ", (double)caAmount/COIN, 
-											(double)tithe_amount/COIN, pindex->nHeight, nTxTime, (double)nTitheAge);
+	if (false && !fProd && fPOGEnabled && fDebugMaster) LogPrintf(" Prior Coin Amount %f, Tithe Amt %f, Tithe_height # %f, Spend_time %f, Age %f        ", 
+		(double)caAmount/COIN, (double)tithe_amount/COIN, pindex->nHeight, nTxTime, (double)nTitheAge);
 	if (nTitheAge >= pindex->nMinCoinAge && caAmount >= pindex->nMinCoinAmount)
 	{
 		return true;
@@ -7846,57 +7862,45 @@ void UpdatePogPool(int nHeight, int nSize)
 				// Induct the Legal tithes - skipping the out-of-bounds tithes
 				for (unsigned int nTx = 0; nTx < block.vtx.size(); nTx++)
 				{
-					for (unsigned int i = 0; i < block.vtx[nTx].vout.size(); i++)
+					if (!block.vtx[nTx].IsCoinBase())
 					{
-						std::string sPK = PubKeyToAddress(block.vtx[nTx].vout[i].scriptPubKey);
-						if (sPK == consensusParams.FoundationAddress)
+						std::string sNickName = "";
+						std::string sTither = GetTitherAddress(block.vtx[nTx], sNickName);
+						CAmount nAmount = GetTitheAmount(block.vtx[nTx]);
+						if (!sTither.empty() && nAmount <= tdp.max_tithe_amount)
 						{
-							std::string sNickName = "";
-							std::string sTither = GetTitherAddress(block.vtx[nTx], sNickName);
-
-							if (!sTither.empty() && block.vtx[nTx].vout[i].nValue <= tdp.max_tithe_amount)
+							bool bLegalTithe = IsTitheLegal(block.vtx[nTx], pindex, nAmount);
+							// BiblePay:  In this section, a user can only get credit once per transaction for a legal tithe
+							if (bLegalTithe)		
 							{
-								bool bLegalTithe = IsTitheLegal(block.vtx[nTx], pindex, block.vtx[nTx].vout[i].nValue);
-								// BiblePay:  In this section, a user can only get credit once per transaction for a legal tithe
-								if (bLegalTithe)		
+								nTithes += nAmount;
+								itTithes = pindex->mapTithes.find(sTither);
+								if (itTithes == pindex->mapTithes.end())
 								{
-									nTithes += block.vtx[nTx].vout[i].nValue;
-									CTitheObject cTithe;
-									itTithes = pindex->mapTithes.find(sTither);
-									
-									if (itTithes == pindex->mapTithes.end())
-									{
-										cTithe.Amount = 0;
-										cTithe.Address = sTither;
-										cTithe.NickName = sNickName;
-										pindex->mapTithes.insert(std::make_pair(sTither, cTithe));
-									}
-									else
-									{
-										cTithe = pindex->mapTithes[sTither];
-									}
-									
-									cTithe.Amount += block.vtx[nTx].vout[i].nValue;
-									cTithe.Height = pindex->nHeight;
-									cTithe.NickName = sNickName;
-									pindex->mapTithes[sTither] = cTithe;
-					
-									break;
+									CTitheObject cTitheNew;
+									cTitheNew.Amount = 0;
+									cTitheNew.Address = sTither;
+									cTitheNew.NickName = sNickName;
+									pindex->mapTithes.insert(std::make_pair(sTither, cTitheNew));
 								}
+								CTitheObject cTithe = pindex->mapTithes[sTither];
+								cTithe.Amount += nAmount;
+								cTithe.Height = pindex->nHeight;
+								cTithe.NickName = sNickName;
+								pindex->mapTithes[sTither] = cTithe;
+								if (false) LogPrintf("\n Induct height %f, NN %s, amt %f -> ", cTithe.Height, sTither.c_str(), (double)cTithe.Amount/COIN);
 							}
 						}
-					}
-				}	
-				pindex->nBlockTithes = nTithes;
-			}
-			
-			/*
-			if (pindex && pindex->nBlockTithes > 0)
-			{
-				if (false) LogPrintf("\nTithes height %f    24hr tithes %f   TotalTithes %f , diff %f ", pindex->nHeight, (double)pindex->n24HourTithes, (double)(pindex->nBlockTithes/COIN), pindex->nPOGDifficulty);
-			}
-			*/
+						else if (nAmount > 0)
+						{
+							LogPrintf("\n Illegal tithe @height %f, max amount %f  amount %f vout %f ",(double)pindex->nHeight,
+								(double)tdp.max_tithe_amount/COIN, (double)nAmount/COIN, nTx);
 
+						}
+					}
+					pindex->nBlockTithes = nTithes;
+				}
+			}
 		}
 	}
 }
