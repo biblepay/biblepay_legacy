@@ -54,7 +54,10 @@ static const bool DEFAULT_WHITELISTFORCERELAY = true;
  * We are ~100 times smaller then bitcoin now (2016-03-01), set minRelayTxFee only 10 times higher
  * so it's still 10 times lower comparing to bitcoin.
  */
-static const unsigned int DEFAULT_MIN_RELAY_TX_FEE = 10000; // was 1000
+static const unsigned int DEFAULT_MIN_RELAY_TX_FEE = 10000; // was 1000, should have been 100,000 originally, 10,000 is still infinitestimally small
+// Doing some testing in R&D, a 130 input transaction currently has a fee of .003.  This should be approx .30.  Therefore the correct value should be closer to 1,000,000.
+// ToDo: FPOG_CUTOVER_HEIGHT: Increase min_relay_tx_fee during next mandatory.
+// BiblePay's money supply is approx 100* more than DASH, so the fee should be around  1 000 000uBBP,  however I recommend we move it up incrementally starting with 100,000uBBP
 static const unsigned int TITHE_MODULUS = 10; // Number of blocks that pass between charitable tithe contributions
 
 static const std::string BUSINESS_OBJECTS = "BUSINESS_OBJECTS";
@@ -77,7 +80,7 @@ static const int F13000_CUTOVER_HEIGHT_PROD = 57700; // July 11th, 2018
 static const int F13000_CUTOVER_HEIGHT_TESTNET = 16600;
 static const int F14000_CUTOVER_HEIGHT_PROD = 77000; // October 14th, 2018
 static const int F14000_CUTOVER_HEIGHT_TESTNET = 54300; // Sep. 1, 2018
-static const int FPOG_CUTOVER_HEIGHT_TESTNET = 86970;  // Dec. 10th, 2018
+static const int FPOG_CUTOVER_HEIGHT_TESTNET = 88800;  // Dec. 17th, 2018
 static const int FPOG_CUTOVER_HEIGHT_PROD = 700000; 
 static const int MINIMUM_EMAIL_LENGTH = 5; // 3 character domain + . + 1 character name
 /** Default for -maxorphantx, maximum number of orphan transactions kept in memory */

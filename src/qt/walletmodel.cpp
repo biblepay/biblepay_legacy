@@ -36,7 +36,7 @@ double GetSporkDouble(std::string sName, double nDefault);
 int64_t GetFileSize(std::string sPath);
 std::string DefaultRecAddress(std::string sType);
 // POG
-TitheDifficultyParams GetTitheParams(int nHeight);
+TitheDifficultyParams GetTitheParams(const CBlockIndex* pindex);
 // END OF POG
 
 
@@ -434,7 +434,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
 		CAmount caMaxTitheAmount = 0;
 		if (fTithed && fPOGEnabled)
 		{
-			TitheDifficultyParams tdp = GetTitheParams(chainActive.Tip()->nHeight);
+			TitheDifficultyParams tdp = GetTitheParams(chainActive.Tip());
 			dMinCoinAge = tdp.min_coin_age;
 			caMinCoinAmount = tdp.min_coin_amount;
 			caMaxTitheAmount = tdp.max_tithe_amount;

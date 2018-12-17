@@ -318,7 +318,7 @@ void TransactionRecord::updateStatus(const CWalletTx &wtx)
         }
     }
     // For generated transactions, determine maturity
-    else if(type == TransactionRecord::Generated)
+    else if(type == TransactionRecord::Generated || type == TransactionRecord::SuperBlockPayment || type == TransactionRecord::POGPayment)
     {
         if (wtx.GetBlocksToMaturity() > 0)
         {

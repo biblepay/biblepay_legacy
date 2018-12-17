@@ -24,8 +24,8 @@ std::string GetSin(int iSinNumber, std::string& out_Description);
 bool Contains(std::string data, std::string instring);
 
 // POG
-TitheDifficultyParams GetTitheParams(int nHeight);
-double GetPOGDifficulty(int nBlockHeight);
+TitheDifficultyParams GetTitheParams(const CBlockIndex* pindex);
+double GetPOGDifficulty(const CBlockIndex* pindex);
 // End of POG
 
 
@@ -142,8 +142,8 @@ void SendCoinsEntry::initPOGDifficulty()
 	bool bDonateFoundation = (ui->checkboxFoundation->checkState() == Qt::Checked);
 	if (fPOGEnabled && bDonateFoundation)
 	{
-		TitheDifficultyParams tdp = GetTitheParams(chainActive.Tip()->nHeight);
-		double pog_diff = GetPOGDifficulty(chainActive.Tip()->nHeight);
+		TitheDifficultyParams tdp = GetTitheParams(chainActive.Tip());
+		double pog_diff = GetPOGDifficulty(chainActive.Tip());
 		std::string sValue = "POG Difficulty: " + RoundToString(pog_diff, 4) + ", MinCoinAge: " + RoundToString(tdp.min_coin_age, 4) 
 			+ ", MinCoinValue: " + RoundToString((double)(tdp.min_coin_amount/COIN), 4) 
 				+ ", MaxTitheAmount: " + RoundToString((double)(tdp.max_tithe_amount/COIN), 4);

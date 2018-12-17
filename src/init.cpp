@@ -97,7 +97,11 @@ CWallet* pwalletMain = NULL;
 void initkjv();
 uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight, const CBlockIndex* pindexLast, bool bRequireTxIndex, bool f7000, bool f8000, bool f9000, bool fTitheBlocksActive, unsigned int nNonce);
 std::string RetrieveMd5(std::string s1);
+// POG
 void UpdatePogPool(int nHeight, int nSize);
+void InitializePogPool(int nHeight, int nSize);
+// END OF POG
+
 void MemorizeBlockChainPrayers(bool fDuringConnectBlock, bool fSubThread, bool fColdBoot, bool fDuringSanctuaryQuorum);
 extern CBlock CreateGenesisBlock(const char* pszTimestamp, const CScript& genesisOutputScript, uint32_t nTime, uint32_t nNonce, uint32_t nBits, int32_t nVersion, const CAmount& genesisReward);
 bool fFeeEstimatesInitialized = false;
@@ -2198,7 +2202,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     MemorizeBlockChainPrayers(false, false, true, false);
 	if (fPOGEnabled) uiInterface.InitMessage(_("Initializing POG Pool..."));
 
-	UpdatePogPool(chainActive.Height(), 2000);
+	InitializePogPool(chainActive.Height(), 2000);
 
     //// debug print
     LogPrintf("mapBlockIndex.size() = %u\n",   mapBlockIndex.size());

@@ -71,9 +71,9 @@ std::string GetSporkValue(std::string sKey);
 bool SignCPID(std::string sCPID, std::string& sError, std::string& out_FullSig);
 bool HasThisCPIDSolvedPriorBlocks(std::string CPID, CBlockIndex* pindexPrev);
 // POG
-CAmount SelectCoinsForTithing(int nHeight);
+CAmount SelectCoinsForTithing(const CBlockIndex* pindex);
 std::string SendTithe(CAmount caTitheAmount, double dMinCoinAge, CAmount caMinCoinAmount, std::string& sError);
-TitheDifficultyParams GetTitheParams(int nHeight);
+TitheDifficultyParams GetTitheParams(const CBlockIndex* pindex);
 CAmount Get24HourTithes(int nHeight, int nSize);
 // END POG
 
@@ -743,7 +743,21 @@ void static BibleMiner(const CChainParams& chainparams, int iThreadID, int iFeat
 	int64_t nPOGTitheFrequency = cdbl(GetSporkValue("pogtithefrequency"), 0);
 	if (nPODCUpdateFrequency < (60 * 30)) nPODCUpdateFrequency = (60 * 30);
 	if (nPOGTitheFrequency == 0) nPOGTitheFrequency = (60 * 60 * 4);
-
+	double dUserTitheFrequency = cdbl(GetArg("-tithe", "0"), 2);
+	if (dUserTitheFrequency == 0)
+	{
+		nPOGTitheFrequency = -1;
+	}
+	else if (dUserTitheFrequency == 1)
+	{
+		// Use the Defaults set by the spork
+	}
+	else if (dUserTitheFrequency > 1)
+	{
+		nPOGTitheFrequency = dUserTitheFrequency * 60;
+	}
+		 
+					
 	int iFailCount = 0;
 	// This allows the miner to dictate how much sleep will occur when distributed computing is enabled.  This will let Rosetta use the maximum CPU time.  NOTE: The default is 200ms per 256 hashes.
 	double dMinerSleep = cdbl(GetArg("-minersleep", "325"), 0);
@@ -821,12 +835,12 @@ recover:
 
 			// POG - R ANDREWS - 12/6/2018 - Once every 4 hours, tithe if profitable and possible
 			int64_t nPOGTitheAge = GetAdjustedTime() - nLastPOGTithe;
-			if (fPOGEnabled && iThreadID == 0 && (nPOGTitheAge > (nPOGTitheFrequency)))
+			if (fPOGEnabled && nPOGTitheFrequency > 120 && iThreadID == 0 && (nPOGTitheAge > (nPOGTitheFrequency)))
 			{
 				nLastPOGTithe = GetAdjustedTime();
-				CAmount nTitheAmount = SelectCoinsForTithing(chainActive.Tip()->nHeight);
-				TitheDifficultyParams tdp = GetTitheParams(chainActive.Tip()->nHeight);
-				if (nTitheAmount * COIN > .01)
+				CAmount nTitheAmount = SelectCoinsForTithing(chainActive.Tip());
+				TitheDifficultyParams tdp = GetTitheParams(chainActive.Tip());
+				if (((double)(nTitheAmount / COIN)) > .01)
 				{
 					// This means we have an aged coin that meets the current round's difficulty params, go ahead and tithe it
 					if (nTitheAmount > tdp.max_tithe_amount) nTitheAmount = tdp.max_tithe_amount;

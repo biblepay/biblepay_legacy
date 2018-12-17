@@ -37,8 +37,8 @@ std::string RoundToString(double d, int place);
 CAmount GetRetirementAccountContributionAmount(int nPrevHeight);
 extern CAmount GetTxSanctuaryCollateral(const CTransaction& txNew);
 extern CAmount GetSanctuaryCollateral(CTxIn vin);
-CPoolObject GetPoolVector(int iHeight, int nPaymentTier, uint256 uHash);
-
+CPoolObject GetPoolVector(const CBlockIndex* pindex, int iPaymentTier);
+CBlockIndex* FindBlockByHeight(int nHeight);
 
 std::string GetTxOutScript(const CTransaction& tx1)
 {
@@ -351,7 +351,8 @@ void CMasternodePayments::PayPOGRecipients(CMutableTransaction& txNew, int nBloc
 	if (fPOGPaymentsEnabled)
 	{
 		int nPoolHeight = nBlockHeight - 10;
-		CPoolObject cPool = GetPoolVector(nPoolHeight, nPoolHeight % 16, uint256S("0x0"));
+		CBlockIndex* pindex = FindBlockByHeight(nPoolHeight);
+		CPoolObject cPool = GetPoolVector(pindex, nPoolHeight % 16);
 		CAmount masternodePayment = GetMasternodePayment(nBlockHeight, blockRewardWithoutFees, 0);
 		CAmount nPOWReward = blockRewardWithoutFees - masternodePayment;
 		CAmount nPOGReward = nPOWReward * .80;

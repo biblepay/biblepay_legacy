@@ -352,6 +352,7 @@ bool CBlockTreeDB::LoadBlockIndexGuts()
                 pindexNew->nTx            = diskindex.nTx;
 				// pindexNew->sBlockMessage  = diskindex.sBlockMessage;
 				pindexNew->hashBibleHash  = diskindex.hashBibleHash;
+				
 				if (diskindex.nHeight > nCheckpointHeight || diskindex.nHeight % 10 == 0)
 				{
 					if (!CheckProofOfWork(pindexNew->GetBlockHash(), pindexNew->nBits, Params().GetConsensus(), 

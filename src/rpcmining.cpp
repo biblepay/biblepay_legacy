@@ -42,9 +42,11 @@ std::string ReadCache(std::string sSection, std::string sKey);
 double GetBlockMagnitude(int nChainHeight);
 std::string TimestampToHRDate(double dtm);
 double GetDifficultyN(const CBlockIndex* blockindex, double N);
-CPoolObject GetPoolVector(int iHeight, int nPaymentTier, uint256 uHash);
-TitheDifficultyParams GetTitheParams(int nHeight);
-double GetPOGDifficulty(int nBlockHeight);
+// POG
+CPoolObject GetPoolVector(const CBlockIndex* pindex, int iPaymentTier);
+TitheDifficultyParams GetTitheParams(const CBlockIndex* pindex);
+double GetPOGDifficulty(const CBlockIndex* pblockindex);
+// END POG
 
 /**
  * Return average network hashes per second based on the last 'lookup' blocks,
@@ -366,15 +368,15 @@ UniValue getmininginfo(const UniValue& params, bool fHelp)
 	}
 	if (fPOGEnabled)
 	{
-		CPoolObject c = GetPoolVector(chainActive.Tip()->nHeight, 0, chainActive.Tip()->GetBlockHash());
+		CPoolObject c = GetPoolVector(chainActive.Tip(), 0);
 		obj.push_back(Pair("pool_high_tithe", (double)c.nHighTithe/COIN));
 		obj.push_back(Pair("pool_my_total_tithes", (double)c.UserTithes/COIN));
 		obj.push_back(Pair("pool_total_tithes", (double)c.TotalTithes/COIN));
-		obj.push_back(Pair("pog_difficulty", GetPOGDifficulty(chainActive.Tip()->nHeight))); 
-		TitheDifficultyParams tdp = GetTitheParams(chainActive.Tip()->nHeight);
+		obj.push_back(Pair("pog_difficulty", GetPOGDifficulty(chainActive.Tip()))); 
+		TitheDifficultyParams tdp = GetTitheParams(chainActive.Tip());
 		obj.push_back(Pair("pog_min_coin_age", tdp.min_coin_age));
-		obj.push_back(Pair("pog_min_coin_amount", tdp.min_coin_amount));
-		obj.push_back(Pair("pog_max_tithe_amount", (double)tdp.max_tithe_amount/COIN));
+		obj.push_back(Pair("pog_min_coin_amount", (double)tdp.min_coin_amount / COIN));
+		obj.push_back(Pair("pog_max_tithe_amount", (double)tdp.max_tithe_amount / COIN));
 	}
     return obj;
 }

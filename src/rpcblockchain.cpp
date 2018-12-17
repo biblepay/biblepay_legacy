@@ -75,14 +75,15 @@ extern std::string GetBusinessObjectList(std::string sType, std::string sFields)
 extern std::string StoreBusinessObjectWithPK(UniValue& oBusinessObject, std::string& sError);
 // POG
 extern std::string CreateBankrollDenominations(double nQuantity, CAmount denominationAmount, std::string& sError);
-TitheDifficultyParams GetTitheParams(int nHeight);
+TitheDifficultyParams GetTitheParams(const CBlockIndex* pindex);
 extern std::string SendTithe(CAmount caTitheAmount, double dMinCoinAge, CAmount caMinCoinAmount, std::string& sError);
-CAmount GetTitheCap(int nBlockHeight);
-double GetPOGDifficulty(int nBlockHeight);
-extern CPoolObject GetPoolVector(int iHeight, int nPaymentTier, uint256 uHash);
-void UpdatePogPool(int nHeight, int nSize);
+CAmount GetTitheCap(int nHeight);
+double GetPOGDifficulty(const CBlockIndex* pindex);
+extern CPoolObject GetPoolVector(const CBlockIndex* pindex, int iPaymentTier);
 extern CAmount GetTitheTotal(CTransaction tx);
 void GetTxTimeAndAmount(uint256 hashInput, int hashInputOrdinal, int64_t& out_nTime, CAmount& out_caAmount);
+double R2X(double var);
+CAmount GetDailyMinerEmissions(int nHeight);
 // END of POG
 
 extern double GetBusinessObjectTotal(std::string sType, std::string sFieldName, int iAggregationType);
@@ -462,7 +463,7 @@ UniValue blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool tx
 			result.push_back(Pair("24_hour_tithes", (double)blockindex->n24HourTithes / COIN));
 			result.push_back(Pair("pog_difficulty", blockindex->nPOGDifficulty));
 			result.push_back(Pair("min_coin_age", blockindex->nMinCoinAge));
-			result.push_back(Pair("min_coin_amt", blockindex->nMinCoinAmount/COIN));
+			result.push_back(Pair("min_coin_amt", (double)blockindex->nMinCoinAmount / COIN));
 			result.push_back(Pair("max_tithe_amount",(double)blockindex->nMaxTitheAmount / COIN));
 		}
 		// Proof-Of-Loyalty - 01-18-2018 - Rob A.
@@ -2874,6 +2875,8 @@ UniValue exec(const UniValue& params, bool fHelp)
     	std::vector<std::string> vCPIDS = Split(msGlobalCPID.c_str(),";");
 		double nTotalRAC = 0;
 		double dBiblepayTeam = cdbl(GetSporkValue("team"),0);
+		double dNonBiblepayTeamPercentage = cdbl(GetSporkValue("nonbiblepayteampercentage"), 0);
+
 		for (int i = 0; i < (int)vCPIDS.size(); i++)
 		{
 			std::string s1 = vCPIDS[i];
@@ -2887,13 +2890,11 @@ UniValue exec(const UniValue& params, bool fHelp)
 					double RAC = GetBoincRACByUserId("project1", nUserId);
 					results.push_back(Pair(s1 + "_ADDRESS", sAddress));
 					results.push_back(Pair(s1 + "_RAC", RAC));
-					LogPrintf("UserID %f %f",nUserId, GetAdjustedTime());
-		
 					double dTeam = GetBoincTeamByUserId("project1", nUserId);
 					results.push_back(Pair(s1 + "_TEAM", dTeam));
 					if (dBiblepayTeam > 0)
 					{
-						if (dBiblepayTeam != dTeam)
+						if (dBiblepayTeam != dTeam && dNonBiblepayTeamPercentage != 1)
 						{
 							results.push_back(Pair("Warning", "CPID " + s1 + " not in team Biblepay.  This CPID is not receiving rewards for cancer research."));
 						}
@@ -3585,8 +3586,11 @@ UniValue exec(const UniValue& params, bool fHelp)
 	{
 		int nHeight = chainActive.Tip()->nHeight;
 		if (params.size() == 2)	nHeight = cdbl(params[1].get_str(), 0);
-			
-		CPoolObject c = GetPoolVector(nHeight, 0, chainActive.Tip()->GetBlockHash());
+		if (nHeight < 1)	throw runtime_error("Low height.");
+		CBlockIndex* pindex = FindBlockByHeight(nHeight);
+		if (!pindex) throw runtime_error("Invalid block index.");
+
+		CPoolObject c = GetPoolVector(chainActive.Tip(), 0);
 
 		BOOST_FOREACH(const PAIRTYPE(std::string, CTitheObject)& item, c.mapTithes)
 	    {
@@ -3606,15 +3610,14 @@ UniValue exec(const UniValue& params, bool fHelp)
 		}
 		results.push_back(Pair("High Tithe", (double)c.nHighTithe/COIN));
 		results.push_back(Pair("Total Tithes", (double)c.TotalTithes/COIN));
-		double dPD = GetPOGDifficulty(nHeight);
+		double dPD = GetPOGDifficulty(pindex);
 		results.push_back(Pair("POG Difficulty", dPD));
-
 		// Show the user their own stats 
 		results.push_back(Pair("My Tithes", (double)c.UserTithes/COIN));
 		// Show the user when they will be paid
 		if (c.nUserPaymentTier > -1)
 		{
-			int nPaymentHeight = ((chainActive.Tip()->nHeight - 10) % (c.nUserPaymentTier + 1)) + chainActive.Tip()->nHeight;
+			int nPaymentHeight = ((nHeight - 10) % (c.nUserPaymentTier + 1)) + nHeight;
 			results.push_back(Pair("My Payment Height", (double)nPaymentHeight));
 		}
 	}
@@ -3637,19 +3640,16 @@ UniValue exec(const UniValue& params, bool fHelp)
 	}
 	else if (sItem == "titheinfo")
 	{
-		CAmount caTC = GetTitheCap(chainActive.Tip()->nHeight);
-		double dTC = caTC / COIN;
-		results.push_back(Pair("Tithe Cap", dTC));
-		double dPD = GetPOGDifficulty(chainActive.Tip()->nHeight);
+		double dPD = GetPOGDifficulty(chainActive.Tip());
 		results.push_back(Pair("POG Difficulty", dPD));
 		results.push_back(Pair("24 Hour Tithes", (double)chainActive.Tip()->n24HourTithes/COIN));
 		results.push_back(Pair("pog_diff_chain_tip", chainActive.Tip()->nPOGDifficulty));
 
 		// check the tithe params
-		TitheDifficultyParams tdp = GetTitheParams(chainActive.Tip()->nHeight);
+		TitheDifficultyParams tdp = GetTitheParams(chainActive.Tip());
 		results.push_back(Pair("min_coin_age", tdp.min_coin_age));
-		results.push_back(Pair("min_coin_amt", tdp.min_coin_amount / COIN));
-		results.push_back(Pair("max_tithe_amount", tdp.max_tithe_amount / COIN));
+		results.push_back(Pair("min_coin_amt", (double)tdp.min_coin_amount / COIN));
+		results.push_back(Pair("max_tithe_amount", (double)tdp.max_tithe_amount / COIN));
 
 		std::map<double, CAmount> dtb = pwalletMain->GetDimensionalCoins(tdp.min_coin_age, tdp.min_coin_amount);
 		CAmount nTotal = 0;
@@ -3676,6 +3676,20 @@ UniValue exec(const UniValue& params, bool fHelp)
 		results.push_back(Pair("Tithable_Total_Coin_Balance", (double)nTotal/COIN));
 		results.push_back(Pair("Tithability_Amount", (double)nTithability/COIN));
 		results.push_back(Pair("Tithability_Summary", sSummary));
+		// Calculate ROI
+		
+		double dTitheCap = (double)(GetTitheCap(chainActive.Tip()->nHeight) / COIN);
+		results.push_back(Pair("Tithe_Cap", dTitheCap));
+		double dDailyMinerEmissions = (double)(GetDailyMinerEmissions(chainActive.Tip()->nHeight) / COIN);
+		if (dTitheCap > 0 && ((double)(chainActive.Tip()->n24HourTithes * COIN)) > 0)
+		{
+			double dBasePercent = R2X(dDailyMinerEmissions / dTitheCap) * .50 * 100;
+			double dGiftedPercent = R2X(dDailyMinerEmissions / ((double)(chainActive.Tip()->n24HourTithes/COIN))) * .50 * 100;
+			results.push_back(Pair("Daily_Miner_Emissions", dDailyMinerEmissions));
+			results.push_back(Pair("Lowest_ROI%", dBasePercent));
+			results.push_back(Pair("Highest_ROI%", dGiftedPercent));
+		}
+		
 	}
 	else if (sItem == "tithe")
 	{
@@ -3683,10 +3697,12 @@ UniValue exec(const UniValue& params, bool fHelp)
 			throw runtime_error("You must specify amount, min_coin_age (days), min_coin_amount.  IE: exec tithe 200 1 1000.");
 
 		CAmount caAmount = cdbl(params[1].get_str(), 4) * COIN;
-		double dMinCoinAge = cdbl(params[2].get_str(), 4);
-		CAmount caMinCoinAmount = cdbl(params[3].get_str(), 4) * COIN;
+		double dMinCoinAge = 0;
+		CAmount caMinCoinAmount = 0;
+		if (params.size() > 2) dMinCoinAge = cdbl(params[2].get_str(), 4);
+		if (params.size() > 3) caMinCoinAmount = cdbl(params[3].get_str(), 4) * COIN;
 
-		TitheDifficultyParams tdp = GetTitheParams(chainActive.Tip()->nHeight);
+		TitheDifficultyParams tdp = GetTitheParams(chainActive.Tip());
 		if (params.size() == 2)
 		{	
 			dMinCoinAge = tdp.min_coin_age;
@@ -3721,11 +3737,6 @@ UniValue exec(const UniValue& params, bool fHelp)
 		{
 			results.push_back(Pair("TXID", sTxId));
 		}
-	}
-	else if (sItem == "updatepogpool")
-	{
-		UpdatePogPool(chainActive.Tip()->nHeight, 205);
-		results.push_back(Pair("Updated", 1));
 	}
 	else if (sItem == "istithelegal")
 	{
@@ -4485,54 +4496,53 @@ std::string GetBusinessObjectList(std::string sType, std::string sFields)
 }
 
 
-CPoolObject GetPoolVector(int iHeight, int iPaymentTier, uint256 LastBlockHash)
+CPoolObject GetPoolVector(const CBlockIndex* pindex, int iPaymentTier)
 {
 	CPoolObject cPool;
 	cPool.nPaymentTier = iPaymentTier;
-	cPool.nHeightFirst = iHeight - 205;
-	cPool.nHeightLast = iHeight;
-	if (cPool.nHeightFirst < 1) cPool.nHeightFirst = iHeight;
+	
+	cPool.nHeightFirst = pindex->nHeight - BLOCKS_PER_DAY;
+	cPool.nHeightLast = pindex->nHeight;
+	if (pindex==NULL || pindex->nHeight == 0 || cPool.nHeightFirst < 1) return cPool;
+
 	cPool.mapTithes.clear();
 	std::string sMyTitheAddress = DefaultRecAddress("TITHES");
 
 	const Consensus::Params& consensusParams = Params().GetConsensus();
 	std::map<std::string, CTitheObject>::iterator itTithes;
 	
-	for (int ix = cPool.nHeightFirst; ix <= cPool.nHeightLast; ix++)
+	for (int ix = 0; ix < BLOCKS_PER_DAY; ix++)
 	{
-		CBlockIndex* pindex = FindBlockByHeight(ix);
-		if (pindex)
-		{
-			BOOST_FOREACH(const PAIRTYPE(std::string, CTitheObject)& item, pindex->mapTithes)
-		    {
-				CTitheObject oTithe = item.second;
-				CBitcoinAddress cbaAddress(oTithe.Address);
-				if (cbaAddress.IsValid() && (((double)(oTithe.Amount / COIN)) > 0.01))
-				{		
-					cPool.itTithes = cPool.mapTithes.find(oTithe.Address);
-					if (cPool.itTithes == cPool.mapTithes.end())
-					{
-						CTitheObject cNewTithe;
-						cNewTithe.Address = oTithe.Address;
-						cNewTithe.Amount = 0;
-						cPool.mapTithes.insert(std::make_pair(oTithe.Address, cNewTithe));
-					}
-					CTitheObject cTithe = cPool.mapTithes[oTithe.Address];
-					cTithe.Amount += oTithe.Amount;
-					cTithe.Height = oTithe.Height;
-					cTithe.PaymentTier = oTithe.Height % 16;
-					cTithe.NickName = oTithe.NickName;
-					cPool.mapTithes[oTithe.Address] = cTithe;
-					// LogPrintf(" Pool Source insert: amt %f ", cTithe.Amount / COIN);
-				}
-				else
+		if (pindex == NULL) break;
+		BOOST_FOREACH(const PAIRTYPE(std::string, CTitheObject)& item, pindex->mapTithes)
+	    {
+			CTitheObject oTithe = item.second;
+			CBitcoinAddress cbaAddress(oTithe.Address);
+			if (cbaAddress.IsValid() && (((double)(oTithe.Amount / COIN)) > 0.01))
+			{		
+				cPool.itTithes = cPool.mapTithes.find(oTithe.Address);
+				if (cPool.itTithes == cPool.mapTithes.end())
 				{
-					LogPrintf(" \n Invalid-tithe found from address %s for amount of %f ", oTithe.Address.c_str(), (double)oTithe.Amount/COIN);
+					CTitheObject cNewTithe;
+					cNewTithe.Address = oTithe.Address;
+					cNewTithe.Amount = 0;
+					cPool.mapTithes.insert(std::make_pair(oTithe.Address, cNewTithe));
 				}
+				CTitheObject cTithe = cPool.mapTithes[oTithe.Address];
+				cTithe.Amount += oTithe.Amount;
+				cTithe.Height = oTithe.Height;
+				cTithe.PaymentTier = oTithe.Height % 16;
+				cTithe.NickName = oTithe.NickName;
+				cPool.mapTithes[oTithe.Address] = cTithe;
+			}
+			else
+			{
+				LogPrintf(" \n Invalid-tithe found from address %s for amount of %f ", oTithe.Address.c_str(), (double)oTithe.Amount/COIN);
 			}
 		}
-	
+		pindex = pindex->pprev;
 	}
+	
 	// Classify the tithes into Tiers
 	BOOST_FOREACH(const PAIRTYPE(std::string, CTitheObject)& item, cPool.mapTithes)
     {
