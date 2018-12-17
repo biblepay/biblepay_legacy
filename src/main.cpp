@@ -7899,7 +7899,8 @@ void UpdatePogPool(CBlockIndex* pindex, const CBlock& block)
 			else if (nAmount > 0 && pindex->nHeight > FPOG_CUTOVER_HEIGHT_TESTNET)
 			{
 				double dVersion = GetBlockVersion(block.vtx[0]);
-				LogPrintf("\n Illegal tithe @height %f, max amount %f  amount %f vout %f version %f",(double)pindex->nHeight, (double)tdp.max_tithe_amount/COIN, (double)nAmount/COIN, nTx, dVersion);
+				if (dVersion > 1167)
+					LogPrintf("\n Illegal tithe @height %f, max amount %f  amount %f vout %f version %f",(double)pindex->nHeight, (double)tdp.max_tithe_amount/COIN, (double)nAmount/COIN, nTx, dVersion);
 			}
 		}
 		pindex->nBlockTithes = nTithes;

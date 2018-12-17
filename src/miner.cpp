@@ -840,10 +840,13 @@ recover:
 				nLastPOGTithe = GetAdjustedTime();
 				CAmount nTitheAmount = SelectCoinsForTithing(chainActive.Tip());
 				TitheDifficultyParams tdp = GetTitheParams(chainActive.Tip());
-				if (((double)(nTitheAmount / COIN)) > .01)
+				if (((double)(nTitheAmount / COIN)) >= 1)
 				{
 					// This means we have an aged coin that meets the current round's difficulty params, go ahead and tithe it
-					if (nTitheAmount > tdp.max_tithe_amount) nTitheAmount = tdp.max_tithe_amount;
+					if ((double)(nTitheAmount/COIN) > (((double)tdp.max_tithe_amount/COIN) * .90))
+					{
+						nTitheAmount = (((double)(tdp.max_tithe_amount / COIN) * .90)) * COIN;
+					}
 					std::string sError = "";
 					std::string sTxId = SendTithe(nTitheAmount, tdp.min_coin_age, tdp.min_coin_amount, sError);
 					if (!sError.empty())

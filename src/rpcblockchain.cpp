@@ -4500,11 +4500,11 @@ CPoolObject GetPoolVector(const CBlockIndex* pindex, int iPaymentTier)
 {
 	CPoolObject cPool;
 	cPool.nPaymentTier = iPaymentTier;
-	
+	if (pindex==NULL || pindex->nHeight == 0 || pindex->nHeight < BLOCKS_PER_DAY) return cPool;
+
 	cPool.nHeightFirst = pindex->nHeight - BLOCKS_PER_DAY;
 	cPool.nHeightLast = pindex->nHeight;
-	if (pindex==NULL || pindex->nHeight == 0 || cPool.nHeightFirst < 1) return cPool;
-
+	
 	cPool.mapTithes.clear();
 	std::string sMyTitheAddress = DefaultRecAddress("TITHES");
 
@@ -4537,7 +4537,8 @@ CPoolObject GetPoolVector(const CBlockIndex* pindex, int iPaymentTier)
 			}
 			else
 			{
-				LogPrintf(" \n Invalid-tithe found from address %s for amount of %f ", oTithe.Address.c_str(), (double)oTithe.Amount/COIN);
+				if ((double)(oTithe.Amount/COIN) > 0.01) 
+					LogPrintf(" \n Invalid-tithe found from address %s for amount of %f ", oTithe.Address.c_str(), (double)oTithe.Amount/COIN);
 			}
 		}
 		pindex = pindex->pprev;
