@@ -3758,10 +3758,9 @@ UniValue exec(const UniValue& params, bool fHelp)
 			if (mapBlockIndex.count(hashBlockTithe) == 0) throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
 		    CBlockIndex* pindex = mapBlockIndex[hashBlockTithe];
 			double nTitheAge = (double)(pindex->GetBlockTime() - nTxTime) / 86400;
-			bool bTitheLegal = (nTitheAge >= pindex->nMinCoinAge && caAmount >= pindex->nMinCoinAmount);
-			
 			CAmount nTotal = GetTitheTotal(txTithe);
-
+			bool bTitheLegal = (nTitheAge >= pindex->pprev->nMinCoinAge && caAmount >= pindex->pprev->nMinCoinAmount && nTotal <= pindex->pprev->nMaxTitheAmount);
+			
 			results.push_back(Pair("Tithe_Legal", bTitheLegal));
 			results.push_back(Pair("Tithe_Age", nTitheAge));
 			results.push_back(Pair("Tithe_Spent_Coin_Amount", (double)(caAmount/COIN)));
