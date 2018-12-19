@@ -58,8 +58,9 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
         //
         // Credit
         //
-        BOOST_FOREACH(const CTxOut& txout, wtx.vout)
-        {
+		for (unsigned int j = 0; j < wtx.vout.size(); j++)
+		{
+			const CTxOut txout = wtx.vout[j];
             isminetype mine = wallet->IsMine(txout);
 			CComplexTransaction cct(txout);
 	        if(mine)
@@ -92,15 +93,15 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                 {
                     // Generated
                     // Check if PODC or Mined EB: 2018-06-022
-					if (sub.IsPOGPayment)
+					if (sub.IsPOGPayment && j != 0)
 					{
 						sub.type = TransactionRecord::POGPayment;
 					}
-					else if (sub.IsPODCPayment) 
+					else if (sub.IsPODCPayment && j != 0) 
 					{
                         sub.type = TransactionRecord::PODCPayment;
                     } 
-					else if (sub.IsSuperblockPayment) 
+					else if (sub.IsSuperblockPayment && j != 0) 
 					{
                         sub.type = TransactionRecord::SuperBlockPayment;  
                     }

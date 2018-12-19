@@ -178,11 +178,11 @@ void SendCoinsEntry::initPOGDifficulty()
 		std::string sSummary = (nTithability > 0) ? "YES" : "NO";
 
 		std::string sTitheValue = "Qty: " + RoundToString(nQty, 0) 
-			+ ", LargeCoin: " + RoundToString((double)nMaxCoin/COIN, 2) 
+			+ ", LargeCoin: " + RoundToString((double)(nMaxCoin/COIN), 2) 
 			+ ", AvgAge: " 
 			+ RoundToString(nAvgAge, 4) 
 			+ ", TotalTitheBalance: " 
-			+ RoundToString((double)nTotal/COIN, 2) + ", Tithability: " + RoundToString((double)nTithability/COIN, 4) + ", Summary: " + sSummary;
+			+ RoundToString((double)(nTotal/COIN), 2) + ", Tithability: " + RoundToString((double)(nTithability/COIN), 4) + ", Summary: " + sSummary;
 		
 		ui->lblTitheAbility->setStyleSheet(ToQstring(sCSS));
 		ui->lblTitheAbilityCaption->setStyleSheet(ToQstring(sCSS));

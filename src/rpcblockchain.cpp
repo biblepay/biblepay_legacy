@@ -9,6 +9,7 @@
 #include "chainparams.h"
 #include "checkpoints.h"
 #include "coins.h"
+#include "chat.h"
 #include "consensus/validation.h"
 #include "main.h"
 #include "policy/policy.h"
@@ -3590,7 +3591,7 @@ UniValue exec(const UniValue& params, bool fHelp)
 		CBlockIndex* pindex = FindBlockByHeight(nHeight);
 		if (!pindex) throw runtime_error("Invalid block index.");
 
-		CPoolObject c = GetPoolVector(chainActive.Tip(), 0);
+		CPoolObject c = GetPoolVector(pindex, 0);
 
 		BOOST_FOREACH(const PAIRTYPE(std::string, CTitheObject)& item, c.mapTithes)
 	    {
@@ -3681,10 +3682,10 @@ UniValue exec(const UniValue& params, bool fHelp)
 		double dTitheCap = (double)(GetTitheCap(chainActive.Tip()->nHeight) / COIN);
 		results.push_back(Pair("Tithe_Cap", dTitheCap));
 		double dDailyMinerEmissions = (double)(GetDailyMinerEmissions(chainActive.Tip()->nHeight) / COIN);
-		if (dTitheCap > 0 && ((double)(chainActive.Tip()->n24HourTithes * COIN)) > 0)
+		if (dTitheCap > 0 && ((double)(chainActive.Tip()->n24HourTithes / COIN)) > 0)
 		{
 			double dBasePercent = R2X(dDailyMinerEmissions / dTitheCap) * .50 * 100;
-			double dGiftedPercent = R2X(dDailyMinerEmissions / ((double)(chainActive.Tip()->n24HourTithes/COIN))) * .50 * 100;
+			double dGiftedPercent = R2X(dDailyMinerEmissions / ((double)(chainActive.Tip()->n24HourTithes / COIN))) * .50 * 100;
 			results.push_back(Pair("Daily_Miner_Emissions", dDailyMinerEmissions));
 			results.push_back(Pair("Lowest_ROI%", dBasePercent));
 			results.push_back(Pair("Highest_ROI%", dGiftedPercent));
@@ -3790,6 +3791,31 @@ UniValue exec(const UniValue& params, bool fHelp)
 				 results.push_back(Pair("vout", sRecipient));
 			 }
 		}
+	}
+	else if (sItem == "chat1")
+	{
+		CChat chat;
+		chat.nTime = GetAdjustedTime();
+		chat.nID           = 1;  
+		chat.nPriority     = 5;
+		chat.sPayload = "This is the very first chat message.";
+		chat.sFromNickName = "randrews";
+		chat.sToNickName = "randrews";
+		chat.sDestination = "general";
+
+	    results.push_back(Pair("hash", chat.GetHash().GetHex()));
+		results.push_back(Pair("chat", chat.ToString()));
+        LOCK(cs_vNodes);
+        BOOST_FOREACH(CNode* pnode, vNodes)
+        {
+            if (chat.RelayTo(pnode))
+            {
+                printf("Sent chat to %s\n", pnode->addr.ToString().c_str());
+            }
+        }
+		pwalletMain->cwallet_EmitChatMessage("test1");
+
+    
 	}
 	else if (sItem == "datalist")
 	{

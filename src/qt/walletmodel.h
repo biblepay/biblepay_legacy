@@ -152,6 +152,7 @@ public:
     CAmount getWatchUnconfirmedBalance() const;
     CAmount getWatchImmatureBalance() const;
     EncryptionStatus getEncryptionStatus() const;
+	void walletmodel_EmitChatMessage(std::string sMessage);
 
     // Check address for validity
     bool validateAddress(const QString &address);
@@ -252,6 +253,9 @@ Q_SIGNALS:
     // Signal that balance in wallet changed
     void balanceChanged(const CAmount& balance, const CAmount& unconfirmedBalance, const CAmount& immatureBalance, const CAmount& anonymizedBalance,
                         const CAmount& watchOnlyBalance, const CAmount& watchUnconfBalance, const CAmount& watchImmatureBalance);
+
+	// BiblePay Chat System - Message Received
+	void signal_EmitChatMessage(std::string sMessage);
 
     // Encryption status of wallet changed
     void encryptionStatusChanged(int status);

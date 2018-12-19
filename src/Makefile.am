@@ -70,6 +70,7 @@ BITCOIN_CORE_H = \
   spentindex.h \
   addrman.h \
   alert.h \
+  chat.h \
   amount.h \
   arith_uint256.h \
   base58.h \
@@ -199,6 +200,7 @@ libbitcoin_server_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoin_server_a_SOURCES = \
   addrman.cpp \
   alert.cpp \
+  chat.cpp \
   bloom.cpp \
   chain.cpp \
   checkpoints.cpp \

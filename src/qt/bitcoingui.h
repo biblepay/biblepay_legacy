@@ -84,6 +84,7 @@ protected:
 private:
     ClientModel *clientModel;
     WalletFrame *walletFrame;
+	WalletModel *lastWalletModel;
 
     UnitDisplayStatusBarControl *unitDisplayControl;
     QLabel *labelEncryptionIcon;
@@ -110,7 +111,6 @@ private:
 	QAction *sinnerAction;
 	QAction *TheLordsPrayerAction;
 	QAction *TheApostlesCreedAction;
-
 	QAction *TheNiceneCreedAction;
 	QAction *ReadBibleAction;
 	QAction *CreateNewsAction;
@@ -118,6 +118,8 @@ private:
 	QAction *OneClickMiningAction;
 	QAction *TheTenCommandmentsAction;
 	QAction *JesusConciseCommandmentsAction;
+	QAction *openChatGeneralAction;
+	QAction *openChatPMAction;
 
     QAction *receiveCoinsAction;
     QAction *receiveCoinsMenuAction;
@@ -268,6 +270,10 @@ private Q_SLOTS:
 	void OneClickMiningClicked();
 	void TheTenCommandmentsClicked();
 	void JesusConciseCommandmentsClicked();
+	
+	/** Show Chat window **/
+	void openChatGeneralClicked();
+	void openChatPMClicked();
 
     /** Show debug window */
     void showDebugWindow();

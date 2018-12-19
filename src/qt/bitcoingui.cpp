@@ -20,6 +20,7 @@
 #include <QDesktopServices>  //Added for openURL()
 #include "proposals.h"
 #include "businessobjectlist.h"
+#include "chatdialog.h"
 
 #ifdef ENABLE_WALLET
 #include "walletframe.h"
@@ -121,6 +122,8 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *platformStyle, const NetworkStyle *n
 	OneClickMiningAction(0),
 	TheTenCommandmentsAction(0),
 	JesusConciseCommandmentsAction(0),
+	openChatGeneralAction(0),
+	openChatPMAction(0),
     receiveCoinsAction(0),
     receiveCoinsMenuAction(0),
 	distributedComputingAction(0),
@@ -435,6 +438,16 @@ void BitcoinGUI::createActions()
     aboutAction->setMenuRole(QAction::AboutRole);
     aboutAction->setEnabled(false);
     
+	//Todo for next mandatory - Replace this with People Icon:
+	openChatGeneralAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("Chat Room - General"), this);
+	openChatGeneralAction->setStatusTip(tr("Open General Chat Room"));
+    openChatGeneralAction->setMenuRole(QAction::AboutRole);
+	openChatGeneralAction->setEnabled(false);
+	
+	openChatPMAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("Private Message"), this);
+	openChatPMAction->setStatusTip(tr("Open Private Message Window"));
+    openChatPMAction->setMenuRole(QAction::AboutRole);
+	openChatPMAction->setEnabled(false);
 	
 	sinnerAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("The Sinners Prayer"), this);
     sinnerAction->setStatusTip(tr("Show the Sinners Prayer"));
@@ -547,8 +560,7 @@ void BitcoinGUI::createActions()
     openFundedProposalsAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("&Funded Proposal List"), this);
     openFundedProposalsAction->setStatusTip(tr("Show Funded Proposal List"));
 	openFundedProposalsAction->setEnabled(false);
-
-    
+	    
     openConfEditorAction = new QAction(QIcon(":/icons/" + theme + "/edit"), tr("Open Wallet &Configuration File"), this);
     openConfEditorAction->setStatusTip(tr("Open configuration file"));
     openMNConfEditorAction = new QAction(QIcon(":/icons/" + theme + "/edit"), tr("Open &Masternode Configuration File"), this);
@@ -582,6 +594,9 @@ void BitcoinGUI::createActions()
     connect(aboutAction, SIGNAL(triggered()), this, SLOT(aboutClicked()));
 	connect(sinnerAction, SIGNAL(triggered()), this, SLOT(sinnerClicked()));
 	connect(TheLordsPrayerAction, SIGNAL(triggered()), this, SLOT(TheLordsPrayerClicked()));
+	connect(openChatGeneralAction, SIGNAL(triggered()), this, SLOT(openChatGeneralClicked()));
+	connect(openChatPMAction, SIGNAL(triggered()), this, SLOT(openChatPMClicked()));
+
 	connect(TheApostlesCreedAction, SIGNAL(triggered()), this, SLOT(TheApostlesCreedClicked()));
 	connect(TheNiceneCreedAction, SIGNAL(triggered()), this, SLOT(TheNiceneCreedClicked()));
 	connect(ReadBibleAction, SIGNAL(triggered()), this, SLOT(ReadBibleClicked()));
@@ -706,7 +721,15 @@ void BitcoinGUI::createMenuBar()
 		QMenu *businessObjects = appMenuBar->addMenu(tr("&Business Objects"));
 		businessObjects->addAction(businessObjectListMenuAction);
     }
-	
+
+	// Chat - TestNet
+	if (!fProd)
+	{
+		QMenu *menuChat = appMenuBar->addMenu(tr("&Chat"));
+		menuChat->addAction(openChatGeneralAction);
+		menuChat->addAction(openChatPMAction);
+	}
+
 	// BiblePay - Prayers, Jesus' Commandments, and Reading the Bible
 	QMenu *menuBible = appMenuBar->addMenu(tr("&Bible"));
 	menuBible->addAction(sinnerAction);
@@ -867,6 +890,7 @@ bool BitcoinGUI::addWallet(const QString& name, WalletModel *walletModel)
     if(!walletFrame)
         return false;
     setWalletActionsEnabled(true);
+	this->lastWalletModel = walletModel;
     return walletFrame->addWallet(name, walletModel);
 }
 
@@ -993,6 +1017,28 @@ void BitcoinGUI::TheLordsPrayerClicked()
     if(!clientModel) return;
     HelpMessageDialog dlg(this, HelpMessageDialog::prayer, 1, uint256S("0x0"), "");
     dlg.exec();
+}
+
+void BitcoinGUI::openChatGeneralClicked()
+{
+    if(!clientModel) return;
+	std::string sNickName = GetArg("-nickname", "");
+    ChatDialog dlg(this, false, sNickName);
+	dlg.setWalletModel(this->lastWalletModel);
+
+    dlg.exec();
+
+}
+
+void BitcoinGUI::openChatPMClicked()
+{
+    if(!clientModel) return;
+	std::string sNickName = GetArg("-nickname", "");
+    ChatDialog dlg(this, true, sNickName);
+	dlg.setWalletModel(this->lastWalletModel);
+
+	dlg.exec();
+
 }
 
 
@@ -1525,6 +1571,13 @@ void BitcoinGUI::showEvent(QShowEvent *event)
 	TheLordsPrayerAction->setEnabled(true);
 	TheApostlesCreedAction->setEnabled(true);
 	TheNiceneCreedAction->setEnabled(true);
+
+	if (!fProd)
+	{
+		openChatGeneralAction->setEnabled(true);
+		openChatPMAction->setEnabled(true);
+	}
+
 	TheTenCommandmentsAction->setEnabled(true);
 	JesusConciseCommandmentsAction->setEnabled(true);
 	ReadBibleAction->setEnabled(true);

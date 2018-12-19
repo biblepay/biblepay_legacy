@@ -124,15 +124,19 @@ UniValue gobject(const UniValue& params, bool fHelp)
 		std::string sStart = params[5].get_str();
 		std::string sType = params[6].get_str();
 		std::string sURL = params[7].get_str();
+		// R ANDREWS - BIBLEPAY - ADD ABILITY FOR OUR WEB NETWORK TO ENTER PROPOSALS; ADD EXPENSETYPE FIELD TO TRACK PROPOSAL SUM BY EXPENSETYPE - 12/19/2018
+		std::string sExpenseType = "";
+		if (params.size() >= 9) sExpenseType = params[8].get_str();
 		std::string sQ = "\"";
 		std::string sJson = "[[" + sQ + "proposal" + sQ + ",{";
-		sJson += GJE("end_epoch",sEnd,true,true);
-		sJson += GJE("name",sName,true,true);
-		sJson += GJE("payment_address",sAddress,true,true);
-		sJson += GJE("payment_amount",sAmount,true,true);
-		sJson += GJE("start_epoch",sStart,true,true);
-		sJson += GJE("type",sType,true,false);
-		sJson += GJE("url",sURL,false,true);
+		sJson += GJE("end_epoch", sEnd, true, true);
+		sJson += GJE("name", sName, true, true);
+		sJson += GJE("payment_address", sAddress, true, true);
+		sJson += GJE("payment_amount", sAmount, true, true);
+		sJson += GJE("start_epoch", sStart, true, true);
+		sJson += GJE("type", sType, true, false);
+		sJson += GJE("url", sURL, true, true);
+		sJson += GJE("expensetype", sExpenseType, false, true);
 		sJson += "}]]";
 		UniValue u(UniValue::VOBJ);
         
@@ -497,7 +501,7 @@ UniValue gobject(const UniValue& params, bool fHelp)
 			if (dRest > 0)
 			{
 				int iRest = rand() % 1000;
-				if (iRest > 100) continue;
+				if (iRest > 50) continue;
 				MilliSleep(dRest * iRest);
 			}
         }
@@ -994,7 +998,14 @@ UniValue getgovernanceinfo(const UniValue& params, bool fHelp)
 		double nBudget = CSuperblock::GetPaymentsLimit(nNextSuperblock) / COIN;
 		obj.push_back(Pair("nextbudget", nBudget));
 		CAmount caTithe_Cap = GetTitheCap(nNextSuperblock);
-		if (fPOGEnabled) obj.push_back(Pair("next_monthly_estimated_pog_revenue", caTithe_Cap / COIN));
+		if (fPOGEnabled)
+		{
+			obj.push_back(Pair("next_pog_revenue", caTithe_Cap / COIN));
+		}
+		else
+		{
+			LogPrintf("\nNextPogRevenue %f ",(double)caTithe_Cap / COIN);
+		}
 	}
 				
     return obj;

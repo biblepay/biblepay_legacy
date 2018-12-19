@@ -173,6 +173,11 @@ void WalletModel::pollBalanceChanged()
     }
 }
 
+void WalletModel::walletmodel_EmitChatMessage(std::string sMessage)
+{
+	Q_EMIT signal_EmitChatMessage(sMessage);
+}
+
 void WalletModel::checkBalanceChanged()
 {
     CAmount newBalance = getBalance();
@@ -675,6 +680,11 @@ static void NotifyTransactionChanged(WalletModel *walletmodel, CWallet *wallet, 
     Q_UNUSED(hash);
     Q_UNUSED(status);
     QMetaObject::invokeMethod(walletmodel, "updateTransaction", Qt::QueuedConnection);
+}
+
+static void walletmodel_HandleEmitChatMessage(WalletModel *walletmodel, std::string sMessage)
+{
+    QMetaObject::invokeMethod(walletmodel, "walletmodel_EmitChatMessage", Qt::QueuedConnection, Q_ARG(std::string, sMessage));
 }
 
 static void ShowProgress(WalletModel *walletmodel, const std::string &title, int nProgress)

@@ -36,6 +36,7 @@ QT_FORMS_UI = \
   qt/forms/receiverequestdialog.ui \
   qt/forms/distributedcomputingdialog.ui \
   qt/forms/proposaladddialog.ui \
+  qt/forms/chatdialog.ui \
   qt/forms/contactadddialog.ui \
   qt/forms/businessobjectlist.ui \
   qt/forms/writeorphan.ui \
@@ -80,6 +81,7 @@ QT_MOC_CPP = \
   qt/moc_receiverequestdialog.cpp \
   qt/moc_distributedcomputingdialog.cpp \
   qt/moc_proposaladddialog.cpp \
+  qt/moc_chatdialog.cpp \
   qt/moc_contactadddialog.cpp \
   qt/moc_businessobjectlist.cpp \
   qt/moc_writeorphan.cpp \
@@ -159,6 +161,7 @@ BITCOIN_QT_H = \
   qt/receiverequestdialog.h \
   qt/distributedcomputingdialog.h \
   qt/proposaladddialog.h \
+  qt/chatdialog.h \
   qt/contactadddialog.h \
   qt/businessobjectlist.h \
   qt/writeorphan.h \
@@ -487,6 +490,7 @@ BITCOIN_QT_CPP += \
   qt/receiverequestdialog.cpp \
   qt/distributedcomputingdialog.cpp \
   qt/proposaladddialog.cpp \
+  qt/chatdialog.cpp \
   qt/contactadddialog.cpp \
   qt/businessobjectlist.cpp \
   qt/writeorphan.cpp \

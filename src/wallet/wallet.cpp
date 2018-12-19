@@ -663,6 +663,11 @@ bool CWallet::EncryptWallet(const SecureString& strWalletPassphrase)
     return true;
 }
 
+void CWallet::cwallet_EmitChatMessage(std::string sMessage)
+{
+	walletmodel_HandleEmitChatMessage(this, sMessage);
+}
+
 int64_t CWallet::IncOrderPosNext(CWalletDB *pwalletdb)
 {
     AssertLockHeld(cs_wallet); // nOrderPosNext

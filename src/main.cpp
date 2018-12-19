@@ -5,7 +5,6 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "main.h"
-
 #include "addrman.h"
 #include "alert.h"
 #include "arith_uint256.h"
@@ -41,6 +40,7 @@
 #include "darksend.h"
 #include "governance.h"
 #include "instantx.h"
+#include "chat.h"
 #include "masternode-payments.h"
 #include "masternode-sync.h"
 #include "masternodeman.h"
@@ -3122,7 +3122,8 @@ CAmount GetDailyMinerEmissions(int nHeight)
 	int nBits = 486585255;
 	if (nHeight < 1 || pindexBestHeader==NULL || pindexBestHeader->nHeight < 2) return 0;
     CAmount nReaperReward = GetBlockSubsidy(pindexBestHeader->pprev, nBits, nHeight, consensusParams, false);
-    CAmount nDailyRewards = nReaperReward * BLOCKS_PER_DAY; // This includes deflation
+	CAmount caMasternodePortion = GetMasternodePayment(nHeight, nReaperReward, 0);
+    CAmount nDailyRewards = (nReaperReward-caMasternodePortion) * BLOCKS_PER_DAY; // This includes deflation
 	return nDailyRewards;
 }
 
@@ -3135,8 +3136,19 @@ CAmount GetTitheCap(int nHeight)
 	if (nHeight < 1 || pindexBestHeader==NULL || pindexBestHeader->nHeight < 2) return 0;
     CAmount nSuperblockPartOfSubsidy = GetBlockSubsidy(pindexBestHeader->pprev, nBits, nHeight, consensusParams, true);
 	// R ANDREWS - POG - 12/6/2018 - CRITICAL - If we go with POG + PODC, the Tithe Cap must be lower to ensure miner profitability
-	// .05 = 3.6MM per month, .025 = 1.8MM per month
-    CAmount nPaymentsLimit = nSuperblockPartOfSubsidy * consensusParams.nSuperblockCycle * .025; // Half of monthly charity budget - with deflation
+
+	// TestNet : POG+POBH with PODC enabled  = (100.5K miner payments, 50K daily pogpool tithe cap, deflating) = 0.003125 (4* the blocks per day in testnet)
+	// Prod    : POG+POBH with PODC enabled  = (100.5K miner payments, 50K daily pogpool tithe cap, deflating) = 0.00075
+
+    CAmount nPaymentsLimit = 0;
+	if (fProd)
+	{
+		nPaymentsLimit = nSuperblockPartOfSubsidy * consensusParams.nSuperblockCycle * .00075; // Half of monthly charity budget - with deflation - per day
+	}
+	else
+	{
+		nPaymentsLimit = nSuperblockPartOfSubsidy * consensusParams.nSuperblockCycle * .003125; // Half of monthly charity budget - with deflation - per day
+	}
 	return nPaymentsLimit;
 }
 
@@ -4658,7 +4670,8 @@ bool CheckPOGPoolRecipients(const Consensus::Params& params, int nHeight, const 
 					double dVersion = GetBlockVersion(block.vtx[0]);
 					LogPrintf("\nCheckPoolRecipients Height %f, pprevheight %f, PoolTier %f, POW Reward %f, MN Reward %f, RewardWithoutFees %f, Entire nBlockReward %f, Fees %f, Recip Missing %s, Version %f ", 
 						nHeight, (double)pindexPrev->nHeight, (double)(nPoolHeight % 16), (double)nPOWReward/COIN, (double)caMasternodePortion/COIN, (double)blockRewardWithoutFees/COIN, 
-						(double)nBlockReward/COIN, (double)nFees/COIN, oTithe.Address.c_str(), dVersion);
+						(double)nBlockReward/COIN, 
+						(double)nFees/COIN, oTithe.Address.c_str(), (double)dVersion);
 					return false;
 				}
 			}
@@ -4730,9 +4743,9 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIn
 				{
 					bool fVerified = CheckPOGPoolRecipients(consensusParams, nHeight, block, pindexPrev);
 					double dVersion = GetBlockVersion(block.vtx[0]);
-					if (!fVerified && nHeight > 86630 && dVersion > 1166)
+					if (!fVerified && nHeight > 90000)
 					{
-						LogPrintf("\nContextualCheckBlock::ERROR - POG Recipients invalid at height %f version %f ", nHeight, dVersion);
+						LogPrintf("\nContextualCheckBlock::ERROR - POG Recipients invalid at height %f version %f ", nHeight, (double)dVersion);
 					}
 				}
 			}
@@ -7330,8 +7343,25 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
             pfrom->nPingNonceSent = 0;
         }
     }
-
-
+	else if (strCommand == NetMsgType::CHAT)
+    {
+        CChat chat;
+        vRecv >> chat;
+        uint256 chatHash = chat.GetHash();
+        if (pfrom->setKnown.count(chatHash) == 0)
+        {
+            if (chat.ProcessChat())
+            {
+                // Relay
+                pfrom->setKnown.insert(chatHash);
+                {
+                    LOCK(cs_vNodes);
+                    BOOST_FOREACH(CNode* pnode, vNodes)
+                        chat.RelayTo(pnode);
+                }
+            }
+        }
+    }
     else if (fAlerts && strCommand == NetMsgType::ALERT)
     {
         CAlert alert;
@@ -7814,15 +7844,21 @@ void GetTxTimeAndAmount(uint256 hashInput, int hashInputOrdinal, int64_t& out_nT
 
 bool IsTitheLegal(CTransaction ctx, CBlockIndex* pindex, CAmount tithe_amount)
 {
+	// R ANDREWS - BIBLEPAY - 12/19/2018 
+	// We quote the difficulty params to the user as of the best block hash, so when we check a tithe to be legal, we must check it as of the prior block's difficulty params
+	if (pindex==NULL || pindex->pprev==NULL || pindex->nHeight < 2) return false;
+
 	uint256 hashInput = ctx.vin[0].prevout.hash;
 	int hashInputOrdinal = ctx.vin[0].prevout.n;
 	int64_t nTxTime = 0;
 	CAmount caAmount = 0;
 	GetTxTimeAndAmount(hashInput, hashInputOrdinal, nTxTime, caAmount);
+	
 	double nTitheAge = (double)(pindex->GetBlockTime() - nTxTime) / 86400;
-	if (false && !fProd && fPOGEnabled && fDebugMaster) LogPrintf(" Prior Coin Amount %f, Tithe Amt %f, Tithe_height # %f, Spend_time %f, Age %f        ", 
+	if (false && !fProd && fPOGEnabled && fDebugMaster) 
+		LogPrintf(" Prior Coin Amount %f, Tithe Amt %f, Tithe_height # %f, Spend_time %f, Age %f        ", 
 		(double)caAmount/COIN, (double)tithe_amount/COIN, pindex->nHeight, nTxTime, (double)nTitheAge);
-	if (nTitheAge >= pindex->nMinCoinAge && caAmount >= pindex->nMinCoinAmount)
+	if (nTitheAge >= pindex->pprev->nMinCoinAge && caAmount >= pindex->pprev->nMinCoinAmount && tithe_amount <= pindex->pprev->nMaxTitheAmount)
 	{
 		return true;
 	}
@@ -7850,9 +7886,9 @@ void InitializePogPool(int nHeight, int nSize)
 void UpdatePogPool(CBlockIndex* pindex, const CBlock& block)
 {
 	if (!fPOGEnabled) return;
+	if (pindex == NULL || pindex->nHeight == 0) return;
 	int64_t nAge = GetAdjustedTime() - pindex->GetBlockTime();
 	if (nAge > (60 * 60 * 24 * 30)) return;
-	if (pindex == NULL || pindex->nHeight == 0) return;
 	const Consensus::Params& consensusParams = Params().GetConsensus();
 	std::map<std::string, CTitheObject>::iterator itTithes;
 	CAmount nTithes = 0;
@@ -7872,7 +7908,7 @@ void UpdatePogPool(CBlockIndex* pindex, const CBlock& block)
 			std::string sNickName = "";
 			std::string sTither = GetTitherAddress(block.vtx[nTx], sNickName);
 			CAmount nAmount = GetTitheAmount(block.vtx[nTx]);
-			if (!sTither.empty() && nAmount <= tdp.max_tithe_amount)
+			if (!sTither.empty())
 			{
 				bool bLegalTithe = IsTitheLegal(block.vtx[nTx], pindex, nAmount);
 				// BiblePay:  In this section, a user can only get credit once per transaction for a legal tithe
@@ -7900,7 +7936,9 @@ void UpdatePogPool(CBlockIndex* pindex, const CBlock& block)
 			{
 				double dVersion = GetBlockVersion(block.vtx[0]);
 				if (dVersion > 1167)
-					LogPrintf("\n Illegal tithe @height %f, max amount %f  amount %f vout %f version %f",(double)pindex->nHeight, (double)tdp.max_tithe_amount/COIN, (double)nAmount/COIN, nTx, dVersion);
+					LogPrintf("\n Illegal tithe txid %s @height %f, max amount %f  amount %f vout %f version %f",
+					block.vtx[nTx].GetHash().GetHex().c_str(), 
+					(double)pindex->nHeight, (double)pindex->pprev->nMaxTitheAmount/COIN, (double)nAmount/COIN, nTx, (double)dVersion);
 			}
 		}
 		pindex->nBlockTithes = nTithes;
