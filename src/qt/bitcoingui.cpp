@@ -1025,9 +1025,9 @@ void BitcoinGUI::openChatGeneralClicked()
 	std::string sNickName = GetArg("-nickname", "");
     ChatDialog dlg(this, false, sNickName);
 	dlg.setWalletModel(this->lastWalletModel);
-
+	
     dlg.exec();
-
+	dlg.setModal(false);
 }
 
 void BitcoinGUI::openChatPMClicked()
@@ -1036,9 +1036,9 @@ void BitcoinGUI::openChatPMClicked()
 	std::string sNickName = GetArg("-nickname", "");
     ChatDialog dlg(this, true, sNickName);
 	dlg.setWalletModel(this->lastWalletModel);
-
-	dlg.exec();
-
+	
+    dlg.exec();
+	dlg.setModal(false);
 }
 
 

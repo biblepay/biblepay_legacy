@@ -6447,7 +6447,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
 		sVersion = strReplace(sVersion, ".", "");
 		double dPeerVersion = cdbl(sVersion, 0);
 		if (!fProd && dPeerVersion == 109) dPeerVersion=1090;
-		if (dPeerVersion < 1167 && dPeerVersion > 1000 && !fProd)
+		if (dPeerVersion < 1170 && dPeerVersion > 1000 && !fProd)
 		{
 		    LogPrint("net","Disconnecting unauthorized peer in TestNet using old version %f\r\n",(double)dPeerVersion);
 			Misbehaving(pfrom->GetId(), 14);
@@ -7935,7 +7935,7 @@ void UpdatePogPool(CBlockIndex* pindex, const CBlock& block)
 			else if (nAmount > 0 && pindex->nHeight > FPOG_CUTOVER_HEIGHT_TESTNET)
 			{
 				double dVersion = GetBlockVersion(block.vtx[0]);
-				if (dVersion > 1167)
+				if (dVersion > 1169)
 					LogPrintf("\n Illegal tithe txid %s @height %f, max amount %f  amount %f vout %f version %f",
 					block.vtx[nTx].GetHash().GetHex().c_str(), 
 					(double)pindex->nHeight, (double)pindex->pprev->nMaxTitheAmount/COIN, (double)nAmount/COIN, nTx, (double)dVersion);
