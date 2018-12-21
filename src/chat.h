@@ -61,15 +61,23 @@ public:
     }
 
     void SetNull();
+    bool IsNull() const;
+	void Deserialize(std::string sData);
 
     std::string ToString() const;
+	std::string Serialized() const;
 
     CChat()
     {
         SetNull();
     }
 
-    bool IsNull() const;
+	CChat(std::string sSerialized)
+	{
+		SetNull();
+        Deserialize(sSerialized);
+	}
+
     uint256 GetHash() const;
     bool RelayTo(CNode* pnode) const;
     bool ProcessChat(); 

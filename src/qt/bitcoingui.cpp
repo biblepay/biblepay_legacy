@@ -1019,26 +1019,39 @@ void BitcoinGUI::TheLordsPrayerClicked()
     dlg.exec();
 }
 
+void CenterWidget(QWidget *widget, bool bTile) 
+{
+	QRect screenGeometry = QApplication::desktop()->screenGeometry();
+    int x = (screenGeometry.width() - widget->width()) / 2;
+    int y = (screenGeometry.height() - widget->height()) / 2;
+	if (bTile)
+	{
+			double iX = (rand() % 190) / 100;
+			double iY = (rand() % 190) / 100;
+			x = iX * x;
+			y = iY * y;
+	}
+    widget->move(x, y);
+}
+
 void BitcoinGUI::openChatGeneralClicked()
 {
     if(!clientModel) return;
 	std::string sNickName = GetArg("-nickname", "");
-    ChatDialog dlg(this, false, sNickName);
-	dlg.setWalletModel(this->lastWalletModel);
-	
-    dlg.exec();
-	dlg.setModal(false);
+	ChatDialog *dlg = new ChatDialog(this, false, sNickName, "General");
+	dlg->setClientModel(this->clientModel);
+	dlg->show();
+	CenterWidget(dlg, true);
 }
 
 void BitcoinGUI::openChatPMClicked()
 {
     if(!clientModel) return;
 	std::string sNickName = GetArg("-nickname", "");
-    ChatDialog dlg(this, true, sNickName);
-	dlg.setWalletModel(this->lastWalletModel);
-	
-    dlg.exec();
-	dlg.setModal(false);
+    ChatDialog *dlg = new ChatDialog(this, true, sNickName, "");
+	dlg->setClientModel(this->clientModel);
+	dlg->show();
+	CenterWidget(dlg, true);
 }
 
 
@@ -1742,13 +1755,22 @@ void BitcoinGUI::detectShutdown()
 		fReboot2 = false;
         rpcConsole->walletEraseChain();
 	}
-
+	
 	// Governance - Check to see if we should submit a proposal
 	nProposalModulus++;
 	if (nProposalModulus % 15 == 0 && !fLoadingIndex && fWalletLoaded)
 	{
 		nProposalModulus = 0;
-
+		// Chat - If someone is paging us...
+		if (mlPaged > 1 && !msPagedFrom.empty() && clientModel)
+		{
+			mlPaged = 0;
+			std::string sNickName = GetArg("-nickname", "");
+			ChatDialog *dlg = new ChatDialog(this, true, sNickName, msPagedFrom);
+			dlg->setClientModel(this->clientModel);
+			dlg->show();
+			msPagedFrom = "";
+		}
 		if (fProposalNeedsSubmitted)
 		{
 			nProposalModulus = 0;

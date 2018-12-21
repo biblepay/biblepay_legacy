@@ -93,6 +93,7 @@ private:
 
 Q_SIGNALS:
     void numConnectionsChanged(int count);
+	void chatEvent(QString sMessage);
     void strMasternodesChanged(const QString &strMasternodes);
     void numBlocksChanged(int count, const QDateTime& blockDate, double nVerificationProgress);
     void additionalDataSyncProgressChanged(double nSyncProgress);
@@ -110,6 +111,7 @@ public Q_SLOTS:
     void updateTimer();
     void updateMnTimer();
     void updateNumConnections(int numConnections);
+	void updateChatEvent(QString sMessage);
     void updateAlert(const QString &hash, int status);
     void updateBanlist();
 };

@@ -31,6 +31,7 @@ class CBlockIndex;
 
 static const int64_t nClientStartupTime = GetTime();
 static int64_t nLastBlockTipUpdateNotification = 0;
+QString ToQstring(std::string s);
 
 ClientModel::ClientModel(OptionsModel *optionsModel, QObject *parent) :
     QObject(parent),
@@ -157,6 +158,11 @@ void ClientModel::updateNumConnections(int numConnections)
     Q_EMIT numConnectionsChanged(numConnections);
 }
 
+void ClientModel::updateChatEvent(QString sMessage)
+{
+	Q_EMIT chatEvent(sMessage);
+} 
+
 void ClientModel::updateAlert(const QString &hash, int status)
 {
     // Show error message notification for new alert
@@ -262,6 +268,12 @@ static void NotifyNumConnectionsChanged(ClientModel *clientmodel, int newNumConn
                               Q_ARG(int, newNumConnections));
 }
 
+static void NotifyChatEvent(ClientModel *clientmodel, std::string sMessage)
+{
+	QMetaObject::invokeMethod(clientmodel, "updateChatEvent", Qt::QueuedConnection,
+		 Q_ARG(QString, ToQstring(sMessage)));
+}
+
 static void NotifyAlertChanged(ClientModel *clientmodel, const uint256 &hash, ChangeType status)
 {
     qDebug() << "NotifyAlertChanged: " + QString::fromStdString(hash.GetHex()) + " status=" + QString::number(status);
@@ -311,6 +323,7 @@ void ClientModel::subscribeToCoreSignals()
     uiInterface.BannedListChanged.connect(boost::bind(BannedListChanged, this));
     uiInterface.NotifyBlockTip.connect(boost::bind(BlockTipChanged, this, _1, _2));
     uiInterface.NotifyAdditionalDataSyncProgressChanged.connect(boost::bind(NotifyAdditionalDataSyncProgressChanged, this, _1));
+	uiInterface.NotifyChatEvent.connect(boost::bind(NotifyChatEvent, this, _1));
 }
 
 void ClientModel::unsubscribeFromCoreSignals()
@@ -322,4 +335,5 @@ void ClientModel::unsubscribeFromCoreSignals()
     uiInterface.BannedListChanged.disconnect(boost::bind(BannedListChanged, this));
     uiInterface.NotifyBlockTip.disconnect(boost::bind(BlockTipChanged, this, _1, _2));
     uiInterface.NotifyAdditionalDataSyncProgressChanged.disconnect(boost::bind(NotifyAdditionalDataSyncProgressChanged, this, _1));
+	uiInterface.NotifyChatEvent.disconnect(boost::bind(NotifyChatEvent, this, _1));
 }

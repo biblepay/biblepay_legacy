@@ -226,6 +226,9 @@ std::string msGlobalStatus2 = "";
 std::string msGlobalStatus3 = "";
 std::string msProposalResult = "";
 std::string msNickName = "";
+std::string msPagedFrom = "";
+int64_t mlPaged = 0;
+
 int64_t nProposalStartTime = 0;
 int64_t nProposalModulus = 0;
 int64_t nLastHealthCheckup = 0;
@@ -3565,7 +3568,16 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
 	{
 		MemorizeBlockChainPrayers(true, false, false, false);
 	}
-	UpdatePogPool(pindex, block);
+	int64_t nAge = GetAdjustedTime() - pindex->GetBlockTime();
+	if (nAge < (60 * 60 * 2))
+	{
+		InitializePogPool(pindex->nHeight, BLOCKS_PER_DAY);
+		UpdatePogPool(pindex, block);
+	}
+	else
+	{
+		UpdatePogPool(pindex, block);
+	}
 
     return true;
 }
@@ -7876,9 +7888,12 @@ void InitializePogPool(int nHeight, int nSize)
 	for (int ix = nMinDepth; ix <= nMaxDepth; ix++)
 	{
    		CBlockIndex* pblockindex = FindBlockByHeight(ix);
-		if (ReadBlockFromDisk(block, pblockindex, consensusParams, "InitializePogPool"))
+		if (pblockindex)
 		{
-			UpdatePogPool(pblockindex, block);
+			if (ReadBlockFromDisk(block, pblockindex, consensusParams, "InitializePogPool"))
+			{
+				UpdatePogPool(pblockindex, block);
+			}
 		}
 	}
 }

@@ -27,6 +27,7 @@
 #include "wallet/rpcwallet.cpp"
 #include "masternode-payments.h"
 #include "masternodeconfig.h"
+#include "alert.h"
 
 #include "activemasternode.h"
 #include "masternodeman.h"
@@ -75,6 +76,7 @@ extern UniValue GetBusinessObjectByFieldValue(std::string sType, std::string sFi
 extern std::string GetBusinessObjectList(std::string sType, std::string sFields);
 extern std::string StoreBusinessObjectWithPK(UniValue& oBusinessObject, std::string& sError);
 // POG
+extern void SendChat(CChat chat);
 extern std::string CreateBankrollDenominations(double nQuantity, CAmount denominationAmount, std::string& sError);
 TitheDifficultyParams GetTitheParams(const CBlockIndex* pindex);
 extern std::string SendTithe(CAmount caTitheAmount, double dMinCoinAge, CAmount caMinCoinAmount, std::string& sError);
@@ -3682,11 +3684,13 @@ UniValue exec(const UniValue& params, bool fHelp)
 		double dTitheCap = (double)(GetTitheCap(chainActive.Tip()->nHeight) / COIN);
 		results.push_back(Pair("Tithe_Cap", dTitheCap));
 		double dDailyMinerEmissions = (double)(GetDailyMinerEmissions(chainActive.Tip()->nHeight) / COIN);
+		double dPoolEmissionsAfterReapers = dDailyMinerEmissions * .80;
 		if (dTitheCap > 0 && ((double)(chainActive.Tip()->n24HourTithes / COIN)) > 0)
 		{
-			double dBasePercent = R2X(dDailyMinerEmissions / dTitheCap) * .50 * 100;
-			double dGiftedPercent = R2X(dDailyMinerEmissions / ((double)(chainActive.Tip()->n24HourTithes / COIN))) * .50 * 100;
+			double dBasePercent = R2X(dPoolEmissionsAfterReapers / dTitheCap) * .50 * 100;
+			double dGiftedPercent = R2X(dPoolEmissionsAfterReapers / ((double)(chainActive.Tip()->n24HourTithes / COIN))) * .50 * 100;
 			results.push_back(Pair("Daily_Miner_Emissions", dDailyMinerEmissions));
+			results.push_back(Pair("Pool_Emissions", dPoolEmissionsAfterReapers));
 			results.push_back(Pair("Lowest_ROI%", dBasePercent));
 			results.push_back(Pair("Highest_ROI%", dGiftedPercent));
 		}
@@ -3793,29 +3797,25 @@ UniValue exec(const UniValue& params, bool fHelp)
 	}
 	else if (sItem == "chat1")
 	{
+		if (params.size() != 3)
+			throw runtime_error("You must specify To Message.");
+	
+		std::string sTo = params[1].get_str();
+		std::string sMsg = params[2].get_str();
+		std::string sNickName = GetArg("-nickname", "");
 		CChat chat;
 		chat.nTime = GetAdjustedTime();
 		chat.nID           = 1;  
 		chat.nPriority     = 5;
-		chat.sPayload = "This is the very first chat message.";
-		chat.sFromNickName = "randrews";
-		chat.sToNickName = "randrews";
-		chat.sDestination = "general";
-
+		chat.sPayload = sMsg;
+		chat.sFromNickName = sNickName;
+		chat.sToNickName = sTo;
+		chat.sDestination = sTo;
+		chat.bPrivate = true;
 	    results.push_back(Pair("hash", chat.GetHash().GetHex()));
 		results.push_back(Pair("chat", chat.ToString()));
-        LOCK(cs_vNodes);
-        BOOST_FOREACH(CNode* pnode, vNodes)
-        {
-            if (chat.RelayTo(pnode))
-            {
-                printf("Sent chat to %s\n", pnode->addr.ToString().c_str());
-            }
-        }
-		pwalletMain->cwallet_EmitChatMessage("test1");
-
-    
-	}
+		SendChat(chat);
+   }
 	else if (sItem == "datalist")
 	{
 		if (params.size() != 2 && params.size() != 3)
@@ -8108,7 +8108,15 @@ std::string SysCommandStdErr(std::string sCommand, std::string sTempFileName, st
 	return sStdErr;
 }
 
-
+void SendChat(CChat chat)
+{
+	LOCK(cs_vNodes);
+    BOOST_FOREACH(CNode* pnode, vNodes)
+    {
+		chat.RelayTo(pnode);
+    }
+	chat.ProcessChat();
+}
 
 #ifdef MAC_OSX
 int ShellCommand(std::string sCommand, std::string &sOutput, std::string &sError)
@@ -8242,7 +8250,6 @@ std::string AttachProject(std::string sAuth)
 	// LOL, if the attaching was successful, the reply is empty
 	return "";
 }
-
 
 std::string RosettaDiagnostics(std::string sEmail, std::string sPass, std::string& sError)
 {

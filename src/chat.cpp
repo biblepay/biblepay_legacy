@@ -9,6 +9,7 @@
 #include "net.h"
 #include "pubkey.h"
 #include "timedata.h"
+#include "main.h"
 #include "ui_interface.h"
 #include "util.h"
 #include "utilstrencodings.h"
@@ -19,7 +20,7 @@
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/foreach.hpp>
 #include <boost/thread.hpp>
-
+#include <boost/algorithm/string.hpp>
 using namespace std;
 
 map<uint256, CChat> mapChats;
@@ -63,6 +64,37 @@ std::string CChat::ToString() const
         sToNickName);
 }
 
+std::string CChat::Serialized() const
+{
+   return strprintf(
+	   "%d<COL>%d<COL>%d<COL>%d<COL>%d<COL>%s<COL>%s<COL>%s<COL>%s",
+        nVersion,
+        nTime,
+        nID,
+        bPrivate,
+		nPriority,
+		sDestination,
+        sPayload,
+        sFromNickName,
+        sToNickName);
+}
+
+void CChat::Deserialize(std::string sData)
+{
+	std::vector<std::string> vInput = Split(sData.c_str(),"<COL>");
+	if (vInput.size() > 7)
+	{
+		this->nVersion = cdbl(vInput[0], 0);
+		this->nTime = cdbl(vInput[1], 0);
+		this->nID = cdbl(vInput[2], 0);
+		this->bPrivate = (bool)(cdbl(vInput[3], 0));
+		this->nPriority = cdbl(vInput[4], 0);
+		this->sDestination = vInput[5];
+		this->sPayload = vInput[6];
+		this->sFromNickName = vInput[7];
+		this->sToNickName = vInput[8];
+	}
+}
 
 bool CChat::IsNull() const
 {
@@ -85,12 +117,11 @@ uint256 CChat::GetHash() const
 bool CChat::RelayTo(CNode* pnode) const
 {
     if (pnode->nVersion == 0) return false;
-
     // returns true if wasn't already contained in the set
     if (pnode->setKnown.insert(GetHash()).second)
     {
 		pnode->PushMessage(NetMsgType::CHAT, *this);
-            return true;
+        return true;
     }
     return false;
 }
@@ -109,15 +140,19 @@ CChat CChat::getChatByHash(const uint256 &hash)
 
 bool CChat::ProcessChat()
 {
-       
-
-//        mapChats.insert(make_pair(GetHash(), *this));
-        // Notify UI and -tnotify if it applies to me
-    //        uiInterface.NotifyChatChanged(GetHash(), CT_NEW);
-     //       Notify(strStatusBar, fThread);
-       
-
-    LogPrintf("\n Accepted chat %f %s dest %s ", nID, sPayload.c_str(), sDestination.c_str());
+	map<uint256, CChat>::iterator mi = mapChats.find(GetHash());
+    if(mi != mapChats.end()) return false;
+	// Never seen this chat record
+	mapChats.insert(make_pair(GetHash(), *this));
+    // Notify UI 
+	std::string sNickName = GetArg("-nickname", "");
+	if (boost::iequals(sNickName, sToNickName) && sPayload == "<RING>" && bPrivate == true)
+	{
+		msPagedFrom = sFromNickName;
+		mlPaged++;
+	}
+	
+	uiInterface.NotifyChatEvent(Serialized());
     return true;
 }
 

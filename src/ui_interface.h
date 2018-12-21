@@ -82,6 +82,9 @@ public:
     /** Number of network connections changed. */
     boost::signals2::signal<void (int newNumConnections)> NotifyNumConnectionsChanged;
 
+	/** Chat Event */
+	boost::signals2::signal<void (std::string sMessage)> NotifyChatEvent;
+
     /** Number of masternodes changed. */
     boost::signals2::signal<void (int newNumMasternodes)> NotifyStrMasternodeCountChanged;
 

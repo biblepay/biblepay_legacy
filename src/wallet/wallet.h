@@ -583,7 +583,6 @@ public:
     typedef std::map<unsigned int, CMasterKey> MasterKeyMap;
     MasterKeyMap mapMasterKeys;
     unsigned int nMasterKeyMaxID;
-	void cwallet_EmitChatMessage(std::string sMessage);
 
     CWallet()
     {
@@ -897,7 +896,6 @@ public:
     boost::signals2::signal<void (CWallet *wallet, const uint256 &hashTx,
             ChangeType status)> NotifyTransactionChanged;
 
-	boost::signals2::signal<void (CWallet *wallet, std::string sMessage)> walletmodel_HandleEmitChatMessage;
     /** Show progress e.g. for rescan */
     boost::signals2::signal<void (const std::string &title, int nProgress)> ShowProgress;
 

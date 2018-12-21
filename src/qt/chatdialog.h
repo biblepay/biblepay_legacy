@@ -6,33 +6,35 @@
 #define BITCOIN_QT_CHATDIALOG_H
 
 #include "ui_chatdialog.h"
-#include "walletmodel.h"
+#include "clientmodel.h"
 
 class ChatDialog : public QDialog, private Ui::ChatDialog
 {
      Q_OBJECT
 
  public:
-     ChatDialog(QWidget *parent = 0, bool fPrivateChat = false, std::string sMyNickname = "");
+     ChatDialog(QWidget *parent = 0, bool fPrivateChat = false, std::string sMyNickname = "", std::string sDestRoom = "");
 	 bool fPrivateChat;
 	 std::string sRecipientName;
 	 std::string sNickName;
-     void setWalletModel(WalletModel *model);
+	 std::string sRoom;
+     void setClientModel(ClientModel *model);
 
 public Q_SLOTS:
-     void appendMessage(std::string sFrom, std::string sMessage);
+     void appendMessage(std::string sFrom, std::string sMessage, int nPriority);
      void newParticipant(std::string sNickName);
      void participantLeft(std::string sNickName);
  
  private Q_SLOTS:
      void returnPressed();
      void queryRecipientName();
-	 void dummyEvent(std::string sMessage);
+	 void receivedEvent(QString sMessage);
+	 void ringRecipient();
 
  private:
-     //Client client;
      QTextTableFormat tableFormat;
-	 WalletModel *walletModel;
+	 ClientModel *clientModel;
+	 void setTitle();
 
 };
 

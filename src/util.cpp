@@ -125,6 +125,7 @@ bool fDebugMaster = false;
 bool fDebug10 = false;
 bool fReboot2 = false;
 bool fProposalNeedsSubmitted = false;
+
 bool fPrintToConsole = false;
 bool fPrintToDebugLog = true;
 

@@ -229,6 +229,9 @@ extern std::string msGlobalStatus2;
 extern std::string msGlobalStatus3;
 extern std::string msProposalResult;
 extern std::string msNickName;
+extern std::string msPagedFrom;
+extern int64_t mlPaged;
+
 extern int64_t nProposalStartTime;
 extern int64_t nProposalModulus;
 extern int64_t nLastHealthCheckup;
