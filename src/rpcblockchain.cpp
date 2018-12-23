@@ -85,6 +85,7 @@ double GetPOGDifficulty(const CBlockIndex* pindex);
 extern CPoolObject GetPoolVector(const CBlockIndex* pindex, int iPaymentTier);
 extern CAmount GetTitheTotal(CTransaction tx);
 void GetTxTimeAndAmount(uint256 hashInput, int hashInputOrdinal, int64_t& out_nTime, CAmount& out_caAmount);
+double GetBlockVersion(CTransaction ctx);
 double R2X(double var);
 CAmount GetDailyMinerEmissions(int nHeight);
 // END of POG
@@ -418,7 +419,7 @@ UniValue blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool tx
 	if (block.vtx.size() > 0)
 	{
 		result.push_back(Pair("subsidy", block.vtx[0].vout[0].nValue/COIN));
-		result.push_back(Pair("blockversion", ExtractXML(block.vtx[0].vout[0].sTxOutMessage,"<VER>","</VER>")));
+		result.push_back(Pair("blockversion", GetBlockVersion(block.vtx[0])));
 		if (block.vtx.size() > 1)
 		{
 			result.push_back(Pair("sanctuary_reward", block.vtx[0].vout[1].nValue/COIN));
@@ -1413,7 +1414,7 @@ void ScanBlockChainVersion(int nLookback)
          pblockindex = pblockindex->pprev;
          if (ReadBlockFromDisk(block, pblockindex, consensusParams, "SCANBLOCKCHAINVERSION")) 
 		 {
-			std::string sVersion2 = ExtractXML(block.vtx[0].vout[0].sTxOutMessage,"<VER>","</VER>");
+			std::string sVersion2 = RoundToString(GetBlockVersion(block.vtx[0]), 0);
 			mvBlockVersion[sVersion2]++;
 		 }
     }
@@ -2058,11 +2059,7 @@ UniValue exec(const UniValue& params, bool fHelp)
         			results.push_back(Pair("subsidy", block.vtx[0].vout[0].nValue/COIN));
 					std::string sRecipient = PubKeyToAddress(block.vtx[0].vout[0].scriptPubKey);
 					results.push_back(Pair("recipient", sRecipient));
-					std::string sBlockVersion = ExtractXML(block.vtx[0].vout[0].sTxOutMessage,"<VER>","</VER>");
-					std::string sBlockVersion2 = strReplace(sBlockVersion, ".", "");
-					double dBlockVersion = cdbl(sBlockVersion2, 0);
-					results.push_back(Pair("blockversion", sBlockVersion));
-					results.push_back(Pair("blockversion2", dBlockVersion));
+					results.push_back(Pair("blockversion", GetBlockVersion(block.vtx[0])));
 					results.push_back(Pair("minerguid", ExtractXML(block.vtx[0].vout[0].sTxOutMessage,"<MINERGUID>","</MINERGUID>")));
 				}
 			}
@@ -2443,7 +2440,7 @@ UniValue exec(const UniValue& params, bool fHelp)
 			pindexPrev->nHeight, NULL, false, f7000, f8000, f9000, fTitheBlocksActive, block.nNonce);
 		results.push_back(Pair("biblehash", hash.GetHex()));
 		results.push_back(Pair("subsidy", block.vtx[0].vout[0].nValue/COIN));
-		results.push_back(Pair("blockversion", ExtractXML(block.vtx[0].vout[0].sTxOutMessage,"<VER>","</VER>")));
+		results.push_back(Pair("blockversion", GetBlockVersion(block.vtx[0])));
 		std::string sMsg = "";
 		for (unsigned int i = 0; i < block.vtx[0].vout.size(); i++)
 		{

@@ -347,7 +347,6 @@ CBlockTemplate* CreateNewBlock(const CChainParams& chainparams, const CScript& s
 			txNew.vout[0].sTxOutMessage += "<MINERGUID>" + sMinerGuid + "</MINERGUID>";
 		}
 
-		
         // Update coinbase transaction with additional info about masternode and governance payments,
         // get some info back to pass to getblocktemplate
         FillBlockPayments(txNew, nHeight, blockReward, blockRewardWithoutFees, nFees, 0, pblock->txoutMasternode, pblock->voutSuperblock);

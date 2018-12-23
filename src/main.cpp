@@ -3568,17 +3568,17 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
 	{
 		MemorizeBlockChainPrayers(true, false, false, false);
 	}
+	static int nLastPogBlock = 0;
 	int64_t nAge = GetAdjustedTime() - pindex->GetBlockTime();
-	if (nAge < (60 * 60 * 2))
+	if ((nLastPogBlock + 1) != pindex->nHeight && nAge < (60 * 60 * 8))
 	{
+		// This only happens after a reorg
 		InitializePogPool(pindex->nHeight, BLOCKS_PER_DAY);
-		UpdatePogPool(pindex, block);
+		LogPrintf(" POG Reorg ");
 	}
-	else
-	{
-		UpdatePogPool(pindex, block);
-	}
-
+	UpdatePogPool(pindex, block);
+	nLastPogBlock = pindex->nHeight;
+    
     return true;
 }
 
@@ -4726,16 +4726,14 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIn
     }
 
 	// Rob A., Biblepay, 3/7/2018, Kick Off BotNet Rules
-	std::string sBlockVersion = ExtractXML(block.vtx[0].vout[0].sTxOutMessage,"<VER>","</VER>");
-	sBlockVersion = strReplace(sBlockVersion, ".", "");
-	double dBlockVersion = cdbl(sBlockVersion, 0);
+	double dBlockVersion = GetBlockVersion(block.vtx[0]);
 	if (fProd && nHeight > F11000_CUTOVER_HEIGHT_PROD && dBlockVersion < 1101)
 	{
 		 LogPrintf("ContextualCheckBlock::ERROR Rejecting block version %f at height %f \n",(double)dBlockVersion,(double)nHeight);
 		 return false;
 	}
 
-	if (!fProd && nHeight > FPOG_CUTOVER_HEIGHT_TESTNET && dBlockVersion < 1166)
+	if (!fProd && nHeight > FPOG_CUTOVER_HEIGHT_TESTNET && dBlockVersion < 1171)
 	{
 		 if (false) LogPrintf("ContextualCheckBlock::ERROR Rejecting testnet block version %f at height %f \n",(double)dBlockVersion,(double)nHeight);
 		 return false;
@@ -4755,9 +4753,20 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIn
 				{
 					bool fVerified = CheckPOGPoolRecipients(consensusParams, nHeight, block, pindexPrev);
 					double dVersion = GetBlockVersion(block.vtx[0]);
-					if (!fVerified && nHeight > 90000)
+					if (!fVerified)
 					{
-						LogPrintf("\nContextualCheckBlock::ERROR - POG Recipients invalid at height %f version %f ", nHeight, (double)dVersion);
+						static int nLastPogPoolHeight = 0;
+						if (nLastPogPoolHeight != pindexPrev->nHeight)
+						{
+							InitializePogPool(pindexPrev->nHeight, BLOCKS_PER_DAY);
+							nLastPogPoolHeight = pindexPrev->nHeight;
+						}
+						fVerified = CheckPOGPoolRecipients(consensusParams, nHeight, block, pindexPrev);
+						if (!fVerified)
+						{
+							LogPrintf("\nContextualCheckBlock::ERROR! - POG Recipients invalid at height %f version %f ", nHeight, (double)dVersion);
+							return false;
+						}
 					}
 				}
 			}
@@ -6458,8 +6467,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
 		sVersion = strReplace(sVersion, "/", "");
 		sVersion = strReplace(sVersion, ".", "");
 		double dPeerVersion = cdbl(sVersion, 0);
-		if (!fProd && dPeerVersion == 109) dPeerVersion=1090;
-		if (dPeerVersion < 1171 && dPeerVersion > 1000 && !fProd)
+		if (dPeerVersion < 1172 && !fProd)
 		{
 		    LogPrint("net","Disconnecting unauthorized peer in TestNet using old version %f\r\n",(double)dPeerVersion);
 			Misbehaving(pfrom->GetId(), 14);
@@ -7950,7 +7958,7 @@ void UpdatePogPool(CBlockIndex* pindex, const CBlock& block)
 			else if (nAmount > 0 && pindex->nHeight > FPOG_CUTOVER_HEIGHT_TESTNET)
 			{
 				double dVersion = GetBlockVersion(block.vtx[0]);
-				if (dVersion > 1169)
+				if (dVersion > 1171)
 					LogPrintf("\n Illegal tithe txid %s @height %f, max amount %f  amount %f vout %f version %f",
 					block.vtx[nTx].GetHash().GetHex().c_str(), 
 					(double)pindex->nHeight, (double)pindex->pprev->nMaxTitheAmount/COIN, (double)nAmount/COIN, nTx, (double)dVersion);
@@ -8924,6 +8932,7 @@ double GetBlockVersion(CTransaction ctx)
 {
 	std::string sBlockVersion = ExtractXML(ctx.vout[0].sTxOutMessage,"<VER>","</VER>");
 	sBlockVersion = strReplace(sBlockVersion, ".", "");
+	if (sBlockVersion.length() == 3) sBlockVersion += "0"; 
 	double dBlockVersion = cdbl(sBlockVersion, 0);
 	return dBlockVersion;
 }

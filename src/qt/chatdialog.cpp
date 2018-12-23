@@ -34,7 +34,7 @@ ChatDialog::ChatDialog(QWidget *parent, bool bPrivateChat, std::string sMyName, 
      connect(sendButton, SIGNAL(clicked()), this, SLOT(returnPressed()));
  #endif
      connect(lineEdit, SIGNAL(returnPressed()), this, SLOT(returnPressed()));
- 
+
 	 sNickName = sMyName;
 	 
      newParticipant(sMyName);
@@ -67,6 +67,21 @@ void ChatDialog::setClientModel(ClientModel *model)
     }
 }
 
+void ChatDialog::closeEvent(QCloseEvent *event)
+{
+	CChat c;
+	c.nVersion = 1;
+	c.nTime = GetAdjustedTime();
+	c.nID = GetAdjustedTime();
+	c.bPrivate = fPrivateChat;
+	c.nPriority = 1;
+	c.sDestination = sRecipientName;
+	c.sFromNickName = sNickName;
+	c.sPayload = "<LEFT>";
+	c.sToNickName = sRecipientName;
+	SendChat(c);
+}
+
 void ChatDialog::receivedEvent(QString sMessage)
 {
 	 // Deserialize back into the chat object
@@ -76,16 +91,29 @@ void ChatDialog::receivedEvent(QString sMessage)
 	 if ((fPrivateChat && boost::iequals(c.sDestination, sNickName) && boost::iequals(c.sFromNickName,  sRecipientName))
      	  || (!fPrivateChat && boost::iequals(c.sDestination, sRecipientName)))
 	 {
-		appendMessage(c.sFromNickName, c.sPayload, c.nPriority);
-		QList<QListWidgetItem *> items = listWidget->findItems(ToQstring(c.sFromNickName), Qt::MatchExactly);
-		if (items.isEmpty()) newParticipant(c.sFromNickName);
 		// Clear any global rings
+		bool bCancelDisplay = false;
+
 		if (fPrivateChat && c.sPayload == "<RING>")
 		{
 			mlPaged = 0;
 			msPagedFrom = "";
 		}
+		else if (c.sPayload == "<LEFT>")
+		{
+			participantLeft(c.sFromNickName);
+			bCancelDisplay = true;
+ 		}
+
+		if (!bCancelDisplay) 
+		{
+			appendMessage(c.sFromNickName, c.sPayload, c.nPriority);
+			QList<QListWidgetItem *> items = listWidget->findItems(ToQstring(c.sFromNickName), Qt::MatchExactly);
+			if (items.isEmpty()) newParticipant(c.sFromNickName);
+		}
+
 	 }
+
 }
 
 void ChatDialog::appendMessage(std::string sFrom, std::string sMessage, int nPriority)
@@ -190,7 +218,7 @@ void ChatDialog::appendMessage(std::string sFrom, std::string sMessage, int nPri
 	// Page the recipient 
 	for (int x = 1; x < 5; x++)
 	{
-		QTimer::singleShot(1000 * x, this, SLOT(ringRecipient()));
+		QTimer::singleShot(1500 * x, this, SLOT(ringRecipient()));
 	}
  }
 

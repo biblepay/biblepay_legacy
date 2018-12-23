@@ -30,6 +30,7 @@ public Q_SLOTS:
      void queryRecipientName();
 	 void receivedEvent(QString sMessage);
 	 void ringRecipient();
+	 void closeEvent(QCloseEvent *event);
 
  private:
      QTextTableFormat tableFormat;
