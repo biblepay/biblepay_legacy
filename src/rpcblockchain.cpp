@@ -79,7 +79,7 @@ extern std::string StoreBusinessObjectWithPK(UniValue& oBusinessObject, std::str
 extern void SendChat(CChat chat);
 extern std::string CreateBankrollDenominations(double nQuantity, CAmount denominationAmount, std::string& sError);
 TitheDifficultyParams GetTitheParams(const CBlockIndex* pindex);
-extern std::string SendTithe(CAmount caTitheAmount, double dMinCoinAge, CAmount caMinCoinAmount, std::string& sError);
+extern std::string SendTithe(CAmount caTitheAmount, double dMinCoinAge, CAmount caMinCoinAmount, CAmount caMaxTitheAmount, std::string& sError);
 CAmount GetTitheCap(int nHeight);
 double GetPOGDifficulty(const CBlockIndex* pindex);
 extern CPoolObject GetPoolVector(const CBlockIndex* pindex, int iPaymentTier);
@@ -3582,45 +3582,6 @@ UniValue exec(const UniValue& params, bool fHelp)
 			}
 		}
 	}
-	else if (sItem == "pogpool")
-	{
-		int nHeight = chainActive.Tip()->nHeight;
-		if (params.size() == 2)	nHeight = cdbl(params[1].get_str(), 0);
-		if (nHeight < 1)	throw runtime_error("Low height.");
-		CBlockIndex* pindex = FindBlockByHeight(nHeight);
-		if (!pindex) throw runtime_error("Invalid block index.");
-
-		CPoolObject c = GetPoolVector(pindex, 0);
-
-		BOOST_FOREACH(const PAIRTYPE(std::string, CTitheObject)& item, c.mapTithes)
-	    {
-			CTitheObject oTithe = item.second;
-			std::string sRow = "Amount: " + RoundToString((double)(oTithe.Amount/COIN),2) 
-				+ ", Weight: " + RoundToString(oTithe.Weight, 4) 
-				+ ", Payment_Tier: " + RoundToString(oTithe.PaymentTier, 0) 
-				+ ", Height: " + RoundToString(oTithe.Height, 0) + ", NickName: " + oTithe.NickName;
-
-			results.push_back(Pair(oTithe.Address, sRow));
-		}
-
-		for (int i = 0; i < 16; i++)
-		{
-			std::string sRow = "Count: " + RoundToString(c.oTierRecipients[i], 0) + ", Total: " + RoundToString((double)(c.oTierTotals[i]/COIN), 4);
-			results.push_back(Pair(RoundToString(i, 0), sRow));
-		}
-		results.push_back(Pair("High Tithe", (double)c.nHighTithe/COIN));
-		results.push_back(Pair("Total Tithes", (double)c.TotalTithes/COIN));
-		double dPD = GetPOGDifficulty(pindex);
-		results.push_back(Pair("POG Difficulty", dPD));
-		// Show the user their own stats 
-		results.push_back(Pair("My Tithes", (double)c.UserTithes/COIN));
-		// Show the user when they will be paid
-		if (c.nUserPaymentTier > -1)
-		{
-			int nPaymentHeight = ((nHeight - 10) % (c.nUserPaymentTier + 1)) + nHeight;
-			results.push_back(Pair("My Payment Height", (double)nPaymentHeight));
-		}
-	}
 	else if (sItem == "getdimensionalbalance")
 	{
 		if (params.size() != 3)
@@ -3712,7 +3673,7 @@ UniValue exec(const UniValue& params, bool fHelp)
 		}
 
 		std::string sError = "";
-		std::string sTxId = SendTithe(caAmount, dMinCoinAge, caMinCoinAmount, sError);
+		std::string sTxId = SendTithe(caAmount, dMinCoinAge, caMinCoinAmount, tdp.max_tithe_amount, sError);
 		if (!sError.empty())
 		{
 			results.push_back(Pair("Error", sError));
@@ -4118,7 +4079,7 @@ std::string CreateBankrollDenominations(double nQuantity, CAmount denominationAm
 }
 
 
-std::string SendTithe(CAmount caTitheAmount, double dMinCoinAge, CAmount caMinCoinAmount, std::string& sError)
+std::string SendTithe(CAmount caTitheAmount, double dMinCoinAge, CAmount caMinCoinAmount, CAmount caMaxTitheAmount, std::string& sError)
 {
 	const Consensus::Params& consensusParams = Params().GetConsensus();
     std::string sAddress = consensusParams.FoundationAddress;
@@ -4128,10 +4089,41 @@ std::string SendTithe(CAmount caTitheAmount, double dMinCoinAge, CAmount caMinCo
 		sError = "Invalid Destination Address";
 		return sError;
 	}
+
+	if (fPOGEnabled && caTitheAmount > caMaxTitheAmount)
+	{
+		sError = "Sorry, your tithe exceeds the maximum allowed tithe for this difficulty level.  (See getmininginfo).";
+		return sError;
+	}
+			
     CWalletTx wtx;
 	std::string sTitheAddress = DefaultRecAddress("TITHES");
 	wtx.sTxMessageConveyed = "<TITHER>" + sTitheAddress + "</TITHER><NICKNAME>" + msNickName + "</NICKNAME><TITHESIGNER>" + sTitheAddress + "</TITHESIGNER>";
-    SendMoneyToDestinationWithMinimumBalance(address.Get(), caTitheAmount, caTitheAmount, dMinCoinAge, caMinCoinAmount, wtx, sError);
+    
+	// R ANDREWS - BIBLEPAY - HONOR UNLOCK PASSWORD IF WE HAVE ONE
+
+	bool bTriedToUnlock = false;
+	if (pwalletMain->IsLocked())
+	{
+		if (!msEncryptedString.empty())
+		{
+			bTriedToUnlock = true;
+			if (!pwalletMain->Unlock(msEncryptedString, false))
+			{
+				static int nNotifiedOfUnlockIssue = 0;
+				if (nNotifiedOfUnlockIssue == 0)
+					LogPrintf("\nUnable to unlock wallet with SecureString.\n");
+				nNotifiedOfUnlockIssue++;
+				sError = "Unable to unlock wallet with POG password provided";
+				return sError;
+			}
+		}
+	}
+
+	
+	SendMoneyToDestinationWithMinimumBalance(address.Get(), caTitheAmount, caTitheAmount, dMinCoinAge, caMinCoinAmount, wtx, sError);
+	
+	if (bTriedToUnlock) pwalletMain->Lock();
 	if (!sError.empty()) return "";
     return wtx.GetHash().GetHex().c_str();
 }

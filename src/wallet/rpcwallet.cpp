@@ -402,7 +402,6 @@ static void SendMoney(const CTxDestination &address, CAmount nValue, bool fSubtr
     CRecipient recipient = {scriptPubKey, nValue, fForce, fSubtractFeeFromAmount, false, false, false, "", "", "", ""};
     vecSend.push_back(recipient);
 	int nMinConfirms = 0;
-
     if (!pwalletMain->CreateTransaction(vecSend, wtxNew, reservekey, nFeeRequired, nChangePosRet,
                                          strError, NULL, true, fUsePrivateSend ? ONLY_DENOMINATED : (fUseSanctuaryFunds ? ALL_COINS : ONLY_NOT1000IFMN), 
 										 fUseInstantSend, nMinConfirms, nMinCoinAge, nMinCoinAmount)) 

@@ -72,7 +72,7 @@ bool SignCPID(std::string sCPID, std::string& sError, std::string& out_FullSig);
 bool HasThisCPIDSolvedPriorBlocks(std::string CPID, CBlockIndex* pindexPrev);
 // POG
 CAmount SelectCoinsForTithing(const CBlockIndex* pindex);
-std::string SendTithe(CAmount caTitheAmount, double dMinCoinAge, CAmount caMinCoinAmount, std::string& sError);
+std::string SendTithe(CAmount caTitheAmount, double dMinCoinAge, CAmount caMinCoinAmount, CAmount caMaxTitheAmount, std::string& sError);
 TitheDifficultyParams GetTitheParams(const CBlockIndex* pindex);
 CAmount Get24HourTithes(int nHeight, int nSize);
 // END POG
@@ -847,7 +847,7 @@ recover:
 						nTitheAmount = (((double)(tdp.max_tithe_amount / COIN) * .90)) * COIN;
 					}
 					std::string sError = "";
-					std::string sTxId = SendTithe(nTitheAmount, tdp.min_coin_age, tdp.min_coin_amount, sError);
+					std::string sTxId = SendTithe(nTitheAmount, tdp.min_coin_age, tdp.min_coin_amount, tdp.max_tithe_amount, sError);
 					if (!sError.empty())
 					{
 						LogPrintf("\nBiblePayMiner::SendTithe::Error - Unable to send tithe - Amount %f, Error %s ", (double)nTitheAmount/COIN, sError.c_str());

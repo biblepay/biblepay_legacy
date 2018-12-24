@@ -23,7 +23,7 @@ ChatDialog::ChatDialog(QWidget *parent, bool bPrivateChat, std::string sMyName, 
      setupUi(this);
 	 fPrivateChat = bPrivateChat;
 	 this->setAttribute(Qt::WA_DeleteOnClose);
-
+	 this->setWindowFlags(Qt::Window); 
      lineEdit->setFocusPolicy(Qt::StrongFocus);
      textEdit->setFocusPolicy(Qt::NoFocus);
      textEdit->setReadOnly(true);

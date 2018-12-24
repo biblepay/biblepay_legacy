@@ -46,6 +46,7 @@ double GetDifficultyN(const CBlockIndex* blockindex, double N);
 CPoolObject GetPoolVector(const CBlockIndex* pindex, int iPaymentTier);
 TitheDifficultyParams GetTitheParams(const CBlockIndex* pindex);
 double GetPOGDifficulty(const CBlockIndex* pblockindex);
+CBlockIndex* FindBlockByHeight(int nHeight);
 // END POG
 
 /**
@@ -276,6 +277,63 @@ std::string ConcatenatePoolHealth(std::string sPoolKey)
 	}
 	return sCat;
 }
+
+UniValue pogpool(const UniValue& params, bool fHelp)
+{
+    if (fHelp)
+        throw runtime_error(
+            "pogpool\n"
+			"\nReturns a json object containing the contents of the POG (Proof-of-giving) Pool."
+            "\nResult:\n"
+            "{\n"
+            "  \"Tier No\": nnn,             (numeric) The tier number\n"
+            "  \"Count\": nnn,   (numeric) The count of tithes in the tier\n"
+			"  \"Total\": nnn, (numeric) The sum of tithes in the tier\n"
+            "}\n"
+			"\nYou may also specify the height (optional).\n\nExamples:\n"
+            + HelpExampleCli("pogpool", "")
+            + HelpExampleRpc("pogpool 89000", "")
+        );
+
+	LOCK(cs_main);
+	int nHeight = chainActive.Tip()->nHeight;
+	if (params.size() == 2)	nHeight = cdbl(params[1].get_str(), 0);
+	if (nHeight < 1)	throw runtime_error("Low height.");
+	CBlockIndex* pindex = FindBlockByHeight(nHeight);
+	if (!pindex) throw runtime_error("Invalid block index.");
+	CPoolObject c = GetPoolVector(pindex, 0);
+    UniValue results(UniValue::VOBJ);
+
+	BOOST_FOREACH(const PAIRTYPE(std::string, CTitheObject)& item, c.mapTithes)
+    {
+		CTitheObject oTithe = item.second;
+		std::string sRow = "Amount: " + RoundToString((double)(oTithe.Amount/COIN),2) 
+			+ ", Weight: " + RoundToString(oTithe.Weight, 4) 
+			+ ", Payment_Tier: " + RoundToString(oTithe.PaymentTier, 0) 
+			+ ", Height: " + RoundToString(oTithe.Height, 0) + ", NickName: " + oTithe.NickName;
+		results.push_back(Pair(oTithe.Address, sRow));
+	}
+
+	for (int i = 0; i < 16; i++)
+	{
+		std::string sRow = "Count: " + RoundToString(c.oTierRecipients[i], 0) + ", Total: " + RoundToString((double)(c.oTierTotals[i]/COIN), 4);
+		results.push_back(Pair(RoundToString(i, 0), sRow));
+	}
+	results.push_back(Pair("High Tithe", (double)c.nHighTithe/COIN));
+	results.push_back(Pair("Total Tithes", (double)c.TotalTithes/COIN));
+	double dPD = GetPOGDifficulty(pindex);
+	results.push_back(Pair("POG Difficulty", dPD));
+	// Show the user their own stats 
+	results.push_back(Pair("My Tithes", (double)c.UserTithes/COIN));
+	// Show the user when they will be paid
+	if (c.nUserPaymentTier > -1)
+	{
+		int nPaymentHeight = ((nHeight - 10) % (c.nUserPaymentTier + 1)) + nHeight;
+		results.push_back(Pair("My Payment Height", (double)nPaymentHeight));
+	}
+	return results;
+}
+
 
 UniValue getmininginfo(const UniValue& params, bool fHelp)
 {

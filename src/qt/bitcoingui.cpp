@@ -1799,10 +1799,19 @@ void BitcoinGUI::detectShutdown()
 		{
 			{
 				bool bOK;
-				std::string sPassword = FromQStringW(QInputDialog::getText(this, tr("PODC Update Auto-Unlock Feature"),
+				std::string sPassword = "";
+				if (fPOGEnabled)
+				{
+					FromQStringW(QInputDialog::getText(this, tr("PODC Update Auto-Unlock Feature"),
                                           tr("Please enter your wallet password for PODC updates, or click <Cancel> to skip:"),
-										  QLineEdit::Password,
-                                          "", &bOK));
+										  QLineEdit::Password, "", &bOK));
+				}
+				else
+				{
+					FromQStringW(QInputDialog::getText(this, tr("POG/PODC Auto-Unlock Feature"),
+                       tr("Please enter your wallet password for automatic POG tithes, or click <Cancel> to skip:"),
+					   QLineEdit::Password, "", &bOK));
+				}
 				if (!sPassword.empty())
 				{
 					msEncryptedString.reserve(400);

@@ -440,7 +440,8 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
 			caMaxTitheAmount = tdp.max_tithe_amount;
 		}
 	
-        bool fCreated = wallet->CreateTransaction(vecSend, *newTx, *keyChange, nFeeRequired, nChangePosRet, strFailReason, coinControl, true, recipients[0].inputType, recipients[0].fUseInstantSend, 0, dMinCoinAge, caMinCoinAmount);
+        bool fCreated = wallet->CreateTransaction(vecSend, *newTx, *keyChange, nFeeRequired, nChangePosRet, strFailReason, coinControl, true, recipients[0].inputType, 
+			recipients[0].fUseInstantSend, 0, dMinCoinAge, caMinCoinAmount);
 
         transaction.setTransactionFee(nFeeRequired);
         if (fSubtractFeeFromAmount && fCreated)
