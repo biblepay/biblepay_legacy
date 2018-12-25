@@ -4118,6 +4118,7 @@ std::string SendTithe(CAmount caTitheAmount, double dMinCoinAge, CAmount caMinCo
 				return sError;
 			}
 		}
+		else LogPrintf(" Encrypted string empty.");
 	}
 
 	
