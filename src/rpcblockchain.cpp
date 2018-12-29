@@ -7622,9 +7622,7 @@ int ShellCommand(std::string sCommand, std::string &sOutput, std::string &sError
     }
 
 }
-#endif
-
-#ifdef WIN32
+#elif defined(WIN32)
 int ShellCommand(std::string sCommand, std::string &sOutput, std::string &sError)
 {
     sOutput = sError = SystemCommand2(sCommand.c_str());
