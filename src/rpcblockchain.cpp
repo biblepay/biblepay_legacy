@@ -7622,6 +7622,14 @@ int ShellCommand(std::string sCommand, std::string &sOutput, std::string &sError
     }
 
 }
+#endif
+
+#ifdef WIN32
+int ShellCommand(std::string sCommand, std::string &sOutput, std::string &sError)
+{
+    sOutput = sError = SystemCommand2(sCommand.c_str());
+    return (Contains(sOutput, "not found"))?1:0;
+}
 #else
 int ShellCommand(std::string sCommand, std::string &sOutput, std::string &sError)
 {
@@ -7642,7 +7650,7 @@ std::string BoincCommand(std::string sCommand, std::string &sError)
     {
         sEXEPath = "\"c:\\program files\\BOINC\\boinccmd\"";
         sErrorNotFound += "Boinc is not installed.  Please run BOINC installer and make sure boinccmd.exe is found in "+sEXEPath;
-        sCmd = sEXEPath + " >" + sPath + " " + sCommand + " 2>&1";
+        sCmd = sEXEPath + " " + sCommand + " 2";
     }
     else if (sOS=="LIN")
     {
