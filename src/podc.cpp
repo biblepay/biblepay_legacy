@@ -4,7 +4,6 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-
 #include "amount.h"
 #include "chain.h"
 #include "chainparams.h"
@@ -21,6 +20,7 @@
 #include "util.h"
 #include "utilstrencodings.h"
 #include "base58.h"
+#include "rpcserver.h"
 
 #include "darksend.h"
 #include "wallet/wallet.h"
@@ -47,45 +47,6 @@
 #include <boost/filesystem/fstream.hpp>
 
 using namespace std;
-std::string BiblepayHTTPSPost(bool bPost, int iThreadID, std::string sActionName, std::string sDistinctUser, std::string sPayload, std::string sBaseURL, std::string sPage, int iPort, std::string sSolution, int iTimeoutSecs, int iMaxSize, int iBreakOnError);
-CBlockIndex* FindBlockByHeight(int nHeight);
-bool DownloadDistributedComputingFile(int iNextSuperblock, std::string& sError);
-void WriteCache(std::string section, std::string key, std::string value, int64_t locktime, bool IgnoreCase=true);
-std::string SendBlockchainMessage(std::string sType, std::string sPrimaryKey, std::string sValue, double dStorageFee, bool fSign, std::string& sError);
-std::string DefaultRecAddress(std::string sType);
-std::string AddBlockchainMessages(std::string sAddress, std::string sType, std::string sPrimaryKey, std::string sHTML, CAmount nAmount, double dMinCoinAge, std::string& sError);
-int GetMinimumResearcherParticipationLevel();
-double GetMinimumMagnitude();
-std::string GetBoincPasswordHash(std::string sProjectPassword, std::string sProjectEmail);
-std::string GetSporkValue(std::string sKey);
-std::string GetBoincAuthenticator(std::string sProjectID, std::string sProjectEmail, std::string sPasswordHash);
-std::string GetDCCElement(std::string sData, int iElement, bool fCheckSignature);
-
-void PurgeCacheAsOfExpiration(std::string sSection, int64_t nExpiration);
-std::string ReadCacheWithMaxAge(std::string sSection, std::string sKey, int64_t nMaxAge);
-std::string GetBoincResearcherHexCodeAndCPID(std::string sProjectId, int nUserId, std::string& sCPID);
-
-bool CheckStakeSignature(std::string sBitcoinAddress, std::string sSignature, std::string strMessage, std::string& strError);
-
-int GetBoincResearcherUserId(std::string sProjectId, std::string sAuthenticator);
-
-
-std::string RetrieveMd5(std::string s1);
-int MyRank(int nHeight);
-bool SignStake(std::string sBitcoinAddress, std::string strMessage, std::string& sError, std::string& sSignature);
-std::string GenerateNewAddress(std::string& sError, std::string sName);
-std::string GetMyPublicKeys();
-void ClearCache(std::string sSection);
-std::string RetrieveDCCWithMaxAge(std::string cpid, int64_t iMaxSeconds);
-std::string GetDCCPublicKey(const std::string& cpid, bool fRequireSig);
-extern std::string ExecuteDistributedComputingSanctuaryQuorumProcess();
-
-void ClearSanctuaryMemories();
-
-int GetLastDCSuperblockHeight(int nCurrentHeight, int& nNextSuperblock);
-int GetSanctuaryCount();
-
-
 
 
 
@@ -668,8 +629,4 @@ int64_t StringToUnixTime(std::string sTime)
 	tm.tm_sec = iSecond;
 	return SyntheticUTCTime(&tm);
 }
-
-
-
-
 

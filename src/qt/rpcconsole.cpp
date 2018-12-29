@@ -63,9 +63,7 @@ const QString UPGRADEWALLET("-upgradewallet");
 const QString REINDEX("-reindex");
 const QString ERASECHAIN("-erasechain");
 const QString EMPTY("");
-QString ToQstring(std::string s);
-std::string RetrieveMd5(std::string s1);
-void WriteCache(std::string section, std::string key, std::string value, int64_t locktime, bool IgnoreCase=true);
+
 
 const struct {
     const char *url;

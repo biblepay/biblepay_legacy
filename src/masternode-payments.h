@@ -40,6 +40,10 @@ void FillBlockPayments(CMutableTransaction& txNew, int nBlockHeight, CAmount blo
 	CAmount nFees, CAmount retiredMiningTithe, CTxOut& txoutMasternodeRet, std::vector<CTxOut>& voutSuperblockRet);
 std::string GetRequiredPaymentsString(int nBlockHeight);
 
+extern CAmount GetTxSanctuaryCollateral(const CTransaction& txNew);
+extern CAmount GetSanctuaryCollateral(CTxIn vin);
+
+
 class CMasternodePayee
 {
 private:

@@ -266,7 +266,6 @@ private Q_SLOTS:
 	void TheNiceneCreedClicked();
 	void ReadBibleClicked();
 	void CreateNewsClicked();
-	void ReadNewsClicked();
 	void OneClickMiningClicked();
 	void TheTenCommandmentsClicked();
 	void JesusConciseCommandmentsClicked();

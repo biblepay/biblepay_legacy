@@ -27,6 +27,7 @@
 #include "instantx.h"
 #include "timedata.h"
 #include "podc.h"
+#include "rpcpodc.h"
 
 #ifdef ENABLE_WALLET
 #include "wallet/wallet.h"
@@ -39,10 +40,7 @@
 
 using namespace std;
 
-extern std::string GetTxNews(uint256 hash, std::string& sHeadline);
-
 extern UniValue createrawtransaction(const UniValue& params, bool fHelp);
-bool VerifyCPIDSignature(std::string sFullSig, bool bRequireEndToEndVerification, std::string& sError);
 
 
 void ScriptPubKeyToJSON(const CScript& scriptPubKey, UniValue& out, bool fIncludeHex)
@@ -68,26 +66,6 @@ void ScriptPubKeyToJSON(const CScript& scriptPubKey, UniValue& out, bool fInclud
         a.push_back(CBitcoinAddress(addr).ToString());
     out.push_back(Pair("addresses", a));
 }
-
-
-std::string GetTxNews(uint256 hash, std::string& sHeadline)
-{
-    CTransaction tx;
-    uint256 hashBlock;
-    if (!GetTransaction(hash, tx, Params().GetConsensus(), hashBlock, true)) return ""; // empty string means no news exists for this tx
-    string strHex = EncodeHexTx(tx);
-	std::string sData = "";
-    for (unsigned int i = 0; i < tx.vout.size(); i++) 
-	{
-        const CTxOut& txout = tx.vout[i];
-		sData += tx.vout[i].sTxOutMessage;
-    }
-	std::string sNews = ExtractXML(sData, "<NEWS>", "</NEWS>");
-	sHeadline = ExtractXML(sData, "<MK>", "</MK>");
-	return sNews;
-}
-
-
 
 
 void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)

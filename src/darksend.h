@@ -54,14 +54,6 @@ extern CDarkSendSigner darkSendSigner;
 extern std::map<uint256, CDarksendBroadcastTx> mapDarksendBroadcastTxes;
 extern std::vector<CAmount> vecPrivateSendDenominations;
 extern std::map<uint256, CTradeTx> mapTradeTxes;
-std::string RetrieveMd5(std::string s1);
-std::string RoundToString(double d, int place);
-std::string PubKeyToAddress(const CScript& scriptPubKey);
-std::string ExtractXML(std::string XMLdata, std::string key, std::string key_end);
-double cdbl(std::string s, int place);
-std::string AmountToString(const CAmount& amount);
-CAmount StringToAmount(std::string sValue);
-
 
 /** Holds an mixing input
  */
@@ -400,6 +392,7 @@ public:
 		if (c.vout.size() > 0)
 		{
 			XML = c.vout[0].sTxOutMessage;
+
 			RecipientAddress = PubKeyToAddress(c.vout[0].scriptPubKey);
 			Amount = c.vout[0].nValue;
 		}

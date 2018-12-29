@@ -20,14 +20,10 @@
 #include "wallet/wallet.h"
 #include "darksend.h"
 #include "instantx.h"
+#include "rpcpog.h"
 
 #include <stdint.h>
 #include <string>
-const CBlockIndex* GetBlockIndexByTransactionHash(const uint256 &hash);
-std::string TimestampToHRDate(double dtm);
-double GetDifficultyN(const CBlockIndex* blockindex, double N);
-std::string ReadCache(std::string section, std::string key);
-void WriteCache(std::string section, std::string key, std::string value, int64_t locktime, bool IgnoreCase=true);
 
 QString TransactionDesc::FormatTxStatus(const CWalletTx& wtx)
 {

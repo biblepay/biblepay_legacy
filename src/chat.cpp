@@ -9,10 +9,11 @@
 #include "net.h"
 #include "pubkey.h"
 #include "timedata.h"
-#include "main.h"
+
 #include "ui_interface.h"
 #include "util.h"
 #include "utilstrencodings.h"
+#include "rpcpog.h"
 #include <stdint.h>
 #include <algorithm>
 #include <map>

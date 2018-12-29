@@ -17,22 +17,13 @@
 #include "walletmodel.h"
 #include "main.h"
 #include "podc.h"
+#include "rpcpodc.h"
 #include <QAction>
 #include <QCursor>
 #include <QItemSelection>
 #include <QMessageBox>
 #include <QScrollBar>
 #include <QTextDocument>
-QString ToQstring(std::string s);
-std::string FromQStringW(QString qs);
-std::string RoundToString(double d, int place);
-double GetTaskWeight(std::string sCPID);
-double GetUTXOWeight(std::string sCPID);
-std::string AssociateDCAccount(std::string sProjectId, std::string sBoincEmail, std::string sBoincPassword, std::string sUnbankedPublicKey, bool fForce);
-std::string FixRosetta(std::string sEmail, std::string sPass, std::string& sError);
-std::string RosettaDiagnostics(std::string sEmail, std::string sPass, std::string& sError);
-int GetBoincTaskCount();
-
 
 
 DistributedComputingDialog::DistributedComputingDialog(const PlatformStyle *platformStyle, QWidget *parent) :
@@ -52,7 +43,7 @@ DistributedComputingDialog::DistributedComputingDialog(const PlatformStyle *plat
 
 	std::string sProject = "Rosetta@Home";
 	ui->cmbProjectName->clear();
- 	ui->cmbProjectName->addItem(ToQstring(sProject));
+ 	ui->cmbProjectName->addItem(GUIUtil::TOQS(sProject));
 	// Populate the CPIDs and Magnitude
 	UpdateMagnitudeDisplay();
 }
@@ -66,7 +57,7 @@ void DistributedComputingDialog::UpdateMagnitudeDisplay()
 	std::string sInfo = "<br> CPIDS: " + msGlobalCPID 
 		+ "<br> Magnitude: " + RoundToString(mnMagnitude,2)
 		+ "<br> Task Weight: " + RoundToString(dTaskWeight, 0) + "; UTXO Weight: " + RoundToString(dUTXOWeight, 0);
-	ui->txtInfo->setText(ToQstring(sInfo));
+	ui->txtInfo->setText(GUIUtil::TOQS(sInfo));
 	int nTasks = GetBoincTaskCount();
 
 	ui->lcdTasks->display(nTasks);
@@ -108,11 +99,11 @@ void DistributedComputingDialog::on_btnAssociate_clicked()
 {
     if(!model || !model->getOptionsModel())
         return;
-	std::string sEmail = FromQStringW(ui->txtEmail->text());
-	std::string sPassword = FromQStringW(ui->txtPassword->text());
+	std::string sEmail = GUIUtil::FROMQS(ui->txtEmail->text());
+	std::string sPassword = GUIUtil::FROMQS(ui->txtPassword->text());
 	std::string sError = AssociateDCAccount("project1", sEmail, sPassword, "", false);
 	std::string sNarr = (sError.empty()) ? "Successfully advertised DC-Key.  Type exec getboincinfo to find more researcher information.  Welcome Aboard!  Thank you for donating your clock-cycles to help cure cancer!" : sError;
-	QMessageBox::warning(this, tr("Boinc Researcher Association Result"), ToQstring(sNarr), QMessageBox::Ok, QMessageBox::Ok);
+	QMessageBox::warning(this, tr("Boinc Researcher Association Result"), GUIUtil::TOQS(sNarr), QMessageBox::Ok, QMessageBox::Ok);
     clear();
 	UpdateMagnitudeDisplay();
 }
@@ -122,15 +113,15 @@ void DistributedComputingDialog::on_btnFix_clicked()
 {
     if(!model || !model->getOptionsModel())
         return;
-	std::string sEmail = FromQStringW(ui->txtEmail->text());
-	std::string sPassword = FromQStringW(ui->txtPassword->text());
+	std::string sEmail = GUIUtil::FROMQS(ui->txtEmail->text());
+	std::string sPassword = GUIUtil::FROMQS(ui->txtPassword->text());
 
 	std::string sError = "";
 	std::string sHTML = FixRosetta(sEmail, sPassword, sError);
 	sHTML = strReplace(sHTML, "\n", "<br>");
 	
 	std::string sNarr = (sError.empty()) ? sHTML : sError;
-	QMessageBox::warning(this, tr("Fix BOINC Configuration"), ToQstring(sNarr), QMessageBox::Ok, QMessageBox::Ok);
+	QMessageBox::warning(this, tr("Fix BOINC Configuration"), GUIUtil::TOQS(sNarr), QMessageBox::Ok, QMessageBox::Ok);
     clear();
 	UpdateMagnitudeDisplay();
 }
@@ -139,13 +130,13 @@ void DistributedComputingDialog::on_btnDiagnostics_clicked()
 {
     if(!model || !model->getOptionsModel())
         return;
-	std::string sEmail = FromQStringW(ui->txtEmail->text());
-	std::string sPassword = FromQStringW(ui->txtPassword->text());
+	std::string sEmail = GUIUtil::FROMQS(ui->txtEmail->text());
+	std::string sPassword = GUIUtil::FROMQS(ui->txtPassword->text());
 	std::string sError = "";
 	std::string sHTML = RosettaDiagnostics(sEmail, sPassword, sError);
 	sHTML = strReplace(sHTML, "\n", "<br>");
 	std::string sNarr = (sError.empty()) ? sHTML : sError;
-	QMessageBox::warning(this, tr("BOINC Diagnostics Result"), ToQstring(sNarr), QMessageBox::Ok, QMessageBox::Ok);
+	QMessageBox::warning(this, tr("BOINC Diagnostics Result"), GUIUtil::TOQS(sNarr), QMessageBox::Ok, QMessageBox::Ok);
     clear();
 	UpdateMagnitudeDisplay();
 }

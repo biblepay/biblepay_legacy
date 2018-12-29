@@ -6,6 +6,7 @@
 #ifndef BITCOIN_INIT_H
 #define BITCOIN_INIT_H
 
+#include "chain.h"
 #include <string>
 
 class CScheduler;
@@ -22,6 +23,8 @@ void StartShutdown(int iCondition);
 bool ShutdownRequested();
 bool RebootRequested();
 std::string GetOS();
+void ThreadSendAlert();
+void CheckGenesisBlock(CBlock block, uint256 targetBlockHash, uint256 targetMerkleRoot);
 
 /** Interrupt threads */
 void Interrupt(boost::thread_group& threadGroup);

@@ -28,18 +28,6 @@
 #include <boost/foreach.hpp>
 
 
-std::string PubKeyToAddress(const CScript& scriptPubKey);
-extern QString ToQstring(std::string s);
-extern std::string FromQStringW(QString qs);
-std::string SubmitToIPFS(std::string sPath, std::string& sError);
-double GetSporkDouble(std::string sName, double nDefault);
-int64_t GetFileSize(std::string sPath);
-std::string DefaultRecAddress(std::string sType);
-// POG
-TitheDifficultyParams GetTitheParams(const CBlockIndex* pindex);
-// END OF POG
-
-
 WalletModel::WalletModel(const PlatformStyle *platformStyle, CWallet *wallet, OptionsModel *optionsModel, QObject *parent) :
     QObject(parent), wallet(wallet), optionsModel(optionsModel), addressTableModel(0),
     transactionTableModel(0),
@@ -139,13 +127,6 @@ void WalletModel::updateStatus()
 
 
 
-std::string FromQStringW(QString qs)
-{
-	std::string sOut = qs.toUtf8().constData();
-	return sOut;
-}
-
-
 
 void WalletModel::pollBalanceChanged()
 {
@@ -231,13 +212,6 @@ bool WalletModel::validateAddress(const QString &address)
     return addressParsed.IsValid();
 }
 
-
-QString ToQstring(std::string s)
-{
-	QString str1 = QString::fromUtf8(s.c_str());
-	return str1;
-}
-
 WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransaction &transaction, const CCoinControl *coinControl)
 {
     CAmount total = 0;
@@ -283,7 +257,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
                 CScript scriptPubKey(scriptStr, scriptStr+out.script().size());
                 CAmount nAmount = out.amount();
                 CRecipient recipient = {scriptPubKey, nAmount, rcp.fForce, rcp.fSubtractFeeFromAmount, rcp.fTithe, rcp.fPrayer, rcp.fRepent, 
-					FromQStringW(rcp.txtMessage), FromQStringW(rcp.txtRepent), FromQStringW(""), FromQStringW(rcp.ipfshash) };
+					GUIUtil::FROMQS(rcp.txtMessage), GUIUtil::FROMQS(rcp.txtRepent), GUIUtil::FROMQS(""), GUIUtil::FROMQS(rcp.ipfshash) };
                 vecSend.push_back(recipient);
             }
             if (subtotal <= 0)
@@ -307,7 +281,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
 
             CScript scriptPubKey = GetScriptForDestination(CBitcoinAddress(rcp.address.toStdString()).Get());
             CRecipient recipient = {scriptPubKey, rcp.amount, rcp.fForce, rcp.fSubtractFeeFromAmount, rcp.fTithe, rcp.fPrayer, rcp.fRepent, 
-				FromQStringW(rcp.txtMessage), FromQStringW(rcp.txtRepent), FromQStringW(""), FromQStringW(rcp.ipfshash) };
+				GUIUtil::FROMQS(rcp.txtMessage), GUIUtil::FROMQS(rcp.txtRepent), GUIUtil::FROMQS(""), GUIUtil::FROMQS(rcp.ipfshash) };
 			//If TITHE is Checked, add a recipient here
 
 			std::string sAddress = PubKeyToAddress(scriptPubKey);
@@ -329,10 +303,10 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
 			{
 				CAmount aTitheAmount = rcp.amount * .10;
 				CScript spkFoundation = GetScriptForDestination(CBitcoinAddress(consensusParams.FoundationAddress).Get());
-	            CRecipient recFoundation = {spkFoundation, aTitheAmount, rcp.fForce, false, true, rcp.fPrayer, rcp.fRepent, FromQStringW(rcp.txtMessage), 
-					FromQStringW(rcp.txtRepent), FromQStringW(""), FromQStringW(rcp.ipfshash) };
+	            CRecipient recFoundation = {spkFoundation, aTitheAmount, rcp.fForce, false, true, rcp.fPrayer, rcp.fRepent, GUIUtil::FROMQS(rcp.txtMessage), 
+					GUIUtil::FROMQS(rcp.txtRepent), GUIUtil::FROMQS(""), GUIUtil::FROMQS(rcp.ipfshash) };
 				std::string sAddrF = PubKeyToAddress(spkFoundation);
-				setAddress.insert(ToQstring(sAddrF));
+				setAddress.insert(GUIUtil::TOQS(sAddrF));
            		++nAddresses;
 				// POG - R ANDREWS - 11/20/2018
 				LogPrintf(" \r\n Created Tithe Tx for Outbound Money %f to address %s ",(double)aTitheAmount, sAddrF.c_str());
@@ -344,22 +318,22 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
 				if (rcp.ipfshash.length() != 64)
 				{
 					std::string sError = "";
-					std::string sIPHash = SubmitToIPFS(FromQStringW(rcp.ipfshash), sError);
+					std::string sIPHash = SubmitToIPFS(GUIUtil::FROMQS(rcp.ipfshash), sError);
 					if (!sError.empty())
 					{
-						QString qErr = "IPFS Attachment Failed.  " + ToQstring(sError);
+						QString qErr = "IPFS Attachment Failed.  " + GUIUtil::TOQS(sError);
 						Q_EMIT message(tr("Send Coins"), qErr, CClientUIInterface::MSG_ERROR);
 						return TransactionCreationFailed;
 					}
 					// At this point, the file is good, Biblepay can add it to IPFS and we know the size.  Now we can calculate the cost and add the PODS fee.
-					int64_t nFileSize = GetFileSize(FromQStringW(rcp.ipfshash));
+					int64_t nFileSize = GetFileSize(GUIUtil::FROMQS(rcp.ipfshash));
 					double dCostPerByte = GetSporkDouble("ipfscostperbyte", .0002);
 					CAmount aIPFSFee = dCostPerByte * nFileSize * COIN;
 					const Consensus::Params& consensusParams = Params().GetConsensus();
 					CScript spkFoundation = GetScriptForDestination(CBitcoinAddress(consensusParams.FoundationPODSAddress).Get());
-		            CRecipient recFoundation = {spkFoundation, aIPFSFee, rcp.fForce, false, true, rcp.fPrayer, rcp.fRepent, FromQStringW(rcp.txtMessage), FromQStringW(rcp.txtRepent), FromQStringW(""), FromQStringW(rcp.ipfshash) };
+		            CRecipient recFoundation = {spkFoundation, aIPFSFee, rcp.fForce, false, true, rcp.fPrayer, rcp.fRepent, GUIUtil::FROMQS(rcp.txtMessage), GUIUtil::FROMQS(rcp.txtRepent), GUIUtil::FROMQS(""), GUIUtil::FROMQS(rcp.ipfshash) };
 					std::string sAddrF = PubKeyToAddress(spkFoundation);
-					setAddress.insert(ToQstring(sAddrF));
+					setAddress.insert(GUIUtil::TOQS(sAddrF));
             		++nAddresses;
 					LogPrintf(" \r\n Created IPFS Fee vout for bbp %f to address %s ", (double)(aIPFSFee/COIN), sAddrF.c_str());
 					vecSend.push_back(recFoundation);
@@ -381,14 +355,14 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
 				else if (rcp.fRepent) 
 				{
 					sMessageType="REPENT"; 
-					sRepent = FromQStringW(rcp.txtRepent);
+					sRepent = GUIUtil::FROMQS(rcp.txtRepent);
 				}
 				else 
 				{
 					sMessageType = "MESSAGE";  
 				}
 				std::string sMessageKey  = "OUT_TX";
-				sMessages += "<PACK><MT>" + sMessageType + "</MT><MK>" + sMessageKey + "</MK><MV>" + FromQStringW(rcp.txtMessage) + " " + sRepent + "</MV></PACK>";
+				sMessages += "<PACK><MT>" + sMessageType + "</MT><MK>" + sMessageKey + "</MK><MV>" + GUIUtil::FROMQS(rcp.txtMessage) + " " + sRepent + "</MV></PACK>";
 			}
             total += rcp.amount;
         }

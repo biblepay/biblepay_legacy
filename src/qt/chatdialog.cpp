@@ -6,6 +6,8 @@
 #include "chatdialog.h"
 #include "chat.h"
 #include "main.h"
+#include "guiutil.h"
+
 #include <QClipboard>
 #include <QUrl>
 #include <QtWidgets>
@@ -13,10 +15,6 @@
 #include <boost/algorithm/string/case_conv.hpp> // for to_lower()
 #include "timedata.h"
 #include <boost/algorithm/string.hpp>
-
-std::string FromQStringW(QString qs);
-QString ToQstring(std::string s);
-void SendChat(CChat chat);
 
 ChatDialog::ChatDialog(QWidget *parent, bool bPrivateChat, std::string sMyName, std::string sDestRoom) : QDialog(parent)
 {
@@ -54,7 +52,7 @@ ChatDialog::ChatDialog(QWidget *parent, bool bPrivateChat, std::string sMyName, 
 void ChatDialog::setTitle()
 {
 	std::string sPM = fPrivateChat ? "Private Messaging - " + sNickName + " & " + sRecipientName : "Public Chat - " + sRecipientName;
-	this->setWindowTitle(ToQstring(sPM));
+	this->setWindowTitle(GUIUtil::TOQS(sPM));
 }
 
 void ChatDialog::setClientModel(ClientModel *model)
@@ -85,7 +83,7 @@ void ChatDialog::closeEvent(QCloseEvent *event)
 void ChatDialog::receivedEvent(QString sMessage)
 {
 	 // Deserialize back into the chat object
-	 CChat c(FromQStringW(sMessage));
+	 CChat c(GUIUtil::FROMQS(sMessage));
 	 if (sRecipientName.empty()) return;
 	 // If this is ours
 	 if ((fPrivateChat && boost::iequals(c.sDestination, sNickName) && boost::iequals(c.sFromNickName,  sRecipientName))
@@ -108,7 +106,7 @@ void ChatDialog::receivedEvent(QString sMessage)
 		if (!bCancelDisplay) 
 		{
 			appendMessage(c.sFromNickName, c.sPayload, c.nPriority);
-			QList<QListWidgetItem *> items = listWidget->findItems(ToQstring(c.sFromNickName), Qt::MatchExactly);
+			QList<QListWidgetItem *> items = listWidget->findItems(GUIUtil::TOQS(c.sFromNickName), Qt::MatchExactly);
 			if (items.isEmpty()) newParticipant(c.sFromNickName);
 		}
 
@@ -123,7 +121,7 @@ void ChatDialog::appendMessage(std::string sFrom, std::string sMessage, int nPri
      QTextCursor cursor(textEdit->textCursor());
      cursor.movePosition(QTextCursor::End);
      QTextTable *table = cursor.insertTable(1, 2, tableFormat);
-     table->cellAt(0, 0).firstCursorPosition().insertText('<' + ToQstring(sFrom) + "> ");
+     table->cellAt(0, 0).firstCursorPosition().insertText('<' + GUIUtil::TOQS(sFrom) + "> ");
 	
      QTextTableCell cell = table->cellAt(0, 1);
 	 QTextCharFormat format = cell.format();
@@ -145,7 +143,7 @@ void ChatDialog::appendMessage(std::string sFrom, std::string sMessage, int nPri
 		format.setForeground(red);
 	 }
 	 cell.setFormat(format);
-	 table->cellAt(0, 1).firstCursorPosition().insertText(ToQstring(sMessage));
+	 table->cellAt(0, 1).firstCursorPosition().insertText(GUIUtil::TOQS(sMessage));
   	 
      QScrollBar *bar = textEdit->verticalScrollBar();
      bar->setValue(bar->maximum());
@@ -174,10 +172,10 @@ void ChatDialog::appendMessage(std::string sFrom, std::string sMessage, int nPri
 		 c.nPriority = 1;
 		 c.sDestination = sRecipientName;
 		 c.sFromNickName = sNickName;
-		 c.sPayload = FromQStringW(text);
+		 c.sPayload = GUIUtil::FROMQS(text);
 		 c.sToNickName = sRecipientName;
 		 SendChat(c);
-		 if (fPrivateChat) appendMessage(sNickName, FromQStringW(text), c.nPriority);
+		 if (fPrivateChat) appendMessage(sNickName, GUIUtil::FROMQS(text), c.nPriority);
      }
 
      lineEdit->clear();
@@ -188,29 +186,29 @@ void ChatDialog::appendMessage(std::string sFrom, std::string sMessage, int nPri
      if (sNickName.empty())  return;
      QColor color = textEdit->textColor();
      textEdit->setTextColor(Qt::gray);
-     textEdit->append(tr("* %1 has joined").arg(ToQstring(sTheirNickName)));
+     textEdit->append(tr("* %1 has joined").arg(GUIUtil::TOQS(sTheirNickName)));
      textEdit->setTextColor(color);
-     listWidget->addItem(ToQstring(sTheirNickName));
+     listWidget->addItem(GUIUtil::TOQS(sTheirNickName));
  }
 
  void ChatDialog::participantLeft(std::string sTheirNickName)
  {
      if (sNickName.empty()) return;
 
-     QList<QListWidgetItem *> items = listWidget->findItems(ToQstring(sTheirNickName), Qt::MatchExactly);
+     QList<QListWidgetItem *> items = listWidget->findItems(GUIUtil::TOQS(sTheirNickName), Qt::MatchExactly);
      if (items.isEmpty()) return;
 
      delete items.at(0);
      QColor color = textEdit->textColor();
      textEdit->setTextColor(Qt::gray);
-     textEdit->append(tr("* %1 has left").arg(ToQstring(sTheirNickName)));
+     textEdit->append(tr("* %1 has left").arg(GUIUtil::TOQS(sTheirNickName)));
      textEdit->setTextColor(color);
  }
 
  void ChatDialog::queryRecipientName()
  {
 	bool bOK = false;
-	sRecipientName = FromQStringW(QInputDialog::getText(this, tr("BiblePay Chat - Private Messaging"),
+	sRecipientName = GUIUtil::FROMQS(QInputDialog::getText(this, tr("BiblePay Chat - Private Messaging"),
                                           tr("Please enter the recipient name you would like to Page >"),
 										  QLineEdit::Normal, "", &bOK));
 	if (sRecipientName.empty()) return;

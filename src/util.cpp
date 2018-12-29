@@ -139,7 +139,6 @@ bool fLogThreadNames = DEFAULT_LOGTHREADNAMES;
 bool fLogIPs = DEFAULT_LOGIPS;
 volatile bool fReopenDebugLog = false;
 CTranslationInterface translationInterface;
-std::string GetSporkValue(std::string sKey);
 
 /** Init OpenSSL library multithreading support */
 static CCriticalSection** ppmutexOpenSSL;

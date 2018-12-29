@@ -12,21 +12,10 @@
 #include "uint256.h"
 #include "util.h"
 #include "kjv.h"
-#include "rpcblockchain.cpp"
+#include "rpcpog.h"
+#include "rpcpodc.h"
 #include <math.h>
 #include <openssl/crypto.h>
-
-extern bool LogLimiter(int iMax1000);
-uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight, const CBlockIndex* pindexLast, bool bRequireTxIndex, 
-	bool f7000, bool f8000, bool f9000, bool fTitheBlocksActive, unsigned int nNonce);
-std::string RoundToString(double d, int place);
-void GetMiningParams(int nPrevHeight, bool& f7000, bool& f8000, bool& f9000, bool& fTitheBlocksActive);
-extern bool CheckNonce(bool f9000, unsigned int nNonce, int nPrevHeight, int64_t nPrevBlockTime, int64_t nBlockTime);
-uint256 PercentToBigIntBase(int iPercent);
-extern bool CheckProofOfLoyalty(double dWeight, uint256 hash, unsigned int nBits, const Consensus::Params& params, 
-	int64_t nBlockTime, int64_t nPrevBlockTime, int nPrevHeight, unsigned int nNonce, const CBlockIndex* pindexPrev, bool bLoadingBlockIndex);
-
-
 
 
 unsigned int static KimotoGravityWell(const CBlockIndex* pindexLast, const Consensus::Params& params) {
@@ -95,15 +84,6 @@ unsigned int static KimotoGravityWell(const CBlockIndex* pindexLast, const Conse
     return bnNew.GetCompact();
 }
 
-
-
-bool LogLimiter(int iMax1000)
-{
-	 //The lower the level, the less logged
-	 int iVerbosityLevel = rand() % 1000;
-	 if (iVerbosityLevel < iMax1000) return true;
-	 return false;
-}
 
 
 unsigned int static DarkGravityWave(const CBlockIndex* pindexLast, const Consensus::Params& params) 

@@ -8,9 +8,7 @@
 #include "config/biblepay-config.h"
 #endif
 
-
 #include "net.h"
-
 #include "addrman.h"
 #include "chainparams.h"
 #include "clientversion.h"
@@ -27,6 +25,7 @@
 #include "instantx.h"
 #include "masternode-sync.h"
 #include "masternodeman.h"
+#include "rpcpodc.h"
 
 // For Internet SSL (for the pool communication)
 #include <openssl/ssl.h>
@@ -76,25 +75,6 @@ using std::ofstream;
 #endif
 
 bool AddSeedNode(std::string sNode);
-void HealthCheckup();
-
-extern std::string BiblepayHttpPost(bool bPost, int iThreadID, std::string sActionName, std::string sDistinctUser, std::string sPayload, std::string sBaseURL, 
-	std::string sPage, int iPort, std::string sSolution, int iOptBreak);
-extern std::string BiblepayHTTPSPost(bool bPost, int iThreadID, std::string sActionName, std::string sDistinctUser, std::string sPayload, std::string sBaseURL, std::string sPage, int iPort,
-	std::string sSolution, int iTimeoutSecs, int iMaxSize, int iBreakOnError = 0);
-extern std::string BiblepayIPFSPost(std::string sFN, std::string sPayload);
-std::string GetIPFromAddress(std::string sAddress);
-
-extern std::string SQL(std::string sCommand, std::string sAddress, std::string sArguments, std::string& sError);
-extern std::string PrepareHTTPPost(bool bPost, std::string sPage, std::string sHostHeader, const string& sMsg, const map<string,string>& mapRequestHeaders);
-extern std::string GetDomainFromURL(std::string sURL);
-extern bool DownloadDistributedComputingFile(int iNextSuperblock, std::string& sError);
-bool FilterFile(int iBufferSize, int iNextSuperblock, std::string& sError);
-std::string GetSporkValue(std::string sKey);
-int ipfs_socket_connect(string ip_address, int port);
-int ipfs_http_get(const string& request, const string& ip_address, int port, const string& fname, double dTimeoutSecs);
-extern int ipfs_download(const string& url, const string& filename, double dTimeoutSecs, double dRangeRequestMin, double dRangeRequestMax);
-int64_t GetFileSize(std::string sPath);
 
 using namespace std;
 
@@ -2924,7 +2904,7 @@ std::string GetDomainFromURL(std::string sURL)
 }
 
 
-std::string PrepareHTTPPost(bool bPost, std::string sPage, std::string sHostHeader, const string& sMsg, const map<string,string>& mapRequestHeaders)
+std::string PrepareHTTPPost(bool bPost, std::string sPage, std::string sHostHeader, const std::string& sMsg, const std::map<string,string>& mapRequestHeaders)
 {
     ostringstream s;
 	std::string sUserAgent = "Mozilla/5.0";
@@ -3385,7 +3365,7 @@ std::string BiblepayHTTPSPost(bool bPost, int iThreadID, std::string sActionName
 /*                                                                          IPFS                                                                 */
 
 
-string ipfs_header_value(const string& full_header, const string& header_name)
+string ipfs_header_value(const std::string& full_header, const std::string& header_name)
 {
     size_t pos = full_header.find(header_name);
     string r;
@@ -3401,7 +3381,7 @@ string ipfs_header_value(const string& full_header, const string& header_name)
     return r;
 }
 
-int ipfs_http_get(const string& request, const string& ip_address, int port, const string& fname, double dTimeoutSecs)
+int ipfs_http_get(const std::string& request, const std::string& ip_address, int port, const std::string& fname, double dTimeoutSecs)
 {
     char buffer[65535];
 	int bytes_total=0;
@@ -3485,7 +3465,7 @@ int ipfs_http_get(const string& request, const string& ip_address, int port, con
 }
 
 
-int ipfs_download(const string& url, const string& filename, double dTimeoutSecs, double dRangeRequestMin, double dRangeRequestMax)
+int ipfs_download(const std::string& url, const std::string& filename, double dTimeoutSecs, double dRangeRequestMin, double dRangeRequestMax)
 {
 	int port = 0;
     string protocol, domain, path, query, url_port;

@@ -87,27 +87,19 @@
 
 using namespace std;
 
-extern void ThreadSendAlert();
-extern void CheckGenesisBlock(CBlock block, uint256 targetBlockHash, uint256 targetMerkleRoot);
 
 #ifdef ENABLE_WALLET
 CWallet* pwalletMain = NULL;
 #endif
 
-void initkjv();
-uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight, const CBlockIndex* pindexLast, bool bRequireTxIndex, bool f7000, bool f8000, bool f9000, bool fTitheBlocksActive, unsigned int nNonce);
-std::string RetrieveMd5(std::string s1);
-// POG
-void UpdatePogPool(int nHeight, int nSize);
-void InitializePogPool(int nHeight, int nSize);
-// END OF POG
 
 void MemorizeBlockChainPrayers(bool fDuringConnectBlock, bool fSubThread, bool fColdBoot, bool fDuringSanctuaryQuorum);
+
 extern CBlock CreateGenesisBlock(const char* pszTimestamp, const CScript& genesisOutputScript, uint32_t nTime, uint32_t nNonce, uint32_t nBits, int32_t nVersion, const CAmount& genesisReward);
+
 bool fFeeEstimatesInitialized = false;
+
 bool fRestartRequested = false;  // true: restart false: shutdown
-std::string FindResearcherCPIDByAddress(std::string sSearch, std::string& out_address, double& nTotalMagnitude);
-void KillBlockchainFiles();
 
 static const bool DEFAULT_PROXYRANDOMIZE = true;
 static const bool DEFAULT_REST_ENABLE = false;

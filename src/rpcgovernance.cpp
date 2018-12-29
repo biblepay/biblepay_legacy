@@ -20,8 +20,8 @@
 #include "utilmoneystr.h"
 #include <boost/lexical_cast.hpp>
 #include "podc.h"
+#include "rpcpog.h"
 
-CAmount GetTitheCap(int nBlockHeight);
 
 UniValue gobject(const UniValue& params, bool fHelp)
 {

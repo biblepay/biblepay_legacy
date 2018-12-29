@@ -4,19 +4,12 @@
 #include "secdialog.h"
 #include "ui_secdialog.h"
 #include "walletmodel.h"
-
+#include "guiutil.h"
+#include "rpcpog.h"
 #include <QPainter>
 #include <QTableWidget>
 #include <QGridLayout>
-
 #include <QUrl>
-
-QString ToQstring(std::string s);
-std::string FromQStringW(QString qs);
-std::string GetActiveProposals();
-bool VoteManyForGobject(std::string govobj, std::string strVoteSignal, std::string strVoteOutcome, 	int iVotingLimit, int& nSuccessful, int& nFailed, std::string& sError);
-std::string RoundToString(double d, int place);
-QString ToQstring(std::string s);
 
 
 QStringList Proposals::GetHeaders()
@@ -75,7 +68,7 @@ void Proposals::setModel(WalletModel *model)
 
 void Proposals::UpdateDisplay()
 {
-    QString pString = ToQstring(GetActiveProposals());
+    QString pString = GUIUtil::TOQS(GetActiveProposals());
     QStringList pHeaders = GetHeaders();
     this->createUI(pHeaders, pString);
 }
@@ -161,14 +154,14 @@ void Proposals::ProcessVote(std::string gobject, std::string signal, std::string
 		}
 		QMessageBox msgOutcome;
 		msgOutcome.setWindowTitle(tr("Voting Outcome"));
-		msgOutcome.setText(ToQstring(sVoteNarr));
+		msgOutcome.setText(GUIUtil::TOQS(sVoteNarr));
 		msgOutcome.setStandardButtons(QMessageBox::Ok);
 		msgOutcome.setDefaultButton(QMessageBox::Ok);
 		msgOutcome.exec();
 
 		// Refresh
 
-	    QString pString = ToQstring(GetActiveProposals());
+	    QString pString = GUIUtil::TOQS(GetActiveProposals());
 	    QStringList pHeaders = GetHeaders();
 		this->createUI(pHeaders, pString);
 }
@@ -185,7 +178,7 @@ void Proposals::slotVoteAgainst()
         msgBox.setDefaultButton(QMessageBox::Yes);
         if (QMessageBox::Yes == msgBox.exec())
         {
-			std::string gobject = FromQStringW(ui->tableWidget->item(row,0)->text());
+			std::string gobject = GUIUtil::FROMQS(ui->tableWidget->item(row,0)->text());
 			ProcessVote(gobject, "funding", "no");
         }
     }
@@ -203,7 +196,7 @@ void Proposals::slotVoteFor()
         msgBox.setDefaultButton(QMessageBox::Yes);
         if (QMessageBox::Yes == msgBox.exec())
         {
-			std::string gobject = FromQStringW(ui->tableWidget->item(row,0)->text());
+			std::string gobject = GUIUtil::FROMQS(ui->tableWidget->item(row,0)->text());
 			ProcessVote(gobject, "funding", "yes");
        	}
     }
@@ -221,7 +214,7 @@ void Proposals::slotAbstainCount()
         msgBox.setDefaultButton(QMessageBox::Yes);
         if (QMessageBox::Yes == msgBox.exec())
         {
-			std::string gobject = FromQStringW(ui->tableWidget->item(row,0)->text());
+			std::string gobject = GUIUtil::FROMQS(ui->tableWidget->item(row,0)->text());
 			ProcessVote(gobject, "funding", "abstain");
 		}
     }
@@ -271,7 +264,7 @@ QVector<QVector<QString> > Proposals::SplitData(const QString &pStr)
 				QString sData = proposalDetail[j];
 				if (j==2)
 				{
-					sData = BitcoinUnits::format(2, cdbl(FromQStringW(sData), 2) * 100, false, BitcoinUnits::separatorAlways);
+					sData = BitcoinUnits::format(2, cdbl(GUIUtil::FROMQS(sData), 2) * 100, false, BitcoinUnits::separatorAlways);
 				}
                 proposalMatrix[i].append(sData);
 			}

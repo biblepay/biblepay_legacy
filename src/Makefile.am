@@ -154,6 +154,9 @@ BITCOIN_CORE_H = \
   script/standard.h \
   serialize.h \
   spork.h \
+  rpcpog.h \
+  rpcipfs.h \
+  rpcpodc.h \
   streams.h \
   support/allocators/secure.h \
   support/allocators/zeroafterfree.h \
@@ -353,6 +356,9 @@ libbitcoin_common_a_SOURCES = \
   script/sign.cpp \
   script/standard.cpp \
   spork.cpp \
+  rpcpog.cpp \
+  rpcpodc.cpp \
+  rpcipfs.cpp \
   $(BITCOIN_CORE_H)
 
 # util: shared between all executables.

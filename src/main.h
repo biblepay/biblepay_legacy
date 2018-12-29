@@ -15,6 +15,7 @@
 #include "chain.h"
 #include "coins.h"
 #include "net.h"
+#include "rpcpog.h"
 #include "script/script_error.h"
 #include "sync.h"
 #include "versionbits.h"
@@ -174,16 +175,6 @@ static const uint256 hashWalletMerkleRoot(uint256S("0x02b05f3b8a7168bcf83b888e00
 struct BlockHasher
 {
     size_t operator()(const uint256& hash) const { return hash.GetCheapHash(); }
-};
-
-struct UserVote
-{
-	int nTotalYesCount;
-	int nTotalNoCount;
-	int nTotalAbstainCount;
-	int nTotalYesWeight;
-	int nTotalNoWeight;
-	int nTotalAbstainWeight;
 };
 
 
@@ -393,6 +384,23 @@ bool ActivateBestChain(CValidationState& state, const CChainParams& chainparams,
 double ConvertBitsToDouble(unsigned int nBits);
 CAmount GetBlockSubsidy(const CBlockIndex* pindexPrev, int nBits, int nHeight, const Consensus::Params& consensusParams, bool fSuperblockPartOnly = false);
 CAmount GetMasternodePayment(int nHeight, CAmount blockValue, CAmount nSanctuaryCollateral);
+const CBlockIndex* GetBlockIndexByTransactionHash(const uint256 &hash);
+CBlockIndex* FindBlockByHeight(int nHeight);
+void HealthCheckup();
+bool InstantiateOneClickMiningEntries();
+double GetBlockVersion(CTransaction ctx);
+std::string SignMessage(std::string sMsg, std::string sPrivateKey);
+std::string GetVersionAlert();
+void MemorizeBlockChainPrayers(bool fDuringConnectBlock, bool fSubThread, bool fColdBoot, bool fDuringSanctuaryQuorum);
+bool NonObnoxiousLog(std::string sLogSection, std::string sLogKey, std::string sValue, int64_t nAllowedSpan);
+bool TimerMain(std::string timer_name, int max_ms);
+std::string GetMessagesFromBlock(const CBlock& block, std::string sTargetType);
+void KillBlockchainFiles();
+std::string AmountToString(const CAmount& amount);
+bool WriteKey(std::string sKey, std::string sValue);
+void MemorizePrayer(std::string sMessage, int64_t nTime, double dAmount, int iPosition, std::string sTxID, int nHeight, double dFoundationDonation, double dAge, double dMinCoinAge);
+void SetOverviewStatus();
+
 
 /**
  * Prune block and undo files (blk???.dat and undo???.dat) so that the disk space used is less than a user-defined target.
@@ -451,12 +459,6 @@ struct CNodeStateStats {
     std::vector<int> vHeightInFlight;
 };
 
-struct TitheDifficultyParams
-{
-  double min_coin_age;
-  CAmount min_coin_amount;
-  CAmount max_tithe_amount;
-};
 
 struct CTimestampIndexIteratorKey {
     unsigned int timestamp;

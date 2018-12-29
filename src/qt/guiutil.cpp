@@ -422,7 +422,7 @@ void openDebugLogfile()
 
     /* Open debug.log with the associated application */
     if (boost::filesystem::exists(pathDebug))
-        QDesktopServices::openUrl(QUrl::fromLocalFile(boostPathToQString(pathDebug)));
+        QDesktopServices::openUrl(QUrl::fromLocalFile(boostPathTOQS(pathDebug)));
 }
 
 void openConfigfile()
@@ -431,7 +431,7 @@ void openConfigfile()
 
     /* Open biblepay.conf with the associated application */
     if (boost::filesystem::exists(pathConfig))
-        QDesktopServices::openUrl(QUrl::fromLocalFile(boostPathToQString(pathConfig)));
+        QDesktopServices::openUrl(QUrl::fromLocalFile(boostPathTOQS(pathConfig)));
 }
 
 void openMNConfigfile()
@@ -440,7 +440,7 @@ void openMNConfigfile()
 
     /* Open masternode.conf with the associated application */
     if (boost::filesystem::exists(pathConfig))
-        QDesktopServices::openUrl(QUrl::fromLocalFile(boostPathToQString(pathConfig)));
+        QDesktopServices::openUrl(QUrl::fromLocalFile(boostPathTOQS(pathConfig)));
 }
 
 void showBackups()
@@ -449,7 +449,7 @@ void showBackups()
 
     /* Open folder with default browser */
     if (boost::filesystem::exists(backupsDir))
-        QDesktopServices::openUrl(QUrl::fromLocalFile(boostPathToQString(backupsDir)));
+        QDesktopServices::openUrl(QUrl::fromLocalFile(boostPathTOQS(backupsDir)));
 }
 
 void SubstituteFonts(const QString& language)
@@ -947,7 +947,7 @@ boost::filesystem::path qstringToBoostPath(const QString &path)
     return boost::filesystem::path(path.toStdString(), utf8);
 }
 
-QString boostPathToQString(const boost::filesystem::path &path)
+QString boostPathTOQS(const boost::filesystem::path &path)
 {
     return QString::fromStdString(path.string(utf8));
 }
@@ -958,7 +958,7 @@ boost::filesystem::path qstringToBoostPath(const QString &path)
     return boost::filesystem::path(path.toStdString());
 }
 
-QString boostPathToQString(const boost::filesystem::path &path)
+QString boostPathTOQS(const boost::filesystem::path &path)
 {
     return QString::fromStdString(path.string());
 }
@@ -982,6 +982,20 @@ QString formatDurationStr(int secs)
         strList.append(QString(QObject::tr("%1 s")).arg(seconds));
 
     return strList.join(" ");
+}
+
+
+std::string FROMQS(QString qs)
+{
+	std::string sOut = qs.toUtf8().constData();
+	return sOut;
+}
+
+
+QString TOQS(std::string s)
+{
+	QString str1 = QString::fromUtf8(s.c_str());
+	return str1;
 }
 
 QString formatServicesStr(quint64 mask)

@@ -22,6 +22,7 @@
 #include "instantx.h"
 #include "darksendconfig.h"
 #include "masternode-sync.h"
+#include "main.h"
 
 #include <QAbstractItemDelegate>
 #include <QPainter>
@@ -32,8 +33,6 @@
 #define DECORATION_SIZE 54
 #define NUM_ITEMS 5
 #define NUM_ITEMS_ADV 7
-
-extern void SetOverviewStatus();
 
 
 class TxViewDelegate : public QAbstractItemDelegate

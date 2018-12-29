@@ -13,10 +13,10 @@
 #include "netfulfilledman.h"
 #include "spork.h"
 #include "util.h"
+#include "rpcpog.h"
 
 class CMasternodeSync;
 CMasternodeSync masternodeSync;
-bool LogLimiter(int iMax1000);
 
 bool CMasternodeSync::CheckNodeHeight(CNode* pnode, bool fDisconnectStuckNodes)
 {

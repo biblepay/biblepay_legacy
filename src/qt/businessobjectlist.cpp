@@ -5,6 +5,8 @@
 #include "ui_secdialog.h"
 #include "writeorphan.h"
 #include "walletmodel.h"
+#include "guiutil.h"
+#include "rpcpog.h"
 #include <QPainter>
 #include <QTableWidget>
 #include <QGridLayout>
@@ -12,13 +14,6 @@
 #include <univalue.h>
 #include <boost/algorithm/string/case_conv.hpp> // for to_lower()
 
-QString ToQstring(std::string s);
-std::string FromQStringW(QString qs);
-std::string RoundToString(double d, int place);
-std::string GetBusinessObjectList(std::string sType, std::string sFields);
-UniValue GetBusinessObjectByFieldValue(std::string sType, std::string sFieldName, std::string sSearchValue);
-UniValue GetBusinessObject(std::string sType, std::string sPrimaryKey, std::string& sError);
-double cdbl(std::string s, int place);
 std::string ObjectType = "";
 extern int GetUrlColumn(std::string sTarget);
 bool bSlotsCreated = false;
@@ -32,7 +27,7 @@ QStringList BusinessObjectList::GetHeaders()
 	for (int i = 0; i < (int)vFields.size(); i++)
 	{
 		std::string sFieldName = vFields[i];
-		pHeaders << ToQstring(sFieldName);
+		pHeaders << GUIUtil::TOQS(sFieldName);
 	}
 	return pHeaders;
 }
@@ -58,7 +53,7 @@ void BusinessObjectList::UpdateObject(std::string objType)
 	ObjectType = objType;
 	UniValue aBO = GetBusinessObjectByFieldValue("object", "object_name", ObjectType);
 	std::string sFields = aBO["fields"].getValStr();	
-    QString pString = ToQstring(GetBusinessObjectList(ObjectType, sFields));
+    QString pString = GUIUtil::TOQS(GetBusinessObjectList(ObjectType, sFields));
     QStringList pHeaders = GetHeaders();
     this->createUI(pHeaders, pString);
 }
@@ -92,13 +87,13 @@ void BusinessObjectList::createUI(const QStringList &headers, const QString &pSt
 		}
 		if (iAmountCol > -1)
 		{
-			dGrandTotal += cdbl(FromQStringW(pMatrix[i][iAmountCol]), 2);
+			dGrandTotal += cdbl(GUIUtil::FROMQS(pMatrix[i][iAmountCol]), 2);
 		}
 	}
 	if (iFooterRow > 0)
 	{
 		ui->tableWidget->setItem(rows, 0, new QTableWidgetItem("Grand Total:"));
-		ui->tableWidget->setItem(rows, iAmountCol, new QTableWidgetItem(ToQstring(RoundToString(dGrandTotal, 2))));
+		ui->tableWidget->setItem(rows, iAmountCol, new QTableWidgetItem(GUIUtil::TOQS(RoundToString(dGrandTotal, 2))));
 	}
 
     ui->tableWidget->setEditTriggers(QAbstractItemView::NoEditTriggers);
@@ -181,11 +176,11 @@ void BusinessObjectList::slotList()
     if(row >= 0)
     {
 		// Navigate to the List of the Object
-        std::string sID = FromQStringW(ui->tableWidget->item(row, 0)->text()); // PK-2PK-IPFS Hash of business object
+        std::string sID = GUIUtil::FROMQS(ui->tableWidget->item(row, 0)->text()); // PK-2PK-IPFS Hash of business object
 		int iCol = GetUrlColumn("object_name");
 		if (iCol > -1)
 		{
-			std::string sTarget = FromQStringW(ui->tableWidget->item(row, iCol)->text());
+			std::string sTarget = GUIUtil::FROMQS(ui->tableWidget->item(row, iCol)->text());
 			// Close existing menu
 
 			UpdateObject(sTarget);
@@ -199,7 +194,7 @@ void BusinessObjectList::slotWriteOrphan()
     if(row >= 0)
     {
         QMessageBox msgBox;
-        std::string id = FromQStringW(ui->tableWidget->item(row, 0)->text()); // PK-2PK-IPFS Hash of business object
+        std::string id = GUIUtil::FROMQS(ui->tableWidget->item(row, 0)->text()); // PK-2PK-IPFS Hash of business object
 		WriteOrphan dlg(this);
 		dlg.exec();
     }
@@ -210,9 +205,9 @@ void BusinessObjectList::slotView()
     if(row >= 0)
     {
         QMessageBox msgBox;
-        std::string id = FromQStringW(ui->tableWidget->item(row, 0)->text()); // PK-2PK-IPFS Hash of business object
-		msgBox.setWindowTitle(ToQstring(id));
-	    msgBox.setText(ToQstring(GetHtmlForm(id)));
+        std::string id = GUIUtil::FROMQS(ui->tableWidget->item(row, 0)->text()); // PK-2PK-IPFS Hash of business object
+		msgBox.setWindowTitle(GUIUtil::TOQS(id));
+	    msgBox.setText(GUIUtil::TOQS(GetHtmlForm(id)));
         msgBox.setStandardButtons(QMessageBox::Ok);
         msgBox.setDefaultButton(QMessageBox::Ok);
 		msgBox.exec();
@@ -251,7 +246,7 @@ QVector<QVector<QString> > BusinessObjectList::SplitData(const QString &pStr)
 		{
 			QString sData = proposalDetail[j];
 			/*  Reserved for BitcoinUnits
-				sData = BitcoinUnits::format(2, cdbl(FromQStringW(sData), 2) * 100, false, BitcoinUnits::separatorAlways);		
+				sData = BitcoinUnits::format(2, cdbl(GUIUtil::FROMQS(sData), 2) * 100, false, BitcoinUnits::separatorAlways);		
 			*/
 			proposalMatrix[i].append(sData);
 		}

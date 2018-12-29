@@ -17,6 +17,7 @@
 #include "txmempool.h"
 #include "ui_interface.h"
 #include "util.h"
+#include "guiutil.h"
 
 #include "darksend.h"
 #include "masternodeman.h"
@@ -31,7 +32,6 @@ class CBlockIndex;
 
 static const int64_t nClientStartupTime = GetTime();
 static int64_t nLastBlockTipUpdateNotification = 0;
-QString ToQstring(std::string s);
 
 ClientModel::ClientModel(OptionsModel *optionsModel, QObject *parent) :
     QObject(parent),
@@ -271,7 +271,7 @@ static void NotifyNumConnectionsChanged(ClientModel *clientmodel, int newNumConn
 static void NotifyChatEvent(ClientModel *clientmodel, std::string sMessage)
 {
 	QMetaObject::invokeMethod(clientmodel, "updateChatEvent", Qt::QueuedConnection,
-		 Q_ARG(QString, ToQstring(sMessage)));
+		 Q_ARG(QString, GUIUtil::TOQS(sMessage)));
 }
 
 static void NotifyAlertChanged(ClientModel *clientmodel, const uint256 &hash, ChangeType status)

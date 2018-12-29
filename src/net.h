@@ -95,6 +95,19 @@ bool BindListenPort(const CService &bindAddr, std::string& strError, bool fWhite
 void StartNode(boost::thread_group& threadGroup, CScheduler& scheduler);
 bool StopNode();
 void SocketSendData(CNode *pnode);
+int ipfs_download(const std::string& url, const std::string& filename, double dTimeoutSecs, double dRangeRequestMin, double dRangeRequestMax);
+
+std::string BiblepayHttpPost(bool bPost, int iThreadID, std::string sActionName, std::string sDistinctUser, std::string sPayload, std::string sBaseURL, 
+	std::string sPage, int iPort, std::string sSolution, int iOptBreak);
+std::string BiblepayHTTPSPost(bool bPost, int iThreadID, std::string sActionName, std::string sDistinctUser, std::string sPayload, std::string sBaseURL, std::string sPage, int iPort,
+	std::string sSolution, int iTimeoutSecs, int iMaxSize, int iBreakOnError = 0);
+std::string BiblepayIPFSPost(std::string sFN, std::string sPayload);
+
+std::string SQL(std::string sCommand, std::string sAddress, std::string sArguments, std::string& sError);
+std::string PrepareHTTPPost(bool bPost, std::string sPage, std::string sHostHeader, const std::string& sMsg, 
+	const std::map<std::string, std::string>& mapRequestHeaders);
+std::string GetDomainFromURL(std::string sURL);
+bool DownloadDistributedComputingFile(int iNextSuperblock, std::string& sError);
 
 typedef int NodeId;
 

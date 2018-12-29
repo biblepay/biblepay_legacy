@@ -3,7 +3,6 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "transactionview.h"
-
 #include "addresstablemodel.h"
 #include "bitcoinunits.h"
 #include "csvmodelwriter.h"
@@ -16,9 +15,7 @@
 #include "transactionrecord.h"
 #include "transactiontablemodel.h"
 #include "walletmodel.h"
-
 #include "ui_interface.h"
-
 #include <QComboBox>
 #include <QDateTimeEdit>
 #include <QDesktopServices>

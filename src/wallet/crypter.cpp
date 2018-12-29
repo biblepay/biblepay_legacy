@@ -142,40 +142,14 @@ bool LoadBibleKey(std::string biblekey, std::string salt)
 
 std::vector<unsigned char> StringToVector(std::string sData)
 {
-        std::vector<unsigned char> v(sData.begin(), sData.end());
-		return v;
+    std::vector<unsigned char> v(sData.begin(), sData.end());
+	return v;
 }
 
 std::string VectorToString(std::vector<unsigned char> v)
 {
-        std::string s(v.begin(), v.end());
-        return s;
-}
-
-std::string PubKeyToAddress(const CScript& scriptPubKey)
-{
-	CTxDestination address1;
-    ExtractDestination(scriptPubKey, address1);
-    CBitcoinAddress address2(address1);
-    return address2.ToString();
-}    
-
-std::string RetrieveMd5(std::string s1)
-{
-	try
-	{
-		const char* chIn = s1.c_str();
-		unsigned char digest2[16];
-		MD5((unsigned char*)chIn, strlen(chIn), (unsigned char*)&digest2);
-		char mdString2[33];
-		for(int i = 0; i < 16; i++) sprintf(&mdString2[i*2], "%02x", (unsigned int)digest2[i]);
- 		std::string xmd5(mdString2);
-		return xmd5;
-	}
-    catch (std::exception &e)
-	{
-		return "";
-	}
+     std::string s(v.begin(), v.end());
+     return s;
 }
 
 void PrintStratisKeyDebugInfo()
@@ -369,16 +343,6 @@ int RSA_WRITE_KEY_TO_FILE(FILE *file, int key, EVP_PKEY *rKey)
 }
 
 
-std::vector<char> ReadAllBytes(char const* filename)
-{
-    std::ifstream ifs(filename, std::ios::binary|std::ios::ate);
-    std::ifstream::pos_type pos = ifs.tellg();
-    std::vector<char>  result(pos);
-    ifs.seekg(0, std::ios::beg);
-    ifs.read(&result[0], pos);
-    return result;
-}
-
 int RSA_GENERATE_KEYPAIR(std::string sPublicKeyPath, std::string sPrivateKeyPath)
 {
 	if (sPublicKeyPath.empty() || sPrivateKeyPath.empty()) return -1;
@@ -481,6 +445,17 @@ end:
 		fprintf(stderr, "RSA_Load_Private_Key::Error unable to load %s\n", file);
 	}
 	return(pkey);
+}
+
+
+std::vector<char> ReadAllBytes(char const* filename)
+{
+    std::ifstream ifs(filename, std::ios::binary|std::ios::ate);
+    std::ifstream::pos_type pos = ifs.tellg();
+    std::vector<char>  result(pos);
+    ifs.seekg(0, std::ios::beg);
+    ifs.read(&result[0], pos);
+    return result;
 }
 
 unsigned char *RSA_ENCRYPT_CHAR(std::string sPubKeyPath, unsigned char *plaintext, int plaintext_length, int& cipher_len, std::string& sError)

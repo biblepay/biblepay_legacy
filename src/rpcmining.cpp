@@ -23,31 +23,22 @@
 #include "util.h"
 #include "podc.h"
 #include "darksend.h"
+#include "rpcpog.h"
 
 #ifdef ENABLE_WALLET
 #include "masternode-sync.h"
 #endif
 #include "utilstrencodings.h"
 #include "validationinterface.h"
+
 #include <stdint.h>
 #include <boost/assign/list_of.hpp>
 #include <boost/shared_ptr.hpp>
 #include <univalue.h>
 
-using namespace std;
+extern CPoolObject GetPoolVector(const CBlockIndex* pindex, int iPaymentTier);
 
-uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight, const CBlockIndex* pindexLast, bool bRequireTxIndex, 
-	bool f7000, bool f8000, bool f9000, bool fTitheBlocksActive, unsigned int nNonce);
-std::string ReadCache(std::string sSection, std::string sKey);
-double GetBlockMagnitude(int nChainHeight);
-std::string TimestampToHRDate(double dtm);
-double GetDifficultyN(const CBlockIndex* blockindex, double N);
-// POG
-CPoolObject GetPoolVector(const CBlockIndex* pindex, int iPaymentTier);
-TitheDifficultyParams GetTitheParams(const CBlockIndex* pindex);
-double GetPOGDifficulty(const CBlockIndex* pblockindex);
-CBlockIndex* FindBlockByHeight(int nHeight);
-// END POG
+using namespace std;
 
 /**
  * Return average network hashes per second based on the last 'lookup' blocks,

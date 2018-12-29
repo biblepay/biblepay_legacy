@@ -48,8 +48,6 @@ private:
 
 private Q_SLOTS:
     void on_okButton_accepted();
-	void on_btnPublishClicked();
-	void on_btnPreviewClicked();
 	void on_comboBookClicked(int iClick);
 	void on_comboChapterClicked(int iClick);
 	
@@ -80,12 +78,8 @@ public:
 	static void showNewsWindow(QWidget *myparent, std::string sTXID);
 
 private Q_SLOTS:
-	void downloadFinished(QNetworkReply *reply);
-	bool DownloadImage(std::string sURL);
-	QString ReplaceImageTags(QString qsp);
-
+	
 protected:
-	void closeEvent(QCloseEvent *event);
 
 };
 

@@ -30,7 +30,6 @@ using namespace std;
 int64_t nWalletUnlockTime;
 
 static CCriticalSection cs_nWalletUnlockTime;
-double CAmountToRetirementDouble(CAmount Amount);
 
 
 std::string HelpRequiringPassphrase()
@@ -2467,8 +2466,7 @@ UniValue getwalletinfo(const UniValue& params, bool fHelp)
     UniValue obj(UniValue::VOBJ);
     obj.push_back(Pair("walletversion", pwalletMain->GetVersion()));
     obj.push_back(Pair("balance",       ValueFromAmount(pwalletMain->GetBalance())));
-	obj.push_back(Pair("retirement_account_balance", CAmountToRetirementDouble(pwalletMain->GetRetirementBalance())));
-    obj.push_back(Pair("unconfirmed_balance", ValueFromAmount(pwalletMain->GetUnconfirmedBalance())));
+	obj.push_back(Pair("unconfirmed_balance", ValueFromAmount(pwalletMain->GetUnconfirmedBalance())));
     obj.push_back(Pair("immature_balance",    ValueFromAmount(pwalletMain->GetImmatureBalance())));
     obj.push_back(Pair("txcount",       (int)pwalletMain->mapWallet.size()));
     obj.push_back(Pair("keypoololdest", pwalletMain->GetOldestKeyPoolTime()));

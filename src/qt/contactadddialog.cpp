@@ -31,16 +31,7 @@
 #include <QMessageBox>
 #include <QScrollBar>
 #include <QTextDocument>
-QString ToQstring(std::string s);
-std::string FromQStringW(QString qs);
-std::string RoundToString(double d, int place);
-std::string CreateGovernanceCollateral(uint256 GovObjHash, CAmount nFee, std::string& sError);
-std::string StoreBusinessObject(UniValue& oBusinessObject, std::string& sError);
-UniValue GetBusinessObject(std::string sType, std::string sPrimaryKey, std::string& sError);
-bool is_email_valid(const std::string& e);
-std::string DefaultRecAddress(std::string sType);
-bool AmIMasternode();
-int GetNextSuperblock();
+#include "rpcpog.cpp"
 
 bool fUpdated = false;
 std::string sAddress = "";
@@ -74,11 +65,11 @@ QString GetValue(UniValue oObject, std::string sFieldName)
 	if (oObject.size() > 0)
 	{
 		std::string sResult = oObject[sFieldName].getValStr();
-		return ToQstring(sResult);
+		return GUIUtil::TOQS(sResult);
 	}
 	else
 	{
-		return ToQstring("");
+		return GUIUtil::TOQS("");
 	}
 }
 
@@ -106,10 +97,10 @@ void ContactAddDialog::UpdateDisplay()
 		}
 		else
 		{
-			ui->txtAddress->setText(ToQstring(sAddress));
+			ui->txtAddress->setText(GUIUtil::TOQS(sAddress));
 			sInfo += " [" + sError + "]";
 		}
-		ui->txtInfo->setText(ToQstring(sInfo));
+		ui->txtInfo->setText(GUIUtil::TOQS(sInfo));
    
 }
 
@@ -145,18 +136,18 @@ void ContactAddDialog::on_btnDelete_clicked()
         return;
 	clear();
 	UniValue objContact(UniValue::VOBJ);
-	objContact.push_back(Pair("contact_name", FromQStringW(ui->txtContactName->text())));
-	objContact.push_back(Pair("company_name", FromQStringW(ui->txtCompanyName->text())));
-	objContact.push_back(Pair("url", FromQStringW(ui->txtURL->text())));
-	objContact.push_back(Pair("longitude", FromQStringW(ui->txtLongitude->text())));
-	objContact.push_back(Pair("latitude", FromQStringW(ui->txtLatitude->text())));
-	objContact.push_back(Pair("receiving_address", FromQStringW(ui->txtAddress->text())));
+	objContact.push_back(Pair("contact_name", GUIUtil::FROMQS(ui->txtContactName->text())));
+	objContact.push_back(Pair("company_name", GUIUtil::FROMQS(ui->txtCompanyName->text())));
+	objContact.push_back(Pair("url", GUIUtil::FROMQS(ui->txtURL->text())));
+	objContact.push_back(Pair("longitude", GUIUtil::FROMQS(ui->txtLongitude->text())));
+	objContact.push_back(Pair("latitude", GUIUtil::FROMQS(ui->txtLatitude->text())));
+	objContact.push_back(Pair("receiving_address", GUIUtil::FROMQS(ui->txtAddress->text())));
 	objContact.push_back(Pair("deleted", "1"));
-	objContact.push_back(Pair("email", FromQStringW(ui->txtEmail->text())));
+	objContact.push_back(Pair("email", GUIUtil::FROMQS(ui->txtEmail->text())));
 	std::string sError = "";
 	CBitcoinAddress address(objContact["receiving_address"].getValStr());
 	if (!address.IsValid()) sError += "Funding Address is invalid. ";
-	std::string sContactType = FromQStringW(ui->cmbContactType->currentText());
+	std::string sContactType = GUIUtil::FROMQS(ui->cmbContactType->currentText());
 	objContact.push_back(Pair("contact_type", sContactType));
 	objContact.push_back(Pair("objecttype", "contact"));
 	std::string sTxId = "";
@@ -164,7 +155,7 @@ void ContactAddDialog::on_btnDelete_clicked()
 			sTxId = StoreBusinessObject(objContact, sError);
 
 	std::string sNarr = (!sError.empty()) ? "Business Object Store Failed: " + sError : sNarr = "Contact record deleted successfully.";
-	QMessageBox::warning(this, tr("Contact Add Result"), ToQstring(sNarr), QMessageBox::Ok, QMessageBox::Ok);
+	QMessageBox::warning(this, tr("Contact Add Result"), GUIUtil::TOQS(sNarr), QMessageBox::Ok, QMessageBox::Ok);
  	UpdateDisplay();
 }
 
@@ -173,21 +164,21 @@ void ContactAddDialog::on_btnSave_clicked()
     if(!model || !model->getOptionsModel())
         return;
 	UniValue objContact(UniValue::VOBJ);
-	objContact.push_back(Pair("contact_name", FromQStringW(ui->txtContactName->text())));
-	objContact.push_back(Pair("company_name", FromQStringW(ui->txtCompanyName->text())));
-	objContact.push_back(Pair("url", FromQStringW(ui->txtURL->text())));
-	objContact.push_back(Pair("longitude", FromQStringW(ui->txtLongitude->text())));
-	objContact.push_back(Pair("latitude", FromQStringW(ui->txtLatitude->text())));
-	objContact.push_back(Pair("receiving_address", FromQStringW(ui->txtAddress->text())));
-	objContact.push_back(Pair("email", FromQStringW(ui->txtEmail->text())));
+	objContact.push_back(Pair("contact_name", GUIUtil::FROMQS(ui->txtContactName->text())));
+	objContact.push_back(Pair("company_name", GUIUtil::FROMQS(ui->txtCompanyName->text())));
+	objContact.push_back(Pair("url", GUIUtil::FROMQS(ui->txtURL->text())));
+	objContact.push_back(Pair("longitude", GUIUtil::FROMQS(ui->txtLongitude->text())));
+	objContact.push_back(Pair("latitude", GUIUtil::FROMQS(ui->txtLatitude->text())));
+	objContact.push_back(Pair("receiving_address", GUIUtil::FROMQS(ui->txtAddress->text())));
+	objContact.push_back(Pair("email", GUIUtil::FROMQS(ui->txtEmail->text())));
 
 	std::string sError = "";
 	if (objContact["contact_name"].getValStr().length() < 3) sError += "Contact Name must be populated. ";
 	CBitcoinAddress address(objContact["receiving_address"].getValStr());
 	if (!address.IsValid()) sError += "Funding Address is invalid. ";
-	std::string sContactType = FromQStringW(ui->cmbContactType->currentText());
+	std::string sContactType = GUIUtil::FROMQS(ui->cmbContactType->currentText());
 	if (sContactType.empty()) sError += "Contact Type must be chosen. ";
-	bool fEmailValid = is_email_valid(FromQStringW(ui->txtEmail->text()));
+	bool fEmailValid = is_email_valid(GUIUtil::FROMQS(ui->txtEmail->text()));
 	if (!fEmailValid) sError += "E-Mail address is invalid. ";
 	objContact.push_back(Pair("contact_type", sContactType));
 	objContact.push_back(Pair("objecttype", "contact"));
@@ -196,7 +187,7 @@ void ContactAddDialog::on_btnSave_clicked()
 	if (sError.empty()) sTxId = StoreBusinessObject(objContact, sError);
 	std::string sNarr = "";
 	sNarr = (!sError.empty()) ? "Business Object Store Failed: " + sError : "Business Object saved successfully " + sTxId + ".";
-	QMessageBox::warning(this, tr("Business Object Add Result"), ToQstring(sNarr), QMessageBox::Ok, QMessageBox::Ok);
+	QMessageBox::warning(this, tr("Business Object Add Result"), GUIUtil::TOQS(sNarr), QMessageBox::Ok, QMessageBox::Ok);
 	
 }
 

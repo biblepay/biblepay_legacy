@@ -6,7 +6,7 @@
 
 #include "miner.h"
 #include "base58.h"
-
+#include "rpcpog.h"
 #include "amount.h"
 #include "chain.h"
 #include "chainparams.h"
@@ -30,6 +30,8 @@
 #include "masternode-sync.h"
 #include "validationinterface.h"
 #include "podc.h"
+#include "rpcpodc.h"
+#include "kjv.h"
 #include <boost/thread.hpp>
 #include <boost/tuple/tuple.hpp>
 #include <queue>
@@ -49,33 +51,6 @@ using namespace std;
 
 uint64_t nLastBlockTx = 0;
 uint64_t nLastBlockSize = 0;
-uint256 BibleHash(uint256 hash, int64_t nBlockTime, int64_t nPrevBlockTime, bool bMining, int nPrevHeight, const CBlockIndex* pindexLast, bool bRequireTxIndex, bool f7000, bool f8000, bool f9000, bool fTitheBlocksActive, unsigned int nNonce);
-std::string BiblepayHttpPost(bool bPost, int iThreadID, std::string sActionName, std::string sDistinctUser, std::string sPayload, std::string sBaseURL, std::string sPage, int iPort, std::string sSolution, int iOptBreak);
-std::string PoolRequest(int iThreadID, std::string sAction, std::string sPoolURL, std::string sMinerID, std::string sSolution);
-std::string TimestampToHRDate(double dtm);
-void GetMiningParams(int nPrevHeight, bool& f7000, bool& f8000, bool& f9000, bool& fTitheBlocksActive);
-bool CheckNonce(bool f9000, unsigned int nNonce, int nPrevHeight, int64_t nPrevBlockTime, int64_t nBlockTime);
-std::string BiblepayHTTPSPost(bool bPost, int iThreadID, std::string sActionName, std::string sDistinctUser, std::string sPayload, std::string sBaseURL, std::string sPage, int iPort,
-	std::string sSolution, int iTimeoutSecs, int iMaxSize, int iBreakOnError = 0);
-CTransaction CreateCoinStake(CBlockIndex* pindexLast, CScript scriptCoinstakeKey, double dProofOfLoyaltyPercentage, int iMinConfirms, std::string& sXML, std::string& sError);
-
-double GetStakeWeight(CTransaction tx, int64_t nTipTime, std::string sXML, bool bVerifySignature, std::string& sMetrics, std::string& sError);
-uint256 PercentToBigIntBase(int iPercent);
-int64_t GetStakeTargetModifierPercent(int nHeight, double nWeight);
-bool IsStakeSigned(std::string sXML);
-void ClearCache(std::string sSection);
-std::string ReadCache(std::string sSection, std::string sKey);
-void WriteCache(std::string section, std::string key, std::string value, int64_t locktime, bool IgnoreCase=true);
-bool PODCUpdate(std::string& sError, bool bForce, std::string sDebugInfo);
-std::string GetSporkValue(std::string sKey);
-bool SignCPID(std::string sCPID, std::string& sError, std::string& out_FullSig);
-bool HasThisCPIDSolvedPriorBlocks(std::string CPID, CBlockIndex* pindexPrev);
-// POG
-CAmount SelectCoinsForTithing(const CBlockIndex* pindex);
-std::string SendTithe(CAmount caTitheAmount, double dMinCoinAge, CAmount caMinCoinAmount, CAmount caMaxTitheAmount, std::string& sError);
-TitheDifficultyParams GetTitheParams(const CBlockIndex* pindex);
-CAmount Get24HourTithes(int nHeight, int nSize);
-// END POG
 
 class ScoreCompare
 {

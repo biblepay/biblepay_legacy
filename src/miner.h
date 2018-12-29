@@ -31,6 +31,9 @@ struct CBlockTemplate
 
 /** Run the miner threads */
 void GenerateBiblecoins(bool fGenerate, int nThreads, const CChainParams& chainparams);
+
+std::string PoolRequest(int iThreadID, std::string sAction, std::string sPoolURL, std::string sMinerID, std::string sSolution);
+
 /** Generate a new block, without valid proof-of-work */
 CBlockTemplate* CreateNewBlock(const CChainParams& chainparams, const CScript& scriptPubKeyIn, std::string sPoolMiningPublicKey, std::string sMinerGuid,
 	int iThreadID, CAmount retiredMiningTithe, double dProofOfLoyaltyPercentage, std::string sCPIDSignature, std::string& sErr);

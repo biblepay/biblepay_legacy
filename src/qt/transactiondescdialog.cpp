@@ -8,17 +8,13 @@
 #include "util.h"
 #include "clientversion.h"
 #include "transactiontablemodel.h"
+#include "rpcpog.h"
 
 #include <QModelIndex>
 #include <QSettings>
 #include <QString>
 #include <QUrl>
 #include <QDesktopServices>  //Added for openURL()
-
-QString ToQstring(std::string s);
-std::string ReadCache(std::string section, std::string key);
-void WriteCache(std::string section, std::string key, std::string value, int64_t locktime, bool IgnoreCase=true);
-
 
 TransactionDescDialog::TransactionDescDialog(const QModelIndex &idx, QWidget *parent) :
     QDialog(parent),
@@ -48,7 +44,7 @@ void TransactionDescDialog::on_AnchorClicked()
 	LogPrintf("URL %s",sURL.c_str());
 	if (!sURL.empty())
 	{
-		QUrl pUrl(ToQstring(sURL));
+		QUrl pUrl(GUIUtil::TOQS(sURL));
 		QDesktopServices::openUrl(pUrl);
 	}
 }
@@ -59,7 +55,7 @@ void TransactionDescDialog::on_detailTextClicked(int a, int b)
 	LogPrintf("URL %s",sURL.c_str());
 	if (!sURL.empty())
 	{
-		QUrl pUrl(ToQstring(sURL));
+		QUrl pUrl(GUIUtil::TOQS(sURL));
 		QDesktopServices::openUrl(pUrl);
 	}
 }
@@ -74,7 +70,7 @@ void TransactionDescDialog::on_btnOpenClicked()
 	std::string sURL = ReadCache("ipfs", "openlink");
 	if (!sURL.empty())
 	{
-		QUrl pUrl(ToQstring(sURL));
+		QUrl pUrl(GUIUtil::TOQS(sURL));
 		QDesktopServices::openUrl(pUrl);
 	}
 }

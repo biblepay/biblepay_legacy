@@ -4,7 +4,6 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "bitcoingui.h"
-
 #include "bitcoinunits.h"
 #include "clientmodel.h"
 #include "guiconstants.h"
@@ -17,6 +16,7 @@
 #include "platformstyle.h"
 #include "rpcconsole.h"
 #include "utilitydialog.h"
+#include "kjv.h"
 #include <QDesktopServices>  //Added for openURL()
 #include "proposals.h"
 #include "businessobjectlist.h"
@@ -81,12 +81,6 @@ const std::string BitcoinGUI::DEFAULT_UIPLATFORM =
         ;
 
 const QString BitcoinGUI::DEFAULT_WALLET = "~Default";
-std::string FromQStringW(QString qs);
-QString ToQstring(std::string s);
-bool InstantiateOneClickMiningEntries();
-std::string GetBibleHashVerseNumber(uint256, uint64_t nBlockTime, uint64_t nPrevBlockTime, int nPrevHeight, CBlockIndex* pindexPrev, int iVerseNumber);
-bool SubmitProposalToNetwork(uint256 txidFee, int64_t nStartTime, std::string sHex, std::string& sError, std::string& out_sGovObj);
-std::string StoreBusinessObject(UniValue& oBusinessObject, std::string& sError);
 
 
 BitcoinGUI::BitcoinGUI(const PlatformStyle *platformStyle, const NetworkStyle *networkStyle, QWidget *parent) :
@@ -491,11 +485,6 @@ void BitcoinGUI::createActions()
     CreateNewsAction->setMenuRole(QAction::AboutRole);
     CreateNewsAction->setEnabled(false);
 
-	ReadNewsAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("Read News Article"), this);
-    ReadNewsAction->setStatusTip(tr("Read news Article"));
-    ReadNewsAction->setMenuRole(QAction::AboutRole);
-    ReadNewsAction->setEnabled(false);
-
 	OneClickMiningAction = new QAction(QIcon(":/icons/" + theme + "/editpaste"), tr("One Click Mining Configuration"), this);
     OneClickMiningAction->setStatusTip(tr("One Click Mining Configuration"));
     OneClickMiningAction->setMenuRole(QAction::AboutRole);
@@ -600,8 +589,6 @@ void BitcoinGUI::createActions()
 	connect(TheApostlesCreedAction, SIGNAL(triggered()), this, SLOT(TheApostlesCreedClicked()));
 	connect(TheNiceneCreedAction, SIGNAL(triggered()), this, SLOT(TheNiceneCreedClicked()));
 	connect(ReadBibleAction, SIGNAL(triggered()), this, SLOT(ReadBibleClicked()));
-	connect(CreateNewsAction, SIGNAL(triggered()), this, SLOT(CreateNewsClicked()));
-	connect(ReadNewsAction, SIGNAL(triggered()), this, SLOT(ReadNewsClicked()));
 	connect(OneClickMiningAction, SIGNAL(triggered()), this, SLOT(OneClickMiningClicked()));
 
 	connect(TheTenCommandmentsAction, SIGNAL(triggered()), this, SLOT(TheTenCommandmentsClicked()));
@@ -743,8 +730,7 @@ void BitcoinGUI::createMenuBar()
 	// BiblePay News
 	//QMenu *menuNews = appMenuBar->addMenu(tr("&News"));
 	//menuNews->addAction(CreateNewsAction);
-	//menuNews->addAction(ReadNewsAction);
-
+	
 	QMenu *help = appMenuBar->addMenu(tr("&Help"));
     help->addAction(showHelpMessageAction);
     help->addAction(showPrivateSendHelpAction);
@@ -1084,29 +1070,17 @@ void BitcoinGUI::CreateNewsClicked()
 	dlg.exec();
 }
 
-
-void BitcoinGUI::ReadNewsClicked()
-{
-	if(!clientModel) return;
-	bool ok;
-	QString qstxid = QInputDialog::getText(this, tr("Enter TXID"), tr("Enter News Article TXID:"), QLineEdit::Normal,"", &ok);
-    if (ok && !qstxid.isEmpty())
-	{
-		NewsPreviewWindow::showNewsWindow(this,FromQStringW(qstxid));
-	}
-}
-
 void BitcoinGUI::OneClickMiningClicked()
 {
 	if(!clientModel) return;
 	std::string sNarr = "Are you sure you would like to configure Biblepay Mining (this means biblepay will search for new blocks in the background, and will resume during each restart)?";
-	int ret = QMessageBox::warning(this, tr("Modify Biblepay Configuration File for Mining?"), ToQstring(sNarr), QMessageBox::Ok | QMessageBox::Cancel, QMessageBox::Ok);
+	int ret = QMessageBox::warning(this, tr("Modify Biblepay Configuration File for Mining?"), GUIUtil::TOQS(sNarr), QMessageBox::Ok | QMessageBox::Cancel, QMessageBox::Ok);
 	if (ret==QMessageBox::Ok)
 	{
 		// Modify user configuration file
 		bool fSuccess = InstantiateOneClickMiningEntries();
 		sNarr = fSuccess ? "Configuration Succeeded" : "Configuration Failed.";
-		QMessageBox::warning(this, ToQstring(sNarr), ToQstring(sNarr), QMessageBox::Ok, QMessageBox::Ok);
+		QMessageBox::warning(this, GUIUtil::TOQS(sNarr), GUIUtil::TOQS(sNarr), QMessageBox::Ok, QMessageBox::Ok);
 	}
 }
 
@@ -1594,15 +1568,8 @@ void BitcoinGUI::showEvent(QShowEvent *event)
 	TheTenCommandmentsAction->setEnabled(true);
 	JesusConciseCommandmentsAction->setEnabled(true);
 	ReadBibleAction->setEnabled(true);
-
-	if (false)
-	{
-		CreateNewsAction->setEnabled(true);
-		ReadNewsAction->setEnabled(true);
-	}
-
 	OneClickMiningAction->setEnabled(true);
-	
+
 }
 
 #ifdef ENABLE_WALLET
@@ -1617,10 +1584,10 @@ void BitcoinGUI::incomingTransaction(const QString& date, int unit, const CAmoun
     else if (!address.isEmpty())
         msg += tr("Address: %1\n").arg(address);
 	// Robert Andrew (BiblePay) - January 3rd, 2018 : Add a bible verse to the Incoming Transaction
-	std::string tx = FromQStringW(txid).substr(0,64);
-	uint256 uTxId = uint256S("0x" + FromQStringW(txid));
+	std::string tx = GUIUtil::FROMQS(txid).substr(0,64);
+	uint256 uTxId = uint256S("0x" + GUIUtil::FROMQS(txid));
 	std::string sVerse = GetBibleHashVerseNumber(uTxId, 1, 1, 1, NULL, 1);
-	QString qsVerse = ToQstring(sVerse);
+	QString qsVerse = GUIUtil::TOQS(sVerse);
 	msg += tr("Verse: %1\n").arg(qsVerse);	
     message((amount)<0 ? tr("Sent transaction") : tr("Incoming transaction"), msg, CClientUIInterface::MSG_INFORMATION);
 }
@@ -1802,13 +1769,13 @@ void BitcoinGUI::detectShutdown()
 				std::string sPassword = "";
 				if (!fPOGEnabled)
 				{
-					sPassword = FromQStringW(QInputDialog::getText(this, tr("PODC Update Auto-Unlock Feature"),
+					sPassword = GUIUtil::FROMQS(QInputDialog::getText(this, tr("PODC Update Auto-Unlock Feature"),
                                           tr("Please enter your wallet password for PODC updates, or click <Cancel> to skip:"),
 										  QLineEdit::Password, "", &bOK));
 				}
 				else
 				{
-					sPassword = FromQStringW(QInputDialog::getText(this, tr("POG/PODC Auto-Unlock Feature"),
+					sPassword = GUIUtil::FROMQS(QInputDialog::getText(this, tr("POG/PODC Auto-Unlock Feature"),
                        tr("Please enter your wallet password for automatic POG tithes, or click <Cancel> to skip:"),
 					   QLineEdit::Password, "", &bOK));
 				}
@@ -1881,7 +1848,7 @@ static bool ThreadSafeMessageBox(BitcoinGUI *gui, const std::string& message, co
 		bool ok;
 		QString	sUserResponse = QInputDialog::getText(gui, QString::fromStdString(caption),
 			QString::fromStdString(message), QLineEdit::Password,"", &ok);
-		msGUIResponse = FromQStringW(sUserResponse);
+		msGUIResponse = GUIUtil::FROMQS(sUserResponse);
 		sUserResponse="";
 		return ok;
 	}

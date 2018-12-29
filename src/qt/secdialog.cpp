@@ -1,7 +1,7 @@
 #include "secdialog.h"
 #include "ui_secdialog.h"
-QString ToQstring(std::string s);
-std::string RoundToString(double d, int place);
+#include "rpcpodc.h"
+#include "guiutil.h"
 
 SecDialog::SecDialog(QWidget *parent) :
     QDialog(parent),
@@ -85,6 +85,6 @@ void SecDialog::paintEvent(QPaintEvent *)
         s += "<table><tr><td width='5%'><div id='rectangle' style='background-color:gray'></div></td><td width='30%'> Abstain Count: </td><td>" 
 			+ RoundToString(100*(double)abstainCount/(double)total, 2) + "%</td></tr></table>";
     }
-    doc.setHtml(ToQstring(s));
+    doc.setHtml(GUIUtil::TOQS(s));
     doc.drawContents(&painter, legend);
 }

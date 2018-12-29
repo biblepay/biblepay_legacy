@@ -15,7 +15,7 @@ class uint256;
 const unsigned int WALLET_CRYPTO_KEY_SIZE = 32;
 const unsigned int WALLET_CRYPTO_SALT_SIZE = 8;
 
-
+	
 /**
  * Private key encryption is done based on a CMasterKey,
  * which holds a salt and random encryption key.
@@ -111,7 +111,11 @@ public:
 
 bool EncryptAES256(const SecureString& sKey, const SecureString& sPlaintext, const std::string& sIV, std::string& sCiphertext);
 bool DecryptAES256(const SecureString& sKey, const std::string& sCiphertext, const std::string& sIV, SecureString& sPlaintext);
-
+bool BibleDecrypt(const std::vector<unsigned char>& vchCiphertext,std::vector<unsigned char>& vchPlaintext);
+bool BibleEncrypt(std::vector<unsigned char> vchPlaintext, std::vector<unsigned char> &vchCiphertext);
+std::vector<unsigned char> StringToVector(std::string sData);
+std::string VectorToString(std::vector<unsigned char> v);
+	
 
 /** Keystore which keeps the private keys encrypted.
  * It derives from the basic key store, which is used if no encryption is active.
@@ -143,13 +147,8 @@ protected:
 
 public:
 
-	bool BibleDecrypt(const std::vector<unsigned char>& vchCiphertext,std::vector<unsigned char>& vchPlaintext);
-	bool BibleEncrypt(std::vector<unsigned char> vchPlaintext, std::vector<unsigned char> &vchCiphertext);
-	std::string RetrieveMd5(std::string s1);
-	std::vector<unsigned char> StringToVector(std::string sData);
-    std::string VectorToString(std::vector<unsigned char> v);
 	std::string ExtractXML(std::string XMLdata, std::string key, std::string key_end);
-	std::string PubKeyToAddress(const CScript& scriptPubKey);
+	std::vector<char> ReadAllBytes(char const* filename);
 	int RSA_GENERATE_KEYPAIR(std::string sPublicKeyPath, std::string sPrivateKeyPath);
 	unsigned char *RSA_ENCRYPT_CHAR(std::string sPubKeyPath, unsigned char *plaintext, int plaintext_length, int& cipher_len, std::string& sError);
 	void RSA_Encrypt_File(std::string sPubKeyPath, std::string sSourcePath, std::string sEncryptPath, std::string& sError);
@@ -157,8 +156,7 @@ public:
 	void RSA_Decrypt_File(std::string sPriKeyPath, std::string sSourcePath, std::string sDecryptPath, std::string sError);
 	std::string RSA_Encrypt_String(std::string sPubKeyPath, std::string sData, std::string& sError);
 	std::string RSA_Decrypt_String(std::string sPrivKeyPath, std::string sData, std::string& sError);
-	std::vector<char> ReadAllBytes(char const* filename);
-
+	
     CCryptoKeyStore() : fUseCrypto(false), fDecryptionThoroughlyChecked(false), fOnlyMixingAllowed(false)
     {
     }

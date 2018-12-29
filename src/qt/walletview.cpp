@@ -3,7 +3,6 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "walletview.h"
-
 #include "addressbookpage.h"
 #include "askpassphrasedialog.h"
 #include "bitcoingui.h"

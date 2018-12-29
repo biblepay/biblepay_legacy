@@ -16,7 +16,7 @@
 #include "txmempool.h"
 #include "util.h"
 #include "utilmoneystr.h"
-
+#include "rpcpog.h"
 #include <boost/lexical_cast.hpp>
 
 int nPrivateSendRounds = DEFAULT_PRIVATESEND_ROUNDS;

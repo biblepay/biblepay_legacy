@@ -3,6 +3,7 @@
 #include "ui_writeorphan.h"
 #include "secdialog.h"
 #include "ui_secdialog.h"
+#include "guiutil.h"
 #include "walletmodel.h"
 #include <QPainter>
 #include <QTableWidget>
@@ -11,11 +12,6 @@
 #include <univalue.h>
 #include <boost/algorithm/string/case_conv.hpp> // for to_lower()
 #include <QDir>
-
-QString ToQstring(std::string s);
-std::string FromQStringW(QString qs);
-std::string RoundToString(double d, int place);
-double cdbl(std::string s, int place);
 
 
 WriteOrphan::WriteOrphan(QWidget *parent) : QDialog(parent),ui(new Ui::WriteOrphan)
@@ -34,7 +30,7 @@ WriteOrphan::WriteOrphan(QWidget *parent) : QDialog(parent),ui(new Ui::WriteOrph
 	ui->listPics->setIconSize(QSize(210, 180));
 	ui->listPics->setResizeMode(QListWidget::Adjust);
 	std::string sTarget = GetSANDirectory2();
-	QDir directory(ToQstring(sTarget)); 
+	QDir directory(GUIUtil::TOQS(sTarget)); 
 	directory.setNameFilters(QStringList() << "*.png" << "*.jpg" << "*.jpeg");
 	//PICS
 
@@ -47,7 +43,7 @@ WriteOrphan::WriteOrphan(QWidget *parent) : QDialog(parent),ui(new Ui::WriteOrph
 
 	//BIO
 	std::string sPath = sTarget + "bio.htm";
-	QFile file(ToQstring(sPath));
+	QFile file(GUIUtil::TOQS(sPath));
 	file.open(QFile::ReadOnly | QFile::Text);
 	QTextStream stream(&file);
 	ui->txtBio->setHtml(stream.readAll());

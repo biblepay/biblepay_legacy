@@ -16,6 +16,8 @@
 #include "util.h"
 #include "spork.h"
 #include "utilstrencodings.h"
+#include "rpcpog.h"
+
 #ifdef ENABLE_WALLET
 #include "masternode-sync.h"
 #include "wallet/wallet.h"
@@ -30,9 +32,6 @@
 #include <univalue.h>
 
 using namespace std;
-double CAmountToRetirementDouble(CAmount Amount);
-double GetSporkDouble(std::string sName, double nDefault);
-string GetSporkValue(std::string sKey);
 
 /**
  * @note Do not add or change anything in the information returned by this
@@ -98,7 +97,6 @@ UniValue getinfo(const UniValue& params, bool fHelp)
         obj.push_back(Pair("balance", ValueFromAmount(pwalletMain->GetBalance())));
         if(!fLiteMode)
             obj.push_back(Pair("privatesend_balance", ValueFromAmount(pwalletMain->GetAnonymizedBalance())));
-		obj.push_back(Pair("retirement_balance", CAmountToRetirementDouble(pwalletMain->GetRetirementBalance())));
 	}
 #endif
     obj.push_back(Pair("blocks",        (int)chainActive.Height()));

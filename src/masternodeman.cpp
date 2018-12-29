@@ -11,16 +11,12 @@
 #include "masternodeman.h"
 #include "netfulfilledman.h"
 #include "util.h"
+#include "rpcpog.h"
+#include "rpcipfs.h"
 
 /** Masternode manager */
 CMasternodeMan mnodeman;
 const std::string CMasternodeMan::SERIALIZATION_VERSION_STRING = "CMasternodeMan-Version-4";
-std::string GetUndownloadedIPFSHash();
-std::string GetIPFromAddress(std::string sAddress);
-double GetSporkDouble(std::string sName, double nDefault);
-int ipfs_download(const string& url, const string& filename, double dTimeoutSecs, double dMinRange, double dMaxRange);
-int CheckSanctuaryIPFSHealth(std::string sAddress);
-void WriteCache(std::string section, std::string key, std::string value, int64_t locktime, bool IgnoreCase=true);
 
 struct CompareLastPaidBlock
 {

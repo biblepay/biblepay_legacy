@@ -4,6 +4,7 @@
 
 #include "activemasternode.h"
 #include "darksend.h"
+#include "rpcpog.h"
 #include "governance-classes.h"
 #include "masternode-payments.h"
 #include "masternode-sync.h"
@@ -13,6 +14,8 @@
 #include "util.h"
 
 #include <boost/lexical_cast.hpp>
+
+extern CPoolObject GetPoolVector(const CBlockIndex* pindex, int iPaymentTier);
 
 /** Object for who's going to get paid on which blocks */
 CMasternodePayments mnpayments;
@@ -32,13 +35,6 @@ CCriticalSection cs_mapDistributedComputingVote;
 *   - When non-superblocks are detected, the normal schedule should be maintained
 */
 
-std::string RoundToString(double d, int place);
-
-CAmount GetRetirementAccountContributionAmount(int nPrevHeight);
-extern CAmount GetTxSanctuaryCollateral(const CTransaction& txNew);
-extern CAmount GetSanctuaryCollateral(CTxIn vin);
-CPoolObject GetPoolVector(const CBlockIndex* pindex, int iPaymentTier);
-CBlockIndex* FindBlockByHeight(int nHeight);
 
 std::string GetTxOutScript(const CTransaction& tx1)
 {

@@ -5,30 +5,19 @@
 
 #include "sendcoinsentry.h"
 #include "ui_sendcoinsentry.h"
-
 #include "addressbookpage.h"
 #include "addresstablemodel.h"
 #include "guiutil.h"
 #include "optionsmodel.h"
 #include "platformstyle.h"
 #include "walletmodel.h"
+#include "rpcpog.h"
 #include "main.cpp"
-
+#include "kjv.h"
+#include "podc.h"
 #include <QApplication>
 #include <QClipboard>
 #include <QUrl>
-
-QString ToQstring(std::string s);
-std::string FromQStringW(QString qs);
-std::string GetSin(int iSinNumber, std::string& out_Description);
-bool Contains(std::string data, std::string instring);
-
-// POG
-TitheDifficultyParams GetTitheParams(const CBlockIndex* pindex);
-double GetPOGDifficulty(const CBlockIndex* pindex);
-// End of POG
-
-
 
 SendCoinsEntry::SendCoinsEntry(const PlatformStyle *platformStyle, QWidget *parent) :
     QStackedWidget(parent),
@@ -108,7 +97,7 @@ void SendCoinsEntry::on_pasteButton_clicked()
 void SendCoinsEntry::updateFoundationAddress()
 {
 	const CChainParams& chainparams = Params();
-    ui->payTo->setText(ToQstring(chainparams.GetConsensus().FoundationAddress));
+    ui->payTo->setText(GUIUtil::TOQS(chainparams.GetConsensus().FoundationAddress));
 	initPOGDifficulty();
     ui->payAmount->setFocus();
 }
@@ -148,11 +137,11 @@ void SendCoinsEntry::initPOGDifficulty()
 			+ ", MinCoinValue: " + RoundToString((double)(tdp.min_coin_amount/COIN), 4) 
 				+ ", MaxTitheAmount: " + RoundToString((double)(tdp.max_tithe_amount/COIN), 4);
 		std::string sCSS = "QLabel { background-color : transparent; color: red; }";
-		ui->lblPogDifficulty->setStyleSheet(ToQstring(sCSS));
-		ui->lblPogDifficultyCaption->setStyleSheet(ToQstring(sCSS));
+		ui->lblPogDifficulty->setStyleSheet(GUIUtil::TOQS(sCSS));
+		ui->lblPogDifficultyCaption->setStyleSheet(GUIUtil::TOQS(sCSS));
 		ui->lblPogDifficultyCaption->setVisible(true);
-		ui->lblPogDifficultyCaption->setText(ToQstring("POG:"));
-		ui->lblPogDifficulty->setText(ToQstring(sValue));
+		ui->lblPogDifficultyCaption->setText(GUIUtil::TOQS("POG:"));
+		ui->lblPogDifficulty->setText(GUIUtil::TOQS(sValue));
 		ui->lblPogDifficulty->setVisible(true);
 		ui->lblCheckboxes->setVisible(false);
 
@@ -184,11 +173,11 @@ void SendCoinsEntry::initPOGDifficulty()
 			+ ", TotalTitheBalance: " 
 			+ RoundToString((double)(nTotal/COIN), 2) + ", Tithability: " + RoundToString((double)(nTithability/COIN), 4) + ", Summary: " + sSummary;
 		
-		ui->lblTitheAbility->setStyleSheet(ToQstring(sCSS));
-		ui->lblTitheAbilityCaption->setStyleSheet(ToQstring(sCSS));
+		ui->lblTitheAbility->setStyleSheet(GUIUtil::TOQS(sCSS));
+		ui->lblTitheAbilityCaption->setStyleSheet(GUIUtil::TOQS(sCSS));
 		ui->lblTitheAbilityCaption->setVisible(true);
-		ui->lblTitheAbilityCaption->setText(ToQstring("Tithe Ability:"));
-		ui->lblTitheAbility->setText(ToQstring(sTitheValue));
+		ui->lblTitheAbilityCaption->setText(GUIUtil::TOQS("Tithe Ability:"));
+		ui->lblTitheAbility->setText(GUIUtil::TOQS(sTitheValue));
 		ui->lblTitheAbility->setVisible(true);
     }
 	else
@@ -207,7 +196,7 @@ void SendCoinsEntry::initRepentanceDropDown()
 	{
 		std::string sDescription = "";
 		std::string sSin = GetSin(i, sDescription);
-		ui->comboRepent->addItem(ToQstring(sSin));
+		ui->comboRepent->addItem(GUIUtil::TOQS(sSin));
 	}
 	ui->comboRepent->setVisible(false);
 	ui->lblRepent->setVisible(false);
@@ -272,8 +261,7 @@ void SendCoinsEntry::attachFile()
     QString filename = GUIUtil::getOpenFileName(this, tr("Select a file to attach to this transaction"), "", "", NULL);
     if(filename.isEmpty()) return;
     QUrl fileUri = QUrl::fromLocalFile(filename);
-	std::string sFN = FromQStringW(fileUri.toString());
-	// 8-30-2018 
+	std::string sFN = GUIUtil::FROMQS(fileUri.toString());
 	bool bFromWindows = Contains(sFN, "file:///C:") || Contains(sFN, "file:///D:") || Contains(sFN, "file:///E:");
 	if (!bFromWindows)
 	{
@@ -284,7 +272,7 @@ void SendCoinsEntry::attachFile()
 		sFN = strReplace(sFN, "file:///", "");  // This leaves the windows drive letter
 	}
 	
-    ui->txtFile->setText(ToQstring(sFN));
+    ui->txtFile->setText(GUIUtil::TOQS(sFN));
 }
 
 void SendCoinsEntry::deleteClicked()

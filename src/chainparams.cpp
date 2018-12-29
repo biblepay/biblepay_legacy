@@ -5,7 +5,6 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "chainparams.h"
-#include "kjv.h"
 #include "consensus/merkle.h"
 #include "main.h"
 #include "tinyformat.h"
@@ -15,8 +14,6 @@
 #include <boost/assign/list_of.hpp>
 #include "chainparamsseeds.h"
 #include "init.h"
-
-void CheckGenesisBlock(CBlock block, uint256 targetBlockHash, uint256 targetMerkleRoot);
 
 
 /**

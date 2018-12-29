@@ -31,12 +31,6 @@
 #include <QComboBox>
 
 
-std::string GetSin(int iSinNumber, std::string& out_Description);
-QString ToQstring(std::string s);
-std::string FromQStringW(QString qs);
-double GetSporkDouble(std::string sName, double nDefault);
-int64_t GetFileSize(std::string sPath);
-
 SendCoinsDialog::SendCoinsDialog(const PlatformStyle *platformStyle, QWidget *parent) :
     QDialog(parent),
     ui(new Ui::SendCoinsDialog),
@@ -269,11 +263,11 @@ void SendCoinsDialog::on_sendButton_clicked()
 	if (comboRepentance != NULL)  
 	{
 		QString qsRepent = comboRepentance->currentText();
-		std::string sRepent = FromQStringW(qsRepent);
+		std::string sRepent = GUIUtil::FROMQS(qsRepent);
 		if (!sRepent.empty())
 		{
-			std::string sXML = sRepent + " " + FromQStringW(recipients[0].txtMessage);
-			recipients[0].txtMessage += ToQstring(sXML);
+			std::string sXML = sRepent + " " + GUIUtil::FROMQS(recipients[0].txtMessage);
+			recipients[0].txtMessage += GUIUtil::TOQS(sXML);
 			comboRepentance = NULL; //Allow this to be reused later.
 		}
     }
@@ -389,7 +383,7 @@ void SendCoinsDialog::send(QList<SendCoinsRecipient> recipients, QString strFee,
 		// IPFS
 		if (!rcp.ipfshash.isEmpty())
 		{
-			int64_t nFileSize = GetFileSize(FromQStringW(rcp.ipfshash));
+			int64_t nFileSize = GetFileSize(GUIUtil::FROMQS(rcp.ipfshash));
 			dTotalFileSize += (double)nFileSize;
 			double dCostPerByte = GetSporkDouble("ipfscostperbyte", .0002);
 			aIPFSFee += dCostPerByte * nFileSize * COIN;

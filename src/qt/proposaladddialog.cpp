@@ -4,7 +4,6 @@
 
 #include "proposaladddialog.h"
 #include "ui_proposaladddialog.h"
-
 #include "addressbookpage.h"
 #include "addresstablemodel.h"
 #include "bitcoinunits.h"
@@ -22,18 +21,13 @@
 #include "walletmodel.h"
 #include "main.h"
 #include "podc.h"
+#include "rpcpog.h"
 #include <QAction>
 #include <QCursor>
 #include <QItemSelection>
 #include <QMessageBox>
 #include <QScrollBar>
 #include <QTextDocument>
-QString ToQstring(std::string s);
-std::string FromQStringW(QString qs);
-std::string RoundToString(double d, int place);
-std::string CreateGovernanceCollateral(uint256 GovObjHash, CAmount nFee, std::string& sError);
-bool AmIMasternode();
-int GetNextSuperblock();
 
 ProposalAddDialog::ProposalAddDialog(const PlatformStyle *platformStyle, QWidget *parent) :
     QDialog(parent),
@@ -73,7 +67,7 @@ void ProposalAddDialog::UpdateDisplay()
 		sInfo = "<br>NOTE: Your last proposal has been submitted.  <br>Status: " + msProposalResult;
 	}
 
-	ui->txtInfo->setText(ToQstring(sInfo));
+	ui->txtInfo->setText(GUIUtil::TOQS(sInfo));
 }
 
 
@@ -105,17 +99,17 @@ void ProposalAddDialog::on_btnSubmit_clicked()
 {
     if(!model || !model->getOptionsModel())
         return;
-	std::string sName = FromQStringW(ui->txtName->text());
-	std::string sAddress = FromQStringW(ui->txtAddress->text());
-	std::string sAmount = FromQStringW(ui->txtAmount->text());
-	std::string sURL = FromQStringW(ui->txtURL->text());
+	std::string sName = GUIUtil::FROMQS(ui->txtName->text());
+	std::string sAddress = GUIUtil::FROMQS(ui->txtAddress->text());
+	std::string sAmount = GUIUtil::FROMQS(ui->txtAmount->text());
+	std::string sURL = GUIUtil::FROMQS(ui->txtURL->text());
 	std::string sError = "";
 	if (sName.length() < 3) sError += "Proposal Name must be populated. ";
 	CBitcoinAddress address(sAddress);
 	if (!address.IsValid()) sError += "Proposal Funding Address is invalid. ";
 	if (cdbl(sAmount,0) < 100) sError += "Proposal Amount is too low. ";
 	if (sURL.length() < 10) sError += "You must enter a discussion URL. ";
-	std::string sExpenseType = FromQStringW(ui->cmbExpenseType->currentText());
+	std::string sExpenseType = GUIUtil::FROMQS(ui->cmbExpenseType->currentText());
 	if (sExpenseType.empty()) sError += "Expense Type must be chosen. ";
 	if (fProposalNeedsSubmitted) 
 	{
@@ -180,7 +174,7 @@ void ProposalAddDialog::on_btnSubmit_clicked()
 		clear();
  	
 	}
- 	QMessageBox::warning(this, tr("Proposal Add Result"), ToQstring(sNarr), QMessageBox::Ok, QMessageBox::Ok);
+ 	QMessageBox::warning(this, tr("Proposal Add Result"), GUIUtil::TOQS(sNarr), QMessageBox::Ok, QMessageBox::Ok);
 
     UpdateDisplay();
 }

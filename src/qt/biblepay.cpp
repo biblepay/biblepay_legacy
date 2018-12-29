@@ -7,9 +7,7 @@
 #include "config/biblepay-config.h"
 #endif
 
-
 #include "bitcoingui.h"
-
 #include "chainparams.h"
 #include "clientmodel.h"
 #include "guiconstants.h"
@@ -93,7 +91,6 @@ static void InitMessage(const std::string &message)
 
 static void NotifyChatEvent(std::string sMsg)
 {
-	// LogPrintf(" received notifychat event %s ", sMsg.c_str());
 }
 /*
    Translate string to current locale using Qt.
