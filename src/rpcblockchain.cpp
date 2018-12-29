@@ -4504,12 +4504,14 @@ bool SignStake(std::string sBitcoinAddress, std::string strMessage, std::string&
 		if (!addr.GetKeyID(keyID))
 		{
 			sError = "Address does not refer to key";
+            if (bTriedToUnlock)		{ pwalletMain->Lock();	}
 			return false;
 		}
 		CKey key;
 		if (!pwalletMain->GetKey(keyID, key))
 		{
 			sError = "Private key not available";
+            if (bTriedToUnlock)		{ pwalletMain->Lock();	}
 			return false;
 		}
 		CHashWriter ss(SER_GETHASH, 0);
@@ -4520,6 +4522,7 @@ bool SignStake(std::string sBitcoinAddress, std::string strMessage, std::string&
 		if (!key.SignCompact(ss.GetHash(), vchSig))
 		{
 			sError = "Sign failed";
+            if (bTriedToUnlock)		{ pwalletMain->Lock();	}
 			return false;
 		}
 		sSignature = EncodeBase64(&vchSig[0], vchSig.size());
