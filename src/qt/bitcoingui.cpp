@@ -1569,7 +1569,6 @@ void BitcoinGUI::showEvent(QShowEvent *event)
 	JesusConciseCommandmentsAction->setEnabled(true);
 	ReadBibleAction->setEnabled(true);
 	OneClickMiningAction->setEnabled(true);
-
 }
 
 #ifdef ENABLE_WALLET
