@@ -99,7 +99,7 @@ UniValue blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool tx
 	{
 		if (chainActive.Contains(blockindex))
 			confirmations = chainActive.Height() - blockindex->nHeight + 1;
-	}
+	} 
 
     result.push_back(Pair("confirmations", confirmations));
     result.push_back(Pair("size", (int)::GetSerializeSize(block, SER_NETWORK, PROTOCOL_VERSION)));

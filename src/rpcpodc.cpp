@@ -831,6 +831,12 @@ int ShellCommand(std::string sCommand, std::string &sOutput, std::string &sError
     }
 
 }
+#elif defined(WIN32)
+int ShellCommand(std::string sCommand, std::string &sOutput, std::string &sError)
+{
+    sOutput = sError = SystemCommand2(sCommand.c_str());
+    return (Contains(sOutput, "not found"))?1:0;
+}
 #else
 int ShellCommand(std::string sCommand, std::string &sOutput, std::string &sError)
 {
@@ -1337,12 +1343,14 @@ bool SignStake(std::string sBitcoinAddress, std::string strMessage, std::string&
 		if (!addr.GetKeyID(keyID))
 		{
 			sError = "Address does not refer to key";
+			if (bTriedToUnlock)		{ pwalletMain->Lock();	}
 			return false;
 		}
 		CKey key;
 		if (!pwalletMain->GetKey(keyID, key))
 		{
 			sError = "Private key not available";
+			if (bTriedToUnlock)		{ pwalletMain->Lock();	}
 			return false;
 		}
 		CHashWriter ss(SER_GETHASH, 0);
@@ -1352,6 +1360,7 @@ bool SignStake(std::string sBitcoinAddress, std::string strMessage, std::string&
 		if (!key.SignCompact(ss.GetHash(), vchSig))
 		{
 			sError = "Sign failed";
+			if (bTriedToUnlock)		{ pwalletMain->Lock();	}
 			return false;
 		}
 		sSignature = EncodeBase64(&vchSig[0], vchSig.size());
