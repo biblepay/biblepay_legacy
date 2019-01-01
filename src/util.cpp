@@ -1061,13 +1061,13 @@ HANDLE g_hChildStd_OUT_Wr = NULL;
 HANDLE g_hChildStd_ERR_Rd = NULL;
 HANDLE g_hChildStd_ERR_Wr = NULL;
 
-PROCESS_INFORMATION CreateChildProcess(const char*); 
+bool CreateChildProcess(const char*, PROCESS_INFORMATION&); 
 std::string ReadFromPipe(PROCESS_INFORMATION); 
 
 std::string SystemCommand2(const char* cmd)
 { 
     SECURITY_ATTRIBUTES sa; 
-    std::string result = "";
+    std::string result;
     // Set the bInheritHandle flag so pipe handles are inherited. 
     sa.nLength = sizeof(SECURITY_ATTRIBUTES); 
     sa.bInheritHandle = TRUE; 
@@ -1091,25 +1091,29 @@ std::string SystemCommand2(const char* cmd)
     }
 
     // Create the child process. 
-    PROCESS_INFORMATION piProcInfo = CreateChildProcess(cmd);
+    PROCESS_INFORMATION piProcInfo; 
+    bool bSuccess = CreateChildProcess(cmd, piProcInfo);
 
-    // Read from pipe that is the standard output for child process. 
-    result = ReadFromPipe(piProcInfo); 
-
-    // cleanup stuff
+    if ( bSuccess ) {
+        result = ReadFromPipe(piProcInfo); 
+        // cleanup stuff
+        CloseHandle(piProcInfo.hProcess);
+        CloseHandle(piProcInfo.hThread);
+    }
+    else    {
+        result = "not found";
+    }
+        
     CloseHandle(g_hChildStd_ERR_Rd);
     CloseHandle(g_hChildStd_OUT_Rd);
-    CloseHandle(piProcInfo.hProcess);
-    CloseHandle(piProcInfo.hThread);
-    
+
     return result; 
 } 
 
 // Create a child process that uses the previously created pipes
 //  for STDERR and STDOUT.
-PROCESS_INFORMATION CreateChildProcess(const char* cmd){
+bool CreateChildProcess(const char* cmd, PROCESS_INFORMATION& piProcInfo){
     char* szCmdline=(char*)cmd;
-    PROCESS_INFORMATION piProcInfo; 
     STARTUPINFO siStartInfo;
     bool bSuccess = FALSE; 
 
@@ -1123,7 +1127,6 @@ PROCESS_INFORMATION CreateChildProcess(const char* cmd){
     siStartInfo.hStdError = g_hChildStd_ERR_Wr;
     siStartInfo.hStdOutput = g_hChildStd_OUT_Wr;
     siStartInfo.dwFlags |= STARTF_USESTDHANDLES;
-
 
     // Create the child process. 
     bSuccess = CreateProcess(NULL, 
@@ -1139,11 +1142,12 @@ PROCESS_INFORMATION CreateChildProcess(const char* cmd){
 
     CloseHandle(g_hChildStd_ERR_Wr);
     CloseHandle(g_hChildStd_OUT_Wr);
-    // If an error occurs, exit the application. 
+    // If an error occurs, log and return. 
     if ( ! bSuccess ) {
-        exit(1);
+        LogPrintf("ERROR WinAPI CreateProcess failed (code %d).\n", GetLastError() );
+        return false;
     }
-    return piProcInfo;
+    return true;
 }
 
 // Read output from the child process's pipe for STDOUT
