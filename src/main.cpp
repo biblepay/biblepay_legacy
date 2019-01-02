@@ -3388,7 +3388,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
 	{
 		MemorizeBlockChainPrayers(true, false, false, false);
 	}
-	InitializePogPool(pindex, 16);
+	InitializePogPool(pindex, 16, block);
 	
     return true;
 }

@@ -93,7 +93,7 @@ UniValue ContributionReport();
 int DeserializePrayersFromFile();
 void SerializePrayersToFile(int nHeight);
 void UpdatePogPool(CBlockIndex* pindex, const CBlock& block);
-void InitializePogPool(const CBlockIndex* pindexLast, int nSize);
+void InitializePogPool(const CBlockIndex* pindexLast, int nSize, const CBlock& block);
 std::string GetTitherAddress(CTransaction ctx, std::string& sNickName);
 CAmount GetTitheAmount(CTransaction ctx);
 

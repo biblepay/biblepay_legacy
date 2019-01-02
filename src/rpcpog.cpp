@@ -1976,7 +1976,7 @@ void UpdatePogPool(CBlockIndex* pindex, const CBlock& block)
 	}
 }
 
-void InitializePogPool(const CBlockIndex* pindexSource, int nSize)
+void InitializePogPool(const CBlockIndex* pindexSource, int nSize, const CBlock& block)
 {
 	const CBlockIndex *pindexLast = pindexSource;
 
@@ -1984,7 +1984,8 @@ void InitializePogPool(const CBlockIndex* pindexSource, int nSize)
 	int64_t nAge = GetAdjustedTime() - pindexLast->GetBlockTime();
 	if (nAge > (60 * 60 * 24 * 1) && nSize < BLOCKS_PER_DAY) return;
 	const Consensus::Params& consensusParams = Params().GetConsensus();
-	
+	// LogPrintf(" pindexsource-height %f ",pindexSource->nHeight);
+
     for (int i = 1; i < nSize; i++) 
 	{
         if (pindexLast->pprev == NULL) return;
@@ -1995,14 +1996,16 @@ void InitializePogPool(const CBlockIndex* pindexSource, int nSize)
 	{
 		if (pindexLast)
 		{
-			CBlock block;
-			if (ReadBlockFromDisk(block, pindexLast, consensusParams, "InitializePogPool"))
+			CBlock cblock;
+			if (ReadBlockFromDisk(cblock, pindexLast, consensusParams, "InitializePogPool"))
 			{
-				UpdatePogPool(mapBlockIndex[pindexLast->GetBlockHash()], block);
+				UpdatePogPool(mapBlockIndex[pindexLast->GetBlockHash()], cblock);
 			}
 			pindexLast = chainActive.Next(pindexLast);
 		}
  	}
+	// Special case for last block
+	if (pindexSource) UpdatePogPool(mapBlockIndex[pindexSource->GetBlockHash()], block);
 }
 
 std::string VectToString(std::vector<unsigned char> v)
