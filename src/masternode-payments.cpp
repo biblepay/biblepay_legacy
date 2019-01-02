@@ -346,9 +346,9 @@ void CMasternodePayments::PayPOGRecipients(CMutableTransaction& txNew, int nBloc
 	// POG POOL PAYMENTS - 12/7/2018 - PAY POOL After Reaper and after Sanctuary
 	if (fPOGPaymentsEnabled)
 	{
-		int nPoolHeight = nBlockHeight - 10;
-		CBlockIndex* pindex = FindBlockByHeight(nPoolHeight);
-		CPoolObject cPool = GetPoolVector(pindex, nPoolHeight % 16);
+		int nPoolHeight = nBlockHeight - 1;
+		CBlockIndex* pindexPrev = FindBlockByHeight(nPoolHeight);
+		CPoolObject cPool = GetPoolVector(pindexPrev, 0);
 		CAmount masternodePayment = GetMasternodePayment(nBlockHeight, blockRewardWithoutFees, 0);
 		CAmount nPOWReward = blockRewardWithoutFees - masternodePayment;
 		CAmount nPOGReward = nPOWReward * .80;

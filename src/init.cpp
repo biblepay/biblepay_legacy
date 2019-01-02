@@ -2194,7 +2194,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     MemorizeBlockChainPrayers(false, false, true, false);
 	if (fPOGEnabled) uiInterface.InitMessage(_("Initializing POG Pool..."));
 
-	InitializePogPool(chainActive.Height(), 2000);
+	InitializePogPool(chainActive.Tip(), 1000);
 
     //// debug print
     LogPrintf("mapBlockIndex.size() = %u\n",   mapBlockIndex.size());

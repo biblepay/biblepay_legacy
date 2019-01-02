@@ -145,9 +145,6 @@ std::string CreateBankrollDenominations(double nQuantity, CAmount denominationAm
 	return sTxId;
 }
 
-
-
-
 CAmount GetDailyMinerEmissions(int nHeight)
 {
     const Consensus::Params& consensusParams = Params().GetConsensus();
@@ -171,7 +168,7 @@ TitheDifficultyParams GetTitheParams(const CBlockIndex* pindex)
 	td.min_coin_amount = 0;
 	td.max_tithe_amount = 0;
 	if (pindex == NULL || pindex->nHeight == 0) return td;
-	CAmount nTitheCap = GetTitheCap(pindex->nHeight);
+	CAmount nTitheCap = GetTitheCap(pindex);
 	if (nTitheCap < 1) return td;
 	double nQLevel = (((double)pindex->n24HourTithes/COIN) / ((double)nTitheCap/COIN));
 	td.min_coin_age = R2X(Quantize(0, 60, nQLevel));
@@ -328,9 +325,13 @@ bool RPCSendMoney(std::string& sError, const CTxDestination &address, CAmount nV
 		fUsePrivateSend ? ONLY_DENOMINATED : (fUseSanctuaryFunds ? ALL_COINS : ONLY_NOT1000IFMN), fUseInstantSend, nMinConfirms, nMinCoinAge, nMinCoinAmount)) 
 	{
         if (!fSubtractFeeFromAmount && nValue + nFeeRequired > pwalletMain->GetBalance())
+		{
             sError = strprintf("Error: This transaction requires a transaction fee of at least %s because of its amount, complexity, or use of recently received funds!", FormatMoney(nFeeRequired));
-		// The Snat - Reported this can crash POG on 12-30-2018 (resolved by handling this)
-        return false;
+			// The Snat - Reported this can crash POG on 12-30-2018 (resolved by handling this)
+			return false;
+		}
+		sError = "Unable to Create Transaction: " + strError;
+		return false;
     }
     if (!pwalletMain->CommitTransaction(wtxNew, reservekey, fUseInstantSend ? NetMsgType::TXLOCKREQUEST : NetMsgType::TX))
 	{
@@ -411,27 +412,29 @@ std::string SendTithe(CAmount caTitheAmount, double dMinCoinAge, CAmount caMinCo
 }
 
 
-CAmount GetTitheCap(int nHeight)
+CAmount GetTitheCap(const CBlockIndex* pindexLast)
 {
 	// NOTE: We must call GetTitheCap with nHeight because some calls from RPC look into the future - and there is no block index yet for the future - our GetBlockSubsidy figures the deflation harmlessly however
     const Consensus::Params& consensusParams = Params().GetConsensus();
 	int nBits = 486585255;  // Set diff at about 1.42 for Superblocks (This preserves compatibility with our getgovernanceinfo cap)
 	// The first call to GetBlockSubsidy calculates the future reward (and this has our standard deflation of 19% per year in it)
-	if (nHeight < 1 || pindexBestHeader==NULL || pindexBestHeader->nHeight < 2) return 0;
-    CAmount nSuperblockPartOfSubsidy = GetBlockSubsidy(pindexBestHeader->pprev, nBits, nHeight, consensusParams, true);
+	if (pindexLast == NULL || pindexLast->nHeight < 2) return 0;
+    CAmount nSuperblockPartOfSubsidy = GetBlockSubsidy(pindexLast, nBits, pindexLast->nHeight, consensusParams, true);
 	// R ANDREWS - POG - 12/6/2018 - CRITICAL - If we go with POG + PODC, the Tithe Cap must be lower to ensure miner profitability
 
 	// TestNet : POG+POBH with PODC enabled  = (100.5K miner payments, 50K daily pogpool tithe cap, deflating) = 0.003125 (4* the blocks per day in testnet)
 	// Prod    : POG+POBH with PODC enabled  = (100.5K miner payments, 50K daily pogpool tithe cap, deflating) = 0.00075
 
     CAmount nPaymentsLimit = 0;
+	double nTitheCapFactor = GetSporkDouble("tithecapfactor", 1);
+
 	if (fProd)
 	{
-		nPaymentsLimit = nSuperblockPartOfSubsidy * consensusParams.nSuperblockCycle * .00075; // Half of monthly charity budget - with deflation - per day
+		nPaymentsLimit = nSuperblockPartOfSubsidy * consensusParams.nSuperblockCycle * .00075 * nTitheCapFactor; // Half of monthly charity budget - with deflation - per day
 	}
 	else
 	{
-		nPaymentsLimit = nSuperblockPartOfSubsidy * consensusParams.nSuperblockCycle * .003125; // Half of monthly charity budget - with deflation - per day
+		nPaymentsLimit = nSuperblockPartOfSubsidy * consensusParams.nSuperblockCycle * .003125 * nTitheCapFactor; // Half of monthly charity budget - with deflation - per day
 	}
 	return nPaymentsLimit;
 }
@@ -453,24 +456,24 @@ double Quantize(double nFloor, double nCeiling, double nValue)
 	return nOut;
 }
 
-
 CAmount Get24HourTithes(const CBlockIndex* pindexLast)
 {
 	CAmount nTotal = 0;
     if (pindexLast == NULL || pindexLast->nHeight == 0)  return 0;
-    for (int i = 1; i < BLOCKS_PER_DAY; i++) 
+	int nLookback = 16;
+    for (int i = 1; i <= nLookback; i++) 
 	{
         if (pindexLast->pprev == NULL) { break; }
 		nTotal += pindexLast->nBlockTithes;
         pindexLast = pindexLast->pprev;
     }
-	return nTotal;
+	return nTotal * 12;
 }
 
 double GetPOGDifficulty(const CBlockIndex* pindex)
 {
 	if (pindex == NULL || pindex->nHeight == 0)  return 0;
-	CAmount nTitheCap = GetTitheCap(pindex->nHeight);
+	CAmount nTitheCap = GetTitheCap(pindex);
 	if (nTitheCap < 1) return 0;
 	double nDiff = (((double)pindex->n24HourTithes/COIN) / ((double)nTitheCap/COIN)) * 65535;
 	return nDiff;
@@ -1348,13 +1351,15 @@ double GetBlockMagnitude(int nChainHeight)
     return dPODCDiff;
 }
 
-CPoolObject GetPoolVector(const CBlockIndex* pindex, int iPaymentTier)
+CPoolObject GetPoolVector(const CBlockIndex* pindexSource, int iPaymentTier)
 {
 	CPoolObject cPool;
 	cPool.nPaymentTier = iPaymentTier;
-	if (pindex==NULL || pindex->nHeight == 0 || pindex->nHeight < BLOCKS_PER_DAY) return cPool;
+	int iLookback = 16;
+	const CBlockIndex *pindex = pindexSource;
+	if (pindex==NULL || pindex->nHeight == 0 || pindex->nHeight < iLookback) return cPool;
 
-	cPool.nHeightFirst = pindex->nHeight - BLOCKS_PER_DAY;
+	cPool.nHeightFirst = pindex->nHeight - iLookback;
 	cPool.nHeightLast = pindex->nHeight;
 	
 	cPool.mapTithes.clear();
@@ -1363,7 +1368,7 @@ CPoolObject GetPoolVector(const CBlockIndex* pindex, int iPaymentTier)
 	const Consensus::Params& consensusParams = Params().GetConsensus();
 	std::map<std::string, CTitheObject>::iterator itTithes;
 	
-	for (int ix = 0; ix < BLOCKS_PER_DAY; ix++)
+	for (int ix = 0; ix < iLookback; ix++)
 	{
 		if (pindex == NULL) break;
 		BOOST_FOREACH(const PAIRTYPE(std::string, CTitheObject)& item, pindex->mapTithes)
@@ -1372,18 +1377,12 @@ CPoolObject GetPoolVector(const CBlockIndex* pindex, int iPaymentTier)
 			CBitcoinAddress cbaAddress(oTithe.Address);
 			if (cbaAddress.IsValid() && (((double)(oTithe.Amount / COIN)) > 0.01))
 			{		
-				cPool.itTithes = cPool.mapTithes.find(oTithe.Address);
-				if (cPool.itTithes == cPool.mapTithes.end())
-				{
-					CTitheObject cNewTithe;
-					cNewTithe.Address = oTithe.Address;
-					cNewTithe.Amount = 0;
-					cPool.mapTithes.insert(std::make_pair(oTithe.Address, cNewTithe));
-				}
 				CTitheObject cTithe = cPool.mapTithes[oTithe.Address];
 				cTithe.Amount += oTithe.Amount;
 				cTithe.Height = oTithe.Height;
-				cTithe.PaymentTier = oTithe.Height % 16;
+				// { cTithe.PaymentTier = oTithe.Height % 16; }
+				cTithe.PaymentTier = 0;  // Pog V1.1 - Everyone is in Tier 0
+				cTithe.Address = oTithe.Address;
 				cTithe.NickName = oTithe.NickName;
 				cPool.mapTithes[oTithe.Address] = cTithe;
 			}
@@ -1928,7 +1927,7 @@ void UpdatePogPool(CBlockIndex* pindex, const CBlock& block)
 	if (!fPOGEnabled) return;
 	if (pindex == NULL || pindex->nHeight == 0) return;
 	int64_t nAge = GetAdjustedTime() - pindex->GetBlockTime();
-	if (nAge > (60 * 60 * 24 * 30)) return;
+	if (nAge > (60 * 60 * 24 * 1)) return;
 	const Consensus::Params& consensusParams = Params().GetConsensus();
 	std::map<std::string, CTitheObject>::iterator itTithes;
 	CAmount nTithes = 0;
@@ -1955,18 +1954,10 @@ void UpdatePogPool(CBlockIndex* pindex, const CBlock& block)
 				if (bLegalTithe)		
 				{
 					nTithes += nAmount;
-					itTithes = pindex->mapTithes.find(sTither);
-					if (itTithes == pindex->mapTithes.end())
-					{
-						CTitheObject cTitheNew;
-						cTitheNew.Amount = 0;
-						cTitheNew.Address = sTither;
-						cTitheNew.NickName = sNickName;
-						pindex->mapTithes.insert(std::make_pair(sTither, cTitheNew));
-					}
 					CTitheObject cTithe = pindex->mapTithes[sTither];
 					cTithe.Amount += nAmount;
 					cTithe.Height = pindex->nHeight;
+					cTithe.Address = sTither;
 					cTithe.NickName = sNickName;
 					pindex->mapTithes[sTither] = cTithe;
 					if (false) LogPrintf("\n Induct height %f, NN %s, amt %f -> ", cTithe.Height, sTither.c_str(), (double)cTithe.Amount/COIN);
@@ -1985,25 +1976,33 @@ void UpdatePogPool(CBlockIndex* pindex, const CBlock& block)
 	}
 }
 
-
-void InitializePogPool(int nHeight, int nSize)
+void InitializePogPool(const CBlockIndex* pindexSource, int nSize)
 {
-	int nMaxDepth = nHeight;
-	int nMinDepth = nMaxDepth - nSize;
-	if (nMinDepth < 1) return;
+	const CBlockIndex *pindexLast = pindexSource;
+
+    if (pindexLast == NULL || pindexLast->nHeight == 0)  return;
+	int64_t nAge = GetAdjustedTime() - pindexLast->GetBlockTime();
+	if (nAge > (60 * 60 * 24 * 1) && nSize < BLOCKS_PER_DAY) return;
 	const Consensus::Params& consensusParams = Params().GetConsensus();
-	CBlock block;
-	for (int ix = nMinDepth; ix <= nMaxDepth; ix++)
+	
+    for (int i = 1; i < nSize; i++) 
 	{
-   		CBlockIndex* pblockindex = FindBlockByHeight(ix);
-		if (pblockindex)
+        if (pindexLast->pprev == NULL) return;
+        pindexLast = pindexLast->pprev;
+    }
+	// Must be updated in ascending order here
+	for (int i = 1; i <= nSize; i++)
+	{
+		if (pindexLast)
 		{
-			if (ReadBlockFromDisk(block, pblockindex, consensusParams, "InitializePogPool"))
+			CBlock block;
+			if (ReadBlockFromDisk(block, pindexLast, consensusParams, "InitializePogPool"))
 			{
-				UpdatePogPool(pblockindex, block);
+				UpdatePogPool(mapBlockIndex[pindexLast->GetBlockHash()], block);
 			}
+			pindexLast = chainActive.Next(pindexLast);
 		}
-	}
+ 	}
 }
 
 std::string VectToString(std::vector<unsigned char> v)

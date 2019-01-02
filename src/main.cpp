@@ -2103,7 +2103,7 @@ bool ReadBlockFromDisk(CBlock& block, const CDiskBlockPos& pos, const Consensus:
     }
 
     // Check the header
-	CBlockIndex* pindexAncestor=mapBlockIndex[block.hashPrevBlock];
+	CBlockIndex* pindexAncestor = mapBlockIndex[block.hashPrevBlock];
     int64_t nAncestorTime = (pindexAncestor==NULL) ? 0 : pindexAncestor->nTime;
 	int nPrevHeight = (pindexAncestor==NULL) ? 0 : pindexAncestor->nHeight;
 	if (bCheckPOW)
@@ -3388,17 +3388,8 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
 	{
 		MemorizeBlockChainPrayers(true, false, false, false);
 	}
-	static int nLastPogBlock = 0;
-	int64_t nAge = GetAdjustedTime() - pindex->GetBlockTime();
-	if ((nLastPogBlock + 1) != pindex->nHeight && nAge < (60 * 60 * 8))
-	{
-		// This only happens after a reorg
-		InitializePogPool(pindex->nHeight, BLOCKS_PER_DAY);
-		LogPrintf(" POG Reorg ");
-	}
-	UpdatePogPool(pindex, block);
-	nLastPogBlock = pindex->nHeight;
-    
+	InitializePogPool(pindex, 16);
+	
     return true;
 }
 
@@ -4433,9 +4424,7 @@ bool CheckPOGPoolRecipients(const Consensus::Params& params, int nHeight, const 
 	bool bSuperblock = (CSuperblock::IsValidBlockHeight(nHeight) || (fDistributedComputingEnabled && CSuperblock::IsDCCSuperblock(nHeight)));
 	if (bSuperblock) return true;
 	
-	int nPoolHeight = nHeight - 10;
-	CBlockIndex* pindexPayments = FindBlockByHeight(nPoolHeight);
-	CPoolObject cPool = GetPoolVector(pindexPayments, nPoolHeight % 16);
+	CPoolObject cPool = GetPoolVector(pindexPrev, 0);
 
 	CAmount nBlockReward = 0;
 	for (unsigned int i = 0; i < block.vtx[0].vout.size(); i++)
@@ -4467,10 +4456,15 @@ bool CheckPOGPoolRecipients(const Consensus::Params& params, int nHeight, const 
 				if (bFound == false) 
 				{
 					double dVersion = GetBlockVersion(block.vtx[0]);
-					LogPrintf("\nCheckPoolRecipients Height %f, pprevheight %f, PoolTier %f, POW Reward %f, MN Reward %f, RewardWithoutFees %f, Entire nBlockReward %f, Fees %f, Recip Missing %s, Version %f ", 
-						nHeight, (double)pindexPrev->nHeight, (double)(nPoolHeight % 16), (double)nPOWReward/COIN, (double)caMasternodePortion/COIN, (double)blockRewardWithoutFees/COIN, 
-						(double)nBlockReward/COIN, 
+					LogPrintf("\nCheckPoolRecipients Height %f, pprevheight %f, POW Reward %f, MN Reward %f, RewardWithoutFees %f, Entire nBlockReward %f, Fees %f, Recip Missing %s, Version %f ", 
+						nHeight, (double)pindexPrev->nHeight, (double)nPOWReward/COIN, (double)caMasternodePortion/COIN, (double)blockRewardWithoutFees/COIN, (double)nBlockReward/COIN, 
 						(double)nFees/COIN, oTithe.Address.c_str(), (double)dVersion);
+					for (unsigned int i = 1; i < block.vtx[0].vout.size(); i++)
+					{
+						std::string sRecipient = PubKeyToAddress(block.vtx[0].vout[i].scriptPubKey);
+						LogPrintf(" pool recip %f to %s in amount %f : ", i, sRecipient.c_str(), block.vtx[0].vout[i].nValue / COIN);
+					}
+		
 					return false;
 				}
 			}
@@ -4542,16 +4536,21 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIn
 					double dVersion = GetBlockVersion(block.vtx[0]);
 					if (!fVerified)
 					{
-						static int nLastPogPoolHeight = 0;
-						if (nLastPogPoolHeight != pindexPrev->nHeight)
+						std::string sErr = "ContextualCheckBlock::ERROR! - POG Recipients invalid at height " + RoundToString(nHeight, 0) + " version " + RoundToString(dVersion, 0);
+						LogPrintf("\n%s", sErr.c_str());
+						double nPogRecipLevel = GetSporkDouble("checkpogrecipients", 0);
+						if (nPogRecipLevel == 0)
 						{
-							InitializePogPool(pindexPrev->nHeight, BLOCKS_PER_DAY);
-							nLastPogPoolHeight = pindexPrev->nHeight;
+							// Logging here
 						}
-						fVerified = CheckPOGPoolRecipients(consensusParams, nHeight, block, pindexPrev);
-						if (!fVerified)
+						else if (nPogRecipLevel == 1)
 						{
-							LogPrintf("\nContextualCheckBlock::ERROR! - POG Recipients invalid at height %f version %f ", nHeight, (double)dVersion);
+							// D-dos foreign node here
+							return state.DoS(10, error(sErr.c_str()), REJECT_INVALID, "pog-recipients-invalid");
+						}
+						else if (nPogRecipLevel == 2)
+						{
+							// No d-dos, but reject block
 							return false;
 						}
 					}
@@ -6254,7 +6253,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
 		sVersion = strReplace(sVersion, "/", "");
 		sVersion = strReplace(sVersion, ".", "");
 		double dPeerVersion = cdbl(sVersion, 0);
-		if (dPeerVersion < 1172 && !fProd)
+		if (dPeerVersion < 1177 && !fProd)
 		{
 		    LogPrint("net","Disconnecting unauthorized peer in TestNet using old version %f\r\n",(double)dPeerVersion);
 			Misbehaving(pfrom->GetId(), 14);

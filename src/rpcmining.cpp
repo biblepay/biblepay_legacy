@@ -269,6 +269,106 @@ std::string ConcatenatePoolHealth(std::string sPoolKey)
 	return sCat;
 }
 
+UniValue tithe(const UniValue& params, bool fHelp)
+{
+	if (fHelp)
+        throw runtime_error(
+            "tithe\n"
+			"\nSends a tithe to the foundation and inducts the user into the POG pool if the tithe is valid (Proof-of-giving)."
+            "\nResult:\n"
+ 	        + HelpExampleCli("tithe 1 2 3", "")
+            + HelpExampleRpc("tithe 1 2 3", "")
+        );
+
+	if (params.size() != 3 && params.size() != 1)
+			throw runtime_error("You must specify amount, min_coin_age (days), min_coin_amount.  IE: exec tithe 200 1 1000.");
+	UniValue results(UniValue::VOBJ);
+	CAmount caAmount = cdbl(params[0].get_str(), 4) * COIN;
+	double dMinCoinAge = 0;
+	CAmount caMinCoinAmount = 0;
+	if (params.size() > 1) dMinCoinAge = cdbl(params[1].get_str(), 4);
+	if (params.size() > 2) caMinCoinAmount = cdbl(params[2].get_str(), 4) * COIN;
+	TitheDifficultyParams tdp = GetTitheParams(chainActive.Tip());
+	if (params.size() == 1)
+	{	
+		dMinCoinAge = tdp.min_coin_age;
+		caMinCoinAmount = tdp.min_coin_amount;
+	}
+	std::string sError = "";
+	std::string sTxId = SendTithe(caAmount, dMinCoinAge, caMinCoinAmount, tdp.max_tithe_amount, sError);
+	if (!sError.empty())
+	{
+		results.push_back(Pair("Error", sError));
+	}
+	else
+	{
+		results.push_back(Pair("TXID", sTxId));
+	}
+	return results;
+}
+
+UniValue titheinfo(const UniValue& params, bool fHelp)
+{
+	if (fHelp)
+        throw runtime_error(
+            "titheinfo\n"
+			"\nReturns a json object containing tithe metrics for POG (Proof-of-giving)."
+            "\nResult:\n"
+ 	        + HelpExampleCli("titheinfo", "")
+            + HelpExampleRpc("titheinfo", "")
+        );
+    UniValue results(UniValue::VOBJ);
+	double dPD = GetPOGDifficulty(chainActive.Tip());
+	results.push_back(Pair("POG Difficulty", dPD));
+	results.push_back(Pair("24 Hour Tithes", (double)chainActive.Tip()->n24HourTithes/COIN));
+	results.push_back(Pair("pog_diff_chain_tip", chainActive.Tip()->nPOGDifficulty));
+	// check the tithe params
+	TitheDifficultyParams tdp = GetTitheParams(chainActive.Tip());
+	results.push_back(Pair("min_coin_age", tdp.min_coin_age));
+	results.push_back(Pair("min_coin_amt", (double)tdp.min_coin_amount / COIN));
+	results.push_back(Pair("max_tithe_amount", (double)tdp.max_tithe_amount / COIN));
+	std::map<double, CAmount> dtb = pwalletMain->GetDimensionalCoins(tdp.min_coin_age, tdp.min_coin_amount);
+	CAmount nTotal = 0;
+	double nQty = 0;
+	double nAvgAge = 0;
+	double nTotalAge = 0;
+	CAmount nMaxCoin = 0;
+	BOOST_FOREACH(const PAIRTYPE(double, CAmount)& item, dtb)
+    {
+		CAmount nAmount = item.second;
+		double dAge = item.first;
+		nQty++;
+		if (nAmount > nMaxCoin) nMaxCoin = nAmount;
+		nTotal += nAmount;
+		nTotalAge += dAge;
+	}
+	if (nQty > 0) nAvgAge = nTotalAge / nQty;
+	CAmount nTithability = nMaxCoin;
+	if (nTithability > tdp.max_tithe_amount) nTithability = tdp.max_tithe_amount;
+	std::string sSummary = (nTithability > 0) ? "YES" : "NO";
+	results.push_back(Pair("Tithable_Coin_Quantity", nQty));
+	results.push_back(Pair("Tithable_Largest_Coin", (double)nMaxCoin/COIN));
+	results.push_back(Pair("Tithable_Coin_Avg_Age", nAvgAge));
+	results.push_back(Pair("Tithable_Total_Coin_Balance", (double)nTotal/COIN));
+	results.push_back(Pair("Tithability_Amount", (double)nTithability/COIN));
+	results.push_back(Pair("Tithability_Summary", sSummary));
+	// Calculate ROI
+	double dTitheCap = (double)(GetTitheCap(chainActive.Tip()) / COIN);
+	results.push_back(Pair("Tithe_Cap", dTitheCap));
+	double dDailyMinerEmissions = (double)(GetDailyMinerEmissions(chainActive.Tip()->nHeight) / COIN);
+	double dPoolEmissionsAfterReapers = dDailyMinerEmissions * .80;
+	if (dTitheCap > 0 && ((double)(chainActive.Tip()->n24HourTithes / COIN)) > 0)
+	{
+		double dBasePercent = R2X(dPoolEmissionsAfterReapers / dTitheCap) * .50 * 100;
+		double dGiftedPercent = R2X(dPoolEmissionsAfterReapers / ((double)(chainActive.Tip()->n24HourTithes / COIN))) * .50 * 100;
+		results.push_back(Pair("Daily_Miner_Emissions", dDailyMinerEmissions));
+		results.push_back(Pair("Pool_Emissions", dPoolEmissionsAfterReapers));
+		results.push_back(Pair("Lowest_ROI%", dBasePercent));
+		results.push_back(Pair("Highest_ROI%", dGiftedPercent));
+	}
+	return results;
+}
+
 UniValue pogpool(const UniValue& params, bool fHelp)
 {
     if (fHelp)
@@ -305,23 +405,16 @@ UniValue pogpool(const UniValue& params, bool fHelp)
 		results.push_back(Pair(oTithe.Address, sRow));
 	}
 
-	for (int i = 0; i < 16; i++)
-	{
-		std::string sRow = "Count: " + RoundToString(c.oTierRecipients[i], 0) + ", Total: " + RoundToString((double)(c.oTierTotals[i]/COIN), 4);
-		results.push_back(Pair(RoundToString(i, 0), sRow));
-	}
 	results.push_back(Pair("High Tithe", (double)c.nHighTithe/COIN));
 	results.push_back(Pair("Total Tithes", (double)c.TotalTithes/COIN));
+	results.push_back(Pair("Total Participants", c.oTierRecipients[0]));
+	
 	double dPD = GetPOGDifficulty(pindex);
 	results.push_back(Pair("POG Difficulty", dPD));
 	// Show the user their own stats 
 	results.push_back(Pair("My Tithes", (double)c.UserTithes/COIN));
-	// Show the user when they will be paid
-	if (c.nUserPaymentTier > -1)
-	{
-		int nPaymentHeight = ((nHeight - 10) % (c.nUserPaymentTier + 1)) + nHeight;
-		results.push_back(Pair("My Payment Height", (double)nPaymentHeight));
-	}
+	std::string sNickName = GetArg("-nickname", "");
+	results.push_back(Pair("My Nickname", sNickName));
 	return results;
 }
 

@@ -997,7 +997,8 @@ UniValue getgovernanceinfo(const UniValue& params, bool fHelp)
 	{
 		double nBudget = CSuperblock::GetPaymentsLimit(nNextSuperblock) / COIN;
 		obj.push_back(Pair("nextbudget", nBudget));
-		CAmount caTithe_Cap = GetTitheCap(nNextSuperblock);
+		CBlockIndex* pindex = FindBlockByHeight(nNextSuperblock);
+		CAmount caTithe_Cap = GetTitheCap(pindex);
 		if (fPOGEnabled)
 		{
 			obj.push_back(Pair("next_pog_revenue", caTithe_Cap / COIN));
