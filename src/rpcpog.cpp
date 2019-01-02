@@ -294,41 +294,50 @@ bool IsTitheLegal(CTransaction ctx, CBlockIndex* pindex, CAmount tithe_amount)
 	return false;
 }
 
-void RPCSendMoney(const CTxDestination &address, CAmount nValue, bool fSubtractFeeFromAmount, CWalletTx& wtxNew, 
+bool RPCSendMoney(std::string& sError, const CTxDestination &address, CAmount nValue, bool fSubtractFeeFromAmount, CWalletTx& wtxNew, 
 	bool fUseInstantSend=false, bool fUsePrivateSend=false, bool fUseSanctuaryFunds=false, double nMinCoinAge = 0, CAmount nMinCoinAmount = 0)
 {
     CAmount curBalance = pwalletMain->GetBalance();
 
     // Check amount
     if (nValue <= 0)
-        throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid amount");
+	{
+        sError = "Invalid amount";
+		return false;
+	}
 
     if (nValue > curBalance)
-        throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "Insufficient funds");
-
+	{
+		sError = "Insufficient funds";
+		return false;
+	}
     // Parse Biblepay address
     CScript scriptPubKey = GetScriptForDestination(address);
 
     // Create and send the transaction
     CReserveKey reservekey(pwalletMain);
     CAmount nFeeRequired;
-    std::string strError;
+    std::string strError = "";
     std::vector<CRecipient> vecSend;
     int nChangePosRet = -1;
 	bool fForce = false;
     CRecipient recipient = {scriptPubKey, nValue, fForce, fSubtractFeeFromAmount, false, false, false, "", "", "", ""};
     vecSend.push_back(recipient);
 	int nMinConfirms = 0;
-    if (!pwalletMain->CreateTransaction(vecSend, wtxNew, reservekey, nFeeRequired, nChangePosRet,
-                                         strError, NULL, true, fUsePrivateSend ? ONLY_DENOMINATED : (fUseSanctuaryFunds ? ALL_COINS : ONLY_NOT1000IFMN), 
-										 fUseInstantSend, nMinConfirms, nMinCoinAge, nMinCoinAmount)) 
+    if (!pwalletMain->CreateTransaction(vecSend, wtxNew, reservekey, nFeeRequired, nChangePosRet, strError, NULL, true, 
+		fUsePrivateSend ? ONLY_DENOMINATED : (fUseSanctuaryFunds ? ALL_COINS : ONLY_NOT1000IFMN), fUseInstantSend, nMinConfirms, nMinCoinAge, nMinCoinAmount)) 
 	{
         if (!fSubtractFeeFromAmount && nValue + nFeeRequired > pwalletMain->GetBalance())
-            strError = strprintf("Error: This transaction requires a transaction fee of at least %s because of its amount, complexity, or use of recently received funds!", FormatMoney(nFeeRequired));
-        throw JSONRPCError(RPC_WALLET_ERROR, strError);
+            sError = strprintf("Error: This transaction requires a transaction fee of at least %s because of its amount, complexity, or use of recently received funds!", FormatMoney(nFeeRequired));
+		// The Snat - Reported this can crash POG on 12-30-2018 (resolved by handling this)
+        return false;
     }
     if (!pwalletMain->CommitTransaction(wtxNew, reservekey, fUseInstantSend ? NetMsgType::TXLOCKREQUEST : NetMsgType::TX))
-        throw JSONRPCError(RPC_WALLET_ERROR, "Error: The transaction was rejected! This might happen if some of the coins in your wallet were already spent, such as if you used a copy of wallet.dat and coins were spent in the copy but not marked as spent here.");
+	{
+        sError = "Error: The transaction was rejected! This might happen if some of the coins in your wallet were already spent, such as if you used a copy of wallet.dat and coins were spent in the copy but not marked as spent here.";
+		return false;
+	}
+	return true;
 }
 
 
@@ -346,7 +355,7 @@ void RPCSendMoneyToDestinationWithMinimumBalance(const CTxDestination& address, 
 		sError = "Insufficient funds";
 		return;
 	}
-    RPCSendMoney(address, nValue, false, wtxNew, false, false, false, dMinCoinAge, caMinCoinValue);
+    RPCSendMoney(sError, address, nValue, false, wtxNew, false, false, false, dMinCoinAge, caMinCoinValue);
 }
 
 

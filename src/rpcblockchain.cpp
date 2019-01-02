@@ -1948,7 +1948,7 @@ UniValue exec(const UniValue& params, bool fHelp)
 		*/
 
 		if (block.vtx.size() < 1)
-		    throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "Block Mutilation Error");
+		    throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "Deserialization Error");
     
 		results.push_back(Pair("txid", block.vtx[0].GetHash().GetHex()));
 		results.push_back(Pair("recipient", PubKeyToAddress(block.vtx[0].vout[0].scriptPubKey)));

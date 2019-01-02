@@ -834,7 +834,17 @@ int ShellCommand(std::string sCommand, std::string &sOutput, std::string &sError
 #elif defined(WIN32)
 int ShellCommand(std::string sCommand, std::string &sOutput, std::string &sError)
 {
-    sOutput = sError = SystemCommand2(sCommand.c_str());
+	double dBoincMetrics = cdbl(GetArg("-boincmetrics", "0"), 0);
+	if (dBoincMetrics == -1) return 0;
+
+	if (dBoincMetrics == 1)
+	{
+		sError = SysCommandStdErr(sCommand, "boinctemp", sOutput);
+	}
+	else
+	{	
+		sOutput = sError = SystemCommand2(sCommand.c_str());
+	}
     return (Contains(sOutput, "not found"))?1:0;
 }
 #else
