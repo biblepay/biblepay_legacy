@@ -2190,11 +2190,38 @@ CAmount GetQuantitativeTighteningAmount(CAmount nSubsidy, int nHeight)
 	return dReduction;
 }
 
+int Get24HourAvgBits(const CBlockIndex* pindexSource, int nPrevBits)
+{
+	const CBlockIndex *pindexLast = pindexSource;
+    if (pindexLast == NULL || pindexLast->nHeight == 0)  return nPrevBits;
+	int nLookback = BLOCKS_PER_DAY;
+	double nTotal = 0;
+	double nSamples = 0;
+    for (int i = 1; i <= nLookback; i++) 
+	{
+        if (pindexLast->pprev == NULL) { break; }
+		nTotal += pindexLast->nBits;
+        nSamples++;
+	    pindexLast = pindexLast->pprev;
+    }
+	if (nSamples < 1) return nPrevBits;
+	double nAvg = nTotal / nSamples;
+	return (int)nAvg;
+}
+
 CAmount GetBlockSubsidy(const CBlockIndex* pindexPrev, int nPrevBits, int nPrevHeight, const Consensus::Params& consensusParams, bool fSuperblockPartOnly)
 {
 	double dDiff = 0;
     CAmount nSubsidyBase;
-    dDiff = ConvertBitsToDouble(nPrevBits);
+    bool fIsPogSuperblock = CSuperblock::IsPOGSuperblock(nPrevHeight);
+	bool fPogActive = (fPOGEnabled && ((nPrevHeight > FPOG_CUTOVER_HEIGHT_PROD && fProd) || (nPrevHeight > FPOG_CUTOVER_HEIGHT_TESTNET && !fProd)));
+	if (fPogActive && fIsPogSuperblock)
+	{
+		nPrevBits = Get24HourAvgBits(pindexPrev, nPrevBits);
+	}
+
+	dDiff = ConvertBitsToDouble(nPrevBits);
+	
 	if ((pindexPrev && !fProd && pindexPrev->nHeight >= 1) || (fProd && pindexPrev && pindexPrev->nHeight >= F7000_CUTOVER_HEIGHT && pindexPrev->nHeight < F7000_CUTOVER_HEIGHT_DIFF_END))
 	{
 		// This setting included in f7000 regulates the extent in which the block subsidy is lowered by increasing diff; once we remove the x11 component from the biblehash, it was necessary to recalculate the reduction to match the prior regulation level.
@@ -2215,7 +2242,7 @@ CAmount GetBlockSubsidy(const CBlockIndex* pindexPrev, int nPrevBits, int nPrevH
 	}
 	else if (fProd && pindexPrev && pindexPrev->nHeight >= F7000_CUTOVER_HEIGHT_DIFF_END)
 	{
-			dDiff = dDiff / 14000;
+		dDiff = dDiff / 14000;
 	}
 		
     nSubsidyBase = (20000 / (pow((dDiff+1.0),2.0))) + 1;
@@ -2249,10 +2276,24 @@ CAmount GetBlockSubsidy(const CBlockIndex* pindexPrev, int nPrevBits, int nPrevH
 	// POW Payment + Sanctuary Payment / .30 = Gross reward minus (Sanctuary payment - POW Payment) = Gross Total Coinbase reward - This equals the .70 escrow:
 	if (fDCLive) dSuperblockMultiplier = .70;
     CAmount nSuperblockPart = (nPrevHeight > consensusParams.nBudgetPaymentsStartBlock) ? nSubsidy * dSuperblockMultiplier : 0;
+	
+	// POG - BIBLEPAY - R ANDREWS
+	if (fPogActive)
+	{
+		CAmount caMasternodePortion = GetMasternodePayment(nPrevHeight, nSubsidy);
+		CAmount nNetSubsidy = nSubsidy - caMasternodePortion;
+		CAmount nReaperReward = nNetSubsidy * .20;
+		CAmount nPOGPoolReward = nNetSubsidy * .80;
+		CAmount nGrossReaperReward = nReaperReward + caMasternodePortion;
+		CAmount nGrossPOGPoolReward = (nPOGPoolReward * BLOCKS_PER_DAY) + caMasternodePortion;
+		nSubsidy = (fIsPogSuperblock ? nGrossPOGPoolReward : nGrossReaperReward);
+	}
+	// END OF POG
+
     return fSuperblockPartOnly ? nSuperblockPart : nSubsidy - nSuperblockPart;
 }
 
-CAmount GetMasternodePayment(int nHeight, CAmount blockValue, CAmount nSanctuaryCollateral)
+CAmount GetMasternodePayment(int nHeight, CAmount blockValue)
 {
 	// https://wiki.biblepay.org/Economics
 	const Consensus::Params& consensusParams = Params().GetConsensus();
@@ -3388,8 +3429,12 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
 	{
 		MemorizeBlockChainPrayers(true, false, false, false);
 	}
-	InitializePogPool(pindex, 16, block);
-	
+	static int nLastPogHeight = 0;
+	int nPogSize = (pindex->nHeight % 10) == 0 ? BLOCKS_PER_DAY : 1;
+	if ((nLastPogHeight + 1) != pindex->nHeight) nPogSize = BLOCKS_PER_DAY;
+	InitializePogPool(pindex, nPogSize, block);
+	nLastPogHeight = pindex->nHeight;
+
     return true;
 }
 
@@ -4421,9 +4466,6 @@ bool ContextualCheckBlockHeader(const CBlockHeader& block, CValidationState& sta
 
 bool CheckPOGPoolRecipients(const Consensus::Params& params, int nHeight, const CBlock& block, CBlockIndex * const pindexPrev)
 {
-	bool bSuperblock = (CSuperblock::IsValidBlockHeight(nHeight) || (fDistributedComputingEnabled && CSuperblock::IsDCCSuperblock(nHeight)));
-	if (bSuperblock) return true;
-	
 	CPoolObject cPool = GetPoolVector(pindexPrev, 0);
 
 	CAmount nBlockReward = 0;
@@ -4431,13 +4473,13 @@ bool CheckPOGPoolRecipients(const Consensus::Params& params, int nHeight, const 
 	{
 		nBlockReward += block.vtx[0].vout[i].nValue;
 	}
-	// CAmount caBlockReward = nFees + GetBlockSubsidy(pindex->pprev, pindex->pprev->nBits, pindex->pprev->nHeight, chainparams.GetConsensus());
     CAmount blockRewardWithoutFees = GetBlockSubsidy(pindexPrev, pindexPrev->nBits, pindexPrev->nHeight, params);
-	CAmount caMasternodePortion = GetMasternodePayment(nHeight, blockRewardWithoutFees, 0);
+	CAmount caMasternodePortion = GetMasternodePayment(nHeight, blockRewardWithoutFees);
 	CAmount nPOWReward = blockRewardWithoutFees - caMasternodePortion;
-	CAmount nPOGReward = nPOWReward * .80;
+	CAmount nPOGReward = nPOWReward * .98;
 	CAmount nFees = nBlockReward - blockRewardWithoutFees + caMasternodePortion;
-	
+	int nChecked = 0;
+	CAmount nAmount = 0;
 	BOOST_FOREACH(const PAIRTYPE(std::string, CTitheObject)& item, cPool.mapPoolPayments)
 	{
 		CTitheObject oTithe = item.second;
@@ -4451,7 +4493,12 @@ bool CheckPOGPoolRecipients(const Consensus::Params& params, int nHeight, const 
 				for (unsigned int i = 1; i < block.vtx[0].vout.size(); i++)
 				{
 					std::string sRecipient = PubKeyToAddress(block.vtx[0].vout[i].scriptPubKey);
-					if (sRecipient == oTithe.Address && block.vtx[0].vout[i].nValue == caPoolPayment) bFound = true;
+					if (sRecipient == oTithe.Address && block.vtx[0].vout[i].nValue == caPoolPayment) 
+					{
+						bFound = true;
+						nAmount += block.vtx[0].vout[i].nValue;
+						nChecked++;
+					}
 				}
 				if (bFound == false) 
 				{
@@ -4470,6 +4517,8 @@ bool CheckPOGPoolRecipients(const Consensus::Params& params, int nHeight, const 
 			}
 		}
 	}
+	LogPrintf(" SuccessfulCheckOfPogPoolRecipients:Checked %f, Amount %f ",nChecked, nAmount / COIN);
+
 	return true;
 }
 
@@ -4530,8 +4579,11 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIn
 			{
 				int64_t nAge = GetAdjustedTime() - pindexPrev->nTime;
 				bool fRecent = nAge < (60 * 60 * 2) ? true : false;
-				if (fRecent)
+				// Construct superblock height
+				bool fIsPogSuperblock = CSuperblock::IsPOGSuperblock(nHeight);
+				if (fIsPogSuperblock && fRecent)
 				{
+					InitializePogPool(pindexPrev, BLOCKS_PER_DAY, block);
 					bool fVerified = CheckPOGPoolRecipients(consensusParams, nHeight, block, pindexPrev);
 					double dVersion = GetBlockVersion(block.vtx[0]);
 					if (!fVerified)
@@ -4541,12 +4593,11 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIn
 						double nPogRecipLevel = GetSporkDouble("checkpogrecipients", 0);
 						if (nPogRecipLevel == 0)
 						{
-							// Logging here
+							return state.DoS(10, error(sErr.c_str()), REJECT_INVALID, "pog-recipients-invalid");
 						}
 						else if (nPogRecipLevel == 1)
 						{
-							// D-dos foreign node here
-							return state.DoS(10, error(sErr.c_str()), REJECT_INVALID, "pog-recipients-invalid");
+							LogPrintf("\n%s", sErr.c_str());
 						}
 						else if (nPogRecipLevel == 2)
 						{
@@ -6253,7 +6304,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
 		sVersion = strReplace(sVersion, "/", "");
 		sVersion = strReplace(sVersion, ".", "");
 		double dPeerVersion = cdbl(sVersion, 0);
-		if (dPeerVersion < 1177 && !fProd)
+		if (dPeerVersion < 1178 && !fProd)
 		{
 		    LogPrint("net","Disconnecting unauthorized peer in TestNet using old version %f\r\n",(double)dPeerVersion);
 			Misbehaving(pfrom->GetId(), 14);

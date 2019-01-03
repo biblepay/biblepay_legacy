@@ -163,6 +163,8 @@ public:
 
     static bool IsValidBlockHeight(int nBlockHeight);
 	static bool IsDCCSuperblock(int nHeight);
+	static bool IsPOGSuperblock(int nHeight);
+
     static CAmount GetPaymentsLimit(int nBlockHeight);
 
 	std::string GetBlockData(const CTransaction& txNew);

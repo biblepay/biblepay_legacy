@@ -150,8 +150,10 @@ CAmount GetDailyMinerEmissions(int nHeight)
     const Consensus::Params& consensusParams = Params().GetConsensus();
 	int nBits = 486585255;
 	if (nHeight < 1 || pindexBestHeader==NULL || pindexBestHeader->nHeight < 2) return 0;
+	bool fIsPogSuperblock = CSuperblock::IsPOGSuperblock(nHeight);
+	if (fIsPogSuperblock) nHeight = nHeight - 1;
     CAmount nReaperReward = GetBlockSubsidy(pindexBestHeader->pprev, nBits, nHeight, consensusParams, false);
-	CAmount caMasternodePortion = GetMasternodePayment(nHeight, nReaperReward, 0);
+	CAmount caMasternodePortion = GetMasternodePayment(nHeight, nReaperReward);
     CAmount nDailyRewards = (nReaperReward-caMasternodePortion) * BLOCKS_PER_DAY; // This includes deflation
 	return nDailyRewards;
 }
@@ -460,14 +462,14 @@ CAmount Get24HourTithes(const CBlockIndex* pindexLast)
 {
 	CAmount nTotal = 0;
     if (pindexLast == NULL || pindexLast->nHeight == 0)  return 0;
-	int nLookback = 16;
+	int nLookback = BLOCKS_PER_DAY;
     for (int i = 1; i <= nLookback; i++) 
 	{
         if (pindexLast->pprev == NULL) { break; }
 		nTotal += pindexLast->nBlockTithes;
         pindexLast = pindexLast->pprev;
     }
-	return nTotal * 12;
+	return nTotal;
 }
 
 double GetPOGDifficulty(const CBlockIndex* pindex)
@@ -1355,7 +1357,7 @@ CPoolObject GetPoolVector(const CBlockIndex* pindexSource, int iPaymentTier)
 {
 	CPoolObject cPool;
 	cPool.nPaymentTier = iPaymentTier;
-	int iLookback = 16;
+	int iLookback = BLOCKS_PER_DAY;
 	const CBlockIndex *pindex = pindexSource;
 	if (pindex==NULL || pindex->nHeight == 0 || pindex->nHeight < iLookback) return cPool;
 
@@ -1375,7 +1377,7 @@ CPoolObject GetPoolVector(const CBlockIndex* pindexSource, int iPaymentTier)
 	    {
 			CTitheObject oTithe = item.second;
 			CBitcoinAddress cbaAddress(oTithe.Address);
-			if (cbaAddress.IsValid() && (((double)(oTithe.Amount / COIN)) > 0.01))
+			if (cbaAddress.IsValid() && (((double)(oTithe.Amount / COIN)) > 0.50))
 			{		
 				CTitheObject cTithe = cPool.mapTithes[oTithe.Address];
 				cTithe.Amount += oTithe.Amount;
@@ -1388,7 +1390,7 @@ CPoolObject GetPoolVector(const CBlockIndex* pindexSource, int iPaymentTier)
 			}
 			else
 			{
-				if ((double)(oTithe.Amount/COIN) > 0.01) 
+				if ((double)(oTithe.Amount/COIN) > 0.50) 
 					LogPrintf(" \n Invalid-tithe found from address %s for amount of %f ", oTithe.Address.c_str(), (double)oTithe.Amount/COIN);
 			}
 		}
@@ -1926,9 +1928,6 @@ void UpdatePogPool(CBlockIndex* pindex, const CBlock& block)
 {
 	if (!fPOGEnabled) return;
 	if (pindex == NULL || pindex->nHeight == 0) return;
-	int64_t nAge = GetAdjustedTime() - pindex->GetBlockTime();
-	if (nAge > (60 * 60 * 24 * 1)) return;
-	const Consensus::Params& consensusParams = Params().GetConsensus();
 	std::map<std::string, CTitheObject>::iterator itTithes;
 	CAmount nTithes = 0;
 	pindex->n24HourTithes = Get24HourTithes(pindex);
@@ -1966,7 +1965,7 @@ void UpdatePogPool(CBlockIndex* pindex, const CBlock& block)
 			else if (nAmount > 0 && pindex->nHeight > FPOG_CUTOVER_HEIGHT_TESTNET)
 			{
 				double dVersion = GetBlockVersion(block.vtx[0]);
-				if (dVersion > 1171)
+				if (dVersion > 1177)
 					LogPrintf("\n Illegal tithe txid %s @height %f, max amount %f  amount %f vout %f version %f",
 					block.vtx[nTx].GetHash().GetHex().c_str(), 
 					(double)pindex->nHeight, (double)pindex->pprev->nMaxTitheAmount/COIN, (double)nAmount/COIN, nTx, (double)dVersion);
@@ -1982,9 +1981,15 @@ void InitializePogPool(const CBlockIndex* pindexSource, int nSize, const CBlock&
 
     if (pindexLast == NULL || pindexLast->nHeight == 0)  return;
 	int64_t nAge = GetAdjustedTime() - pindexLast->GetBlockTime();
-	if (nAge > (60 * 60 * 24 * 1) && nSize < BLOCKS_PER_DAY) return;
+	if (nAge > (60 * 60 * 24 * 2) && nSize < (BLOCKS_PER_DAY+1)) return;
+	LogPrintf(" InitializePogPool Size %f Height %f ",nSize, pindexSource->nHeight);
+
+	if (nSize==1)
+	{
+		if (pindexSource) UpdatePogPool(mapBlockIndex[pindexSource->GetBlockHash()], block);
+		return;
+	}
 	const Consensus::Params& consensusParams = Params().GetConsensus();
-	// LogPrintf(" pindexsource-height %f ",pindexSource->nHeight);
 
     for (int i = 1; i < nSize; i++) 
 	{

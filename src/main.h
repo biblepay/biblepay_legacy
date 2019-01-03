@@ -81,7 +81,7 @@ static const int F13000_CUTOVER_HEIGHT_PROD = 57700; // July 11th, 2018
 static const int F13000_CUTOVER_HEIGHT_TESTNET = 16600;
 static const int F14000_CUTOVER_HEIGHT_PROD = 77000; // October 14th, 2018
 static const int F14000_CUTOVER_HEIGHT_TESTNET = 54300; // Sep. 1, 2018
-static const int FPOG_CUTOVER_HEIGHT_TESTNET = 100885;  // Dec. 23rd, 2018
+static const int FPOG_CUTOVER_HEIGHT_TESTNET = 101885;  // Dec. 23rd, 2018
 static const int FPOG_CUTOVER_HEIGHT_PROD = 700000; 
 static const int MINIMUM_EMAIL_LENGTH = 5; // 3 character domain + . + 1 character name
 /** Default for -maxorphantx, maximum number of orphan transactions kept in memory */
@@ -383,7 +383,7 @@ bool ActivateBestChain(CValidationState& state, const CChainParams& chainparams,
 
 double ConvertBitsToDouble(unsigned int nBits);
 CAmount GetBlockSubsidy(const CBlockIndex* pindexPrev, int nBits, int nHeight, const Consensus::Params& consensusParams, bool fSuperblockPartOnly = false);
-CAmount GetMasternodePayment(int nHeight, CAmount blockValue, CAmount nSanctuaryCollateral);
+CAmount GetMasternodePayment(int nHeight, CAmount blockValue);
 const CBlockIndex* GetBlockIndexByTransactionHash(const uint256 &hash);
 CBlockIndex* FindBlockByHeight(int nHeight);
 void HealthCheckup();
@@ -400,6 +400,7 @@ std::string AmountToString(const CAmount& amount);
 bool WriteKey(std::string sKey, std::string sValue);
 void MemorizePrayer(std::string sMessage, int64_t nTime, double dAmount, int iPosition, std::string sTxID, int nHeight, double dFoundationDonation, double dAge, double dMinCoinAge);
 void SetOverviewStatus();
+int Get24HourAvgBits(const CBlockIndex* pindexSource, int nPrevBits);
 
 
 /**

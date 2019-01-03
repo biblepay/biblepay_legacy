@@ -359,8 +359,8 @@ UniValue titheinfo(const UniValue& params, bool fHelp)
 	double dPoolEmissionsAfterReapers = dDailyMinerEmissions * .80;
 	if (dTitheCap > 0 && ((double)(chainActive.Tip()->n24HourTithes / COIN)) > 0)
 	{
-		double dBasePercent = R2X(dPoolEmissionsAfterReapers / dTitheCap) * .50 * 100;
-		double dGiftedPercent = R2X(dPoolEmissionsAfterReapers / ((double)(chainActive.Tip()->n24HourTithes / COIN))) * .50 * 100;
+		double dBasePercent = (100 - (R2X(dTitheCap / dPoolEmissionsAfterReapers) * 100)) * .50;
+		double dGiftedPercent = (100 - (R2X( ((double)(chainActive.Tip()->n24HourTithes / COIN)) / dPoolEmissionsAfterReapers ) * 100)) * .50;
 		results.push_back(Pair("Daily_Miner_Emissions", dDailyMinerEmissions));
 		results.push_back(Pair("Pool_Emissions", dPoolEmissionsAfterReapers));
 		results.push_back(Pair("Lowest_ROI%", dBasePercent));

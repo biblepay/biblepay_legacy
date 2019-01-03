@@ -3211,7 +3211,18 @@ UniValue exec(const UniValue& params, bool fHelp)
 	    results.push_back(Pair("hash", chat.GetHash().GetHex()));
 		results.push_back(Pair("chat", chat.ToString()));
 		SendChat(chat);
-   }
+    }
+	else if (sItem == "diff1")
+	{
+		const CBlockIndex *pindexLast = chainActive.Tip();
+		int j1 = Get24HourAvgBits(pindexLast, pindexLast->nBits);
+		double dDiff = ConvertBitsToDouble(j1);
+		double dDiff2 = ConvertBitsToDouble(pindexLast->nBits);
+		results.push_back(Pair("bits", (double)j1));
+		results.push_back(Pair("bits2",(double)pindexLast->nBits));
+		results.push_back(Pair("ddiff", dDiff));
+		results.push_back(Pair("ddiff2", dDiff2));
+	}
 	else if (sItem == "datalist")
 	{
 		if (params.size() != 2 && params.size() != 3)

@@ -349,9 +349,9 @@ void CMasternodePayments::PayPOGRecipients(CMutableTransaction& txNew, int nBloc
 		int nPoolHeight = nBlockHeight - 1;
 		CBlockIndex* pindexPrev = FindBlockByHeight(nPoolHeight);
 		CPoolObject cPool = GetPoolVector(pindexPrev, 0);
-		CAmount masternodePayment = GetMasternodePayment(nBlockHeight, blockRewardWithoutFees, 0);
+		CAmount masternodePayment = GetMasternodePayment(nBlockHeight, blockRewardWithoutFees);
 		CAmount nPOWReward = blockRewardWithoutFees - masternodePayment;
-		CAmount nPOGReward = nPOWReward * .80;
+		CAmount nPOGReward = nPOWReward * .98;
 		bool bStamped = false;
 		BOOST_FOREACH(const PAIRTYPE(std::string, CTitheObject)& item, cPool.mapPoolPayments)
 		{
@@ -395,8 +395,20 @@ void CMasternodePayments::FillBlockPayee(CMutableTransaction& txNew, int nBlockH
 	CAmount nCollateral = 0;
 	std::string sCollateralScript = "";
 	// GET MASTERNODE PAYMENT VARIABLES SETUP
-    CAmount masternodePayment = GetMasternodePayment(nBlockHeight, blockReward, nCollateral);
-   
+    CAmount masternodePayment = GetMasternodePayment(nBlockHeight, blockReward);
+
+	bool fIsPogSuperblock = CSuperblock::IsPOGSuperblock(nBlockHeight);
+	if (fIsPogSuperblock) 
+	{
+		CBlockIndex* pindexPrev = FindBlockByHeight(nBlockHeight - 1);
+		CBlock cblock;
+		const Consensus::Params& consensusParams = Params().GetConsensus();
+		if (ReadBlockFromDisk(cblock, pindexPrev, consensusParams, "InitializePogPool"))
+		{
+			InitializePogPool(pindexPrev, BLOCKS_PER_DAY, cblock);
+		}
+	}
+	
     if(!mnpayments.GetBlockPayeeAndCollateral(nBlockHeight, payee, nCollateral, sCollateralScript)) 
 	{
         // no masternode detected...
@@ -407,7 +419,7 @@ void CMasternodePayments::FillBlockPayee(CMutableTransaction& txNew, int nBlockH
             // ...and we can't calculate it on our own
             if (fDebugMaster) LogPrint("mnpayments","CMasternodePayments::FillBlockPayee -- Failed to detect masternode to pay\n");
 			// Pay the POG Pool
-			if (fPOGEnabled && fPOGPaymentsEnabled) PayPOGRecipients(txNew, nBlockHeight, blockRewardWithoutFee);
+			if (fPOGEnabled && fPOGPaymentsEnabled && fIsPogSuperblock) PayPOGRecipients(txNew, nBlockHeight, blockRewardWithoutFee);
             return;
         }
         // fill payee with locally calculated winner and hope for the best
@@ -426,11 +438,8 @@ void CMasternodePayments::FillBlockPayee(CMutableTransaction& txNew, int nBlockH
     CBitcoinAddress address2(address1);
     LogPrint("mnpayments","CMasternodePayments::FillBlockPayee -- Masternode payment %f to %s\n", (double)masternodePayment, address2.ToString().c_str());
 	// Pay the POG Pool
-	if (fPOGEnabled && fPOGPaymentsEnabled) PayPOGRecipients(txNew, nBlockHeight, blockRewardWithoutFee);
-
+	if (fPOGEnabled && fPOGPaymentsEnabled && fIsPogSuperblock) PayPOGRecipients(txNew, nBlockHeight, blockRewardWithoutFee);
 }
-
-
 
 
 int CMasternodePayments::GetMinMasternodePaymentsProto() {
@@ -934,8 +943,8 @@ bool CMasternodeBlockPayees::IsTransactionValid(const CTransaction& txNew)
     int nMaxSignatures = 0;
     std::string strPayeesPossible = "";
 
-	CAmount nCollateral = GetTxSanctuaryCollateral(txNew);
-    CAmount nMasternodePayment = GetMasternodePayment(nBlockHeight, txNew.GetValueOut(), nCollateral);
+	// CAmount nCollateral = GetTxSanctuaryCollateral(txNew);
+    CAmount nMasternodePayment = GetMasternodePayment(nBlockHeight, txNew.GetValueOut());
 
     //require at least MNPAYMENTS_SIGNATURES_REQUIRED signatures
 

@@ -822,7 +822,7 @@ recover:
 						nTitheAmount = (((double)(tdp.max_tithe_amount / COIN) * .90)) * COIN;
 					}
 					std::string sError = "";
-					std::string sTxId = SendTithe(nTitheAmount, tdp.min_coin_age, tdp.min_coin_amount, tdp.max_tithe_amount, sError);
+					std::string sTxId = SendTithe(nTitheAmount, tdp.min_coin_age * 1.20, tdp.min_coin_amount * 1.20, tdp.max_tithe_amount, sError);
 					if (!sError.empty())
 					{
 						LogPrintf("\nBiblePayMiner::SendTithe::Error - Unable to send tithe - Amount %f, Error %s ", (double)nTitheAmount/COIN, sError.c_str());

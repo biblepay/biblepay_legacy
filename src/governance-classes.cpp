@@ -630,6 +630,20 @@ bool CSuperblock::IsValidBlockHeight(int nBlockHeight)
             ((nBlockHeight % Params().GetConsensus().nSuperblockCycle) == 0);
 }
 
+bool CSuperblock::IsPOGSuperblock(int nHeight)
+{
+	if (!fPOGEnabled) return false;
+	if ((nHeight > FPOG_CUTOVER_HEIGHT_PROD && fProd) || (nHeight > FPOG_CUTOVER_HEIGHT_TESTNET && !fProd))
+	{
+		return nHeight >= Params().GetConsensus().nDCCSuperblockStartBlock && ((nHeight % Params().GetConsensus().nDCCSuperblockCycle) == 20);
+	}
+	else
+	{
+		return false;
+	}
+
+}
+
 bool CSuperblock::IsDCCSuperblock(int nHeight)
 {
 	if (!fDistributedComputingEnabled) return false;
