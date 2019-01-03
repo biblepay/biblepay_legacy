@@ -2276,21 +2276,21 @@ CAmount GetBlockSubsidy(const CBlockIndex* pindexPrev, int nPrevBits, int nPrevH
 	// POW Payment + Sanctuary Payment / .30 = Gross reward minus (Sanctuary payment - POW Payment) = Gross Total Coinbase reward - This equals the .70 escrow:
 	if (fDCLive) dSuperblockMultiplier = .70;
     CAmount nSuperblockPart = (nPrevHeight > consensusParams.nBudgetPaymentsStartBlock) ? nSubsidy * dSuperblockMultiplier : 0;
-	
+	CAmount nMainSubsidy = nSubsidy - nSuperblockPart;
 	// POG - BIBLEPAY - R ANDREWS
 	if (fPogActive)
 	{
-		CAmount caMasternodePortion = GetMasternodePayment(nPrevHeight, nSubsidy);
-		CAmount nNetSubsidy = nSubsidy - caMasternodePortion;
-		CAmount nReaperReward = nNetSubsidy * .20;
-		CAmount nPOGPoolReward = nNetSubsidy * .80;
-		CAmount nGrossReaperReward = nReaperReward + caMasternodePortion;
-		CAmount nGrossPOGPoolReward = (nPOGPoolReward * BLOCKS_PER_DAY) + caMasternodePortion;
-		nSubsidy = (fIsPogSuperblock ? nGrossPOGPoolReward : nGrossReaperReward);
+		CAmount caMasternodePortion = GetMasternodePayment(nPrevHeight, nMainSubsidy);
+		CAmount nNetSubsidy = nMainSubsidy - caMasternodePortion;  // nMain = 5100 - 4600 = 500
+		CAmount nReaperReward = nNetSubsidy * .20; // Reaper = 100
+		CAmount nPOGPoolReward = nNetSubsidy * .80; // Pool = 400
+		CAmount nGrossReaperReward = nReaperReward + caMasternodePortion; // 100 + 4600 = 4700
+		CAmount nGrossPOGPoolReward = (nPOGPoolReward * BLOCKS_PER_DAY) + caMasternodePortion; // 4600 + (400 * 205)
+		nMainSubsidy = (fIsPogSuperblock ? nGrossPOGPoolReward : nGrossReaperReward);
 	}
 	// END OF POG
 
-    return fSuperblockPartOnly ? nSuperblockPart : nSubsidy - nSuperblockPart;
+    return fSuperblockPartOnly ? nSuperblockPart : nMainSubsidy;
 }
 
 CAmount GetMasternodePayment(int nHeight, CAmount blockValue)
