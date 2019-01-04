@@ -388,7 +388,7 @@ UniValue pogpool(const UniValue& params, bool fHelp)
 
 	LOCK(cs_main);
 	int nHeight = chainActive.Tip()->nHeight;
-	if (params.size() == 2)	nHeight = cdbl(params[1].get_str(), 0);
+	if (params.size() == 1)	nHeight = cdbl(params[0].get_str(), 0);
 	if (nHeight < 1)	throw runtime_error("Low height.");
 	CBlockIndex* pindex = FindBlockByHeight(nHeight);
 	if (!pindex) throw runtime_error("Invalid block index.");
@@ -401,10 +401,13 @@ UniValue pogpool(const UniValue& params, bool fHelp)
 		std::string sRow = "Amount: " + RoundToString((double)(oTithe.Amount/COIN),2) 
 			+ ", Weight: " + RoundToString(oTithe.Weight, 4) 
 			+ ", Payment_Tier: " + RoundToString(oTithe.PaymentTier, 0) 
-			+ ", Height: " + RoundToString(oTithe.Height, 0) + ", NickName: " + oTithe.NickName;
+			+ ", Height: " + RoundToString(oTithe.Height, 0) + ", NickName: " + oTithe.NickName + ", Trace: " + oTithe.Trace;
 		results.push_back(Pair(oTithe.Address, sRow));
 	}
 
+	results.push_back(Pair("Start block", cPool.nHeightFirst);
+	results.push_back(Pair("End block", cPool.nHeightLast);
+	
 	results.push_back(Pair("High Tithe", (double)c.nHighTithe/COIN));
 	results.push_back(Pair("Total Tithes", (double)c.TotalTithes/COIN));
 	results.push_back(Pair("Total Participants", c.oTierRecipients[0]));

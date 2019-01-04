@@ -80,6 +80,7 @@ class CTitheObject
 public:
 	std::string Address;
 	std::string NickName;
+	std::string Trace;
 	CAmount Amount;
 	double Weight;
 	int PaymentTier;
@@ -94,13 +95,11 @@ public:
 		Height = 0;
 		HeightLast = 0;
 		LastBlockHash = uint256S("0x0");
-		NickName = "";
 	}
 
 	CTitheObject() : Address(""), Amount(0), Weight(0), PaymentTier(0), Height(0), HeightLast(0)
 	{
 		LastBlockHash = uint256S("0x0");
-		NickName = "";
 	}
 
     uint256 GetHash() const;

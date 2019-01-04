@@ -1365,6 +1365,7 @@ CPoolObject GetPoolVector(const CBlockIndex* pindexSource, int iPaymentTier)
 	cPool.nHeightLast = pindex->nHeight;
 	
 	cPool.mapTithes.clear();
+	cPool.mapPoolPayments.clear();
 	std::string sMyTitheAddress = DefaultRecAddress("TITHES");
 
 	const Consensus::Params& consensusParams = Params().GetConsensus();
@@ -1386,6 +1387,7 @@ CPoolObject GetPoolVector(const CBlockIndex* pindexSource, int iPaymentTier)
 				cTithe.PaymentTier = 0;  // Pog V1.1 - Everyone is in Tier 0
 				cTithe.Address = oTithe.Address;
 				cTithe.NickName = oTithe.NickName;
+				cTithe.Trace += RoundToString(pindex->nHeight, 0) + "=" + RoundToString((double)oTithe.Amount/COIN, 2) + ";";
 				cPool.mapTithes[oTithe.Address] = cTithe;
 			}
 			else
@@ -1406,7 +1408,6 @@ CPoolObject GetPoolVector(const CBlockIndex* pindexSource, int iPaymentTier)
 		cPool.oTierTotals[oTithe.PaymentTier] += oTithe.Amount;
 		cPool.oPaymentTotals[0] += oTithe.Amount;
 		cPool.TotalTithes += oTithe.Amount;
-		cPool.mapTithes[oTithe.Address] = oTithe;
 		// Track User Tithes
 		if (oTithe.Address == sMyTitheAddress) 
 		{

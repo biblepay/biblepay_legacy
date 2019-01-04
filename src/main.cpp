@@ -3438,7 +3438,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
 	static int nLastPogHeight = 0;
 	int nPogSize = (pindex->nHeight % 10) == 0 ? BLOCKS_PER_DAY : 1;
 	if ((nLastPogHeight + 1) != pindex->nHeight) nPogSize = BLOCKS_PER_DAY;
-	nPogSize = BLOCKS_PER_DAY;
+	// nPogSize = BLOCKS_PER_DAY;  TODO: Remove this
 	InitializePogPool(pindex, nPogSize, block);
 	nLastPogHeight = pindex->nHeight;
 
