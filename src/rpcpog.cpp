@@ -293,6 +293,20 @@ bool IsTitheLegal(CTransaction ctx, CBlockIndex* pindex, CAmount tithe_amount)
 	return false;
 }
 
+int64_t GetTitheAge(CTransaction ctx, CBlockIndex* pindex)
+{
+	// R ANDREWS - BIBLEPAY - 1/4/2018 
+	if (pindex==NULL || pindex->pprev==NULL || pindex->nHeight < 2) return false;
+	uint256 hashInput = ctx.vin[0].prevout.hash;
+	int hashInputOrdinal = ctx.vin[0].prevout.n;
+	int64_t nTxTime = 0;
+	CAmount caAmount = 0;
+	GetTxTimeAndAmount(hashInput, hashInputOrdinal, nTxTime, caAmount);
+	double nTitheAge = (double)(pindex->GetBlockTime() - nTxTime) / 86400;
+	return nTitheAge;
+}
+
+
 bool RPCSendMoney(std::string& sError, const CTxDestination &address, CAmount nValue, bool fSubtractFeeFromAmount, CWalletTx& wtxNew, 
 	bool fUseInstantSend=false, bool fUsePrivateSend=false, bool fUseSanctuaryFunds=false, double nMinCoinAge = 0, CAmount nMinCoinAmount = 0)
 {
@@ -453,7 +467,7 @@ double Quantize(double nFloor, double nCeiling, double nValue)
 	double nSpan = nCeiling - nFloor;
 	double nLevel = nSpan * nValue;
 	double nOut = nFloor + nLevel;
-	if (nOut > std::max(nFloor,nCeiling))  nOut = std::max(nFloor, nCeiling);
+	if (nOut > std::max(nFloor, nCeiling)) nOut = std::max(nFloor, nCeiling);
 	if (nOut < std::min(nCeiling, nFloor)) nOut = std::min(nCeiling, nFloor);
 	return nOut;
 }
@@ -462,8 +476,8 @@ CAmount Get24HourTithes(const CBlockIndex* pindexLast)
 {
 	CAmount nTotal = 0;
     if (pindexLast == NULL || pindexLast->nHeight == 0)  return 0;
-	int nLookback = 32;
-	int nStepBack = 8;
+	int nLookback = 50;
+	int nStepBack = 4;
 	for (int i = 1; i <= nStepBack; i++)
 	{
 	    if (pindexLast->pprev == NULL) { break; }
@@ -476,7 +490,7 @@ CAmount Get24HourTithes(const CBlockIndex* pindexLast)
 		nTotal += pindexLast->nBlockTithes;
         pindexLast = pindexLast->pprev;
     }
-	return nTotal * 6.40;
+	return nTotal * 4;
 }
 
 double GetPOGDifficulty(const CBlockIndex* pindex)
@@ -1333,8 +1347,6 @@ std::string RetrieveTxOutInfo(const CBlockIndex* pindexLast, int iLookback, int 
 
 }
 
-
-
 double GetBlockMagnitude(int nChainHeight)
 {
 	const Consensus::Params& consensusParams = Params().GetConsensus();
@@ -1360,6 +1372,17 @@ double GetBlockMagnitude(int nChainHeight)
     return dPODCDiff;
 }
 
+bool IsTitheLegal2(CTitheObject oTithe, TitheDifficultyParams tdp)
+{
+	CBitcoinAddress cbaAddress(oTithe.Address);
+	if (!cbaAddress.IsValid()) return -1;
+	if (oTithe.Amount < (.50*COIN)) return -2;
+	if (oTithe.Amount > tdp.max_tithe_amount) return -3;
+	if (oTithe.Age < tdp.min_coin_age) return -4;
+	if (oTithe.Amount < tdp.min_coin_amount) return -5;
+	return 1;
+}
+
 CPoolObject GetPoolVector(const CBlockIndex* pindexSource, int iPaymentTier)
 {
 	CPoolObject cPool;
@@ -1381,11 +1404,13 @@ CPoolObject GetPoolVector(const CBlockIndex* pindexSource, int iPaymentTier)
 	for (int ix = 0; ix < iLookback; ix++)
 	{
 		if (pindex == NULL) break;
+		TitheDifficultyParams tdp = GetTitheParams(pindex);
+
 		BOOST_FOREACH(const PAIRTYPE(std::string, CTitheObject)& item, pindex->mapTithes)
 	    {
 			CTitheObject oTithe = item.second;
-			CBitcoinAddress cbaAddress(oTithe.Address);
-			if (cbaAddress.IsValid() && (((double)(oTithe.Amount / COIN)) > 0.50))
+			int iLegal = IsTitheLegal2(oTithe, tdp);
+			if (iLegal == 1)
 			{		
 				CTitheObject cTithe = cPool.mapTithes[oTithe.Address];
 				cTithe.Amount += oTithe.Amount;
@@ -1394,7 +1419,7 @@ CPoolObject GetPoolVector(const CBlockIndex* pindexSource, int iPaymentTier)
 				cTithe.PaymentTier = 0;  // Pog V1.1 - Everyone is in Tier 0
 				cTithe.Address = oTithe.Address;
 				cTithe.NickName = oTithe.NickName;
-				cTithe.Trace += RoundToString(pindex->nHeight, 0) + "=" + RoundToString((double)oTithe.Amount/COIN, 2) + ";";
+				cTithe.Trace += RoundToString(pindex->nHeight, 0) + ";";
 				cPool.mapTithes[oTithe.Address] = cTithe;
 			}
 			else
@@ -1954,29 +1979,21 @@ void UpdatePogPool(CBlockIndex* pindex, const CBlock& block)
 			std::string sNickName = "";
 			std::string sTither = GetTitherAddress(block.vtx[nTx], sNickName);
 			CAmount nAmount = GetTitheAmount(block.vtx[nTx]);
-			if (!sTither.empty())
+			if (!sTither.empty() && nAmount > (.49*COIN) && nAmount <= (300.00*COIN))
 			{
-				bool bLegalTithe = IsTitheLegal(block.vtx[nTx], pindex, nAmount);
-				// BiblePay:  In this section, a user can only get credit once per transaction for a legal tithe
-				if (bLegalTithe)		
-				{
-					nTithes += nAmount;
-					CTitheObject cTithe = pindex->mapTithes[sTither];
-					cTithe.Amount += nAmount;
-					cTithe.Height = pindex->nHeight;
-					cTithe.Address = sTither;
-					cTithe.NickName = sNickName;
-					pindex->mapTithes[sTither] = cTithe;
-					if (false) LogPrintf("\n Induct height %f, NN %s, amt %f -> ", cTithe.Height, sTither.c_str(), (double)cTithe.Amount/COIN);
-				}
-			}
-			else if (nAmount > 0 && pindex->nHeight > FPOG_CUTOVER_HEIGHT_TESTNET)
-			{
-				double dVersion = GetBlockVersion(block.vtx[0]);
-				if (dVersion > 1177)
-					LogPrintf("\n Illegal tithe txid %s @height %f, max amount %f  amount %f vout %f version %f",
-					block.vtx[nTx].GetHash().GetHex().c_str(), 
-					(double)pindex->nHeight, (double)pindex->pprev->nMaxTitheAmount/COIN, (double)nAmount/COIN, nTx, (double)dVersion);
+				std::string sTXID = block.vtx[nTx].GetHash().GetHex();
+				int64_t nTitheAge = GetTitheAge(block.vtx[nTx], pindex);
+				nTithes += nAmount;
+				CTitheObject cTithe = pindex->mapTithes[sTXID];
+				cTithe.Amount = nAmount;
+				cTithe.Height = pindex->nHeight;
+				cTithe.Address = sTither;
+				cTithe.NickName = sNickName;
+				cTithe.Age = nTitheAge;
+				cTithe.TXID = sTXID;
+				cTithe.Ordinal = nTx;
+				pindex->mapTithes[sTXID] = cTithe;
+				if (false) LogPrintf("\n Induct height %f, NN %s, amt %f -> ", cTithe.Height, sTither.c_str(), (double)cTithe.Amount/COIN);
 			}
 		}
 		pindex->nBlockTithes = nTithes;
@@ -1990,7 +2007,7 @@ void InitializePogPool(const CBlockIndex* pindexSource, int nSize, const CBlock&
     if (pindexLast == NULL || pindexLast->nHeight == 0)  return;
 	int64_t nAge = GetAdjustedTime() - pindexLast->GetBlockTime();
 	if (nAge > (60 * 60 * 36) && nSize < (BLOCKS_PER_DAY+1)) return;
-	LogPrintf(" InitializePogPool Size %f Height %f ",nSize, pindexSource->nHeight);
+	//LogPrintf(" InitializePogPool Size %f Height %f ",nSize, pindexSource->nHeight);
 
 	if (nSize==1)
 	{
