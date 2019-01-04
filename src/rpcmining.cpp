@@ -405,8 +405,8 @@ UniValue pogpool(const UniValue& params, bool fHelp)
 		results.push_back(Pair(oTithe.Address, sRow));
 	}
 
-	results.push_back(Pair("Start block", cPool.nHeightFirst);
-	results.push_back(Pair("End block", cPool.nHeightLast);
+	results.push_back(Pair("Start block", c.nHeightFirst));
+	results.push_back(Pair("End block", c.nHeightLast));
 	
 	results.push_back(Pair("High Tithe", (double)c.nHighTithe/COIN));
 	results.push_back(Pair("Total Tithes", (double)c.TotalTithes/COIN));
