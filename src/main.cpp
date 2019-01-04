@@ -2301,7 +2301,7 @@ CAmount GetMasternodePayment(int nHeight, CAmount blockValue)
 	// http://forum.biblepay.org/index.php?topic=33.0
 	// Final Distribution: 10% Charity, 2.5% PR, 2.5% P2P, 5% for IT
 	CAmount ret = 0;
-	bool fPogActive = (fPOGEnabled && ((nPrevHeight > FPOG_CUTOVER_HEIGHT_PROD && fProd) || (nPrevHeight > FPOG_CUTOVER_HEIGHT_TESTNET && !fProd)));
+	bool fPogActive = (fPOGEnabled && ((nHeight > FPOG_CUTOVER_HEIGHT_PROD && fProd) || (nHeight > FPOG_CUTOVER_HEIGHT_TESTNET && !fProd)));
 
 	int nSpork8Height = fProd ? SPORK8_HEIGHT : SPORK8_HEIGHT_TESTNET;
 	if (fProd && nHeight > nSpork8Height)
@@ -4523,7 +4523,7 @@ bool CheckPOGPoolRecipients(const Consensus::Params& params, int nHeight, const 
 			}
 		}
 	}
-	LogPrintf(" SuccessfulCheckOfPogPoolRecipients:Checked %f, Amount %f ",nChecked, nAmount / COIN);
+	LogPrintf(" SuccessfulCheckOfPogPoolRecipients:Checked %f, Amount %f, Height %f ",nChecked, nAmount / COIN, nHeight);
 
 	return true;
 }
