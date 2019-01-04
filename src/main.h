@@ -81,7 +81,7 @@ static const int F13000_CUTOVER_HEIGHT_PROD = 57700; // July 11th, 2018
 static const int F13000_CUTOVER_HEIGHT_TESTNET = 16600;
 static const int F14000_CUTOVER_HEIGHT_PROD = 77000; // October 14th, 2018
 static const int F14000_CUTOVER_HEIGHT_TESTNET = 54300; // Sep. 1, 2018
-static const int FPOG_CUTOVER_HEIGHT_TESTNET = 100720;  // Dec. 23rd, 2018
+static const int FPOG_CUTOVER_HEIGHT_TESTNET = 95950;  // Dec. 23rd, 2018
 static const int FPOG_CUTOVER_HEIGHT_PROD = 700000; 
 static const int MINIMUM_EMAIL_LENGTH = 5; // 3 character domain + . + 1 character name
 /** Default for -maxorphantx, maximum number of orphan transactions kept in memory */
