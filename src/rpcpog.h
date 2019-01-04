@@ -109,6 +109,7 @@ std::vector<char> ReadBytesAll(char const* filename);
 std::string VectToString(std::vector<unsigned char> v);
 CAmount StringToAmount(std::string sValue);
 bool IsTitheLegal2(CTitheObject oTithe, TitheDifficultyParams tdp);
+bool CompareMask(CAmount nValue, CAmount nMask);
 
 
 #endif

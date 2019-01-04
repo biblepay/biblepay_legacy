@@ -3234,6 +3234,15 @@ UniValue exec(const UniValue& params, bool fHelp)
 		}
 		results.push_back(Pair("updpogpool", 1));
 	}
+	else if (sItem == "comparemask")
+	{
+		CAmount nMask = (.001) * COIN;
+		std::string sType = params[1].get_str();
+		CAmount nAmount = cdbl(sType, 10) * COIN;
+		results.push_back(Pair("mask", (double)nMask/COIN));
+		results.push_back(Pair("amt", (double)nAmount/COIN));
+		results.push_back(Pair("compare", CompareMask(nAmount, nMask)));
+	}
 	else if (sItem == "datalist")
 	{
 		if (params.size() != 2 && params.size() != 3)

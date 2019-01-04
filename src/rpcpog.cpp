@@ -1111,9 +1111,11 @@ std::string AddBlockchainMessages(std::string sAddress, std::string sType, std::
 	// 3-12-2018; Never spend sanctuary funds - R ANDREWS - BIBLEPAY
 	// 12-5-2018; ToDo: Ensure PODC Age > .75 days old (TheSnat)
 	// PODC_Update: Addl params required to enforce coin_age: bool fUseInstantSend=false, int iMinConfirms = 0, double dMinCoinAge = 0, CAmount caMinCoinAmount = 0
+	// 1-4-2019; Ensure we don't spend POG bankroll denominations
+	CAmount nBankrollMask = (.001) * COIN;
 
     if (!pwalletMain->CreateTransaction(vecSend, wtx, reservekey, nFeeRequired, nChangePosRet,
-                                         sError, NULL, true, ONLY_NOT1000IFMN, fUseInstantSend, 0, minCoinAge, 0)) 
+                                         sError, NULL, true, ONLY_NOT1000IFMN, fUseInstantSend, 0, minCoinAge, 0, nBankrollMask)) 
 	{
 		if (!sError.empty())
 		{
@@ -2051,4 +2053,13 @@ CAmount StringToAmount(std::string sValue)
     if (!ParseFixedPoint(sValue, 8, &amount)) return 0;
     if (!MoneyRange(amount)) throw runtime_error("AMOUNT OUT OF MONEY RANGE");
     return amount;
+}
+
+bool CompareMask(CAmount nValue, CAmount nMask)
+{
+	std::string sAmt = "0000000000000000000000000" + AmountToString(nValue);
+	std::string sMask= AmountToString(nMask);
+	std::string s1 = sAmt.substr(sAmt.length() - sMask.length() + 1, sMask.length() - 1);
+	std::string s2 = sMask.substr(1, sMask.length() - 1);
+	return (s1 == s2);
 }

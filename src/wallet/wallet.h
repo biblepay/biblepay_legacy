@@ -530,7 +530,7 @@ private:
      * if they are not ours
      */
     bool SelectCoins(const CAmount& nTargetValue, std::set<std::pair<const CWalletTx*,unsigned int> >& setCoinsRet, CAmount& nValueRet, const CCoinControl *coinControl = NULL, 
-		AvailableCoinsType nCoinType=ALL_COINS, bool fUseInstantSend = true, int iMinConfirms = 0, double dMinCoinAge = 0, CAmount caMinCoinAmount = 0) const;
+		AvailableCoinsType nCoinType=ALL_COINS, bool fUseInstantSend = true, int iMinConfirms = 0, double dMinCoinAge = 0, CAmount caMinCoinAmount = 0, CAmount nBankRollMask = 0) const;
 
     CWalletDB *pwalletdbEncryption;
 
@@ -649,7 +649,8 @@ public:
      * populate vCoins with vector of available COutputs.
      */
     void AvailableCoins(std::vector<COutput>& vCoins, bool fOnlyConfirmed=true, const CCoinControl *coinControl = NULL, 
-		bool fIncludeZeroValue=false, AvailableCoinsType nCoinType=ALL_COINS, bool fUseInstantSend = false, int iMinConfirms = 0, double nMinCoinAge = 0, CAmount nMinCoinAmount = 0) const;
+		bool fIncludeZeroValue=false, AvailableCoinsType nCoinType=ALL_COINS, bool fUseInstantSend = false, int iMinConfirms = 0, 
+		double nMinCoinAge = 0, CAmount nMinCoinAmount = 0, CAmount nBankRollMask = 0) const;
 
     /**
      * Shuffle and select coins until nTargetValue is reached while avoiding
@@ -779,7 +780,7 @@ public:
     bool CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletTx& wtxNew, CReserveKey& reservekey, CAmount& nFeeRet, int& nChangePosRet,
                            std::string& strFailReason, const CCoinControl *coinControl = NULL, 
 						   bool sign = true, AvailableCoinsType nCoinType=ALL_COINS,
-						   bool fUseInstantSend=false, int iMinConfirms = 0, double dMinCoinAge = 0, CAmount caMinCoinAmount = 0);
+						   bool fUseInstantSend=false, int iMinConfirms = 0, double dMinCoinAge = 0, CAmount caMinCoinAmount = 0, CAmount nBankRollMask = 0);
     bool CommitTransaction(CWalletTx& wtxNew, CReserveKey& reservekey, std::string strCommand="tx");
 
     bool CreateCollateralTransaction(CMutableTransaction& txCollateral, std::string& strReason);

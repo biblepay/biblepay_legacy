@@ -2302,7 +2302,8 @@ CAmount GetMasternodePayment(int nHeight, CAmount blockValue)
 	// Final Distribution: 10% Charity, 2.5% PR, 2.5% P2P, 5% for IT
 	CAmount ret = 0;
 	bool fPogActive = (fPOGEnabled && ((nHeight > FPOG_CUTOVER_HEIGHT_PROD && fProd) || (nHeight > FPOG_CUTOVER_HEIGHT_TESTNET && !fProd)));
-
+	bool fIsPogSuperblock = CSuperblock::IsPOGSuperblock(nHeight + 1);
+	
 	int nSpork8Height = fProd ? SPORK8_HEIGHT : SPORK8_HEIGHT_TESTNET;
 	if (fProd && nHeight > nSpork8Height)
 	{
@@ -2324,7 +2325,7 @@ CAmount GetMasternodePayment(int nHeight, CAmount blockValue)
 	}
 	if (fPogActive)
 	{
-		ret = blockValue * .975;
+		ret = fIsPogSuperblock ? blockValue * .01 : blockValue * .975;
 	}
     return ret;
 }

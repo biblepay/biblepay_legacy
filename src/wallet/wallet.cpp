@@ -2225,7 +2225,8 @@ CAmount CWallet::GetImmatureWatchOnlyBalance() const
 }
 
 void CWallet::AvailableCoins(vector<COutput>& vCoins, bool fOnlyConfirmed, const CCoinControl *coinControl, 
-	bool fIncludeZeroValue, AvailableCoinsType nCoinType, bool fUseInstantSend, int iMinConfirms, double nMinAge, CAmount nMinAmount) const
+	bool fIncludeZeroValue, AvailableCoinsType nCoinType, bool fUseInstantSend, int iMinConfirms, double nMinAge, 
+	CAmount nMinAmount, CAmount nBankrollMask) const
 {
     vCoins.clear();
     {
@@ -2266,7 +2267,11 @@ void CWallet::AvailableCoins(vector<COutput>& vCoins, bool fOnlyConfirmed, const
 				if (cct.Color=="401" && nCoinType != ONLY_RETIREMENT_COINS) continue;
 				if (nMinAmount > 0 && pcoin->vout[i].nValue < nMinAmount) continue;
 				if (nMinAge    > 0 && nAge < nMinAge) continue;
-
+				if (nBankrollMask > 0)
+				{
+					// If the mask matches, dont spend these POG bankroll denominations
+					if (CompareMask(pcoin->vout[i].nValue, nBankrollMask)) continue;
+				}
 				if (nCoinType == ONLY_RETIREMENT_COINS && cct.Color=="401")
 				{
 					found = true;
@@ -2518,12 +2523,13 @@ bool CWallet::SelectCoinsMinConf(const CAmount& nTargetValue, int nConfMine, int
 }
 
 bool CWallet::SelectCoins(const CAmount& nTargetValue, set<pair<const CWalletTx*,unsigned int> >& setCoinsRet, CAmount& nValueRet, 
-	const CCoinControl* coinControl, AvailableCoinsType nCoinType, bool fUseInstantSend, int iMinConfirms, double dMinCoinAge, CAmount caMinCoinAmount) const
+	const CCoinControl* coinControl, AvailableCoinsType nCoinType, bool fUseInstantSend, int iMinConfirms, double dMinCoinAge, 
+	CAmount caMinCoinAmount, CAmount nBankrollMask) const
 {
     // Note: this function should never be used for "always free" tx types like dstx
 
     vector<COutput> vCoins;
-    AvailableCoins(vCoins, true, coinControl, false, nCoinType, fUseInstantSend, iMinConfirms, dMinCoinAge, caMinCoinAmount);
+    AvailableCoins(vCoins, true, coinControl, false, nCoinType, fUseInstantSend, iMinConfirms, dMinCoinAge, caMinCoinAmount, nBankrollMask);
 
     // coin control -> return all selected outputs (we want all selected to go into the transaction for sure)
     if (coinControl && coinControl->HasSelected() && !coinControl->fAllowOtherInputs)
@@ -3085,7 +3091,8 @@ std::string SimpleLimitedString(std::string sMyLimitedString, int MAXLENGTH)
 
 bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wtxNew, CReserveKey& reservekey, CAmount& nFeeRet,
                                 int& nChangePosRet, std::string& strFailReason, 
-								const CCoinControl* coinControl, bool sign, AvailableCoinsType nCoinType, bool fUseInstantSend, int iMinConfirms, double dMinCoinAge, CAmount caMinCoinAmount)
+								const CCoinControl* coinControl, bool sign, AvailableCoinsType nCoinType, 
+								bool fUseInstantSend, int iMinConfirms, double dMinCoinAge, CAmount caMinCoinAmount, CAmount nBankrollMask)
 
 {
     CAmount nFeePay = fUseInstantSend ? CTxLockRequest().GetMinFee() : 0;
@@ -3220,12 +3227,15 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
                 CAmount nValueIn = 0;
 
 
-                if (!SelectCoins(nValueToSelect, setCoins, nValueIn, coinControl, nCoinType, fUseInstantSend, iMinConfirms, dMinCoinAge, caMinCoinAmount))
+                if (!SelectCoins(nValueToSelect, setCoins, nValueIn, coinControl, nCoinType, fUseInstantSend, iMinConfirms, dMinCoinAge, caMinCoinAmount, nBankrollMask))
                 {
-
  					if (dMinCoinAge > 0)
 					{
 						strFailReason = _("Unable to locate coins older than minimum_tithe_coin_age.");
+					}
+					else if (nBankrollMask > 0)
+					{
+						strFailReason = _("Unable to locate coins not marked as POG bankroll denominations.");
 					}
 					else if (caMinCoinAmount > 0)
 					{
