@@ -462,14 +462,21 @@ CAmount Get24HourTithes(const CBlockIndex* pindexLast)
 {
 	CAmount nTotal = 0;
     if (pindexLast == NULL || pindexLast->nHeight == 0)  return 0;
-	int nLookback = BLOCKS_PER_DAY;
+	int nLookback = 32;
+	int nStepBack = 8;
+	for (int i = 1; i <= nStepBack; i++)
+	{
+	    if (pindexLast->pprev == NULL) { break; }
+	    pindexLast = pindexLast->pprev;
+	}
+
     for (int i = 1; i <= nLookback; i++) 
 	{
         if (pindexLast->pprev == NULL) { break; }
 		nTotal += pindexLast->nBlockTithes;
         pindexLast = pindexLast->pprev;
     }
-	return nTotal;
+	return nTotal * 6.40;
 }
 
 double GetPOGDifficulty(const CBlockIndex* pindex)

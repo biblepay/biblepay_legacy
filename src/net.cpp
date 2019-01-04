@@ -3018,7 +3018,6 @@ bool DownloadIndividualDistributedComputingFile(int iNextSuperblock, std::string
 	{
 		map<string, string> mapRequestHeaders;
 		mapRequestHeaders["Agent"] = FormatFullVersion();
-		const CChainParams& chainparams = Params();
 		BIO* bio;
 		SSL_CTX* ctx;
 		SSL_library_init();

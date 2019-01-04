@@ -3071,9 +3071,7 @@ static int64_t nTimeTotal = 0;
 bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pindex, CCoinsViewCache& view, bool fJustCheck)
 {
     const CChainParams& chainparams = Params();
-	const Consensus::Params& consensusParams = Params().GetConsensus();
     AssertLockHeld(cs_main);
-
     int64_t nTimeStart = GetTimeMicros();
 
     // Check it again in case a previous version let a bad block in
@@ -3438,7 +3436,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
 	static int nLastPogHeight = 0;
 	int nPogSize = (pindex->nHeight % 10) == 0 ? BLOCKS_PER_DAY : 1;
 	if ((nLastPogHeight + 1) != pindex->nHeight) nPogSize = BLOCKS_PER_DAY;
-	// nPogSize = BLOCKS_PER_DAY;  TODO: Remove this
+	// nPogSize = BLOCKS_PER_DAY;  // TODO: Remove this in the next testnet version
 	InitializePogPool(pindex, nPogSize, block);
 	nLastPogHeight = pindex->nHeight;
 
