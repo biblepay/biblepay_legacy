@@ -381,28 +381,35 @@ UniValue pogpool(const UniValue& params, bool fHelp)
             "  \"Count\": nnn,   (numeric) The count of tithes in the tier\n"
 			"  \"Total\": nnn, (numeric) The sum of tithes in the tier\n"
             "}\n"
-			"\nYou may also specify the height (optional).\n\nExamples:\n"
-            + HelpExampleCli("pogpool", "")
-            + HelpExampleRpc("pogpool 89000", "")
+			"\nYou may also specify the height (optional).\n You may also specify Details=1, Details+Trace=2, Default=0 (Off). nExamples:\n"
+            + HelpExampleCli("pogpool 89000 1", "")
+            + HelpExampleRpc("pogpool 89000 1", "")
         );
 
 	LOCK(cs_main);
 	int nHeight = chainActive.Tip()->nHeight;
-	if (params.size() == 1)	nHeight = cdbl(params[0].get_str(), 0);
-	if (nHeight < 1)	throw runtime_error("Low height.");
+	int nDetails = 0;
+	if (params.size() == 1)	nHeight  = cdbl(params[0].get_str(), 0);
+	if (params.size() == 2) nDetails = cdbl(params[1].get_str(), 0);
+	if (nHeight < 1)	    throw runtime_error("Low height.");
 	CBlockIndex* pindex = FindBlockByHeight(nHeight);
 	if (!pindex) throw runtime_error("Invalid block index.");
 	CPoolObject c = GetPoolVector(pindex, 0);
     UniValue results(UniValue::VOBJ);
+	if (nDetails > -1)
+	{
+		BOOST_FOREACH(const PAIRTYPE(std::string, CTitheObject)& item, c.mapTithes)
+		{
+			CTitheObject oTithe = item.second;
+			std::string sRow = "Amount: " + RoundToString((double)(oTithe.Amount/COIN),2) 
+				+ ", Weight: " + RoundToString(oTithe.Weight, 4) 
+				+ ", Payment_Tier: " + RoundToString(oTithe.PaymentTier, 0) 
+				+ ", Height: " + RoundToString(oTithe.Height, 0) 
+				+ ", NickName: " + oTithe.NickName;
+			if (nDetails > 1) sRow += ", Trace: " + oTithe.Trace;
 
-	BOOST_FOREACH(const PAIRTYPE(std::string, CTitheObject)& item, c.mapTithes)
-    {
-		CTitheObject oTithe = item.second;
-		std::string sRow = "Amount: " + RoundToString((double)(oTithe.Amount/COIN),2) 
-			+ ", Weight: " + RoundToString(oTithe.Weight, 4) 
-			+ ", Payment_Tier: " + RoundToString(oTithe.PaymentTier, 0) 
-			+ ", Height: " + RoundToString(oTithe.Height, 0) + ", NickName: " + oTithe.NickName + ", Trace: " + oTithe.Trace;
-		results.push_back(Pair(oTithe.Address, sRow));
+			results.push_back(Pair(oTithe.Address, sRow));
+		}
 	}
 
 	results.push_back(Pair("Start block", c.nHeightFirst));

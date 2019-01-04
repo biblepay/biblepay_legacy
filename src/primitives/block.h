@@ -87,6 +87,9 @@ public:
 	int Height;
 	int HeightLast;
 	uint256 LastBlockHash;
+	int64_t Age;
+	std::string TXID;
+	int Ordinal;
 
 	CTitheObject(std::string xAddress, CAmount xAmount, double xWeight) :
         Address(xAddress), Amount(xAmount), Weight(xWeight)
@@ -95,11 +98,15 @@ public:
 		Height = 0;
 		HeightLast = 0;
 		LastBlockHash = uint256S("0x0");
+		Age = 0;
+		Ordinal = 0;
 	}
 
 	CTitheObject() : Address(""), Amount(0), Weight(0), PaymentTier(0), Height(0), HeightLast(0)
 	{
 		LastBlockHash = uint256S("0x0");
+		Age = 0;
+		Ordinal = 0;
 	}
 
     uint256 GetHash() const;

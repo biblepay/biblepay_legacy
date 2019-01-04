@@ -221,7 +221,7 @@ public:
 	int nPaymentTier;
 	int nUserPaymentTier;
 	CAmount nHighTithe;
-
+	
 	CPoolObject() : nHeightFirst(0)
 	{
 		nHeightFirst = 0;

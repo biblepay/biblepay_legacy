@@ -3091,16 +3091,17 @@ UniValue exec(const UniValue& params, bool fHelp)
 		int nHeight = chainActive.Tip()->nHeight;
 		if (params.size() == 2)	nHeight = cdbl(params[1].get_str(), 0);
 		CBlockIndex* pindex = FindBlockByHeight(nHeight);
+		TitheDifficultyParams tdp = GetTitheParams(pindex);
 		if (pindex)
 		{
 			BOOST_FOREACH(const PAIRTYPE(std::string, CTitheObject)& item, pindex->mapTithes)
 		    {
 				CTitheObject oTithe = item.second;
-				std::string sRow = "Amount: " + RoundToString((double)(oTithe.Amount/COIN),2) 
-					+ ", Weight: " + RoundToString(oTithe.Weight, 4) 
-					+ ", Payment_Tier: " + RoundToString(oTithe.PaymentTier, 0) 
-					+ ", Height: " + RoundToString(oTithe.Height, 0) + ", NickName: " + oTithe.NickName;
-
+				int iLegal = IsTitheLegal2(oTithe, tdp);
+				std::string sRow = "Legal: " + RoundToString(iLegal, 0) + ", Amount: " + RoundToString((double)(oTithe.Amount/COIN),2) 
+					+ ", Height: " + RoundToString(oTithe.Height, 0) 
+					+ ", " + oTithe.TXID + "-" + RoundToString(oTithe.Ordinal, 0) 
+					+ ", Age: " + RoundToString(oTithe.Age, 0) + ", NickName: " + oTithe.NickName;
 				results.push_back(Pair(oTithe.Address, sRow));
 			}
 		}
@@ -3160,7 +3161,7 @@ UniValue exec(const UniValue& params, bool fHelp)
 			double nTitheAge = (double)(pindex->GetBlockTime() - nTxTime) / 86400;
 			CAmount nTotal = GetTitheTotal(txTithe);
 			bool bTitheLegal = (nTitheAge >= pindex->pprev->nMinCoinAge && caAmount >= pindex->pprev->nMinCoinAmount && nTotal <= pindex->pprev->nMaxTitheAmount);
-			
+
 			results.push_back(Pair("Tithe_Legal", bTitheLegal));
 			results.push_back(Pair("Tithe_Age", nTitheAge));
 			results.push_back(Pair("Tithe_Spent_Coin_Amount", (double)(caAmount/COIN)));

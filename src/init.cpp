@@ -2198,7 +2198,6 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
 	if (ReadBlockFromDisk(block, chainActive.Tip(), consensusParams, "InitializePogPool"))
 	{
 		InitializePogPool(chainActive.Tip(), 1000, block);
-		InitializePogPool(chainActive.Tip(), BLOCKS_PER_DAY, block);
 	}
 
     //// debug print

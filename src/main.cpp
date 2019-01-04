@@ -4614,7 +4614,7 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIn
 			}
 		}
 	}
-	else if (fDistributedComputingEnabled && ((nHeight > F14000_CUTOVER_HEIGHT_PROD && fProd)  ||  (nHeight > F14000_CUTOVER_HEIGHT_TESTNET && !fProd)))
+	else if (!fPOGEnabled && fDistributedComputingEnabled && ((nHeight > F14000_CUTOVER_HEIGHT_PROD && fProd)  ||  (nHeight > F14000_CUTOVER_HEIGHT_TESTNET && !fProd)))
 	{
 		// Verify the block is signed by a CPID
 		std::string sError = "";
@@ -4636,55 +4636,7 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIn
 			return state.DoS(1, error("%s: CPID %s has solved prior blocks. ", __func__, sCPID.c_str()), REJECT_INVALID, "cpid-solved-prior-blocks");
 		}
 	}
-
-	/*
-
-	R ANDREWS - BIBLEPAY - Since we are now past block F14000, the following legacy code can be removed:
-
-	else if (fDistributedComputingEnabled && nHeight > F11000_CUTOVER_HEIGHT_PROD)
-	{
-		// Rob A. - Biblepay - 2/8/2018 - Contextual check CPID signature on each block to prevent botnet from forming - level 2
-		int64_t nHeaderAge = GetAdjustedTime() - pindexPrev->nTime;
-		bool bActiveRACCheck = nHeaderAge < (60 * 15) ? true : false;
-		if (bActiveRACCheck)
-		{
-			std::string sError = "";
-			bool fCPIDFailed = false;
-			std::string sCPIDSignature = ExtractXML(block.vtx[0].vout[0].sTxOutMessage, "<cpidsig>","</cpidsig>");
-			if (sCPIDSignature.empty())
-			{
-				return state.DoS(1, error("%s: [Legacy] CPID-Signature empty. ", __func__), REJECT_INVALID, "cpid-empty");
-			}
-			bool fCheckCPIDSignature = VerifyCPIDSignature(sCPIDSignature, true, sError);
-			if (!fCheckCPIDSignature)
-			{
-				if (fDebugMaster) LogPrintf(" CPID Signature Check Failed.  CPID %s, Error %s \n", block.sBlockMessage.c_str(), sError.c_str());
-				fCPIDFailed=true;
-			}
-			// Ensure this CPID has not solved any of the last N blocks in prod or last block in testnet if header age is < 1 hour:
-			std::string sCPID = GetElement(sCPIDSignature, ";", 0);
-			bool bSolvedPriorBlocks = HasThisCPIDSolvedPriorBlocks(sCPID, pindexPrev);
-			if (bSolvedPriorBlocks)
-			{
-				if (fDebugMaster) LogPrintf(" CPID has solved prior blocks.  Contextual check block failed.  CPID %s ",sCPID.c_str());
-				fCPIDFailed=true;
-			}
-			// Ensure this block can only be solved if this CPID was in the last superblock with a payment - but only if the header age is recent (this allows the chain to continue rolling if PODC goes down)
-			double nRecentlyPaid = GetPaymentByCPID(sCPID, nHeight);
-			if (nRecentlyPaid >= 0 && nRecentlyPaid < .50)
-			{
-				if (fDebugMaster) LogPrintf(" CPID is not in prior superblock.  Contextual check block failed.  CPID %s, Payments: %f  ", sCPID.c_str(), (double)nRecentlyPaid);
-				fCPIDFailed=true;
-			}
-			if (fCPIDFailed)
-			{
-				return false;
-			}
-		}
-	}
-	*/
-
-
+	
     return true;
 }
 
