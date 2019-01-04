@@ -2213,7 +2213,7 @@ CAmount GetBlockSubsidy(const CBlockIndex* pindexPrev, int nPrevBits, int nPrevH
 {
 	double dDiff = 0;
     CAmount nSubsidyBase;
-    bool fIsPogSuperblock = CSuperblock::IsPOGSuperblock(nPrevHeight);
+    bool fIsPogSuperblock = CSuperblock::IsPOGSuperblock(nPrevHeight + 1);
 	bool fPogActive = (fPOGEnabled && ((nPrevHeight > FPOG_CUTOVER_HEIGHT_PROD && fProd) || (nPrevHeight > FPOG_CUTOVER_HEIGHT_TESTNET && !fProd)));
 	if (fPogActive && fIsPogSuperblock)
 	{
@@ -2301,6 +2301,8 @@ CAmount GetMasternodePayment(int nHeight, CAmount blockValue)
 	// http://forum.biblepay.org/index.php?topic=33.0
 	// Final Distribution: 10% Charity, 2.5% PR, 2.5% P2P, 5% for IT
 	CAmount ret = 0;
+	bool fPogActive = (fPOGEnabled && ((nPrevHeight > FPOG_CUTOVER_HEIGHT_PROD && fProd) || (nPrevHeight > FPOG_CUTOVER_HEIGHT_TESTNET && !fProd)));
+
 	int nSpork8Height = fProd ? SPORK8_HEIGHT : SPORK8_HEIGHT_TESTNET;
 	if (fProd && nHeight > nSpork8Height)
 	{
@@ -2319,6 +2321,10 @@ CAmount GetMasternodePayment(int nHeight, CAmount blockValue)
 		double dMasternodePortion = .40;
 		double dTotalPercent = dRevertedToDCMiners + dMasternodePortion;
 		ret = blockValue * dTotalPercent;
+	}
+	if (fPogActive)
+	{
+		ret = blockValue * .975;
 	}
     return ret;
 }
