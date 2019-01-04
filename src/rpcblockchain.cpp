@@ -3223,6 +3223,16 @@ UniValue exec(const UniValue& params, bool fHelp)
 		results.push_back(Pair("ddiff", dDiff));
 		results.push_back(Pair("ddiff2", dDiff2));
 	}
+	else if (sItem == "updpogpool")
+	{
+		const Consensus::Params& consensusParams = Params().GetConsensus();
+		CBlock block;
+		if (ReadBlockFromDisk(block, chainActive.Tip(), consensusParams, "InitializePogPool"))
+		{
+			InitializePogPool(chainActive.Tip(), BLOCKS_PER_DAY, block);
+		}
+		results.push_back(Pair("updpogpool", 1));
+	}
 	else if (sItem == "datalist")
 	{
 		if (params.size() != 2 && params.size() != 3)

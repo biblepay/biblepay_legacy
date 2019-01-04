@@ -1981,7 +1981,7 @@ void InitializePogPool(const CBlockIndex* pindexSource, int nSize, const CBlock&
 
     if (pindexLast == NULL || pindexLast->nHeight == 0)  return;
 	int64_t nAge = GetAdjustedTime() - pindexLast->GetBlockTime();
-	if (nAge > (60 * 60 * 24 * 2) && nSize < (BLOCKS_PER_DAY+1)) return;
+	if (nAge > (60 * 60 * 36) && nSize < (BLOCKS_PER_DAY+1)) return;
 	LogPrintf(" InitializePogPool Size %f Height %f ",nSize, pindexSource->nHeight);
 
 	if (nSize==1)
