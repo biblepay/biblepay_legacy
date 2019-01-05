@@ -3098,7 +3098,9 @@ UniValue exec(const UniValue& params, bool fHelp)
 		    {
 				CTitheObject oTithe = item.second;
 				int iLegal = IsTitheLegal2(oTithe, tdp);
-				std::string sRow = "Legal: " + RoundToString(iLegal, 0) + ", Amount: " + RoundToString((double)(oTithe.Amount/COIN),2) 
+				std::string sErr = TitheErrorToString(iLegal);
+
+				std::string sRow = "Legal: " + RoundToString(iLegal, 0) + " [" + sErr + "]", Amount: " + RoundToString((double)(oTithe.Amount/COIN),2) 
 					+ ", Height: " + RoundToString(oTithe.Height, 0) 
 					+ ", " + oTithe.TXID + "-" + RoundToString(oTithe.Ordinal, 0) 
 					+ ", Age: " + RoundToString(oTithe.Age, 0) + ", NickName: " + oTithe.NickName;

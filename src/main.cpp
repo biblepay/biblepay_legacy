@@ -2280,9 +2280,9 @@ CAmount GetBlockSubsidy(const CBlockIndex* pindexPrev, int nPrevBits, int nPrevH
 	// POG - BIBLEPAY - R ANDREWS
 	if (fPogActive)
 	{
-		CAmount caMasternodePortion = GetMasternodePayment(nPrevHeight, nMainSubsidy);
-		CAmount nNetSubsidy = nMainSubsidy - caMasternodePortion;  // nMain = 5100 - 4600 = 500
-		CAmount nReaperReward = nNetSubsidy * .20; // Reaper = 100
+		CAmount caMasternodePortion = nMainSubsidy * .975;
+		CAmount nNetSubsidy = nMainSubsidy - caMasternodePortion;  
+		CAmount nReaperReward = nNetSubsidy * .20;  // Reaper = 100
 		CAmount nPOGPoolReward = nNetSubsidy * .80; // Pool = 400
 		CAmount nGrossReaperReward = nReaperReward + caMasternodePortion; // 100 + 4600 = 4700
 		CAmount nGrossPOGPoolReward = (nPOGPoolReward * BLOCKS_PER_DAY) + caMasternodePortion; // 4600 + (400 * 205)

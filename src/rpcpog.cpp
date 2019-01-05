@@ -154,7 +154,7 @@ CAmount GetDailyMinerEmissions(int nHeight)
 	if (fIsPogSuperblock) nHeight = nHeight - 1;
     CAmount nReaperReward = GetBlockSubsidy(pindexBestHeader->pprev, nBits, nHeight, consensusParams, false);
 	CAmount caMasternodePortion = GetMasternodePayment(nHeight, nReaperReward);
-    CAmount nDailyRewards = (nReaperReward-caMasternodePortion) * BLOCKS_PER_DAY; // This includes deflation
+    CAmount nDailyRewards = (nReaperReward-caMasternodePortion) * BLOCKS_PER_DAY * 4; // This includes deflation
 	return nDailyRewards;
 }
 
@@ -1385,6 +1385,17 @@ bool IsTitheLegal2(CTitheObject oTithe, TitheDifficultyParams tdp)
 	return 1;
 }
 
+std::string TitheErrorToString(int TitheError)
+{
+	if (TitheError == -1) return "ADDRESS_NOT_VALID";
+	if (TitheError == -2) return "TITHE_TOO_LOW";
+	if (TitheError == -3) return "TITHE_TOO_HIGH";
+	if (TitheError == -4) return "TITHE_DOES_NOT_MEET_COIN_AGE_REQUIREMENTS";
+	if (TitheError == -5) return "TITHE_DOES_NOT_MEET_COIN_VALUE_REQUIREMENTS";
+	if (TitheError == 01) return "";
+	return "N/A";
+}
+
 CPoolObject GetPoolVector(const CBlockIndex* pindexSource, int iPaymentTier)
 {
 	CPoolObject cPool;
@@ -2057,6 +2068,7 @@ CAmount StringToAmount(std::string sValue)
 
 bool CompareMask(CAmount nValue, CAmount nMask)
 {
+	if (nMask == 0) return false;
 	std::string sAmt = "0000000000000000000000000" + AmountToString(nValue);
 	std::string sMask= AmountToString(nMask);
 	std::string s1 = sAmt.substr(sAmt.length() - sMask.length() + 1, sMask.length() - 1);
