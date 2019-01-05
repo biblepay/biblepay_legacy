@@ -2280,10 +2280,10 @@ CAmount GetBlockSubsidy(const CBlockIndex* pindexPrev, int nPrevBits, int nPrevH
 	// POG - BIBLEPAY - R ANDREWS
 	if (fPogActive)
 	{
-		CAmount caMasternodePortion = nMainSubsidy * .975;
-		CAmount nNetSubsidy = nMainSubsidy - caMasternodePortion;  
+		CAmount caMasternodePortion = nMainSubsidy * .975;  // 4972
+		CAmount nNetSubsidy = nMainSubsidy - caMasternodePortion;  // 5100 - 4972 = 128
 		CAmount nReaperReward = nNetSubsidy * .20;  // Reaper = 100
-		CAmount nPOGPoolReward = nNetSubsidy * .80; // Pool = 400
+		CAmount nPOGPoolReward = nNetSubsidy * 4; // Pool = 400
 		CAmount nGrossReaperReward = nReaperReward + caMasternodePortion; // 100 + 4600 = 4700
 		CAmount nGrossPOGPoolReward = (nPOGPoolReward * BLOCKS_PER_DAY) + caMasternodePortion; // 4600 + (400 * 205)
 		nMainSubsidy = (fIsPogSuperblock ? nGrossPOGPoolReward : nGrossReaperReward);
@@ -2302,7 +2302,7 @@ CAmount GetMasternodePayment(int nHeight, CAmount blockValue)
 	// Final Distribution: 10% Charity, 2.5% PR, 2.5% P2P, 5% for IT
 	CAmount ret = 0;
 	bool fPogActive = (fPOGEnabled && ((nHeight > FPOG_CUTOVER_HEIGHT_PROD && fProd) || (nHeight > FPOG_CUTOVER_HEIGHT_TESTNET && !fProd)));
-	bool fIsPogSuperblock = CSuperblock::IsPOGSuperblock(nHeight + 1);
+	bool fIsPogSuperblock = CSuperblock::IsPOGSuperblock(nHeight);
 	
 	int nSpork8Height = fProd ? SPORK8_HEIGHT : SPORK8_HEIGHT_TESTNET;
 	if (fProd && nHeight > nSpork8Height)
