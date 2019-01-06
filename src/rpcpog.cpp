@@ -1379,6 +1379,9 @@ bool IsTitheLegal2(CTitheObject oTithe, TitheDifficultyParams tdp)
 	CBitcoinAddress cbaAddress(oTithe.Address);
 	if (!cbaAddress.IsValid()) return -1;
 	if (oTithe.Amount < (.50*COIN)) return -2;
+	// Special rule for testnet:
+	if (oTithe.Amount <= (10*COIN) && !fProd) return 1;
+	// End of special testnet rule
 	if (oTithe.Amount > tdp.max_tithe_amount) return -3;
 	if (oTithe.Age < tdp.min_coin_age) return -4;
 	if (oTithe.Amount < tdp.min_coin_amount) return -5;
@@ -1778,6 +1781,8 @@ void RecoverOrphanedChainNew(int iCondition)
 {
 	// R Andrews - Aug 12th, 2018 - The Heavy Handed Method
 	// Trying this method since RecoverOrphanedChain segafaults, due to having a NULL mapblockindex pointer on blocks where the ~BLOCK_INVALID mask is set (when getchaintips shows a potential invalid chain with more work).
+	double nDisableFeature = cdbl(GetArg("-disablereboot", "0"), 0);
+	if (!fProd || nDisableFeature==1) return;
 	StartShutdown(1); //this notifies the daemon
 }
 

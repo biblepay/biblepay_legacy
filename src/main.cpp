@@ -4569,11 +4569,11 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIn
 		 return false;
 	}
 
-	if (!fProd && nHeight > FPOG_CUTOVER_HEIGHT_TESTNET && dBlockVersion < 1171)
+	if (!fProd && nHeight > FPOG_CUTOVER_HEIGHT_TESTNET && dBlockVersion < 1179)
 	{
 		 if (false) LogPrintf("ContextualCheckBlock::ERROR Rejecting testnet block version %f at height %f \n",(double)dBlockVersion,(double)nHeight);
-		 return false;
-	}
+	     return state.DoS(10, error("%s: Rejecting testnet block version < 1179", __func__), REJECT_INVALID, "bad-testnet-block-version");
+    }
 
 	// Rob A. - BiblePay - 12/3/2018
 	if (fPOGEnabled && !fProd)
@@ -6262,7 +6262,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
 		sVersion = strReplace(sVersion, "/", "");
 		sVersion = strReplace(sVersion, ".", "");
 		double dPeerVersion = cdbl(sVersion, 0);
-		if (dPeerVersion < 1178 && !fProd)
+		if (dPeerVersion < 1179 && !fProd)
 		{
 		    LogPrint("net","Disconnecting unauthorized peer in TestNet using old version %f\r\n",(double)dPeerVersion);
 			Misbehaving(pfrom->GetId(), 14);
