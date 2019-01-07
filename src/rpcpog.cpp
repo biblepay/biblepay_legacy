@@ -419,7 +419,10 @@ std::string SendTithe(CAmount caTitheAmount, double dMinCoinAge, CAmount caMinCo
 		else LogPrintf(" Encrypted string empty.");
 	}
 
-	
+	// Allow tithes of 10BBP or less to send with any coin age in TestNet:
+	if (caTitheAmount <= (10*COIN) && !fProd) dMinCoinAge = 0;
+	// End of TestNet Rule
+
     RPCSendMoneyToDestinationWithMinimumBalance(address.Get(), caTitheAmount, caTitheAmount, dMinCoinAge, caMinCoinAmount, wtx, sError);
 	
 	if (bTriedToUnlock) pwalletMain->Lock();
