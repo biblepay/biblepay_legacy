@@ -71,6 +71,8 @@ public Q_SLOTS:
 	/** Switch to Business Object List page */
 	void gotoBusinessObjectListPage();
 
+	void gotoPOGLeaderboardListPage();
+
     /** Switch to send coins page */
     void gotoSendCoinsPage(QString addr = "");
 	void gotoAccountabilityPage();

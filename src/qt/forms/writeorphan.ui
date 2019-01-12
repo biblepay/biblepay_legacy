@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1321</width>
-    <height>753</height>
+    <width>1340</width>
+    <height>830</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -33,7 +33,7 @@
    <property name="geometry">
     <rect>
      <x>50</x>
-     <y>500</y>
+     <y>480</y>
      <width>121</width>
      <height>23</height>
     </rect>
@@ -48,7 +48,7 @@
      <x>50</x>
      <y>530</y>
      <width>1251</width>
-     <height>192</height>
+     <height>261</height>
     </rect>
    </property>
    <property name="flow">
@@ -69,6 +69,58 @@
      <width>471</width>
      <height>441</height>
     </rect>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label">
+   <property name="geometry">
+    <rect>
+     <x>50</x>
+     <y>10</y>
+     <width>121</width>
+     <height>16</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Letter Body:</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label_2">
+   <property name="geometry">
+    <rect>
+     <x>830</x>
+     <y>10</y>
+     <width>121</width>
+     <height>16</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Orphan Biography:</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label_3">
+   <property name="geometry">
+    <rect>
+     <x>50</x>
+     <y>510</y>
+     <width>121</width>
+     <height>16</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Attached Pictures:</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="btnAttachImage">
+   <property name="geometry">
+    <rect>
+     <x>50</x>
+     <y>800</y>
+     <width>231</width>
+     <height>23</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Attach Picture</string>
    </property>
   </widget>
  </widget>

@@ -267,6 +267,12 @@ void WalletView::gotoBusinessObjectListPage()
 	businessObjectListPage->UpdateObject("object");
 }
 
+void WalletView::gotoPOGLeaderboardListPage()
+{
+	setCurrentWidget(businessObjectListPage);
+	businessObjectListPage->UpdateObject("pog_leaderboard");
+}
+
 void WalletView::gotoProposalListPage()
 {
 	setCurrentWidget(proposalListPage);

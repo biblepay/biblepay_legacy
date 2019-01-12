@@ -4581,7 +4581,7 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIn
 		// Contextual Checkblock Rules for POG
 		if (fPOGPaymentsEnabled)
 		{
-			if (nHeight > FPOG_CUTOVER_HEIGHT_TESTNET)
+			if (nHeight > FPOG_CUTOVER_HEIGHT_TESTNET && !fReindex)
 			{
 				int64_t nAge = GetAdjustedTime() - pindexPrev->nTime;
 				bool fRecent = nAge < (60 * 60 * 2) ? true : false;

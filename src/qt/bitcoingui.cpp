@@ -125,6 +125,7 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *platformStyle, const NetworkStyle *n
 	proposalAddMenuAction(0),
 	contactAddMenuAction(0),
 	businessObjectListMenuAction(0),
+	pogLeaderboardListMenuAction(0),
 	proposalListAction(0),
     optionsAction(0),
     toggleHideAction(0),
@@ -409,6 +410,7 @@ void BitcoinGUI::createActions()
 	connect(proposalListAction, SIGNAL(triggered()), this, SLOT(gotoProposalListPage()));
 	connect(contactAddMenuAction, SIGNAL(triggered()), this, SLOT(gotoContactAddPage()));
 	connect(businessObjectListMenuAction, SIGNAL(triggered()), this, SLOT(gotoBusinessObjectListPage()));
+	connect(pogLeaderboardListMenuAction, SIGNAL(triggered()), this, SLOT(gotoPOGLeaderboardListPage()));
 
     connect(receiveCoinsMenuAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
     connect(receiveCoinsMenuAction, SIGNAL(triggered()), this, SLOT(gotoReceiveCoinsPage()));
@@ -432,16 +434,18 @@ void BitcoinGUI::createActions()
     aboutAction->setMenuRole(QAction::AboutRole);
     aboutAction->setEnabled(false);
     
-	//Todo for next mandatory - Replace this with People Icon:
-	openChatGeneralAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("Chat Room - General"), this);
+	openChatGeneralAction = new QAction(QIcon(":/icons/" + theme + "/chat"), tr("Chat Room - General"), this);
 	openChatGeneralAction->setStatusTip(tr("Open General Chat Room"));
-    openChatGeneralAction->setMenuRole(QAction::AboutRole);
-	openChatGeneralAction->setEnabled(false);
+    openChatGeneralAction->setEnabled(false);
 	
-	openChatPMAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("Private Message"), this);
+	openChatPMAction = new QAction(QIcon(":/icons/" + theme + "/chat"), tr("Private Message"), this);
 	openChatPMAction->setStatusTip(tr("Open Private Message Window"));
-    openChatPMAction->setMenuRole(QAction::AboutRole);
-	openChatPMAction->setEnabled(false);
+    openChatPMAction->setEnabled(false);
+	
+	// POG
+	pogLeaderboardListMenuAction = new QAction(QIcon(":/icons/" + theme + "/chat"), tr("POG Leaderboar&d"), this);
+    pogLeaderboardListMenuAction->setStatusTip(tr("POG Leaderboard"));
+    pogLeaderboardListMenuAction->setEnabled(true);
 	
 	sinnerAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("The Sinners Prayer"), this);
     sinnerAction->setStatusTip(tr("Show the Sinners Prayer"));
@@ -450,44 +454,30 @@ void BitcoinGUI::createActions()
 
 	TheLordsPrayerAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("The Lords Prayer"), this);
     TheLordsPrayerAction->setStatusTip(tr("Show the Lords Prayer"));
-    TheLordsPrayerAction->setMenuRole(QAction::AboutRole);
-    TheLordsPrayerAction->setEnabled(false);
+	TheLordsPrayerAction->setEnabled(false);
 
 	TheApostlesCreedAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("The Apostles Creed"), this);
     TheApostlesCreedAction->setStatusTip(tr("Show the Lords Prayer"));
-    TheApostlesCreedAction->setMenuRole(QAction::AboutRole);
     TheApostlesCreedAction->setEnabled(false);
 
 	TheNiceneCreedAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("The Nicene Creed"), this);
     TheNiceneCreedAction->setStatusTip(tr("Show the Nicene Creed"));
-    TheNiceneCreedAction->setMenuRole(QAction::AboutRole);
     TheNiceneCreedAction->setEnabled(false);
 
 	TheTenCommandmentsAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("The Ten Commandments"), this);
     TheTenCommandmentsAction->setStatusTip(tr("Show the Ten Commandments"));
-    TheTenCommandmentsAction->setMenuRole(QAction::AboutRole);
     TheTenCommandmentsAction->setEnabled(false);
 
 	JesusConciseCommandmentsAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("Jesus Concise Commandments"), this);
     JesusConciseCommandmentsAction->setStatusTip(tr("Show Jesus Concise Commandments"));
-    JesusConciseCommandmentsAction->setMenuRole(QAction::AboutRole);
     JesusConciseCommandmentsAction->setEnabled(false);
 
 	ReadBibleAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("Read Bible"), this);
     ReadBibleAction->setStatusTip(tr("Read Bible"));
-    ReadBibleAction->setMenuRole(QAction::AboutRole);
     ReadBibleAction->setEnabled(false);
-
-	// Create News Article Action
-
-	CreateNewsAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("Create News Article"), this);
-    CreateNewsAction->setStatusTip(tr("Create news Article"));
-    CreateNewsAction->setMenuRole(QAction::AboutRole);
-    CreateNewsAction->setEnabled(false);
 
 	OneClickMiningAction = new QAction(QIcon(":/icons/" + theme + "/editpaste"), tr("One Click Mining Configuration"), this);
     OneClickMiningAction->setStatusTip(tr("One Click Mining Configuration"));
-    OneClickMiningAction->setMenuRole(QAction::AboutRole);
     OneClickMiningAction->setEnabled(false);
 
 	aboutQtAction = new QAction(QIcon(":/icons/" + theme + "/about_qt"), tr("About &Qt"), this);
@@ -545,7 +535,7 @@ void BitcoinGUI::createActions()
 	businessObjectListMenuAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("Business Object &List"), this);
     businessObjectListMenuAction->setStatusTip(tr("Business Object List"));
     businessObjectListMenuAction->setEnabled(true);
-	
+		
     openFundedProposalsAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("&Funded Proposal List"), this);
     openFundedProposalsAction->setStatusTip(tr("Show Funded Proposal List"));
 	openFundedProposalsAction->setEnabled(false);
@@ -609,6 +599,7 @@ void BitcoinGUI::createActions()
 	connect(contactAddMenuAction, SIGNAL(triggered()), this, SLOT(gotoContactAddPage()));
 	connect(proposalAddMenuAction, SIGNAL(triggered()), this, SLOT(gotoProposalAddPage()));
 	connect(businessObjectListMenuAction, SIGNAL(triggered()), this, SLOT(gotoBusinessObjectListPage()));
+	connect(pogLeaderboardListMenuAction, SIGNAL(triggered()), this, SLOT(gotoPOGLeaderboardListPage()));
 
     // Open configs and backup folder from menu
     connect(openConfEditorAction, SIGNAL(triggered()), this, SLOT(showConfEditor()));
@@ -717,6 +708,12 @@ void BitcoinGUI::createMenuBar()
 		menuChat->addAction(openChatPMAction);
 	}
 
+	if (!fProd)
+	{
+		QMenu *menuPOG = appMenuBar->addMenu(tr("&POG"));
+		menuPOG->addAction(pogLeaderboardListMenuAction);
+	}
+
 	// BiblePay - Prayers, Jesus' Commandments, and Reading the Bible
 	QMenu *menuBible = appMenuBar->addMenu(tr("&Bible"));
 	menuBible->addAction(sinnerAction);
@@ -726,10 +723,6 @@ void BitcoinGUI::createMenuBar()
 	menuBible->addAction(TheTenCommandmentsAction);
 	menuBible->addAction(JesusConciseCommandmentsAction);
 	menuBible->addAction(ReadBibleAction);
-
-	// BiblePay News
-	//QMenu *menuNews = appMenuBar->addMenu(tr("&News"));
-	//menuNews->addAction(CreateNewsAction);
 	
 	QMenu *help = appMenuBar->addMenu(tr("&Help"));
     help->addAction(showHelpMessageAction);
@@ -737,8 +730,6 @@ void BitcoinGUI::createMenuBar()
     help->addSeparator();
     help->addAction(aboutAction);
     help->addAction(aboutQtAction);
-
-
 }
 
 static QWidget* makeToolBarSpacer()
@@ -913,6 +904,7 @@ void BitcoinGUI::setWalletActionsEnabled(bool enabled)
 	contactAddMenuAction->setEnabled(enabled);
 	businessObjectListMenuAction->setEnabled(enabled);
 	proposalAddMenuAction->setEnabled(enabled);
+	pogLeaderboardListMenuAction->setEnabled(enabled);
 
     historyAction->setEnabled(enabled);
     QSettings settings;
@@ -1229,6 +1221,12 @@ void BitcoinGUI::gotoBusinessObjectListPage()
 {
 	businessObjectListMenuAction->setChecked(true);
 	if (walletFrame) walletFrame->gotoBusinessObjectListPage();
+}
+
+void BitcoinGUI::gotoPOGLeaderboardListPage()
+{
+	pogLeaderboardListMenuAction->setChecked(true);
+	if (walletFrame) walletFrame->gotoPOGLeaderboardListPage();
 }
 
 void BitcoinGUI::gotoContactAddPage()
@@ -1563,6 +1561,7 @@ void BitcoinGUI::showEvent(QShowEvent *event)
 	{
 		openChatGeneralAction->setEnabled(true);
 		openChatPMAction->setEnabled(true);
+		pogLeaderboardListMenuAction->setEnabled(true);
 	}
 
 	TheTenCommandmentsAction->setEnabled(true);

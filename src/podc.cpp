@@ -283,8 +283,6 @@ void TouchDailyMagnitudeFile()
 	fclose(outMagFile);
 }
 
-
-
 std::string GetSANDirectory2()
 {
 	 boost::filesystem::path pathConfigFile(GetArg("-conf", "biblepay.conf"));
@@ -297,6 +295,15 @@ std::string GetSANDirectory2()
 		 boost::filesystem::create_directory(pathSAN);
 	 }
 	 return sDir;
+}
+
+void EnsureDirectoryExists(std::string sPath)
+{
+	boost::filesystem::path pathSAN(sPath);
+	if (!boost::filesystem::exists(pathSAN))
+	{
+		boost::filesystem::create_directory(pathSAN);
+	}
 }
 
 double GetMagnitudeInContract(std::string sContract, std::string sCPID)

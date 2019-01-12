@@ -842,6 +842,55 @@ UniValue GetBusinessObjectList(std::string sType)
 	return ret;
 }
 
+std::string GetPOGBusinessObjectList(std::string sType, std::string sFields)
+{
+	UniValue ret(UniValue::VOBJ);
+	CPoolObject c = GetPoolVector(chainActive.Tip(), 0);
+    UniValue results(UniValue::VOBJ);
+	int i = 0;
+	std::vector<std::string> vFields = Split(sFields.c_str(), ",");
+	std::string sData = "";
+	double dPD = GetPOGDifficulty(chainActive.Tip());
+	std::string sNickName = GetArg("-nickname", "");
+	BOOST_FOREACH(const PAIRTYPE(std::string, CTitheObject)& item, c.mapTithes)
+	{
+		CTitheObject oTithe = item.second;
+		UniValue o(UniValue::VOBJ);
+		i++;
+		std::string sPK = sType + "-" + RoundToString(i, 0);
+		
+		o.push_back(Pair("id", sPK));
+		o.push_back(Pair("amount", RoundToString((double)(oTithe.Amount/COIN), 2)));
+		o.push_back(Pair("weight", RoundToString(oTithe.Weight, 4)));
+		o.push_back(Pair("height", RoundToString(oTithe.Height, 0)));
+		if (oTithe.NickName.empty())
+		{
+			o.push_back(Pair("nickname","N/A"));
+		}
+		else
+		{
+			o.push_back(Pair("nickname", oTithe.NickName));
+		}
+		o.push_back(Pair("address", oTithe.Address));
+		std::string sRow = "";
+		for (int j = 0; j < (int)vFields.size(); j++)
+		{
+			sRow += o[vFields[j]].getValStr() + "<col>";
+		}
+		sData += sRow + "<object>";
+		ret.push_back(Pair(sPK, o));
+	}
+	sData += "<difficulty>" + RoundToString(dPD, 2) + "</difficulty>";
+	sData += "<my_tithes>" + RoundToString(c.UserTithes/COIN, 2) + "</my_tithes>";
+	sData += "<my_nickname>" + sNickName + "</my_nickname>";
+	sData += "<total> " + RoundToString(c.TotalTithes/COIN, 2) + "</total>";
+	sData += "<hightithe>" + RoundToString(c.nHighTithe/COIN, 2) + "</hightithe>";
+	sData += "<participants>" + RoundToString(c.oTierRecipients[0], 0) + "</participants>";
+	LogPrintf("%s ", sData.c_str());
+
+	return sData;
+}
+
 
 
 double GetBusinessObjectTotal(std::string sType, std::string sFieldName, int iAggregationType)
@@ -917,8 +966,6 @@ UniValue GetBusinessObjectByFieldValue(std::string sType, std::string sFieldName
 	}
 	return ret;
 }
-
-
 
 
 std::string GetBusinessObjectList(std::string sType, std::string sFields)
@@ -1140,8 +1187,6 @@ std::string AddBlockchainMessages(std::string sAddress, std::string sType, std::
 	std::string sTxId = wtx.GetHash().GetHex();
 	return sTxId;
 }
-
-
 
 
 std::string ReadCache(std::string sSection, std::string sKey)
@@ -2082,4 +2127,25 @@ bool CompareMask(CAmount nValue, CAmount nMask)
 	std::string s1 = sAmt.substr(sAmt.length() - sMask.length() + 1, sMask.length() - 1);
 	std::string s2 = sMask.substr(1, sMask.length() - 1);
 	return (s1 == s2);
+}
+
+bool CopyFile(std::string sSrc, std::string sDest)
+{
+	boost::filesystem::path fSrc(sSrc);
+	boost::filesystem::path fDest(sDest);
+
+	try
+	{
+		#if BOOST_VERSION >= 104000
+			boost::filesystem::copy_file(fSrc, fDest, boost::filesystem::copy_option::overwrite_if_exists);
+		#else
+			boost::filesystem::copy_file(fSrc, fDest);
+		#endif
+	}
+	catch (const boost::filesystem::filesystem_error& e) 
+	{
+		LogPrintf("CopyFile failed - %s ",e.what());
+		return false;
+    }
+	return true;
 }

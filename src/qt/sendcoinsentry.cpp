@@ -58,6 +58,7 @@ SendCoinsEntry::SendCoinsEntry(const PlatformStyle *platformStyle, QWidget *pare
 	connect(ui->checkboxFoundation, SIGNAL(toggled(bool)), this, SIGNAL(foundationChanged()));
 
 	connect(ui->checkboxFoundation, SIGNAL(toggled(bool)), this, SLOT(updateFoundationAddress()));
+	connect(ui->chkForceTithe, SIGNAL(toggled(bool)), this, SLOT(updateFoundationAddress()));
 	connect(ui->checkboxRepent, SIGNAL(toggled(bool)), this, SLOT(makeRepentanceVisible()));
 	connect(ui->checkboxPrayer, SIGNAL(toggled(bool)), this, SLOT(checkboxPrayerClicked()));
 
@@ -97,9 +98,15 @@ void SendCoinsEntry::on_pasteButton_clicked()
 void SendCoinsEntry::updateFoundationAddress()
 {
 	const CChainParams& chainparams = Params();
-    ui->payTo->setText(GUIUtil::TOQS(chainparams.GetConsensus().FoundationAddress));
+	bool bCheckedF = (ui->chkForceTithe->checkState() == Qt::Checked);
+	bool bCheckedD = (ui->checkboxFoundation->checkState() == Qt::Checked);
+
+	if (bCheckedF || bCheckedD)
+	{
+		ui->payTo->setText(GUIUtil::TOQS(chainparams.GetConsensus().FoundationAddress));
+	    ui->payAmount->setFocus();
+	}
 	initPOGDifficulty();
-    ui->payAmount->setFocus();
 }
 
 void SendCoinsEntry::checkboxPrayerClicked()

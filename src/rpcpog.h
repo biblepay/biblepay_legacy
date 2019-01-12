@@ -111,6 +111,7 @@ CAmount StringToAmount(std::string sValue);
 bool IsTitheLegal2(CTitheObject oTithe, TitheDifficultyParams tdp);
 bool CompareMask(CAmount nValue, CAmount nMask);
 std::string TitheErrorToString(int TitheError);
-
+std::string GetPOGBusinessObjectList(std::string sType, std::string sFields);
+bool CopyFile(std::string sSrc, std::string sDest);
 
 #endif

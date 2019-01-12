@@ -41,6 +41,7 @@ private Q_SLOTS:
 	void slotView();
 	void slotList();
 	void slotWriteOrphan();
+	void slotReviewLetter();
 
 private:
     Ui::BusinessObjectList *ui;
@@ -49,8 +50,8 @@ private:
 private:
     void createUI(const QStringList &headers, const QString &pStr);
     QVector<QVector<QString> > SplitData(const QString &pStr);
-    QStringList GetHeaders();
-
+	QStringList GetHeaders(std::string sFields);
+	void addFooterRow(int& rows, int& iFooterRow, std::string sCaption, std::string sValue);
 
 };
 

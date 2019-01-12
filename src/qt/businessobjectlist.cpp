@@ -18,11 +18,14 @@ std::string ObjectType = "";
 extern int GetUrlColumn(std::string sTarget);
 bool bSlotsCreated = false;
 
-QStringList BusinessObjectList::GetHeaders()
+QStringList BusinessObjectList::GetHeaders(std::string sFields)
 {
 	QStringList pHeaders;
 	UniValue aBO = GetBusinessObjectByFieldValue("object", "object_name", ObjectType);
-	std::string sFields = "id," + aBO["fields"].getValStr();	
+	if (ObjectType != "pog_leaderboard")
+	{
+		sFields = "id," + aBO["fields"].getValStr();	
+	}
 	std::vector<std::string> vFields = Split(sFields.c_str(),",");
 	for (int i = 0; i < (int)vFields.size(); i++)
 	{
@@ -51,17 +54,37 @@ void BusinessObjectList::setModel(WalletModel *model)
 void BusinessObjectList::UpdateObject(std::string objType)
 {
 	ObjectType = objType;
-	UniValue aBO = GetBusinessObjectByFieldValue("object", "object_name", ObjectType);
-	std::string sFields = aBO["fields"].getValStr();	
-    QString pString = GUIUtil::TOQS(GetBusinessObjectList(ObjectType, sFields));
-    QStringList pHeaders = GetHeaders();
+	std::string sFields;
+    QString pString;
+	
+	if (objType=="pog_leaderboard")
+	{
+		sFields = "id,nickname,address,height,amount,weight";
+		pString = GUIUtil::TOQS(GetPOGBusinessObjectList(ObjectType, sFields));
+	}
+	else
+	{
+		UniValue aBO = GetBusinessObjectByFieldValue("object", "object_name", ObjectType);
+		sFields = aBO["fields"].getValStr();
+		pString	= GUIUtil::TOQS(GetBusinessObjectList(ObjectType, sFields));
+	}
+	// Show the difficulty, my_tithes, my_nickname, grand total (amount) as grand total rows
+    QStringList pHeaders = GetHeaders(sFields);
     this->createUI(pHeaders, pString);
 }
 
+void BusinessObjectList::addFooterRow(int& rows, int& iFooterRow, std::string sCaption, std::string sValue)
+{
+	rows++;
+    ui->tableWidget->setItem(rows, 0, new QTableWidgetItem(GUIUtil::TOQS(sCaption)));
+	ui->tableWidget->setItem(rows, 1, new QTableWidgetItem(GUIUtil::TOQS(sValue)));
+}
 
 void BusinessObjectList::createUI(const QStringList &headers, const QString &pStr)
 {
     ui->tableWidget->setShowGrid(true);
+	ui->tableWidget->setRowCount(0);
+
     ui->tableWidget->setSelectionMode(QAbstractItemView::SingleSelection);
     ui->tableWidget->setSelectionBehavior(QAbstractItemView::SelectRows);
     ui->tableWidget->horizontalHeader()->setStretchLastSection(true);
@@ -73,6 +96,11 @@ void BusinessObjectList::createUI(const QStringList &headers, const QString &pSt
 	int iAmountCol = GetUrlColumn("Amount");
 	int iFooterRow = (iAmountCol > -1) ? 1 : 0;
     int rows = pMatrix.size();
+	if (ObjectType == "pog_leaderboard") 
+	{
+		iFooterRow += 6;
+		iAmountCol = -1;
+	}
     ui->tableWidget->setRowCount(rows + iFooterRow);
     int cols = pMatrix[0].size() - 1;
     ui->tableWidget->setColumnCount(cols);
@@ -90,7 +118,17 @@ void BusinessObjectList::createUI(const QStringList &headers, const QString &pSt
 			dGrandTotal += cdbl(GUIUtil::FROMQS(pMatrix[i][iAmountCol]), 2);
 		}
 	}
-	if (iFooterRow > 0)
+	
+	if (ObjectType == "pog_leaderboard")
+	{
+		std::string sXML = GUIUtil::FROMQS(pStr);
+		addFooterRow(rows, iFooterRow, "Difficulty:", ExtractXML(sXML, "<difficulty>","</difficulty>"));
+		addFooterRow(rows, iFooterRow, "My Tithes:", ExtractXML(sXML, "<my_tithes>","</my_tithes>"));
+		addFooterRow(rows, iFooterRow, "My Nick Name:", ExtractXML(sXML, "<my_nickname>","</my_nickname>"));
+		addFooterRow(rows, iFooterRow, "Total Pool Tithes:", ExtractXML(sXML, "<total>","</total>"));
+		addFooterRow(rows, iFooterRow, "Total Pool Participants:", ExtractXML(sXML, "<participants>","</participants>"));
+	}
+	else if (iFooterRow > 0)
 	{
 		ui->tableWidget->setItem(rows, 0, new QTableWidgetItem("Grand Total:"));
 		ui->tableWidget->setItem(rows, iAmountCol, new QTableWidgetItem(GUIUtil::TOQS(RoundToString(dGrandTotal, 2))));
@@ -125,6 +163,10 @@ void BusinessObjectList::slotCustomMenuRequested(QPoint pos)
 	if (ObjectType=="orphan")
 	{
 		if (Params().NetworkIDString() != "main") menu->addAction(tr("Write Orphan"), this, SLOT(slotWriteOrphan()));
+	}
+	if (ObjectType == "letter")
+	{
+		if (Params().NetworkIDString() != "main") menu->addAction(tr("Review Letter"), this, SLOT(slotReviewLetter()));
 	}
 
     menu->popup(ui->tableWidget->viewport()->mapToGlobal(pos));
@@ -182,11 +224,23 @@ void BusinessObjectList::slotList()
 		{
 			std::string sTarget = GUIUtil::FROMQS(ui->tableWidget->item(row, iCol)->text());
 			// Close existing menu
-
 			UpdateObject(sTarget);
 		}
     }
 }
+
+void BusinessObjectList::slotReviewLetter()
+{
+	int row = ui->tableWidget->selectionModel()->currentIndex().row();
+    if(row >= 0)
+    {
+        QMessageBox msgBox;
+        std::string id = GUIUtil::FROMQS(ui->tableWidget->item(row, 0)->text());
+		WriteOrphan *dlg = new WriteOrphan(this, "REVIEW", "", id);
+		dlg->show();
+	}
+}
+
 
 void BusinessObjectList::slotWriteOrphan()
 {
@@ -194,9 +248,12 @@ void BusinessObjectList::slotWriteOrphan()
     if(row >= 0)
     {
         QMessageBox msgBox;
-        std::string id = GUIUtil::FROMQS(ui->tableWidget->item(row, 0)->text()); // PK-2PK-IPFS Hash of business object
-		WriteOrphan dlg(this);
-		dlg.exec();
+        std::string id = GUIUtil::FROMQS(ui->tableWidget->item(row, 0)->text());
+		int iURLCol = GetUrlColumn("ORPHANID");
+		std::string orphanId = GUIUtil::FROMQS(ui->tableWidget->item(row, iURLCol)->text());
+		// The last argument is the letter ID, this is required on an Edit but not on an Add
+		WriteOrphan *dlg = new WriteOrphan(this, "ADD", orphanId, "");
+		dlg->show();
     }
 }
 void BusinessObjectList::slotView()
@@ -239,16 +296,19 @@ QVector<QVector<QString> > BusinessObjectList::SplitData(const QString &pStr)
     QVector<QVector<QString> > proposalMatrix;
     for (int i=0; i < nProposals; i++)
     {
-        proposalMatrix.append(QVector<QString>());
         QStringList proposalDetail = proposals[i].split(QRegExp("<col>"));
         int detailSize = proposalDetail.size();
-        for (int j = 0; j < detailSize; j++)
+		if (detailSize > 1)
 		{
-			QString sData = proposalDetail[j];
-			/*  Reserved for BitcoinUnits
-				sData = BitcoinUnits::format(2, cdbl(GUIUtil::FROMQS(sData), 2) * 100, false, BitcoinUnits::separatorAlways);		
-			*/
-			proposalMatrix[i].append(sData);
+			proposalMatrix.append(QVector<QString>());
+			for (int j = 0; j < detailSize; j++)
+			{
+				QString sData = proposalDetail[j];
+				/*  Reserved for BitcoinUnits
+					sData = BitcoinUnits::format(2, cdbl(GUIUtil::FROMQS(sData), 2) * 100, false, BitcoinUnits::separatorAlways);		
+				*/
+				proposalMatrix[i].append(sData);
+			}
 		}
     }
 	return proposalMatrix;

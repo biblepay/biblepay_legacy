@@ -406,7 +406,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
 		double dMinCoinAge = 0;
 		CAmount caMinCoinAmount = 0;
 		CAmount caMaxTitheAmount = 0;
-		if (fTithed && fPOGEnabled)
+		if (fTithed && fPOGEnabled && !fForce)
 		{
 			TitheDifficultyParams tdp = GetTitheParams(chainActive.Tip());
 			dMinCoinAge = tdp.min_coin_age;

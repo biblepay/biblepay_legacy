@@ -3123,7 +3123,7 @@ UniValue exec(const UniValue& params, bool fHelp)
 			results.push_back(Pair("Amount " + RoundToString(((double)nAmount / COIN), 4) , "Age " + RoundToString(item.first, 2)));
 			nTotal += nAmount;
 		}
-		results.push_back(Pair("Tithe_Balance_Available", (double)(nTotal / COIN)));
+		results.push_back(Pair("Total", (double)(nTotal / COIN)));
 	}
 	else if (sItem == "bankroll")
 	{

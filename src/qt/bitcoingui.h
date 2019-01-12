@@ -128,6 +128,7 @@ private:
 	QAction *proposalAddMenuAction;
 	QAction *contactAddMenuAction;
 	QAction *businessObjectListMenuAction;
+	QAction *pogLeaderboardListMenuAction;
 	QAction *proposalListAction;
 
     QAction *optionsAction;
@@ -245,6 +246,9 @@ private Q_SLOTS:
 	void gotoContactAddPage();
 	/** Switch to Business Object List page */
 	void gotoBusinessObjectListPage();
+
+	/** Switch to POG Leaderboard */
+	void gotoPOGLeaderboardListPage();
 
     /** Show Sign/Verify Message dialog and switch to sign message tab */
     void gotoSignMessageTab(QString addr = "");

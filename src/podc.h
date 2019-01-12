@@ -50,6 +50,7 @@ std::string GetListOfData(std::string sSourceData, std::string sDelimiter, std::
 std::string GJE(std::string sKey, std::string sValue, bool bIncludeDelimiter, bool bQuoteValue);
 int64_t StringToUnixTime(std::string sTime);
 time_t SyntheticUTCTime(const struct tm *tm);
+void EnsureDirectoryExists(std::string sPath);
 
 
 #endif // BITCOIN_PODC_H

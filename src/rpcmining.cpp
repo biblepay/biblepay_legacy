@@ -319,9 +319,8 @@ UniValue titheinfo(const UniValue& params, bool fHelp)
         );
     UniValue results(UniValue::VOBJ);
 	double dPD = GetPOGDifficulty(chainActive.Tip());
-	results.push_back(Pair("POG Difficulty", dPD));
-	results.push_back(Pair("24 Hour Tithes", (double)chainActive.Tip()->n24HourTithes/COIN));
-	results.push_back(Pair("pog_diff_chain_tip", chainActive.Tip()->nPOGDifficulty));
+	results.push_back(Pair("24_hour_tithes", (double)chainActive.Tip()->n24HourTithes/COIN));
+	results.push_back(Pair("pog_difficulty", chainActive.Tip()->nPOGDifficulty));
 	// check the tithe params
 	TitheDifficultyParams tdp = GetTitheParams(chainActive.Tip());
 	results.push_back(Pair("min_coin_age", tdp.min_coin_age));
@@ -427,7 +426,6 @@ UniValue pogpool(const UniValue& params, bool fHelp)
 	results.push_back(Pair("My Nickname", sNickName));
 	return results;
 }
-
 
 UniValue getmininginfo(const UniValue& params, bool fHelp)
 {

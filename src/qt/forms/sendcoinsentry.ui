@@ -141,10 +141,10 @@
       <item>
        <widget class="QCheckBox" name="checkboxFoundation">
         <property name="toolTip">
-         <string>Donate to Foundation?</string>
+         <string>POG Tithe?</string>
         </property>
         <property name="text">
-         <string>Donate to Foundation?</string>
+         <string>POG Tithe?</string>
         </property>
        </widget>
       </item>
@@ -154,7 +154,7 @@
          <string>Force Donation Regardless of Tithability?</string>
         </property>
         <property name="text">
-         <string>Force Donation?</string>
+         <string>Donate to Foundation?</string>
         </property>
        </widget>
       </item>
