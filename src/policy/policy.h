@@ -20,6 +20,8 @@ static const unsigned int DEFAULT_BLOCK_MIN_SIZE = 0;
 /** Default for -blockprioritysize, maximum space for zero/low-fee transactions **/
 static const unsigned int DEFAULT_BLOCK_PRIORITY_SIZE = 10000; // was 50000 in 0.12.0 and it is 0 in Bitcoin since 0.12
 /** The maximum size for transactions we're willing to relay/mine */
+/** FPOG_CUTOVER_HEIGHT: TODO Increase MAX_STANDARD_TX_SIZE and Min Relay Fee **/
+
 static const unsigned int MAX_STANDARD_TX_SIZE = 100000;
 /** Maximum number of signature check operations in an IsStandard() P2SH script */
 static const unsigned int MAX_P2SH_SIGOPS = 15;

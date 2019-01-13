@@ -95,7 +95,6 @@ std::string CreateBankrollDenominations(double nQuantity, CAmount denominationAm
 {
 	// First mark the denominations with the 1milliBBP TitheMarker (this saves them from being spent in PODC Updates):
 	denominationAmount += ((.001) * COIN);
-
 	CAmount nTotal = denominationAmount * nQuantity;
 
 	CAmount curBalance = pwalletMain->GetUnlockedBalance();
@@ -122,7 +121,8 @@ std::string CreateBankrollDenominations(double nQuantity, CAmount denominationAm
 	}
 	
 	bool fUseInstantSend = false;
-    if (!pwalletMain->CreateTransaction(vecSend, wtx, reservekey, nFeeRequired, nChangePosRet, sError, NULL, true, ONLY_NOT1000IFMN, fUseInstantSend)) 
+	double minCoinAge = 0;
+    if (!pwalletMain->CreateTransaction(vecSend, wtx, reservekey, nFeeRequired, nChangePosRet, sError, NULL, true, ONLY_NOT1000IFMN, fUseInstantSend, 0, minCoinAge, 0, denominationAmount)) 
 	{
 		if (!sError.empty())
 		{

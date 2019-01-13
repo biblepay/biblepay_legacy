@@ -1915,10 +1915,15 @@ std::map<double, CAmount> CWallet::GetDimensionalCoins(double nMinAge, CAmount n
 			{
                 CAmount nAmount = pcoin->GetAvailableCredit(true,"");
 				double nAge = (double)(GetAdjustedTime() - pcoin->GetTxTime()) / 86400;
+				if (nAge < 0) nAge = 0;
                 bool fLocked = (nAmount == (SANCTUARY_COLLATERAL * COIN));
 				if (!fLocked && nAge >= nMinAge && nAmount >= nMinAmount)
 				{
 					mapTithes.insert(make_pair(nAge, nAmount));
+				}
+				else
+				{
+					if (fDebugMaster && nAmount > (.01 * COIN)) LogPrintf("\nGetDimensionalCoins::NotCounting Coin Value %s of age %f ", RoundToString(nAmount/COIN, 4), nAge);
 				}
 			}
         }

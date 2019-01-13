@@ -3115,12 +3115,13 @@ UniValue exec(const UniValue& params, bool fHelp)
 
 		double dMinAge = cdbl(params[1].get_str(), 4);
 		CAmount caMinAmt = cdbl(params[2].get_str(), 4) * COIN;
+		if (caMinAmt < (.01 * COIN)) caMinAmt = (.01 * COIN);
 		std::map<double, CAmount> dtb = pwalletMain->GetDimensionalCoins(dMinAge, caMinAmt);
 		CAmount nTotal = 0;
 		BOOST_FOREACH(const PAIRTYPE(double, CAmount)& item, dtb)
     	{
 			CAmount nAmount = item.second;
-			results.push_back(Pair("Amount " + RoundToString(((double)nAmount / COIN), 4) , "Age " + RoundToString(item.first, 2)));
+			results.push_back(Pair("Amount " + RoundToString(((double)nAmount / COIN), 2) , "Age " + RoundToString(item.first, 2)));
 			nTotal += nAmount;
 		}
 		results.push_back(Pair("Total", (double)(nTotal / COIN)));
