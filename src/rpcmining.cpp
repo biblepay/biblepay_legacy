@@ -326,20 +326,19 @@ UniValue titheinfo(const UniValue& params, bool fHelp)
 	results.push_back(Pair("min_coin_age", tdp.min_coin_age));
 	results.push_back(Pair("min_coin_amt", (double)tdp.min_coin_amount / COIN));
 	results.push_back(Pair("max_tithe_amount", (double)tdp.max_tithe_amount / COIN));
-	std::map<double, CAmount> dtb = pwalletMain->GetDimensionalCoins(tdp.min_coin_age, tdp.min_coin_amount);
+	std::map<int64_t, CTitheObject> dtb = pwalletMain->GetDimensionalCoins(tdp.min_coin_age, tdp.min_coin_amount);
 	CAmount nTotal = 0;
 	double nQty = 0;
 	double nAvgAge = 0;
 	double nTotalAge = 0;
 	CAmount nMaxCoin = 0;
-	BOOST_FOREACH(const PAIRTYPE(double, CAmount)& item, dtb)
+	BOOST_FOREACH(const PAIRTYPE(int64_t, CTitheObject)& item, dtb)
     {
-		CAmount nAmount = item.second;
-		double dAge = item.first;
+		CTitheObject c = item.second;
 		nQty++;
-		if (nAmount > nMaxCoin) nMaxCoin = nAmount;
-		nTotal += nAmount;
-		nTotalAge += dAge;
+		if (c.Amount > nMaxCoin) nMaxCoin = c.Amount;
+		nTotal += c.Amount;
+		nTotalAge += c.Age;
 	}
 	if (nQty > 0) nAvgAge = nTotalAge / nQty;
 	CAmount nTithability = nMaxCoin;

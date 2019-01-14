@@ -182,12 +182,12 @@ TitheDifficultyParams GetTitheParams(const CBlockIndex* pindex)
 CAmount SelectCoinsForTithing(const CBlockIndex* pindex)
 {
 	TitheDifficultyParams tdp = GetTitheParams(pindex);
-	std::map<double, CAmount> dtb = pwalletMain->GetDimensionalCoins(tdp.min_coin_age, tdp.min_coin_amount);
+	std::map<int64_t, CTitheObject> dtb = pwalletMain->GetDimensionalCoins(tdp.min_coin_age, tdp.min_coin_amount);
 	CAmount nBigCoin = 0;
-	BOOST_FOREACH(const PAIRTYPE(double, CAmount)& item, dtb)
+	BOOST_FOREACH(const PAIRTYPE(int64_t, CTitheObject)& item, dtb)
    	{
-		CAmount nCoinAmount = item.second;
-		if (nCoinAmount > nBigCoin) nBigCoin = nCoinAmount;
+		CTitheObject c = item.second;
+		if (c.Amount > nBigCoin) nBigCoin = c.Amount;
 	}
 	return nBigCoin;
 }
@@ -281,7 +281,7 @@ bool IsTitheLegal(CTransaction ctx, CBlockIndex* pindex, CAmount tithe_amount)
 	CAmount caAmount = 0;
 	GetTxTimeAndAmount(hashInput, hashInputOrdinal, nTxTime, caAmount);
 	
-	double nTitheAge = (double)(pindex->GetBlockTime() - nTxTime) / 86400;
+	double nTitheAge = (double)((pindex->GetBlockTime() - nTxTime) / 86400);
 	if (false && !fProd && fPOGEnabled && fDebugMaster) 
 		LogPrintf(" Prior Coin Amount %f, Tithe Amt %f, Tithe_height # %f, Spend_time %f, Age %f        ", 
 		(double)caAmount/COIN, (double)tithe_amount/COIN, pindex->nHeight, nTxTime, (double)nTitheAge);
@@ -293,7 +293,7 @@ bool IsTitheLegal(CTransaction ctx, CBlockIndex* pindex, CAmount tithe_amount)
 	return false;
 }
 
-int64_t GetTitheAge(CTransaction ctx, CBlockIndex* pindex)
+double GetTitheAge(CTransaction ctx, CBlockIndex* pindex)
 {
 	// R ANDREWS - BIBLEPAY - 1/4/2018 
 	if (pindex==NULL || pindex->pprev==NULL || pindex->nHeight < 2) return false;
@@ -302,7 +302,7 @@ int64_t GetTitheAge(CTransaction ctx, CBlockIndex* pindex)
 	int64_t nTxTime = 0;
 	CAmount caAmount = 0;
 	GetTxTimeAndAmount(hashInput, hashInputOrdinal, nTxTime, caAmount);
-	double nTitheAge = (double)(pindex->GetBlockTime() - nTxTime) / 86400;
+	double nTitheAge = R2X((double)(pindex->GetBlockTime() - nTxTime) / 86400);
 	return nTitheAge;
 }
 
@@ -2048,18 +2048,17 @@ void UpdatePogPool(CBlockIndex* pindex, const CBlock& block)
 			if (!sTither.empty() && nAmount > (.49*COIN) && nAmount <= (300.00*COIN))
 			{
 				std::string sTXID = block.vtx[nTx].GetHash().GetHex();
-				int64_t nTitheAge = GetTitheAge(block.vtx[nTx], pindex);
-				nTithes += nAmount;
 				CTitheObject cTithe = pindex->mapTithes[sTXID];
+				cTithe.Age = GetTitheAge(block.vtx[nTx], pindex);
+				nTithes += nAmount;
 				cTithe.Amount = nAmount;
 				cTithe.Height = pindex->nHeight;
 				cTithe.Address = sTither;
 				cTithe.NickName = sNickName;
-				cTithe.Age = nTitheAge;
 				cTithe.TXID = sTXID;
 				cTithe.Ordinal = nTx;
 				pindex->mapTithes[sTXID] = cTithe;
-				if (false) LogPrintf("\n Induct height %f, NN %s, amt %f -> ", cTithe.Height, sTither.c_str(), (double)cTithe.Amount/COIN);
+				if (false) LogPrintf("\n Induct height %f, NN %s, amt %f  age %f -> ", cTithe.Height, sTither.c_str(), (double)cTithe.Amount/COIN, cTithe.Age);
 			}
 		}
 		pindex->nBlockTithes = nTithes;

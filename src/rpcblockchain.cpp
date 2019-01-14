@@ -3103,7 +3103,7 @@ UniValue exec(const UniValue& params, bool fHelp)
 				std::string sRow = "Legal: " + RoundToString(iLegal, 0) + " [" + sErr + "], Amount: " + RoundToString((double)(oTithe.Amount/COIN),2) 
 					+ ", Height: " + RoundToString(oTithe.Height, 0) 
 					+ ", " + oTithe.TXID + "-" + RoundToString(oTithe.Ordinal, 0) 
-					+ ", Age: " + RoundToString(oTithe.Age, 0) + ", NickName: " + oTithe.NickName;
+					+ ", Age: " + RoundToString(oTithe.Age, 2) + ", NickName: " + oTithe.NickName;
 				results.push_back(Pair(oTithe.Address, sRow));
 			}
 		}
@@ -3116,13 +3116,15 @@ UniValue exec(const UniValue& params, bool fHelp)
 		double dMinAge = cdbl(params[1].get_str(), 4);
 		CAmount caMinAmt = cdbl(params[2].get_str(), 4) * COIN;
 		if (caMinAmt < (.01 * COIN)) caMinAmt = (.01 * COIN);
-		std::map<double, CAmount> dtb = pwalletMain->GetDimensionalCoins(dMinAge, caMinAmt);
+		LogPrintf("GetDimensionalBalance::Checking For MinAge %f, Amount %f ", dMinAge, (double)(caMinAmt/COIN));
+		std::map<int64_t, CTitheObject> dtb = pwalletMain->GetDimensionalCoins(dMinAge, caMinAmt);
 		CAmount nTotal = 0;
-		BOOST_FOREACH(const PAIRTYPE(double, CAmount)& item, dtb)
+		BOOST_FOREACH(const PAIRTYPE(int64_t, CTitheObject)& item, dtb)
     	{
-			CAmount nAmount = item.second;
-			results.push_back(Pair("Amount " + RoundToString(((double)nAmount / COIN), 2) , "Age " + RoundToString(item.first, 2)));
-			nTotal += nAmount;
+			CTitheObject c = item.second;
+			results.push_back(Pair("Amount " + RoundToString(((double)(c.Amount / COIN)), 2), 
+				"Age " + RoundToString(c.Age, 2)));
+			nTotal += c.Amount;
 		}
 		results.push_back(Pair("Total", (double)(nTotal / COIN)));
 	}
@@ -3161,7 +3163,7 @@ UniValue exec(const UniValue& params, bool fHelp)
 			GetTxTimeAndAmount(hashInput, hashInputOrdinal, nTxTime, caAmount);
 			if (mapBlockIndex.count(hashBlockTithe) == 0) throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
 		    CBlockIndex* pindex = mapBlockIndex[hashBlockTithe];
-			double nTitheAge = (double)(pindex->GetBlockTime() - nTxTime) / 86400;
+			double nTitheAge = (double)((pindex->GetBlockTime() - nTxTime) / 86400);
 			CAmount nTotal = GetTitheTotal(txTithe);
 			bool bTitheLegal = (nTitheAge >= pindex->pprev->nMinCoinAge && caAmount >= pindex->pprev->nMinCoinAmount && nTotal <= pindex->pprev->nMaxTitheAmount);
 

@@ -87,7 +87,7 @@ public:
 	int Height;
 	int HeightLast;
 	uint256 LastBlockHash;
-	int64_t Age;
+	double Age;
 	std::string TXID;
 	int Ordinal;
 

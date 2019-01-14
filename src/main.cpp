@@ -125,8 +125,6 @@ std::map<int64_t, std::string> mapDebug;
 
 extern CPoolObject GetPoolVector(const CBlockIndex* pindex, int iPaymentTier);
 
-
-
 bool fPoolMiningMode = false;
 bool fPoolMiningUseSSL = false;
 
