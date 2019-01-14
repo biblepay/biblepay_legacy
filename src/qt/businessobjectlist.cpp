@@ -11,21 +11,24 @@
 #include <QTableWidget>
 #include <QGridLayout>
 #include <QUrl>
+#include <QTimer>
 #include <univalue.h>
 #include <boost/algorithm/string/case_conv.hpp> // for to_lower()
 
-std::string ObjectType = "";
-extern int GetUrlColumn(std::string sTarget);
 bool bSlotsCreated = false;
 
 QStringList BusinessObjectList::GetHeaders(std::string sFields)
 {
 	QStringList pHeaders;
-	UniValue aBO = GetBusinessObjectByFieldValue("object", "object_name", ObjectType);
+	UniValue aBO;
 	if (ObjectType != "pog_leaderboard")
 	{
+		aBO	= GetBusinessObjectByFieldValue("object", "object_name", ObjectType);
 		sFields = "id," + aBO["fields"].getValStr();	
 	}
+	
+	sHeaderFields = sFields;
+
 	std::vector<std::string> vFields = Split(sFields.c_str(),",");
 	for (int i = 0; i < (int)vFields.size(); i++)
 	{
@@ -51,16 +54,24 @@ void BusinessObjectList::setModel(WalletModel *model)
     this->model = model;
 }
 
+void BusinessObjectList::RefreshPogLeaderboard()
+{
+	if (ObjectType == "pog_leaderboard") 
+		UpdateObject("pog_leaderboard");
+}
+
 void BusinessObjectList::UpdateObject(std::string objType)
 {
 	ObjectType = objType;
 	std::string sFields;
     QString pString;
-	
-	if (objType=="pog_leaderboard")
+
+	if (objType == "pog_leaderboard")
 	{
 		sFields = "id,nickname,address,height,amount,weight";
 		pString = GUIUtil::TOQS(GetPOGBusinessObjectList(ObjectType, sFields));
+		// Update once per minute
+		QTimer::singleShot(60000, this, SLOT(RefreshPogLeaderboard()));
 	}
 	else
 	{
@@ -93,14 +104,21 @@ void BusinessObjectList::createUI(const QStringList &headers, const QString &pSt
 	if (pStr == "") return;
 
     pMatrix = SplitData(pStr);
-	int iAmountCol = GetUrlColumn("Amount");
-	int iFooterRow = (iAmountCol > -1) ? 1 : 0;
-    int rows = pMatrix.size();
+	int rows = pMatrix.size();
+	int iFooterRow = 0;
+	int iAmountCol = 0;
+	
 	if (ObjectType == "pog_leaderboard") 
 	{
 		iFooterRow += 6;
 		iAmountCol = -1;
 	}
+	else
+	{
+		iAmountCol = GetUrlColumn("Amount");
+		iFooterRow = (iAmountCol > -1) ? 1 : 0;
+	}
+
     ui->tableWidget->setRowCount(rows + iFooterRow);
     int cols = pMatrix[0].size() - 1;
     ui->tableWidget->setColumnCount(cols);
@@ -172,7 +190,7 @@ void BusinessObjectList::slotCustomMenuRequested(QPoint pos)
     menu->popup(ui->tableWidget->viewport()->mapToGlobal(pos));
 }
 
-std::string GetHtmlForm(std::string PK)
+std::string BusinessObjectList::GetHtmlForm(std::string PK)
 {
 	UniValue aBO = GetBusinessObjectByFieldValue("object", "object_name", ObjectType);
 	std::string sFields = aBO["fields"].getValStr();	
@@ -196,12 +214,12 @@ std::string GetHtmlForm(std::string PK)
 	return "Business object not found";
 }
 
-int GetUrlColumn(std::string sTarget)
+int BusinessObjectList::GetUrlColumn(std::string sTarget)
 {
 	boost::to_upper(sTarget);
-	UniValue aBO = GetBusinessObjectByFieldValue("object", "object_name", ObjectType);
-	std::string sFields = "id," + aBO["fields"].getValStr();	
-	std::vector<std::string> vFields = Split(sFields.c_str(), ",");
+	// UniValue aBO = GetBusinessObjectByFieldValue("object", "object_name", ObjectType);
+	// std::string sFields = "id," + aBO["fields"].getValStr();	
+	std::vector<std::string> vFields = Split(sHeaderFields.c_str(), ",");
 	for (int i = 0; i < (int)vFields.size(); i++)
 	{
 		std::string sFieldName = vFields[i];
@@ -256,6 +274,7 @@ void BusinessObjectList::slotWriteOrphan()
 		dlg->show();
     }
 }
+
 void BusinessObjectList::slotView()
 {
     int row = ui->tableWidget->selectionModel()->currentIndex().row();

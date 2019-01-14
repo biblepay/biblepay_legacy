@@ -35,6 +35,19 @@ public:
 	void setModel(WalletModel *model);
 	void UpdateObject(std::string objType);
 
+
+private:
+    Ui::BusinessObjectList *ui;
+	WalletModel *model;
+    void createUI(const QStringList &headers, const QString &pStr);
+    QVector<QVector<QString> > SplitData(const QString &pStr);
+	QStringList GetHeaders(std::string sFields);
+	void addFooterRow(int& rows, int& iFooterRow, std::string sCaption, std::string sValue);
+	std::string sHeaderFields;
+	std::string ObjectType;
+	std::string GetHtmlForm(std::string PK);
+	int GetUrlColumn(std::string sTarget);
+
 private Q_SLOTS:
     void slotNavigateTo();
 	void slotCustomMenuRequested(QPoint pos);
@@ -42,16 +55,7 @@ private Q_SLOTS:
 	void slotList();
 	void slotWriteOrphan();
 	void slotReviewLetter();
-
-private:
-    Ui::BusinessObjectList *ui;
-	WalletModel *model;
-    
-private:
-    void createUI(const QStringList &headers, const QString &pStr);
-    QVector<QVector<QString> > SplitData(const QString &pStr);
-	QStringList GetHeaders(std::string sFields);
-	void addFooterRow(int& rows, int& iFooterRow, std::string sCaption, std::string sValue);
+	void RefreshPogLeaderboard();
 
 };
 
