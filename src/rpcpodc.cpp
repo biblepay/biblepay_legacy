@@ -2384,7 +2384,7 @@ bool PODCUpdate(std::string& sError, bool bForce, std::string sDebugInfo)
 						LogPrintf(" \n PODCUpdate::Creating UTXO, Stake balance %f less than required amount %f, changing Target to stake balance. \n",(double)curBalance/COIN, (double)nTargetValue/COIN);
 						nTargetValue = curBalance;
 					}
-					if (nTargetValue < 1 || dUTXOAmount < 0)
+					if ((nTargetValue < 1 || dUTXOAmount < 0) && !bForceUTXO)
 					{
 						sError = "Unable to create PODC UTXO::Target UTXO too low.";
 						return false;
