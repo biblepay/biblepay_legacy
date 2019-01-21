@@ -345,6 +345,13 @@ void BitcoinGUI::createActions()
 		distributedComputingAction->setCheckable(true);
 	}
     tabGroup->addAction(distributedComputingAction);
+
+	pogLeaderboardAction = new QAction(QIcon(":/icons/" + theme + "/chat"), tr("POG Leaderboar&d"), this);
+    pogLeaderboardAction->setStatusTip(tr("See other BiblePay POG Participants who are actively helping our Orphan Foundation tithing in the POG Pool"));
+    pogLeaderboardAction->setToolTip(pogLeaderboardAction->statusTip());
+	if (!fProd) pogLeaderboardAction->setCheckable(true);
+    tabGroup->addAction(pogLeaderboardAction);
+
 	
 	proposalListAction = new QAction(QIcon(":/icons/" + theme + "/edit"), tr("&Proposals"), this);
     proposalListAction->setStatusTip(tr("List Proposals"));
@@ -407,6 +414,7 @@ void BitcoinGUI::createActions()
     connect(receiveCoinsAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
     connect(receiveCoinsAction, SIGNAL(triggered()), this, SLOT(gotoReceiveCoinsPage()));
 	connect(distributedComputingAction, SIGNAL(triggered()), this, SLOT(gotoDistributedComputingPage()));
+	connect(pogLeaderboardAction, SIGNAL(triggered()), this, SLOT(gotoPOGLeaderboardListPage()));
 	connect(proposalListAction, SIGNAL(triggered()), this, SLOT(gotoProposalListPage()));
 	connect(contactAddMenuAction, SIGNAL(triggered()), this, SLOT(gotoContactAddPage()));
 	connect(businessObjectListMenuAction, SIGNAL(triggered()), this, SLOT(gotoBusinessObjectListPage()));
@@ -763,6 +771,10 @@ void BitcoinGUI::createToolBars()
         {
             toolbar->addAction(distributedComputingAction);
         }
+		if (!fProd)
+		{
+			toolbar->addAction(pogLeaderboardAction);
+		}
 		toolbar->addAction(proposalListAction);
 		toolbar->addAction(receiveCoinsAction);
         QSettings settings;

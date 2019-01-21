@@ -154,6 +154,8 @@ CAmount GetDailyMinerEmissions(int nHeight)
 	if (fIsPogSuperblock) nHeight = nHeight - 1;
     CAmount nReaperReward = GetBlockSubsidy(pindexBestHeader->pprev, nBits, nHeight, consensusParams, false);
 	CAmount caMasternodePortion = GetMasternodePayment(nHeight, nReaperReward);
+	// Environment A (POG + PODC) : nReaperReward = 4410 - 4299 (Sanctuary) = 110 * 4  = 90.2K per day
+	// Environment B (POG only)   : nReaperReward = 6240 - 4733 (Sanctuary) = 1507 * 4 = 1.235MM per day
     CAmount nDailyRewards = (nReaperReward-caMasternodePortion) * BLOCKS_PER_DAY * 4; // This includes deflation
 	return nDailyRewards;
 }
@@ -449,7 +451,16 @@ CAmount GetTitheCap(const CBlockIndex* pindexLast)
 
 	if (fProd)
 	{
-		nPaymentsLimit = nSuperblockPartOfSubsidy * consensusParams.nSuperblockCycle * .00075 * nTitheCapFactor; // Half of monthly charity budget - with deflation - per day
+		//TODO:  If DC Live
+		bool fDCLive = true;
+		if (fDCLive)
+		{
+			nPaymentsLimit = nSuperblockPartOfSubsidy * consensusParams.nSuperblockCycle * .00075 * nTitheCapFactor; // Half of monthly charity budget - with deflation - per day
+		}
+		else
+		{
+			nPaymentsLimit = nSuperblockPartOfSubsidy * consensusParams.nSuperblockCycle * .005 * nTitheCapFactor; // Half of monthly charity budget - with deflation - per day
+		}
 	}
 	else
 	{
@@ -458,6 +469,13 @@ CAmount GetTitheCap(const CBlockIndex* pindexLast)
 	return nPaymentsLimit;
 }
 
+CAmount R20(CAmount amount)
+{
+	double nAmount = amount / COIN; 
+	nAmount = nAmount + 0.5 - (nAmount < 0); 
+	int iAmount = (int)nAmount;
+	return (iAmount * COIN);
+}
 
 double R2X(double var) 
 { 
@@ -886,12 +904,8 @@ std::string GetPOGBusinessObjectList(std::string sType, std::string sFields)
 	sData += "<total> " + RoundToString(c.TotalTithes/COIN, 2) + "</total>";
 	sData += "<hightithe>" + RoundToString(c.nHighTithe/COIN, 2) + "</hightithe>";
 	sData += "<participants>" + RoundToString(c.oTierRecipients[0], 0) + "</participants>";
-	LogPrintf("%s ", sData.c_str());
-
 	return sData;
 }
-
-
 
 double GetBusinessObjectTotal(std::string sType, std::string sFieldName, int iAggregationType)
 {

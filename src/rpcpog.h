@@ -113,5 +113,5 @@ bool CompareMask(CAmount nValue, CAmount nMask);
 std::string TitheErrorToString(int TitheError);
 std::string GetPOGBusinessObjectList(std::string sType, std::string sFields);
 bool CopyFile(std::string sSrc, std::string sDest);
-
+CAmount R20(CAmount amount);
 #endif

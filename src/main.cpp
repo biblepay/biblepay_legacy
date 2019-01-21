@@ -2270,21 +2270,40 @@ CAmount GetBlockSubsidy(const CBlockIndex* pindexPrev, int nPrevBits, int nPrevH
 
 	// Distributed Computing - Give 10% to charity, 5% to IT, 5% to P2P+PR, 50% to Distributed-Computing
 	double dSuperblockMultiplier = fSuperblocksEnabled ? (!fProd ? .15 : .20) : .10;
+	// Superblock Multiplier reverts back to .20 when POG is active and PODC is retired (this affects the monthly budget superblock)
 	bool fDCLive = (fProd && fDistributedComputingEnabled && pindexPrev->nHeight > F11000_CUTOVER_HEIGHT_PROD) || (!fProd && fDistributedComputingEnabled);
 	// POW Payment + Sanctuary Payment / .30 = Gross reward minus (Sanctuary payment - POW Payment) = Gross Total Coinbase reward - This equals the .70 escrow:
+	// Todo: Ensure fDCLive reverts to false when PODC is retired
 	if (fDCLive) dSuperblockMultiplier = .70;
     CAmount nSuperblockPart = (nPrevHeight > consensusParams.nBudgetPaymentsStartBlock) ? nSubsidy * dSuperblockMultiplier : 0;
 	CAmount nMainSubsidy = nSubsidy - nSuperblockPart;
 	// POG - BIBLEPAY - R ANDREWS
 	if (fPogActive)
 	{
-		CAmount caMasternodePortion = nMainSubsidy * .975;  // 4972
-		CAmount nNetSubsidy = nMainSubsidy - caMasternodePortion;  // 5100 - 4972 = 128
-		CAmount nReaperReward = nNetSubsidy * .20;  // Reaper = 100
-		CAmount nPOGPoolReward = nNetSubsidy * 4; // Pool = 400
-		CAmount nGrossReaperReward = nReaperReward + caMasternodePortion; // 100 + 4600 = 4700
-		CAmount nGrossPOGPoolReward = (nPOGPoolReward * BLOCKS_PER_DAY) + caMasternodePortion; // 4600 + (400 * 205)
-		nMainSubsidy = (fIsPogSuperblock ? nGrossPOGPoolReward : nGrossReaperReward);
+		if (fDCLive)
+		{
+			// Example Subsidy as of 1-21-2019 (with POG Enabled and PODC Enabled) - NOTE:  We never veer from our original emission schedule
+			// nMainSubsidy (15000) - nSuperblockPart (10500) =               // Main Subsidy: 4500                                          
+			CAmount caMasternodePortion = nMainSubsidy * .975;                // Sanctuary Portion: 4387                                    
+			CAmount nNetSubsidy = nMainSubsidy - caMasternodePortion;         // Main - Sanctuary = 4500 - 4387 = 113                       
+			CAmount nReaperReward = nNetSubsidy * .20;                        // PartA = 23                                        
+			CAmount nPOGPoolReward = nNetSubsidy * 4;                         // Pool = 452                                         
+			CAmount nGrossReaperReward = nReaperReward + caMasternodePortion; // PartA (23) + Sanc (4387) = 4410
+			CAmount nGrossPOGPoolReward = (nPOGPoolReward * BLOCKS_PER_DAY) + caMasternodePortion; // Sanctuary (4387) + (Pool (452) * Blocks per day (205))
+			nMainSubsidy = (fIsPogSuperblock ? nGrossPOGPoolReward : nGrossReaperReward); // 452 * 205 (pool) or (4410 - (4410*.975=4299) = 113) (Actual Reaper Reward)
+		}
+		else
+		{
+			// Example POG Subsidy Breakdown with PODC Retired - as of 1/21/2019 - NOTE:  We never veer from our original emission schedule
+			// nMainSubsidy (15000) - nSuperblockPart (3,000) =               // Main Subsidy (Without PODC): 12,000
+			CAmount caMasternodePortion = nMainSubsidy * .40;                 // Sanctuary Portion: 12,000 * .40 = 4,800
+			CAmount nNetSubsidy = nMainSubsidy - caMasternodePortion;         // Main - Sanctuary: 7,200
+			CAmount nReaperReward = nNetSubsidy * .20;                        // Reaper Reward: 1,440
+			CAmount nPOGPoolReward = nNetSubsidy * .80;                       // Pool: 5,760
+			CAmount nGrossReaperReward = nReaperReward + caMasternodePortion; // PartA (1,440) + Sanctuary (4,800) = 6,240
+			CAmount nGrossPOGPoolReward = (nPOGPoolReward * BLOCKS_PER_DAY) + caMasternodePortion; // Sanc (4,800) + (Pool (5,760) * Blocks per day (205))
+			nMainSubsidy = (fIsPogSuperblock ? nGrossPOGPoolReward : nGrossReaperReward); // 5,760 * 205 (pool) or (6,240 - sanc reward in block (4800) = 1,440 (Actual Reaper Reward))
+		}
 	}
 	// END OF POG
 
@@ -2313,7 +2332,7 @@ CAmount GetMasternodePayment(int nHeight, CAmount blockValue)
     }
 
 	bool fDCLive = (fProd && fDistributedComputingEnabled && nHeight > F11000_CUTOVER_HEIGHT_PROD) || (!fProd && fDistributedComputingEnabled);
-
+	//ToDo: Ensure fDCLive reverts to false when PODC is retired
 	if (fDCLive)
 	{
 		double dRevertedToDCMiners = .50;
@@ -2323,7 +2342,14 @@ CAmount GetMasternodePayment(int nHeight, CAmount blockValue)
 	}
 	if (fPogActive)
 	{
-		ret = fIsPogSuperblock ? blockValue * .01 : blockValue * .975;
+		if (fDCLive)
+		{
+			ret = fIsPogSuperblock ? blockValue * .01 : blockValue * .975;
+		}
+		else
+		{
+			ret = fIsPogSuperblock ? blockValue * .01 : blockValue * .765;
+		}
 	}
     return ret;
 }
@@ -4497,7 +4523,7 @@ bool CheckPOGPoolRecipients(const Consensus::Params& params, int nHeight, const 
 				for (unsigned int i = 1; i < block.vtx[0].vout.size(); i++)
 				{
 					std::string sRecipient = PubKeyToAddress(block.vtx[0].vout[i].scriptPubKey);
-					if (sRecipient == oTithe.Address && block.vtx[0].vout[i].nValue == caPoolPayment) 
+					if (sRecipient == oTithe.Address && R20(block.vtx[0].vout[i].nValue) == R20(caPoolPayment)) 
 					{
 						bFound = true;
 						nAmount += block.vtx[0].vout[i].nValue;
@@ -4507,21 +4533,33 @@ bool CheckPOGPoolRecipients(const Consensus::Params& params, int nHeight, const 
 				if (bFound == false) 
 				{
 					double dVersion = GetBlockVersion(block.vtx[0]);
-					LogPrintf("\nCheckPoolRecipients Height %f, pprevheight %f, POW Reward %f, MN Reward %f, RewardWithoutFees %f, Entire nBlockReward %f, Fees %f, Recip Missing %s, Version %f ", 
-						nHeight, (double)pindexPrev->nHeight, (double)nPOWReward/COIN, (double)caMasternodePortion/COIN, (double)blockRewardWithoutFees/COIN, (double)nBlockReward/COIN, 
-						(double)nFees/COIN, oTithe.Address.c_str(), (double)dVersion);
+					CAmount nBlockTotal = block.vtx[0].GetValueOut();
+					LogPrintf("\nCheckPoolRecipients Height %f, pprevheight %f, POW Reward %f, MN Reward %f, RewardWithoutFees %f, Entire nBlockReward %f, BlockTotal %f, Fees %f, Recip Missing %s, PoolReward %f, Version %f ", 
+						nHeight, (double)pindexPrev->nHeight, (double)nPOWReward/COIN,
+						(double)caMasternodePortion/COIN, (double)blockRewardWithoutFees/COIN, (double)nBlockReward/COIN, (double)nBlockTotal/COIN, 
+						(double)nFees/COIN, oTithe.Address.c_str(), (double)(caPoolPayment/COIN), (double)dVersion);
 					for (unsigned int i = 1; i < block.vtx[0].vout.size(); i++)
 					{
 						std::string sRecipient = PubKeyToAddress(block.vtx[0].vout[i].scriptPubKey);
-						LogPrintf(" pool recip %f to %s in amount %f : ", i, sRecipient.c_str(), block.vtx[0].vout[i].nValue / COIN);
+						LogPrintf("  Forensics Phase 1 - Pool Recipient %f to %s in Amount %f : ", 
+							i, sRecipient.c_str(), (double)(block.vtx[0].vout[i].nValue / COIN));
 					}
-		
+					// Print forensics
+					BOOST_FOREACH(const PAIRTYPE(std::string, CTitheObject)& item, cPool.mapPoolPayments)
+					{
+						CTitheObject objTithe = item.second;
+						if (objTithe.Weight > 0) 
+						{
+							CAmount amtPayment = objTithe.Weight * nPOGReward;
+							LogPrintf(" Forensics Phase 2 - Pool Recipient %s, Amount %f ", objTithe.Address.c_str(), (double)(amtPayment/COIN));
+						}
+					}
 					return false;
 				}
 			}
 		}
 	}
-	LogPrintf(" SuccessfulCheckOfPogPoolRecipients:Checked %f, Amount %f, Height %f ",nChecked, nAmount / COIN, nHeight);
+	LogPrintf(" SuccessfulCheckOfPogPoolRecipients:Checked %f, Amount %f, Height %f ", nChecked, (double)(nAmount / COIN), nHeight);
 
 	return true;
 }
@@ -4581,9 +4619,15 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIn
 		{
 			if (nHeight > FPOG_CUTOVER_HEIGHT_TESTNET && !fReindex)
 			{
-				int64_t nAge = GetAdjustedTime() - pindexPrev->nTime;
+				int64_t nAge = GetAdjustedTime() - block.GetBlockTime();
 				bool fRecent = nAge < (60 * 60 * 2) ? true : false;
-				// Construct superblock height
+				int64_t nAgeOfPriorBlock = GetAdjustedTime() - pindexPrev->nTime;
+				CAmount nBlockTotal = block.vtx[0].GetValueOut();
+				// The idea here is if we ever have a situation in prod where the chain freezes for more than 2 hours (because of an unaccepted POG superblock), we will allow the next block to pass if the subsidy < 20,000 BBP, but no POG recipients will be paid.
+				// This is not normally allowed if the prior block was solved within 2 hours however (so in reality this should never happen if our chain keeps moving).  
+				// This is for emergency purposes only if our chain gets stuck, the devs can mine the block manually.
+				// In all other cases (for a block that was solved within 2 hours, and is a POG superblock, we require all of the POG pool recipients to be present, and all of the payment values to match.
+				if (nAgeOfPriorBlock > (60 * 60 * 2) && nBlockTotal < (MAX_BLOCK_SUBSIDY * COIN)) fRecent = false;
 				bool fIsPogSuperblock = CSuperblock::IsPOGSuperblock(nHeight);
 				if (fIsPogSuperblock && fRecent)
 				{
@@ -6260,7 +6304,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
 		sVersion = strReplace(sVersion, "/", "");
 		sVersion = strReplace(sVersion, ".", "");
 		double dPeerVersion = cdbl(sVersion, 0);
-		if (dPeerVersion < 1179 && !fProd)
+		if (dPeerVersion < 1183 && !fProd)
 		{
 		    LogPrint("net","Disconnecting unauthorized peer in TestNet using old version %f\r\n",(double)dPeerVersion);
 			Misbehaving(pfrom->GetId(), 14);

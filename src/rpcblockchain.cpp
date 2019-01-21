@@ -3244,6 +3244,10 @@ UniValue exec(const UniValue& params, bool fHelp)
 		CAmount nMask = (.001) * COIN;
 		std::string sType = params[1].get_str();
 		CAmount nAmount = cdbl(sType, 10) * COIN;
+		std::string s1 = params[1].get_str();
+		double n1 = cdbl(s1,4);
+		results.push_back(Pair("r1", n1));
+		results.push_back(Pair("r2", (double)(R20(n1 * COIN) / COIN)));
 		results.push_back(Pair("mask", (double)nMask/COIN));
 		results.push_back(Pair("amt", (double)nAmount/COIN));
 		results.push_back(Pair("compare", CompareMask(nAmount, nMask)));

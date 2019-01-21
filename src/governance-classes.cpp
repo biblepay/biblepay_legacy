@@ -680,6 +680,13 @@ CAmount CSuperblock::GetPaymentsLimit(int nBlockHeight)
 		nBits = 486585255;  // Set diff at about 1.42 for Superblocks
 	}
 	int nSuperblockCycle = IsValidBlockHeight(nBlockHeight) ? consensusParams.nSuperblockCycle : consensusParams.nDCCSuperblockCycle;
+	// ToDo: Ensure fDCLive reverts to false when PODC is retired:
+	// Note at block 98400, our budget is 13518421, ensure governor below is capped at this figure
+	// Note 2: We must change this '1' multiplier to .814 to maintain the current defating monthly budget
+	// Why did this happen?  Because when we moved to PODC rewards, we switched our '1' multiplier to .20, and emitted 12 monthly governance superblocks with a deflating emission down to 13.5MM bbp
+	// If we switch back to 1, the next governance budget would start higher (IE 15MM) and that is not good for all intents and purposes, it is better to continue where we are (at the lower value)
+	// Therefore we can do this by continuing from .814 at a certain cutover height (to be added asap).
+	
 	double nBudgetAvailable = (fDCLive && IsValidBlockHeight(nBlockHeight) && !IsDCCSuperblock(nBlockHeight)) ? .20 : 1;
 	// The first call to GetBlockSubsidy calculates the future reward (and this has our standard deflation of 19% per year in it)
     CAmount nSuperblockPartOfSubsidy = GetBlockSubsidy(pindexBestHeader->pprev, nBits, nBlockHeight, consensusParams, true);
@@ -726,7 +733,7 @@ void CSuperblock::ParsePaymentSchedule(std::string& strPaymentAddresses, std::st
 	{
         std::ostringstream ostr;
         ostr << "CSuperblock::ParsePaymentSchedule -- Error no payments";
-        LogPrintf("%s\n", ostr.str());
+        LogPrint("gobject", "%s\n", ostr.str());
         throw std::runtime_error(ostr.str());
     }
 

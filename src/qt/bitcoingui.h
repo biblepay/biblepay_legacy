@@ -124,6 +124,7 @@ private:
     QAction *receiveCoinsAction;
     QAction *receiveCoinsMenuAction;
 	QAction *distributedComputingAction;
+	QAction *pogLeaderboardAction;
 	QAction *distributedComputingMenuAction;
 	QAction *proposalAddMenuAction;
 	QAction *contactAddMenuAction;

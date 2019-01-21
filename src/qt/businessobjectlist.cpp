@@ -107,11 +107,12 @@ void BusinessObjectList::createUI(const QStringList &headers, const QString &pSt
 	int rows = pMatrix.size();
 	int iFooterRow = 0;
 	int iAmountCol = 0;
-	
+	int iNameCol = 0;
 	if (ObjectType == "pog_leaderboard") 
 	{
 		iFooterRow += 6;
 		iAmountCol = -1;
+		iNameCol = GetUrlColumn("nickname");
 	}
 	else
 	{
@@ -125,12 +126,22 @@ void BusinessObjectList::createUI(const QStringList &headers, const QString &pSt
     ui->tableWidget->setHorizontalHeaderLabels(headers);
     QString s;
 	double dGrandTotal = 0;
-    for(int i=0; i < rows; i++)
+	
+    for(int i = 0; i < rows; i++)
 	{
-        for(int j=0; j < cols; j++)
+		bool bHighlighted = (iNameCol > 0 && pMatrix[i][iNameCol] == GUIUtil::TOQS(msNickName));
+	
+        for(int j = 0; j < cols; j++)
 		{
-            ui->tableWidget->setItem(i,j, new QTableWidgetItem(pMatrix[i][j]));
+			QTableWidgetItem* q = new QTableWidgetItem(pMatrix[i][j]);
+			ui->tableWidget->setItem(i, j, q);
 		}
+		if (bHighlighted)
+		{
+			ui->tableWidget->selectRow(i);
+			ui->tableWidget->item(i, iNameCol)->setBackground(Qt::yellow);
+		}
+
 		if (iAmountCol > -1)
 		{
 			dGrandTotal += cdbl(GUIUtil::FROMQS(pMatrix[i][iAmountCol]), 2);

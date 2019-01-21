@@ -141,7 +141,7 @@
       <item>
        <widget class="QCheckBox" name="checkboxFoundation">
         <property name="toolTip">
-         <string>POG Tithe?</string>
+         <string>POG Tithe? (Enter PogPool to receive Mining Rewards from your Giving)</string>
         </property>
         <property name="text">
          <string>POG Tithe?</string>
@@ -151,7 +151,7 @@
       <item>
        <widget class="QCheckBox" name="chkForceTithe">
         <property name="toolTip">
-         <string>Force Donation Regardless of Tithability?</string>
+         <string>Send Coins to Orphan Foundation to Support Orphans?</string>
         </property>
         <property name="text">
          <string>Donate to Foundation?</string>
