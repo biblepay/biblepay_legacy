@@ -179,7 +179,7 @@ UniValue blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool tx
     	result.push_back(Pair("satisfiesbiblehash", bSatisfiesBibleHash ? "true" : "false"));
 		result.push_back(Pair("biblehash", bibleHash.GetHex()));
 		// Rob A. - 02-11-2018 - Proof-of-Distributed-Computing
-		if (fDistributedComputingEnabled)
+		if (PODCEnabled(blockindex->nHeight))
 		{
 			std::string sCPIDSignature = ExtractXML(block.vtx[0].vout[0].sTxOutMessage, "<cpidsig>","</cpidsig>");
 			std::string sCPID = GetElement(sCPIDSignature, ";", 0);
@@ -1987,7 +1987,7 @@ UniValue exec(const UniValue& params, bool fHelp)
 				// Ensure this CPID has not solved any of the last N blocks in prod or last block in testnet if header age is < 1 hour:
 				std::string sCPID = GetElement(sMySig, ";", 0);
 				bool bSolvedPriorBlocks = HasThisCPIDSolvedPriorBlocks(sCPID, pindexPrev);
-				bool f14000 = (fDistributedComputingEnabled && ((pindexPrev->nHeight > F14000_CUTOVER_HEIGHT_PROD && fProd)  ||  (pindexPrev->nHeight > F14000_CUTOVER_HEIGHT_TESTNET && !fProd)));
+				bool f14000 = ((pindexPrev->nHeight > F14000_CUTOVER_HEIGHT_PROD && fProd)  ||  (pindexPrev->nHeight > F14000_CUTOVER_HEIGHT_TESTNET && !fProd));
 				if (f14000)
 				{
 					if (bSolvedPriorBlocks) sLegalityNarr="CPID_SOLVED_RECENT_BLOCK";
@@ -3251,6 +3251,8 @@ UniValue exec(const UniValue& params, bool fHelp)
 		results.push_back(Pair("mask", (double)nMask/COIN));
 		results.push_back(Pair("amt", (double)nAmount/COIN));
 		results.push_back(Pair("compare", CompareMask(nAmount, nMask)));
+		results.push_back(Pair("min_relay_fee", DEFAULT_MIN_RELAY_TX_FEE));
+
 	}
 	else if (sItem == "datalist")
 	{

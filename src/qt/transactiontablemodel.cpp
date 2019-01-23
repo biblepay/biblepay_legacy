@@ -469,10 +469,11 @@ QString TransactionTableModel::formatTxToAddress(const TransactionRecord *wtx, b
 		case TransactionRecord::SendToOther:
 			return QString::fromStdString(wtx->address) + watchAddress;
 		case TransactionRecord::PODCUpdate:
-			return fDistributedComputingEnabled ? tr("PODC Update") : tr("Payment to Self");
+			return tr("PODC Update");
 		case TransactionRecord::PODCAssociation:
 			return tr("PODC Association");
 		case TransactionRecord::SendToSelf:
+			return tr("Payment to Self");
     default:
         return tr("(n/a)") + watchAddress;
     }

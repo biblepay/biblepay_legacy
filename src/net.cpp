@@ -3005,7 +3005,7 @@ bool DownloadIndividualDistributedComputingFile2(int iNextSuperblock, std::strin
 
 bool DownloadDistributedComputingFile(int iNextSuperblock, std::string& sError)
 {
-	if (!fDistributedComputingEnabled) return true;
+	if (!PODCEnabled(chainActive.Tip()->nHeight)) return true;
 	if (fDistributedComputingCycleDownloading) return false;
 	TouchDailyMagnitudeFile();
 	fDistributedComputingCycleDownloading = true;

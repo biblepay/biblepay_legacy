@@ -164,12 +164,12 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
             sub.type = TransactionRecord::SendToSelf;
 			sub.IsIPFSAttachment = wtx.IsIPFSAttachment();
 
-			if (fDistributedComputingEnabled && sDCC == "DCC")
+			if (sDCC == "DCC")
 			{
 				sub.type=TransactionRecord::PODCAssociation;
 				sub.address = "Association: " + sDCC;
 			}
-			if (!sTasks.empty() && fDistributedComputingEnabled)
+			if (!sTasks.empty())
 			{
 				sub.type=TransactionRecord::PODCUpdate;
 				sub.address = "Tasks: " + sTasks;

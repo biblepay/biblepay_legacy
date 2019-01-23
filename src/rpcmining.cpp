@@ -461,7 +461,7 @@ UniValue getmininginfo(const UniValue& params, bool fHelp)
 
     obj.push_back(Pair("currentblocksize", (uint64_t)nLastBlockSize));
     obj.push_back(Pair("currentblocktx",   (uint64_t)nLastBlockTx));
-	if (fDistributedComputingEnabled)
+	if (PODCEnabled(chainActive.Tip()->nHeight))
 	{
 		double dPODCDifficulty = GetBlockMagnitude(chainActive.Tip()->nHeight);
 		double dPOWDifficulty = GetDifficulty(chainActive.Tip())*10;

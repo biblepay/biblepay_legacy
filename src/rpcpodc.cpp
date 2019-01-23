@@ -2281,7 +2281,7 @@ std::string GetBoincTasksByHost(int iHostID, std::string sProjectId)
 
 bool PODCUpdate(std::string& sError, bool bForce, std::string sDebugInfo)
 {
-	if (!fDistributedComputingEnabled) return false;
+	if (!PODCEnabled(chainActive.Tip()->nHeight)) return false;
 	std::vector<std::string> vCPIDS = Split(msGlobalCPID.c_str(), ";");
 	std::string sPrimaryCPID = GetElement(msGlobalCPID, ";", 0);
 	if (sPrimaryCPID.empty())
@@ -2822,9 +2822,8 @@ int64_t GetDCCFileAge()
 std::string ExecuteDistributedComputingSanctuaryQuorumProcess()
 {
 	// If not a sanctuary, exit
-	if (!fDistributedComputingEnabled) return "";
-	if (fProd && chainActive.Tip()->nHeight < F11000_CUTOVER_HEIGHT_PROD) return "";
-	
+	if (!PODCEnabled(chainActive.Tip()->nHeight)) return "";
+
 	// 4-3-2018 - R ANDREWS - Honor Sanctuary Aggregator Nodes
 	double dAggregationRank = cdbl(GetArg("-sanctuaryrank", "0"), 0);
 	bool bAggregator = (dAggregationRank > 0 && dAggregationRank < 10);

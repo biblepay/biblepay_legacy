@@ -442,18 +442,13 @@ CAmount GetTitheCap(const CBlockIndex* pindexLast)
 	if (pindexLast == NULL || pindexLast->nHeight < 2) return 0;
     CAmount nSuperblockPartOfSubsidy = GetBlockSubsidy(pindexLast, nBits, pindexLast->nHeight, consensusParams, true);
 	// R ANDREWS - POG - 12/6/2018 - CRITICAL - If we go with POG + PODC, the Tithe Cap must be lower to ensure miner profitability
-
 	// TestNet : POG+POBH with PODC enabled  = (100.5K miner payments, 50K daily pogpool tithe cap, deflating) = 0.003125 (4* the blocks per day in testnet)
 	// Prod    : POG+POBH with PODC enabled  = (100.5K miner payments, 50K daily pogpool tithe cap, deflating) = 0.00075
-
     CAmount nPaymentsLimit = 0;
 	double nTitheCapFactor = GetSporkDouble("tithecapfactor", 1);
-
 	if (fProd)
 	{
-		//TODO:  If DC Live
-		bool fDCLive = true;
-		if (fDCLive)
+		if (PODCEnabled(pindexLast->nHeight))
 		{
 			nPaymentsLimit = nSuperblockPartOfSubsidy * consensusParams.nSuperblockCycle * .00075 * nTitheCapFactor; // Half of monthly charity budget - with deflation - per day
 		}
@@ -1172,10 +1167,9 @@ std::string AddBlockchainMessages(std::string sAddress, std::string sType, std::
 	
     
 	bool fUseInstantSend = false;
-	// 3-12-2018; Never spend sanctuary funds - R ANDREWS - BIBLEPAY
-	// 12-5-2018; ToDo: Ensure PODC Age > .75 days old (TheSnat)
+	// Never spend sanctuary funds - R ANDREWS - BIBLEPAY
 	// PODC_Update: Addl params required to enforce coin_age: bool fUseInstantSend=false, int iMinConfirms = 0, double dMinCoinAge = 0, CAmount caMinCoinAmount = 0
-	// 1-4-2019; Ensure we don't spend POG bankroll denominations
+	// Ensure we don't spend POG bankroll denominations
 	CAmount nBankrollMask = (.001) * COIN;
 
     if (!pwalletMain->CreateTransaction(vecSend, wtx, reservekey, nFeeRequired, nChangePosRet,
@@ -1323,7 +1317,11 @@ std::string GetSporkValue(std::string sKey)
 
 double GetDifficultyN(const CBlockIndex* blockindex, double N)
 {
-	if (fDistributedComputingEnabled)
+	if (fPOGEnabled)
+	{
+		return GetDifficulty(blockindex)*N;
+	}
+	else if (PODCEnabled(blockindex->nHeight))
 	{
 		if (chainActive.Tip() == NULL) return 1;
 		int nHeight = (blockindex == NULL) ? chainActive.Tip()->nHeight : blockindex->nHeight;
@@ -1488,12 +1486,13 @@ CPoolObject GetPoolVector(const CBlockIndex* pindexSource, int iPaymentTier)
 	    {
 			CTitheObject oTithe = item.second;
 			int iLegal = IsTitheLegal2(oTithe, tdp);
+			int iTitheNum = 0;
 			if (iLegal == 1)
 			{		
+				iTitheNum++;
 				CTitheObject cTithe = cPool.mapTithes[oTithe.Address];
 				cTithe.Amount += oTithe.Amount;
 				cTithe.Height = oTithe.Height;
-				// { cTithe.PaymentTier = oTithe.Height % 16; }
 				cTithe.PaymentTier = 0;  // Pog V1.1 - Everyone is in Tier 0
 				cTithe.Address = oTithe.Address;
 				cTithe.NickName = oTithe.NickName;
@@ -2086,7 +2085,6 @@ void InitializePogPool(const CBlockIndex* pindexSource, int nSize, const CBlock&
     if (pindexLast == NULL || pindexLast->nHeight == 0)  return;
 	int64_t nAge = GetAdjustedTime() - pindexLast->GetBlockTime();
 	if (nAge > (60 * 60 * 36) && nSize < (BLOCKS_PER_DAY+1)) return;
-	//LogPrintf(" InitializePogPool Size %f Height %f ",nSize, pindexSource->nHeight);
 
 	if (nSize==1)
 	{
@@ -2162,3 +2160,14 @@ bool CopyFile(std::string sSrc, std::string sDest)
     }
 	return true;
 }
+
+bool PODCEnabled(int nHeight)
+{
+	if (nHeight == 0)
+	{
+		return GetAdjustedTime() < 1553975345; // 3-30-2019
+	}
+	bool fDC = (fProd && nHeight > F11000_CUTOVER_HEIGHT_PROD && nHeight < PODC_LAST_BLOCK_PROD) || (!fProd && nHeight > F11000_CUTOVER_HEIGHT_PROD && nHeight < PODC_LAST_BLOCK_TESTNET);
+	return fDC;
+}
+

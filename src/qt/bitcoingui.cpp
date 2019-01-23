@@ -340,11 +340,11 @@ void BitcoinGUI::createActions()
     distributedComputingAction = new QAction(QIcon(":/icons/" + theme + "/key"), tr("&Distributed Computing"), this);
     distributedComputingAction->setStatusTip(tr("Set up Biblepay Distributed Computing options (help cure cancer)"));
     distributedComputingAction->setToolTip(distributedComputingAction->statusTip());
-	if (fDistributedComputingEnabled)
+	if (PODCEnabled(0))
 	{
 		distributedComputingAction->setCheckable(true);
+	    tabGroup->addAction(distributedComputingAction);
 	}
-    tabGroup->addAction(distributedComputingAction);
 
 	pogLeaderboardAction = new QAction(QIcon(":/icons/" + theme + "/chat"), tr("POG Leaderboar&d"), this);
     pogLeaderboardAction->setStatusTip(tr("See other BiblePay POG Participants who are actively helping our Orphan Foundation tithing in the POG Pool"));
@@ -767,7 +767,7 @@ void BitcoinGUI::createToolBars()
         toolbar->addAction(overviewAction);
         toolbar->addAction(sendCoinsAction);
         toolbar->addAction(historyAction);
-		if (fDistributedComputingEnabled) 
+		if (PODCEnabled(0)) 
         {
             toolbar->addAction(distributedComputingAction);
         }
@@ -907,7 +907,7 @@ void BitcoinGUI::setWalletActionsEnabled(bool enabled)
     receiveCoinsAction->setEnabled(enabled);
     receiveCoinsMenuAction->setEnabled(enabled);
 
-	if (fDistributedComputingEnabled)
+	if (PODCEnabled(0))
 	{
 		distributedComputingAction->setEnabled(enabled);
 		distributedComputingMenuAction->setEnabled(enabled);
@@ -1218,7 +1218,6 @@ void BitcoinGUI::gotoMasternodePage()
 
 void BitcoinGUI::gotoDistributedComputingPage()
 {
-	if (!fDistributedComputingEnabled) return;
     distributedComputingAction->setChecked(true);
     if (walletFrame) walletFrame->gotoDistributedComputingPage();
 }
@@ -1772,7 +1771,7 @@ void BitcoinGUI::detectShutdown()
 		fCheckedPODCUnlock = true;
 		bool bFeatureEnabled = GetArg("-disablepodcunlock", "false") == "true" ? false : true;
 		// If Wallet is locked and PODC is enabled and feature is enabled...
-		if (bFeatureEnabled && fDistributedComputingEnabled && pwalletMain->IsLocked())
+		if (bFeatureEnabled && pwalletMain->IsLocked())
 		{
 			{
 				bool bOK;

@@ -81,7 +81,6 @@ std::string sGlobalPOLError = "";
 std::string sGlobalBlockHash = "";
 bool fMiningDiagnostics = false;
 bool fDistributedComputingCycle = false;
-bool fDistributedComputingEnabled = false;
 bool fDistributedComputingCycleDownloading = false;
 bool fInternalRequestedShutdown = false;
 bool fPOGEnabled = false;
@@ -99,6 +98,8 @@ int64_t TEMPLE_COLLATERAL = 10000000;
 int64_t MAX_BLOCK_SUBSIDY = 20000;
 std::string strTemplePubKey = "";
 int64_t MAX_MESSAGE_LENGTH = 3000;
+int DEFAULT_MIN_RELAY_TX_FEE = 10000;
+
 bool fProd = false;
 bool fMineSlow = false;
 double dHashesPerSec = 0;
@@ -1686,31 +1687,8 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState &state, const C
             }
         }
 
-		// BiblePay - If this is a colored coin transaction, coins must be sent from coins of same color
-		if (fRetirementAccountsEnabled)
-		{
-    		BOOST_FOREACH(const CTxOut txout, tx.vout) 
-			{
-				CComplexTransaction cct(tx);
-				if (cct.Color=="401")
-				{
-					BOOST_FOREACH(const CTxIn &txin, tx.vin)
-					{
-						const CTxOut &prevout = view.GetOutputFor(txin);
-                 		uint256 uPriorHash = txin.prevout.hash;
-						CAmount nPriorValue = prevout.nValue;
-						CComplexTransaction ccHistory(prevout);
-						// bool bOK = (ccHistory.Color == cct.Color);
-						LogPrintf(" ** Accept To Memory Pool: PriorHash %s, Prior Value %f, OutColor %s, Prior InColor %s ",
-							uPriorHash.GetHex().c_str(),(double)nPriorValue,ccHistory.Color.c_str(), cct.Color.c_str());
-						// ToDo: Reject tx in memory pool if not colored to colored
-					}
-				}
-			}
-		}
-
 		// BiblePay - If this is a Boinc Distributed Computing Burn Transaction, user must prove ownership of the CPID, otherwise reject the transaction
-		if (fDistributedComputingEnabled)
+		if (PODCEnabled(chainActive.Height()))
 		{
 	 		BOOST_FOREACH(const CTxOut txout, tx.vout) 
 			{
@@ -2271,9 +2249,11 @@ CAmount GetBlockSubsidy(const CBlockIndex* pindexPrev, int nPrevBits, int nPrevH
 	// Distributed Computing - Give 10% to charity, 5% to IT, 5% to P2P+PR, 50% to Distributed-Computing
 	double dSuperblockMultiplier = fSuperblocksEnabled ? (!fProd ? .15 : .20) : .10;
 	// Superblock Multiplier reverts back to .20 when POG is active and PODC is retired (this affects the monthly budget superblock)
-	bool fDCLive = (fProd && fDistributedComputingEnabled && pindexPrev->nHeight > F11000_CUTOVER_HEIGHT_PROD) || (!fProd && fDistributedComputingEnabled);
+	//bool fDCLive = (fProd && fDistributedComputingEnabled && pindexPrev->nHeight > F11000_CUTOVER_HEIGHT_PROD && pindexPrev->nHeight < PODC_LAST_BLOCK_PROD) || (!fProd && fDistributedComputingEnabled);
+	bool fDCLive = PODCEnabled(pindexPrev->nHeight);
+
 	// POW Payment + Sanctuary Payment / .30 = Gross reward minus (Sanctuary payment - POW Payment) = Gross Total Coinbase reward - This equals the .70 escrow:
-	// Todo: Ensure fDCLive reverts to false when PODC is retired
+	
 	if (fDCLive) dSuperblockMultiplier = .70;
     CAmount nSuperblockPart = (nPrevHeight > consensusParams.nBudgetPaymentsStartBlock) ? nSubsidy * dSuperblockMultiplier : 0;
 	CAmount nMainSubsidy = nSubsidy - nSuperblockPart;
@@ -2331,8 +2311,8 @@ CAmount GetMasternodePayment(int nHeight, CAmount blockValue)
 		ret = fSuperblocksEnabled ? blockValue * (!fProd ? .50 : .40) : blockValue * .10;
     }
 
-	bool fDCLive = (fProd && fDistributedComputingEnabled && nHeight > F11000_CUTOVER_HEIGHT_PROD) || (!fProd && fDistributedComputingEnabled);
-	//ToDo: Ensure fDCLive reverts to false when PODC is retired
+//	bool fDCLive = (fProd && fDistributedComputingEnabled && nHeight > F11000_CUTOVER_HEIGHT_PROD && nHeight < PODC_LAST_BLOCK_PROD) || (!fProd && fDistributedComputingEnabled);
+	bool fDCLive = PODCEnabled(nHeight);
 	if (fDCLive)
 	{
 		double dRevertedToDCMiners = .50;
@@ -4496,7 +4476,11 @@ bool ContextualCheckBlockHeader(const CBlockHeader& block, CValidationState& sta
 
 bool CheckPOGPoolRecipients(const Consensus::Params& params, int nHeight, const CBlock& block, CBlockIndex * const pindexPrev)
 {
-	CPoolObject cPool = GetPoolVector(pindexPrev, 0);
+	InitializePogPool(chainActive.Tip(), BLOCKS_PER_DAY, block);
+	int nPoolHeight = pindexPrev->nHeight - 10;
+	CBlockIndex* pindexPay = FindBlockByHeight(nPoolHeight);
+	CPoolObject cPool = GetPoolVector(pindexPay, 0);
+	LogPrintf(" CheckPOGPoolRecipients::Check_Height %f ", pindexPay->nHeight);
 
 	CAmount nBlockReward = 0;
 	for (unsigned int i = 0; i < block.vtx[0].vout.size(); i++)
@@ -4534,15 +4518,18 @@ bool CheckPOGPoolRecipients(const Consensus::Params& params, int nHeight, const 
 				{
 					double dVersion = GetBlockVersion(block.vtx[0]);
 					CAmount nBlockTotal = block.vtx[0].GetValueOut();
-					LogPrintf("\nCheckPoolRecipients Height %f, pprevheight %f, POW Reward %f, MN Reward %f, RewardWithoutFees %f, Entire nBlockReward %f, BlockTotal %f, Fees %f, Recip Missing %s, PoolReward %f, Version %f ", 
-						nHeight, (double)pindexPrev->nHeight, (double)nPOWReward/COIN,
+					LogPrintf("\nCheckPoolRecipients Height %f, pprevheight %f, POG Reward %f, POW Reward %f, MN Reward %f, RewardWithoutFees %f, Entire nBlockReward %f, BlockTotal %f, Fees %f, Recip Missing %s, PoolReward %f, Version %f ", 
+						nHeight, (double)pindexPrev->nHeight, (double)nPOGReward/COIN, 
+						(double)nPOWReward/COIN,
 						(double)caMasternodePortion/COIN, (double)blockRewardWithoutFees/COIN, (double)nBlockReward/COIN, (double)nBlockTotal/COIN, 
-						(double)nFees/COIN, oTithe.Address.c_str(), (double)(caPoolPayment/COIN), (double)dVersion);
-					for (unsigned int i = 1; i < block.vtx[0].vout.size(); i++)
+						(double)nFees/COIN, oTithe.Address.c_str(), (double)caPoolPayment/COIN, (double)dVersion);
+					for (unsigned int i = 0; i < block.vtx[0].vout.size(); i++)
 					{
+						double dSyntheticWeight = 0;
+						if (nPOGReward > 0) dSyntheticWeight = ((double)block.vtx[0].vout[i].nValue/COIN) / ((double)nPOGReward/COIN);
 						std::string sRecipient = PubKeyToAddress(block.vtx[0].vout[i].scriptPubKey);
-						LogPrintf("  Forensics Phase 1 - Pool Recipient %f to %s in Amount %f : ", 
-							i, sRecipient.c_str(), (double)(block.vtx[0].vout[i].nValue / COIN));
+						LogPrintf("\n  Forensics Phase 1 - Pool Recipient %f to %s, Weight: %f, Amount %f : ", 
+							i, sRecipient.c_str(), dSyntheticWeight, (double)block.vtx[0].vout[i].nValue / COIN);
 					}
 					// Print forensics
 					BOOST_FOREACH(const PAIRTYPE(std::string, CTitheObject)& item, cPool.mapPoolPayments)
@@ -4551,7 +4538,7 @@ bool CheckPOGPoolRecipients(const Consensus::Params& params, int nHeight, const 
 						if (objTithe.Weight > 0) 
 						{
 							CAmount amtPayment = objTithe.Weight * nPOGReward;
-							LogPrintf(" Forensics Phase 2 - Pool Recipient %s, Amount %f ", objTithe.Address.c_str(), (double)(amtPayment/COIN));
+							LogPrintf("\n Forensics Phase 2 - Pool Recipient %s, Weight %f, Amount %f ", objTithe.Address.c_str(), (double)objTithe.Weight, (double)amtPayment/COIN);
 						}
 					}
 					return false;
@@ -4559,7 +4546,7 @@ bool CheckPOGPoolRecipients(const Consensus::Params& params, int nHeight, const 
 			}
 		}
 	}
-	LogPrintf(" SuccessfulCheckOfPogPoolRecipients:Checked %f, Amount %f, Height %f ", nChecked, (double)(nAmount / COIN), nHeight);
+	LogPrintf(" SuccessfulCheckOfPogPoolRecipients:Checked %f, Amount %f, Height %f ", nChecked, (double)nAmount/COIN, nHeight);
 
 	return true;
 }
@@ -4612,71 +4599,70 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIn
     }
 
 	// Rob A. - BiblePay - 12/3/2018
-	if (fPOGEnabled && !fProd)
+	if (fPOGEnabled && !fReindex)
 	{
-		// Contextual Checkblock Rules for POG
-		if (fPOGPaymentsEnabled)
+		if ((nHeight > FPOG_CUTOVER_HEIGHT_TESTNET && !fProd) || (fProd && nHeight > FPOG_CUTOVER_HEIGHT_PROD))
 		{
-			if (nHeight > FPOG_CUTOVER_HEIGHT_TESTNET && !fReindex)
+			int64_t nAge = GetAdjustedTime() - block.GetBlockTime();
+			bool fRecent = nAge < (60 * 60 * 2) ? true : false;
+			int64_t nAgeOfPriorBlock = GetAdjustedTime() - pindexPrev->nTime;
+			CAmount nBlockTotal = block.vtx[0].GetValueOut();
+			// The idea here is if we ever have a situation in prod where the chain freezes for more than 2 hours (because of an unaccepted POG superblock), we will allow the next block to pass if the subsidy < 20,000 BBP, but no POG recipients will be paid.
+			// This is not normally allowed if the prior block was solved within 2 hours however (so in reality this should never happen if our chain keeps moving).  
+			// This is for emergency purposes only if our chain gets stuck, the devs can mine the block manually.
+			// In all other cases (for a block that was solved within 2 hours, and is a POG superblock, we require all of the POG pool recipients to be present, and all of the payment values to match.
+			if (nAgeOfPriorBlock > (60 * 60 * 2) && nBlockTotal < (MAX_BLOCK_SUBSIDY * COIN)) fRecent = false;
+			bool fIsPogSuperblock = CSuperblock::IsPOGSuperblock(nHeight);
+			if (fIsPogSuperblock && fRecent)
 			{
-				int64_t nAge = GetAdjustedTime() - block.GetBlockTime();
-				bool fRecent = nAge < (60 * 60 * 2) ? true : false;
-				int64_t nAgeOfPriorBlock = GetAdjustedTime() - pindexPrev->nTime;
-				CAmount nBlockTotal = block.vtx[0].GetValueOut();
-				// The idea here is if we ever have a situation in prod where the chain freezes for more than 2 hours (because of an unaccepted POG superblock), we will allow the next block to pass if the subsidy < 20,000 BBP, but no POG recipients will be paid.
-				// This is not normally allowed if the prior block was solved within 2 hours however (so in reality this should never happen if our chain keeps moving).  
-				// This is for emergency purposes only if our chain gets stuck, the devs can mine the block manually.
-				// In all other cases (for a block that was solved within 2 hours, and is a POG superblock, we require all of the POG pool recipients to be present, and all of the payment values to match.
-				if (nAgeOfPriorBlock > (60 * 60 * 2) && nBlockTotal < (MAX_BLOCK_SUBSIDY * COIN)) fRecent = false;
-				bool fIsPogSuperblock = CSuperblock::IsPOGSuperblock(nHeight);
-				if (fIsPogSuperblock && fRecent)
+				bool fVerified = CheckPOGPoolRecipients(consensusParams, nHeight, block, pindexPrev);
+				double dVersion = GetBlockVersion(block.vtx[0]);
+				if (!fVerified)
 				{
-					InitializePogPool(pindexPrev, BLOCKS_PER_DAY, block);
-					bool fVerified = CheckPOGPoolRecipients(consensusParams, nHeight, block, pindexPrev);
-					double dVersion = GetBlockVersion(block.vtx[0]);
-					if (!fVerified)
+					std::string sErr = "ContextualCheckBlock::ERROR! - POG Recipients invalid at height " + RoundToString(nHeight, 0) + " version " + RoundToString(dVersion, 0);
+					LogPrintf("\n%s", sErr.c_str());
+					double nPogRecipLevel = GetSporkDouble("checkpogrecipients", 0);
+					if (nPogRecipLevel == 0)
 					{
-						std::string sErr = "ContextualCheckBlock::ERROR! - POG Recipients invalid at height " + RoundToString(nHeight, 0) + " version " + RoundToString(dVersion, 0);
+						return state.DoS(10, error(sErr.c_str()), REJECT_INVALID, "pog-recipients-invalid");
+					}
+					else if (nPogRecipLevel == 1)
+					{
 						LogPrintf("\n%s", sErr.c_str());
-						double nPogRecipLevel = GetSporkDouble("checkpogrecipients", 0);
-						if (nPogRecipLevel == 0)
-						{
-							return state.DoS(10, error(sErr.c_str()), REJECT_INVALID, "pog-recipients-invalid");
-						}
-						else if (nPogRecipLevel == 1)
-						{
-							LogPrintf("\n%s", sErr.c_str());
-						}
-						else if (nPogRecipLevel == 2)
-						{
-							// No d-dos, but reject block
-							return false;
-						}
+					}
+					else if (nPogRecipLevel == 2)
+					{
+						// No d-dos, but reject block
+						return false;
 					}
 				}
 			}
 		}
 	}
-	else if (!fPOGEnabled && fDistributedComputingEnabled && ((nHeight > F14000_CUTOVER_HEIGHT_PROD && fProd)  ||  (nHeight > F14000_CUTOVER_HEIGHT_TESTNET && !fProd)))
+	else if (PODCEnabled(nHeight))
 	{
-		// Verify the block is signed by a CPID
-		std::string sError = "";
-		std::string sCPIDSignature = ExtractXML(block.vtx[0].vout[0].sTxOutMessage, "<cpidsig>","</cpidsig>");
-		if (sCPIDSignature.empty())
+		bool fGrandfather = ((nHeight < F14000_CUTOVER_HEIGHT_PROD && fProd) || (!fProd && nHeight < F14000_CUTOVER_HEIGHT_TESTNET));
+		if (!fGrandfather)
 		{
-		    return state.DoS(1, error("%s: CPID Signature empty. ", __func__), REJECT_INVALID, "cpid-empty");
-		}
-		bool fCheckCPIDSignature = VerifyCPIDSignature(sCPIDSignature, false, sError);
-		if (!fCheckCPIDSignature)
-		{
-			return state.DoS(1, error("%s: CPID Signature Check Failed.  CPID %s, Error %s", __func__, block.sBlockMessage.c_str(), sError.c_str()), REJECT_INVALID, "cpid-signature-invalid");
-		}
-		// Ensure this CPID has not solved any of the last N blocks in prod or last block in testnet if header age is < 1 hour:
-		std::string sCPID = GetElement(sCPIDSignature, ";", 0);
-		bool bSolvedPriorBlocks = HasThisCPIDSolvedPriorBlocks(sCPID, pindexPrev);
-		if (bSolvedPriorBlocks)
-		{
-			return state.DoS(1, error("%s: CPID %s has solved prior blocks. ", __func__, sCPID.c_str()), REJECT_INVALID, "cpid-solved-prior-blocks");
+			// Verify the block is signed by a CPID
+			std::string sError = "";
+			std::string sCPIDSignature = ExtractXML(block.vtx[0].vout[0].sTxOutMessage, "<cpidsig>","</cpidsig>");
+			if (sCPIDSignature.empty())
+			{
+				return state.DoS(1, error("%s: CPID Signature empty. ", __func__), REJECT_INVALID, "cpid-empty");
+			}
+			bool fCheckCPIDSignature = VerifyCPIDSignature(sCPIDSignature, false, sError);
+			if (!fCheckCPIDSignature)
+			{
+				return state.DoS(1, error("%s: CPID Signature Check Failed.  CPID %s, Error %s", __func__, block.sBlockMessage.c_str(), sError.c_str()), REJECT_INVALID, "cpid-signature-invalid");
+			}
+			// Ensure this CPID has not solved any of the last N blocks in prod or last block in testnet if header age is < 1 hour:
+			std::string sCPID = GetElement(sCPIDSignature, ";", 0);
+			bool bSolvedPriorBlocks = HasThisCPIDSolvedPriorBlocks(sCPID, pindexPrev);
+			if (bSolvedPriorBlocks)
+			{
+				return state.DoS(1, error("%s: CPID %s has solved prior blocks. ", __func__, sCPID.c_str()), REJECT_INVALID, "cpid-solved-prior-blocks");
+			}
 		}
 	}
 	
@@ -4839,7 +4825,7 @@ static bool AcceptBlock(const CBlock& block, CValidationState& state, const CCha
     if (fCheckForPruning)
         FlushStateToDisk(state, FLUSH_STATE_NONE); // we just allocated more disk space for block files
 	// Biblepay - Distributed Computing - 2/3/2018 - Run the DC process if we are in sync
-	if (IsNodeSynced(block.GetBlockTime()) && fDistributedComputingEnabled)
+	if (IsNodeSynced(block.GetBlockTime()) && PODCEnabled(pindex->nHeight))
 	{
 		std::string sResult = ExecuteDistributedComputingSanctuaryQuorumProcess();
 		if (sResult != "NOT_A_SANCTUARY")
@@ -7584,15 +7570,16 @@ void SetOverviewStatus()
 	// std::string sQT = "QT: " + RoundToString(dPriorPhase, 0) + "%";
 	// std::string sQTColor = (dPriorPhase == 0) ? "<font color=blue>" : "<font color=green>";
 	// End of QT
-	if (fDistributedComputingEnabled) UpdateMagnitude();
+	bool fDCEnabled = PODCEnabled(chainActive.Tip()->nHeight);
+
+	if (fDCEnabled) UpdateMagnitude();
 	std::string sPrayer = "NA";
 	GetDataList("PRAYER", 7, iPrayerIndex, "", sPrayer);
-	msGlobalStatus = "<font color=blue>Blocks: " + RoundToString((double)chainActive.Tip()->nHeight, 0) 
-		+ "; PODC Difficulty: " + RoundToString(dDiff, 2) 
-		+ "; <br>POW Difficulty: " + RoundToString(dPOWDifficulty, 2) + ";";
-    if (fDistributedComputingEnabled) msGlobalStatus += " Magnitude: " + RoundToString(mnMagnitude, 2) + "; ";
+	msGlobalStatus = "<font color=blue>Blocks: " + RoundToString((double)chainActive.Tip()->nHeight, 0);
+	if (fDCEnabled) msGlobalStatus += "; PODC Difficulty: " + RoundToString(dDiff, 2);
+	msGlobalStatus += "; <br>POW Difficulty: " + RoundToString(dPOWDifficulty, 2) + ";";
+    if (fDCEnabled) msGlobalStatus += " Magnitude: " + RoundToString(mnMagnitude, 2) + "; ";
 	if (fPOGEnabled) msGlobalStatus += " POG Difficulty: " + RoundToString(GetPOGDifficulty(chainActive.Tip()), 2) + "; ";
-
 	msGlobalStatus += "</font>";
 	std::string sVersionAlert = GetVersionAlert();
 	if (!sVersionAlert.empty()) msGlobalStatus += " <font color=purple>" + sVersionAlert + "</font> ;";
@@ -7719,7 +7706,7 @@ void MemorizeBlockChainPrayers(bool fDuringConnectBlock, bool fSubThread, bool f
 		CBlockIndex* pindex = FindBlockByHeight(nMinDepth);
 		const Consensus::Params& consensusParams = Params().GetConsensus();
 		if (fSubThread && !fPrayersMemorized) LogPrintf("MemorizeBlockChainPrayers @ %f ",GetAdjustedTime());
-		int64_t nMaxPaymentAge = 60 * 60 * 24 * 7;
+		// int64_t nMaxPaymentAge = 60 * 60 * 24 * 7;
 		while (pindex && pindex->nHeight < nMaxDepth)
 		{
 			if (pindex) if (pindex->nHeight < chainActive.Tip()->nHeight) pindex = chainActive.Next(pindex);
@@ -7738,6 +7725,7 @@ void MemorizeBlockChainPrayers(bool fDuringConnectBlock, bool fSubThread, bool f
 						double dAmount = block.vtx[n].vout[i].nValue / COIN;
 						dTotalSent += dAmount;
 
+						/*
 						// As of F14000, we no longer need to tally cancer payments by public key, remove this to respect anonymity
 						if (!(fDistributedComputingEnabled && ((pindex->nHeight > F14000_CUTOVER_HEIGHT_PROD && fProd)  ||  (pindex->nHeight > F14000_CUTOVER_HEIGHT_TESTNET && !fProd))))
 						{
@@ -7748,6 +7736,7 @@ void MemorizeBlockChainPrayers(bool fDuringConnectBlock, bool fSubThread, bool f
 								WriteCache("AddressPayment", sRecipient, RoundToString(dTally, 0), block.GetBlockTime());
 							}
 						}
+						*/
 						// The following 3 lines are used for PODS (Proof of document storage); allowing persistence of paid documents in IPFS
 						std::string sPK = PubKeyToAddress(block.vtx[n].vout[i].scriptPubKey);
 						if (sPK == consensusParams.FoundationAddress || sPK == consensusParams.FoundationPODSAddress)

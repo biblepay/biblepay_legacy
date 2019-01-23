@@ -111,7 +111,7 @@ bool IsBlockValueValid(const CBlock& block, int nBlockHeight, CAmount blockRewar
     if(!masternodeSync.IsSynced()) 
 	{
         // not enough data but at least it must NOT exceed superblock max value
-        if(CSuperblock::IsValidBlockHeight(nBlockHeight) || (fDistributedComputingEnabled && CSuperblock::IsDCCSuperblock(nBlockHeight)))
+        if (CSuperblock::IsValidBlockHeight(nBlockHeight) || CSuperblock::IsDCCSuperblock(nBlockHeight))
 		{
             if(fDebugMaster) LogPrintf("IsBlockPayeeValid -- WARNING: Client not synced, checking superblock max bounds only \n");
             if(!isSuperblockMaxValueMet) 
@@ -276,7 +276,7 @@ bool IsBlockPayeeValid(const CTransaction& txNew, int nBlockHeight, CAmount bloc
     return true;
 }
 
-void FillBlockPayments(CMutableTransaction& txNew, int nBlockHeight, CAmount blockReward, CAmount blockRewardWithoutFees, CAmount nFees, 
+void FillBlockPayments(CBlockIndex* pindexPrev, CMutableTransaction& txNew, int nBlockHeight, CAmount blockReward, CAmount blockRewardWithoutFees, CAmount nFees, 
 	CAmount caRetiredMiningTithe, CTxOut& txoutMasternodeRet, std::vector<CTxOut>& voutSuperblockRet)
 {
     // only create superblocks if spork is enabled AND if superblock is actually triggered
@@ -284,13 +284,6 @@ void FillBlockPayments(CMutableTransaction& txNew, int nBlockHeight, CAmount blo
 	
     const Consensus::Params& consensusParams = Params().GetConsensus();
 	bool fSuperblocksEnabled = nBlockHeight >= consensusParams.nSuperblockStartBlock && fMasternodesEnabled;
-
-	// Do this if this is a Distributed Computing Superblock (once per day):
-	if (fDistributedComputingEnabled && CSuperblockManager::IsDistributedComputingSuperblockTriggered(nBlockHeight))
-	{
-		   // This means we have a Sanctuary Quorum Agreement in place 
-		   LogPrintf("Triggering DCC \n");
-	}
 
 	// Do this if this is a governance superblock (once per month):
     if(fSuperblocksEnabled && CSuperblockManager::IsSuperblockTriggered(nBlockHeight)) 
@@ -303,7 +296,7 @@ void FillBlockPayments(CMutableTransaction& txNew, int nBlockHeight, CAmount blo
 	if (fSuperblocksEnabled)
 	{
 		// FILL BLOCK PAYEE WITH MASTERNODE PAYMENT OTHERWISE
-		mnpayments.FillBlockPayee(txNew, nBlockHeight, blockReward, blockRewardWithoutFees, caRetiredMiningTithe, txoutMasternodeRet);
+		mnpayments.FillBlockPayee(pindexPrev, txNew, nBlockHeight, blockReward, blockRewardWithoutFees, caRetiredMiningTithe, txoutMasternodeRet);
 		if (fDebug10) LogPrintf("FillBlockPayments -- nBlockHeight %d blockReward %f txoutMasternodeRet %s txNew %s",     
 			nBlockHeight, (double)blockReward, txoutMasternodeRet.ToString(), txNew.ToString());
 	}
@@ -341,14 +334,23 @@ bool CMasternodePayments::CanVote(COutPoint outMasternode, int nBlockHeight)
 }
 
 
-void CMasternodePayments::PayPOGRecipients(CMutableTransaction& txNew, int nBlockHeight, CAmount blockRewardWithoutFees)
+void CMasternodePayments::PayPOGRecipients(CBlockIndex* pindexPrev, CMutableTransaction& txNew, int nBlockHeight, CAmount blockRewardWithoutFees)
 {
-	// POG POOL PAYMENTS - 12/7/2018 - PAY POOL After Reaper and after Sanctuary
+	// POG POOL PAYMENTS - 1/23/2018 - PAY POOL After Reaper and after Sanctuary
+	CBlock cblock;
+	const Consensus::Params& consensusParams = Params().GetConsensus();
+	if (ReadBlockFromDisk(cblock, pindexPrev, consensusParams, "InitializePogPool"))
+	{
+		InitializePogPool(pindexPrev, BLOCKS_PER_DAY, cblock);
+	}
+
 	if (fPOGPaymentsEnabled)
 	{
-		int nPoolHeight = nBlockHeight - 1;
-		CBlockIndex* pindexPrev = FindBlockByHeight(nPoolHeight);
-		CPoolObject cPool = GetPoolVector(pindexPrev, 0);
+		int nPoolHeight = nBlockHeight - 11;
+		CBlockIndex* pindexPay = FindBlockByHeight(nPoolHeight);
+		if (fDebugMaster) LogPrintf(" PayPogRecip Height %f, tip height %f ", pindexPay->nHeight, chainActive.Tip()->nHeight);
+	
+		CPoolObject cPool = GetPoolVector(pindexPay, 0);
 		CAmount masternodePayment = GetMasternodePayment(nBlockHeight, blockRewardWithoutFees);
 		CAmount nPOWReward = blockRewardWithoutFees - masternodePayment;
 		CAmount nPOGReward = nPOWReward * .98;
@@ -387,7 +389,7 @@ void CMasternodePayments::PayPOGRecipients(CMutableTransaction& txNew, int nBloc
 *   Fill Masternode ONLY payment block
 */
 
-void CMasternodePayments::FillBlockPayee(CMutableTransaction& txNew, int nBlockHeight, CAmount blockReward, CAmount blockRewardWithoutFee, CAmount caRetiredMiningTithe, CTxOut& txoutMasternodeRet)
+void CMasternodePayments::FillBlockPayee(CBlockIndex* pindexPrev, CMutableTransaction& txNew, int nBlockHeight, CAmount blockReward, CAmount blockRewardWithoutFee, CAmount caRetiredMiningTithe, CTxOut& txoutMasternodeRet)
 {
 	
     txoutMasternodeRet = CTxOut();
@@ -398,16 +400,6 @@ void CMasternodePayments::FillBlockPayee(CMutableTransaction& txNew, int nBlockH
     CAmount masternodePayment = GetMasternodePayment(nBlockHeight, blockReward);
 
 	bool fIsPogSuperblock = CSuperblock::IsPOGSuperblock(nBlockHeight);
-	if (fIsPogSuperblock) 
-	{
-		CBlockIndex* pindexPrev = FindBlockByHeight(nBlockHeight - 1);
-		CBlock cblock;
-		const Consensus::Params& consensusParams = Params().GetConsensus();
-		if (ReadBlockFromDisk(cblock, pindexPrev, consensusParams, "InitializePogPool"))
-		{
-			InitializePogPool(pindexPrev, BLOCKS_PER_DAY, cblock);
-		}
-	}
 	
     if(!mnpayments.GetBlockPayeeAndCollateral(nBlockHeight, payee, nCollateral, sCollateralScript)) 
 	{
@@ -419,7 +411,7 @@ void CMasternodePayments::FillBlockPayee(CMutableTransaction& txNew, int nBlockH
             // ...and we can't calculate it on our own
             if (fDebugMaster) LogPrint("mnpayments","CMasternodePayments::FillBlockPayee -- Failed to detect masternode to pay\n");
 			// Pay the POG Pool
-			if (fPOGEnabled && fPOGPaymentsEnabled && fIsPogSuperblock) PayPOGRecipients(txNew, nBlockHeight, blockRewardWithoutFee);
+			if (fPOGEnabled && fPOGPaymentsEnabled && fIsPogSuperblock) PayPOGRecipients(pindexPrev, txNew, nBlockHeight, blockRewardWithoutFee);
             return;
         }
         // fill payee with locally calculated winner and hope for the best
@@ -438,7 +430,7 @@ void CMasternodePayments::FillBlockPayee(CMutableTransaction& txNew, int nBlockH
     CBitcoinAddress address2(address1);
     LogPrint("mnpayments","CMasternodePayments::FillBlockPayee -- Masternode payment %f to %s\n", (double)masternodePayment, address2.ToString().c_str());
 	// Pay the POG Pool
-	if (fPOGEnabled && fPOGPaymentsEnabled && fIsPogSuperblock) PayPOGRecipients(txNew, nBlockHeight, blockRewardWithoutFee);
+	if (fPOGEnabled && fPOGPaymentsEnabled && fIsPogSuperblock) PayPOGRecipients(pindexPrev, txNew, nBlockHeight, blockRewardWithoutFee);
 }
 
 
@@ -566,84 +558,7 @@ void CMasternodePayments::ProcessMessage(CNode* pfrom, std::string& strCommand, 
     } 
 	else if (strCommand == NetMsgType::DISTRIBUTEDCOMPUTINGVOTE) 
 	{ 
-		/*
-		// Vote on Distributed Computing Credit Contract
-	    CDistributedComputingVote vote;
-        vRecv >> vote;
-        if(pfrom->nVersion < GetMinMasternodePaymentsProto()) return;
-        if(!pCurrentBlockIndex) return;
-        uint256 nHash = vote.GetHash();
-        pfrom->setAskFor.erase(nHash);
-        {
-            LOCK(cs_mapDistributedComputingVote);
-            if(mapDistributedComputingVotes.count(nHash)) 
-			{
-                LogPrintf("DISTRIBUTEDCOMPUTINGVOTE -- hash=%s, nHeight=%d seen\n", nHash.ToString(), pCurrentBlockIndex->nHeight);
-                return;
-            }
-            // Avoid processing same vote multiple times
-            mapDistributedComputingVotes[nHash] = vote;
-            mapDistributedComputingVotes[nHash].MarkAsNotVerified();
-        }
-
-        int nFirstBlock = pCurrentBlockIndex->nHeight - GetStorageLimit();
-        if(vote.nHeight < (nFirstBlock - 1000)
-			|| vote.nHeight > (pCurrentBlockIndex->nHeight + 1000)) 
-		{
-            LogPrintf("DISTRIBUTEDCOMPUTINGVOTE -- vote out of range: nFirstBlock=%d, nBlockHeight=%d, nHeight=%d\n", 
-				nFirstBlock, vote.nHeight, pCurrentBlockIndex->nHeight);
-            return;
-        }
-
-        std::string strError = "";
-        if(!vote.IsValid(pfrom, vote.contractHash, strError)) 
-		{
-            LogPrintf("DISTRIBUTEDCOMPUTINGVOTE -- invalid message, error: %s\n", strError);
-            return;
-        }
-
-        masternode_info_t mnInfo = mnodeman.GetMasternodeInfo(vote.vinMasternode);
-        if(!mnInfo.fInfoValid) {
-            // mn was not found, so we can't check vote, some info is probably missing
-            LogPrintf("DISTRIBUTEDCOMPUTINGVOTE -- masternode is missing %s\n", vote.vinMasternode.prevout.ToStringShort());
-            mnodeman.AskForMN(pfrom, vote.vinMasternode);
-            return;
-        }
-
-        int nDos = 0;
-        if(!vote.CheckSignature(mnInfo.pubKeyMasternode, vote.contractHash, nDos)) 
-		{
-            if(nDos) 
-			{
-                LogPrintf("DISTRIBUTEDCOMPUTINGVOTE -- ERROR: invalid signature\n");
-                (pfrom->GetId(), );
-            } else {
-                // only warn about anything non-critical (i.e. nDos == 0) in debug mode
-                LogPrintf("DISTRIBUTEDCOMPUTINGVOTE -- WARNING: invalid signature\n");
-            }
-            // Either our info or vote info could be outdated.
-            // In case our info is outdated, ask for an update,
-            mnodeman.AskForMN(pfrom, vote.vinMasternode);
-            // but there is nothing we can do if vote info itself is outdated
-            // (i.e. it was signed by a mn which changed its key),
-            // so just quit here.
-            return;
-        }
-
-        CTxDestination address1;
-        ExtractDestination(vote.payee, address1);
-        CBitcoinAddress address2(address1);
-
-        LogPrintf("DISTRIBUTEDCOMPUTINGVOTE -- vote: address=%s, nBlockHeight=%d, hash=%s, nHeight=%d, prevout=%s\n", address2.ToString(), 
-			vote.nHeight, vote.contractHash.GetHex().c_str(), pCurrentBlockIndex->nHeight, 
-			vote.vinMasternode.prevout.ToStringShort());
-
-        if(AddDistributedComputingVote(vote))
-		{
-            vote.Relay();
-        }
-		*/
-    }
+	}
 
 
 }
@@ -706,17 +621,6 @@ bool CMasternodePayments::IsScheduled(CMasternode& mn, int nNotBlockHeight)
 
     return false;
 }
-
-/*
-bool CMasternodePayments::AddDistributedComputingVote(const CDistributedComputingVote& vote)
-{
-    if(HasVerifiedDistributedComputingVote(vote.GetHash())) return false;
-	LOCK(cs_mapDistributedComputingVote);
-	if (ScriptToAsmStr(vote.payee).empty()) return false;
-    mapDistributedComputingVotes[vote.GetHash()] = vote;
-    return true;
-} 
-*/
 
 
 bool CMasternodePayments::AddPaymentVote(const CMasternodePaymentVote& vote)
@@ -793,64 +697,6 @@ std::string CMasternodePayments::SerializeSanctuaryQuorumSignatures(int nHeight,
 	sSerialize += "</SIGS>";
 	return sSerialize;
 }
-
-/*
-int CMasternodePayments::utingVoteCountByContractHash(int nHeight, uint256 hashIn)
-{
-    if(!mapDistributedComputingVotes.size()) return 0;
-    int nVotes = 0;
-	LOCK(cs_mapDistributedComputingVote);
-	{
-		std::map<uint256, CDistributedComputingVote>::iterator it = mapDistributedComputingVotes.begin();
-		while(it != mapDistributedComputingVotes.end()) 
-		{
-			CDistributedComputingVote v = (*it).second;
-			if (v.contractHash == hashIn && nHeight == v.nHeight) nVotes++;
-	        ++it;
-    	}
-	}
-    return nVotes;
-}
-
-
-int CMasternodePayments::utingVoteByHeight(int nHeight, CDistributedComputingVote& out_Vote)
-{
-	
-    if(!mapDistributedComputingVotes.size()) return 0;
-
-	std::map<uint256, int> mvDCCountByHash;
-	mvDCCountByHash.clear();
-    int nHiVotes = 0;
-	LOCK(cs_mapDistributedComputingVote);
-	{
-		std::map<uint256, CDistributedComputingVote>::iterator it = mapDistributedComputingVotes.begin();
-		while(it != mapDistributedComputingVotes.end()) 
-		{
-			CDistributedComputingVote v = (*it).second;
-			if (v.nHeight == nHeight)
-			{
-				int nCount = mvDCCountByHash[v.contractHash];
-		
-				if (nCount == 0)
-				{
-					mvDCCountByHash.insert(map<uint256,int>::value_type(v.contractHash,v.nHeight));
-				}
-				mvDCCountByHash[v.contractHash] = nCount + 1;
-				if ((nCount + 1) > nHiVotes && (v.contractHash != (uint256S("0x0"))))
-				{
-					nHiVotes = nCount+1;
-					out_Vote = (*it).second;
-				}
-			}
-	       ++it;
-     
-		}
-	}
-    return nHiVotes;
-}
-
-*/
-
 
 
 CAmount GetSanctuaryCollateral(CTxIn vin)
@@ -1296,9 +1142,6 @@ bool CDistributedComputingVote::Sign()
     return true;
 }
 
-
-
-
 bool CDistributedComputingVote::IsValid(CNode* pnode, uint256 uHash, std::string& strError)
 {
     CMasternode* pmn = mnodeman.Find(vinMasternode);
@@ -1314,9 +1157,6 @@ bool CDistributedComputingVote::IsValid(CNode* pnode, uint256 uHash, std::string
     
     return true;
 }
-
-
-
 
 std::string CDistributedComputingVote::ToString() const
 {

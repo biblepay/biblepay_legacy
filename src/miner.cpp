@@ -312,7 +312,7 @@ CBlockTemplate* CreateNewBlock(const CChainParams& chainparams, const CScript& s
 		// Add BiblePay version to the subsidy tx message
 		std::string sVersion = FormatFullVersion();
 		txNew.vout[0].sTxOutMessage += "<VER>" + sVersion + "</VER>";
-		if (fDistributedComputingEnabled)
+		if (PODCEnabled(chainActive.Tip()->nHeight))
 		{
 			txNew.vout[0].sTxOutMessage += sCPIDSignature;
 		}
@@ -324,7 +324,7 @@ CBlockTemplate* CreateNewBlock(const CChainParams& chainparams, const CScript& s
 
         // Update coinbase transaction with additional info about masternode and governance payments,
         // get some info back to pass to getblocktemplate
-        FillBlockPayments(txNew, nHeight, blockReward, blockRewardWithoutFees, nFees, 0, pblock->txoutMasternode, pblock->voutSuperblock);
+        FillBlockPayments(pindexPrev, txNew, nHeight, blockReward, blockRewardWithoutFees, nFees, 0, pblock->txoutMasternode, pblock->voutSuperblock);
         nLastBlockTx = nBlockTx;
         nLastBlockSize = nBlockSize;
 		
@@ -837,7 +837,7 @@ recover:
 			// Proof-Of-Distributed-Computing - Once every 8 hours, Prove tasks being worked by all CPIDs - Robert A. - Biblepay - 2-20-2018
 			int64_t nPODCUpdateAge = GetAdjustedTime() - nLastPODCUpdate;
 
-			if (fDistributedComputingEnabled && iThreadID == 0 && (nPODCUpdateAge > (nPODCUpdateFrequency)) && !msGlobalCPID.empty())
+			if (PODCEnabled(chainActive.Tip()->nHeight) && iThreadID == 0 && (nPODCUpdateAge > (nPODCUpdateFrequency)) && !msGlobalCPID.empty())
 			{
 				nLastPODCUpdate = GetAdjustedTime();
 				std::string sError = "";

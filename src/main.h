@@ -55,7 +55,11 @@ static const bool DEFAULT_WHITELISTFORCERELAY = true;
  * We are ~100 times smaller then bitcoin now (2016-03-01), set minRelayTxFee only 10 times higher
  * so it's still 10 times lower comparing to bitcoin.
  */
-static const unsigned int DEFAULT_MIN_RELAY_TX_FEE = 10000; // was 1000, should have been 100,000 originally, 10,000 is still infinitestimally small
+
+extern int DEFAULT_MIN_RELAY_TX_FEE;
+
+//static const unsigned int DEFAULT_MIN_RELAY_TX_FEE = 10000; // was 1000, should have been 100,000 originally, 10,000 is still infinitestimally small
+
 // Doing some testing in R&D, a 130 input transaction currently has a fee of .003.  This should be approx .30.  Therefore the correct value should be closer to 1,000,000.
 // ToDo: FPOG_CUTOVER_HEIGHT: Increase min_relay_tx_fee during next mandatory.
 // BiblePay's money supply is approx 100* more than DASH, so the fee should be around  1 000 000uBBP,  however I recommend we move it up incrementally starting with 100,000uBBP
@@ -82,7 +86,9 @@ static const int F13000_CUTOVER_HEIGHT_TESTNET = 16600;
 static const int F14000_CUTOVER_HEIGHT_PROD = 77000; // October 14th, 2018
 static const int F14000_CUTOVER_HEIGHT_TESTNET = 54300; // Sep. 1, 2018
 static const int FPOG_CUTOVER_HEIGHT_TESTNET = 95945;  // Dec. 23rd, 2018
-static const int FPOG_CUTOVER_HEIGHT_PROD = 700000; 
+static const int FPOG_CUTOVER_HEIGHT_PROD = 9100001;   // Feb 7th, 2019 (100,001)
+static const int PODC_LAST_BLOCK_PROD = 9106150; // March 8th, 2019 (106,150)
+static const int PODC_LAST_BLOCK_TESTNET = 9106150; 
 static const int MINIMUM_EMAIL_LENGTH = 5; // 3 character domain + . + 1 character name
 /** Default for -maxorphantx, maximum number of orphan transactions kept in memory */
 static const unsigned int DEFAULT_MAX_ORPHAN_TRANSACTIONS = 100;
@@ -260,7 +266,6 @@ extern bool fMiningDiagnostics;
 extern bool fDistributedComputingCycle;
 extern int nDistributedComputingCycles;
 extern bool fInternalRequestedShutdown;
-extern bool fDistributedComputingEnabled;
 extern bool fPOGEnabled;
 extern bool fPOGPaymentsEnabled;
 extern bool fDistributedComputingCycleDownloading;

@@ -286,6 +286,8 @@ std::vector<CSuperblock_sptr> CGovernanceTriggerManager::GetActiveTriggers()
 bool CSuperblockManager::IsDistributedComputingSuperblockTriggered(int nBlockHeight)
 {
     LogPrint("gobject", "CSuperblockManager::IsDistributedComputingSuperblockTriggered -- Start nBlockHeight = %d\n", nBlockHeight);
+	if (!PODCEnabled(nBlockHeight)) return false;
+
     if (!CSuperblock::IsDCCSuperblock(nBlockHeight)) 
 	{
         return false;
@@ -325,7 +327,7 @@ bool CSuperblockManager::IsDistributedComputingSuperblockTriggered(int nBlockHei
 bool CSuperblockManager::IsSuperblockTriggered(int nBlockHeight)
 {
     LogPrint("gobject", "CSuperblockManager::IsSuperblockTriggered -- Start nBlockHeight = %d\n", nBlockHeight);
-	if (CSuperblock::IsDCCSuperblock(nBlockHeight) && fDistributedComputingEnabled)
+	if (CSuperblock::IsDCCSuperblock(nBlockHeight) && PODCEnabled(nBlockHeight))
 	{
 		// The DCC Superblock is REQUIRED if it is voted and valid - but if it is not voted or not valid, it will become a regular block
 		return IsDistributedComputingSuperblockTriggered(nBlockHeight);
@@ -633,6 +635,7 @@ bool CSuperblock::IsValidBlockHeight(int nBlockHeight)
 bool CSuperblock::IsPOGSuperblock(int nHeight)
 {
 	if (!fPOGEnabled) return false;
+
 	if ((nHeight > FPOG_CUTOVER_HEIGHT_PROD && fProd) || (nHeight > FPOG_CUTOVER_HEIGHT_TESTNET && !fProd))
 	{
 		return nHeight >= Params().GetConsensus().nDCCSuperblockStartBlock && ((nHeight % Params().GetConsensus().nDCCSuperblockCycle) == 20);
@@ -646,7 +649,7 @@ bool CSuperblock::IsPOGSuperblock(int nHeight)
 
 bool CSuperblock::IsDCCSuperblock(int nHeight)
 {
-	if (!fDistributedComputingEnabled) return false;
+	if (!PODCEnabled(nHeight)) return false;
 	if ((nHeight > F13000_CUTOVER_HEIGHT_PROD && fProd) || (nHeight > F13000_CUTOVER_HEIGHT_TESTNET && !fProd))
 	{
 		return nHeight >= Params().GetConsensus().nDCCSuperblockStartBlock &&
@@ -672,27 +675,29 @@ CAmount CSuperblock::GetPaymentsLimit(int nBlockHeight)
 
     // min subsidy for high diff networks and vice versa
     int nBits = consensusParams.fPowAllowMinDifficultyBlocks ? UintToArith256(consensusParams.powLimit).GetCompact() : 1;
-	bool fDCLive = (fProd && fDistributedComputingEnabled && nBlockHeight > F11000_CUTOVER_HEIGHT_PROD) || (!fProd && fDistributedComputingEnabled);
-					
+	//bool fDCLive = (fProd && fDistributedComputingEnabled && nBlockHeight > F11000_CUTOVER_HEIGHT_PROD && nBlockHeight < PODC_LAST_BLOCK_PROD) || (!fProd && fDistributedComputingEnabled);
+	bool fDCLive = PODCEnabled(nBlockHeight);
+
     // some part of all blocks issued during the cycle goes to superblock, see GetBlockSubsidy
 	if (fDCLive) 
 	{
 		nBits = 486585255;  // Set diff at about 1.42 for Superblocks
 	}
 	int nSuperblockCycle = IsValidBlockHeight(nBlockHeight) ? consensusParams.nSuperblockCycle : consensusParams.nDCCSuperblockCycle;
-	// ToDo: Ensure fDCLive reverts to false when PODC is retired:
 	// Note at block 98400, our budget is 13518421, ensure governor below is capped at this figure
 	// Note 2: We must change this '1' multiplier to .814 to maintain the current defating monthly budget
 	// Why did this happen?  Because when we moved to PODC rewards, we switched our '1' multiplier to .20, and emitted 12 monthly governance superblocks with a deflating emission down to 13.5MM bbp
 	// If we switch back to 1, the next governance budget would start higher (IE 15MM) and that is not good for all intents and purposes, it is better to continue where we are (at the lower value)
 	// Therefore we can do this by continuing from .814 at a certain cutover height (to be added asap).
 	
-	double nBudgetAvailable = (fDCLive && IsValidBlockHeight(nBlockHeight) && !IsDCCSuperblock(nBlockHeight)) ? .20 : 1;
+	double nBudgetFactor = (fDCLive && IsValidBlockHeight(nBlockHeight) && !IsDCCSuperblock(nBlockHeight)) ? .20 : 1;
+	if (fProd && nBlockHeight >= PODC_LAST_BLOCK_PROD) nBudgetFactor = .814;
+
 	// The first call to GetBlockSubsidy calculates the future reward (and this has our standard deflation of 19% per year in it)
     CAmount nSuperblockPartOfSubsidy = GetBlockSubsidy(pindexBestHeader->pprev, nBits, nBlockHeight, consensusParams, true);
 	
     CAmount nPaymentsLimit = 0;
-	nPaymentsLimit = nSuperblockPartOfSubsidy * nSuperblockCycle * nBudgetAvailable;
+	nPaymentsLimit = nSuperblockPartOfSubsidy * nSuperblockCycle * nBudgetFactor;
 
 	CAmount nAbsoluteMaxMonthlyBudget = 12500 * BLOCKS_PER_DAY * 30 * .20 * COIN; // Ensure monthly budget is never > 20% of avg monthly total block emission regardless of low difficulty in PODC
 	// If this is a DC Superblock, and we exceed F12000 Cutover Height, due to cascading superblocks, the DC superblock budget should be 70% of the budget:
