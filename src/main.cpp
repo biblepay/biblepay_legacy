@@ -84,8 +84,6 @@ bool fDistributedComputingCycle = false;
 bool fDistributedComputingCycleDownloading = false;
 bool fInternalRequestedShutdown = false;
 bool fPOGEnabled = false;
-bool fPOGPaymentsEnabled = false;
-
 int nDistributedComputingCycles = 0;
 
 int64_t nGlobalPOLWeight;
@@ -2190,7 +2188,7 @@ CAmount GetBlockSubsidy(const CBlockIndex* pindexPrev, int nPrevBits, int nPrevH
 	double dDiff = 0;
     CAmount nSubsidyBase;
     bool fIsPogSuperblock = CSuperblock::IsPOGSuperblock(nPrevHeight + 1);
-	bool fPogActive = (fPOGEnabled && ((nPrevHeight > FPOG_CUTOVER_HEIGHT_PROD && fProd) || (nPrevHeight > FPOG_CUTOVER_HEIGHT_TESTNET && !fProd)));
+	bool fPogActive = ((nPrevHeight > FPOG_CUTOVER_HEIGHT_PROD && fProd) || (nPrevHeight > FPOG_CUTOVER_HEIGHT_TESTNET && !fProd));
 	if (fPogActive && fIsPogSuperblock)
 	{
 		nPrevBits = Get24HourAvgBits(pindexPrev, nPrevBits);
@@ -2298,7 +2296,7 @@ CAmount GetMasternodePayment(int nHeight, CAmount blockValue)
 	// http://forum.biblepay.org/index.php?topic=33.0
 	// Final Distribution: 10% Charity, 2.5% PR, 2.5% P2P, 5% for IT
 	CAmount ret = 0;
-	bool fPogActive = (fPOGEnabled && ((nHeight > FPOG_CUTOVER_HEIGHT_PROD && fProd) || (nHeight > FPOG_CUTOVER_HEIGHT_TESTNET && !fProd)));
+	bool fPogActive = ((nHeight > FPOG_CUTOVER_HEIGHT_PROD && fProd) || (nHeight > FPOG_CUTOVER_HEIGHT_TESTNET && !fProd));
 	bool fIsPogSuperblock = CSuperblock::IsPOGSuperblock(nHeight);
 	
 	int nSpork8Height = fProd ? SPORK8_HEIGHT : SPORK8_HEIGHT_TESTNET;
@@ -3441,7 +3439,6 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
 	static int nLastPogHeight = 0;
 	int nPogSize = (pindex->nHeight % 10) == 0 ? BLOCKS_PER_DAY : 1;
 	if ((nLastPogHeight + 1) != pindex->nHeight) nPogSize = BLOCKS_PER_DAY;
-	// nPogSize = BLOCKS_PER_DAY;  // TODO: Remove this in the next testnet version
 	InitializePogPool(pindex, nPogSize, block);
 	nLastPogHeight = pindex->nHeight;
 
@@ -4480,7 +4477,6 @@ bool CheckPOGPoolRecipients(const Consensus::Params& params, int nHeight, const 
 	int nPoolHeight = pindexPrev->nHeight - 10;
 	CBlockIndex* pindexPay = FindBlockByHeight(nPoolHeight);
 	CPoolObject cPool = GetPoolVector(pindexPay, 0);
-	LogPrintf(" CheckPOGPoolRecipients::Check_Height %f ", pindexPay->nHeight);
 
 	CAmount nBlockReward = 0;
 	for (unsigned int i = 0; i < block.vtx[0].vout.size(); i++)
@@ -4599,47 +4595,22 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIn
     }
 
 	// Rob A. - BiblePay - 12/3/2018
-	if (fPOGEnabled && !fReindex)
+	if (POGEnabled(nHeight, block.GetBlockTime()) && !fReindex)
 	{
-		if ((nHeight > FPOG_CUTOVER_HEIGHT_TESTNET && !fProd) || (fProd && nHeight > FPOG_CUTOVER_HEIGHT_PROD))
+		bool fIsPogSuperblock = CSuperblock::IsPOGSuperblock(nHeight);
+		if (fIsPogSuperblock)
 		{
-			int64_t nAge = GetAdjustedTime() - block.GetBlockTime();
-			bool fRecent = nAge < (60 * 60 * 2) ? true : false;
-			int64_t nAgeOfPriorBlock = GetAdjustedTime() - pindexPrev->nTime;
-			CAmount nBlockTotal = block.vtx[0].GetValueOut();
-			// The idea here is if we ever have a situation in prod where the chain freezes for more than 2 hours (because of an unaccepted POG superblock), we will allow the next block to pass if the subsidy < 20,000 BBP, but no POG recipients will be paid.
-			// This is not normally allowed if the prior block was solved within 2 hours however (so in reality this should never happen if our chain keeps moving).  
-			// This is for emergency purposes only if our chain gets stuck, the devs can mine the block manually.
-			// In all other cases (for a block that was solved within 2 hours, and is a POG superblock, we require all of the POG pool recipients to be present, and all of the payment values to match.
-			if (nAgeOfPriorBlock > (60 * 60 * 2) && nBlockTotal < (MAX_BLOCK_SUBSIDY * COIN)) fRecent = false;
-			bool fIsPogSuperblock = CSuperblock::IsPOGSuperblock(nHeight);
-			if (fIsPogSuperblock && fRecent)
+			bool fVerified = CheckPOGPoolRecipients(consensusParams, nHeight, block, pindexPrev);
+			double dVersion = GetBlockVersion(block.vtx[0]);
+			if (!fVerified)
 			{
-				bool fVerified = CheckPOGPoolRecipients(consensusParams, nHeight, block, pindexPrev);
-				double dVersion = GetBlockVersion(block.vtx[0]);
-				if (!fVerified)
-				{
-					std::string sErr = "ContextualCheckBlock::ERROR! - POG Recipients invalid at height " + RoundToString(nHeight, 0) + " version " + RoundToString(dVersion, 0);
-					LogPrintf("\n%s", sErr.c_str());
-					double nPogRecipLevel = GetSporkDouble("checkpogrecipients", 0);
-					if (nPogRecipLevel == 0)
-					{
-						return state.DoS(10, error(sErr.c_str()), REJECT_INVALID, "pog-recipients-invalid");
-					}
-					else if (nPogRecipLevel == 1)
-					{
-						LogPrintf("\n%s", sErr.c_str());
-					}
-					else if (nPogRecipLevel == 2)
-					{
-						// No d-dos, but reject block
-						return false;
-					}
-				}
+				std::string sErr = "ContextualCheckBlock::ERROR! - POG Recipients invalid at height " + RoundToString(nHeight, 0) + " version " + RoundToString(dVersion, 0);
+				LogPrintf("\n%s", sErr.c_str());
+					return state.DoS(10, error(sErr.c_str()), REJECT_INVALID, "pog-recipients-invalid");
 			}
 		}
 	}
-	else if (PODCEnabled(nHeight))
+	else if (!fPOGEnabled && PODCEnabled(nHeight))
 	{
 		bool fGrandfather = ((nHeight < F14000_CUTOVER_HEIGHT_PROD && fProd) || (!fProd && nHeight < F14000_CUTOVER_HEIGHT_TESTNET));
 		if (!fGrandfather)

@@ -1567,14 +1567,9 @@ void BitcoinGUI::showEvent(QShowEvent *event)
 	TheLordsPrayerAction->setEnabled(true);
 	TheApostlesCreedAction->setEnabled(true);
 	TheNiceneCreedAction->setEnabled(true);
-
-	if (!fProd)
-	{
-		openChatGeneralAction->setEnabled(true);
-		openChatPMAction->setEnabled(true);
-		pogLeaderboardListMenuAction->setEnabled(true);
-	}
-
+	openChatGeneralAction->setEnabled(true);
+	openChatPMAction->setEnabled(true);
+	pogLeaderboardListMenuAction->setEnabled(true);
 	TheTenCommandmentsAction->setEnabled(true);
 	JesusConciseCommandmentsAction->setEnabled(true);
 	ReadBibleAction->setEnabled(true);

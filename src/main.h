@@ -86,9 +86,9 @@ static const int F13000_CUTOVER_HEIGHT_TESTNET = 16600;
 static const int F14000_CUTOVER_HEIGHT_PROD = 77000; // October 14th, 2018
 static const int F14000_CUTOVER_HEIGHT_TESTNET = 54300; // Sep. 1, 2018
 static const int FPOG_CUTOVER_HEIGHT_TESTNET = 95945;  // Dec. 23rd, 2018
-static const int FPOG_CUTOVER_HEIGHT_PROD = 9100001;   // Feb 7th, 2019 (100,001)
-static const int PODC_LAST_BLOCK_PROD = 9106150; // March 8th, 2019 (106,150)
-static const int PODC_LAST_BLOCK_TESTNET = 9106150; 
+static const int FPOG_CUTOVER_HEIGHT_PROD = 100001;   // Feb 7th, 2019 (100,001)
+static const int PODC_LAST_BLOCK_PROD = 106150; // March 8th, 2019 (106,150)
+static const int PODC_LAST_BLOCK_TESTNET = 126150; 
 static const int MINIMUM_EMAIL_LENGTH = 5; // 3 character domain + . + 1 character name
 /** Default for -maxorphantx, maximum number of orphan transactions kept in memory */
 static const unsigned int DEFAULT_MAX_ORPHAN_TRANSACTIONS = 100;
@@ -247,14 +247,11 @@ extern SecureString msEncryptedString;
 extern bool fCheckedPODCUnlock;
 extern bool fWalletLoaded;
 extern std::string msGithubVersion;
-
 extern int PRAYER_MODULUS;
 extern std::string strTemplePubKey;
 extern int mnPODCTried;
 extern int mnPODCSent;
 extern double mnPODCAmountSent;
-
-
 extern int64_t nHPSTimerStart;
 extern int64_t nHashCounter;
 extern std::string sGlobalPoolURL;
@@ -267,19 +264,15 @@ extern bool fDistributedComputingCycle;
 extern int nDistributedComputingCycles;
 extern bool fInternalRequestedShutdown;
 extern bool fPOGEnabled;
-extern bool fPOGPaymentsEnabled;
 extern bool fDistributedComputingCycleDownloading;
-
 extern int64_t nLastTradingActivity;
 extern int64_t nBibleMinerPulse;
 extern int64_t SANCTUARY_COLLATERAL;
 extern int64_t TEMPLE_COLLATERAL;
 extern int64_t MAX_BLOCK_SUBSIDY;
 extern int64_t MAX_MESSAGE_LENGTH;
-
 extern bool fProd;
 extern bool fMineSlow;
-
 extern double dHashesPerSec;
 extern std::map<std::string, double> mvBlockVersion;
 extern int SIN_MODULUS;
@@ -291,8 +284,6 @@ extern bool fPoolMiningMode;
 extern bool fPoolMiningUseSSL;
 extern bool fCommunicatingWithPool;
 extern int64_t nLastDCContractSubmitted;
-
-
 extern std::map<uint256, int64_t> mapRejectedBlocks;
 
 /** Best header we've seen so far (used for getheaders queries' starting points). */

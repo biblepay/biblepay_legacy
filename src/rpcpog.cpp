@@ -1317,18 +1317,14 @@ std::string GetSporkValue(std::string sKey)
 
 double GetDifficultyN(const CBlockIndex* blockindex, double N)
 {
-	if (fPOGEnabled)
-	{
-		return GetDifficulty(blockindex)*N;
-	}
-	else if (PODCEnabled(blockindex->nHeight))
+	if (PODCEnabled(blockindex->nHeight))
 	{
 		if (chainActive.Tip() == NULL) return 1;
 		int nHeight = (blockindex == NULL) ? chainActive.Tip()->nHeight : blockindex->nHeight;
 		double nBlockMagnitude = GetBlockMagnitude(nHeight);
 		return nBlockMagnitude;
 	}
-
+	
 	// Returns Difficulty * N (Most likely this will be used to display the Diff in the wallet, since the BibleHash is much harder to solve than an ASIC hash)
 	if ((blockindex && !fProd && blockindex->nHeight >= 1) || (blockindex && fProd && blockindex->nHeight >= 7000))
 	{
@@ -2083,8 +2079,12 @@ void InitializePogPool(const CBlockIndex* pindexSource, int nSize, const CBlock&
 	const CBlockIndex *pindexLast = pindexSource;
 
     if (pindexLast == NULL || pindexLast->nHeight == 0)  return;
+	bool fPogActive = (!fProd && pindexSource->nHeight > FPOG_CUTOVER_HEIGHT_TESTNET) || (fProd && pindexSource->nHeight > FPOG_CUTOVER_HEIGHT_PROD);
+	if (!fPogActive) return;
+	
 	int64_t nAge = GetAdjustedTime() - pindexLast->GetBlockTime();
 	if (nAge > (60 * 60 * 36) && nSize < (BLOCKS_PER_DAY+1)) return;
+	if (nAge > (60 * 60 * 24 * 30)) return;
 
 	if (nSize==1)
 	{
@@ -2171,3 +2171,14 @@ bool PODCEnabled(int nHeight)
 	return fDC;
 }
 
+bool POGEnabled(int nHeight, int64_t nTime)
+{
+	bool fPOG = ((nHeight > FPOG_CUTOVER_HEIGHT_TESTNET && !fProd) || (fProd && nHeight > FPOG_CUTOVER_HEIGHT_PROD));
+	if (nTime > 0)
+	{
+		int64_t nAge = GetAdjustedTime() - nTime;
+		bool fRecent = nAge < (60 * 60 * 2) ? true : false;
+		if (!fRecent) return false;
+	}
+	return fPOG;
+}

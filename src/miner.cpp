@@ -857,7 +857,7 @@ recover:
 				// UpdateHashesPerSec(nHashesDone);
 				goto recover;
             }
-			if ((!sErr.empty()) || (sFullSignature.empty() && fPOGEnabled == false))
+			if ((!sErr.empty()) || (sFullSignature.empty() && PODCEnabled(chainActive.Tip()->nHeight)))
 			{
 				std::string sMsg = "Unable to mine... Cant sign block template with CPID " + msGlobalCPID + " - Error " + sErr;
 				nHashesDone++;
@@ -954,7 +954,7 @@ recover:
 							// Found a solution
 							SetThreadPriority(THREAD_PRIORITY_NORMAL);
 							bool bAccepted = ProcessBlockFound(pblock, chainparams);
-							if (!bAccepted && !fPOGPaymentsEnabled)
+							if (!bAccepted && !fPOGEnabled)
 							{
 								std::string sCPIDSignature = ExtractXML(pblock->vtx[0].vout[0].sTxOutMessage, "<cpidsig>","</cpidsig>");
 								std::string sCPID = GetElement(sCPIDSignature, ";", 0);

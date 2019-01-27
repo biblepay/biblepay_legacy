@@ -1124,8 +1124,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
 		SANCTUARY_COLLATERAL = 1550001;
 		fRetirementAccountsEnabled = false;
 		fProofOfLoyaltyEnabled = false;
-		fPOGEnabled = false;
-		fPOGPaymentsEnabled = false;
+		fPOGEnabled = true;
 		if (GetAdjustedTime() > 1550260145)
 		{
 			// After February 15th, 2019
@@ -1147,16 +1146,13 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
 		fRetirementAccountsEnabled = false;
 		fProofOfLoyaltyEnabled = false;
 		fPOGEnabled = true;
-		fPOGPaymentsEnabled = true;
 		DEFAULT_MIN_RELAY_TX_FEE = 10000;
-
 		strTemplePubKey = "04240caae65370e2ec32eaec8f27bce34e6ada9601b6a805c10b3e839e100ce3f369fdfbc1bb906d3dd442bd145e51d23a4eda247608b5dc33afc1fbf87c270f47";
 	}
 	else if (chainparams.NetworkIDString()=="regtest")
 	{
 		cblockGenesis = CreateGenesisBlock(1496347864, 18, 0x207fffff, 1, 50 * COIN);
 		fPOGEnabled = true;
-		fPOGPaymentsEnabled = true;
 		SANCTUARY_COLLATERAL = 500000;
 		targetGenesisHash = hashGenesisRegressionNet;
 		DEFAULT_MIN_RELAY_TX_FEE = 10000;

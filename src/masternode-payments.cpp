@@ -344,7 +344,7 @@ void CMasternodePayments::PayPOGRecipients(CBlockIndex* pindexPrev, CMutableTran
 		InitializePogPool(pindexPrev, BLOCKS_PER_DAY, cblock);
 	}
 
-	if (fPOGPaymentsEnabled)
+	if (fPOGEnabled)
 	{
 		int nPoolHeight = nBlockHeight - 11;
 		CBlockIndex* pindexPay = FindBlockByHeight(nPoolHeight);
@@ -375,7 +375,7 @@ void CMasternodePayments::PayPOGRecipients(CBlockIndex* pindexPrev, CMutableTran
 						bStamped = true; //ToDo: In Evolution we want to set one bit value here to denote a POG coinbase; for now we still use XML
 						txNew.vout[0].sTxOutMessage += "<POG></POG>";
 					}
-					LogPrintf(" Creating Pool Payment for Amount %f  to %s \n", (double)caPoolPayment/COIN, oTithe.Address.c_str());
+					if (fDebugMaster) LogPrintf(" Creating Pool Payment for Amount %f  to %s \n", (double)caPoolPayment/COIN, oTithe.Address.c_str());
 				}
 			}
 		}
@@ -411,7 +411,7 @@ void CMasternodePayments::FillBlockPayee(CBlockIndex* pindexPrev, CMutableTransa
             // ...and we can't calculate it on our own
             if (fDebugMaster) LogPrint("mnpayments","CMasternodePayments::FillBlockPayee -- Failed to detect masternode to pay\n");
 			// Pay the POG Pool
-			if (fPOGEnabled && fPOGPaymentsEnabled && fIsPogSuperblock) PayPOGRecipients(pindexPrev, txNew, nBlockHeight, blockRewardWithoutFee);
+			if (fIsPogSuperblock) PayPOGRecipients(pindexPrev, txNew, nBlockHeight, blockRewardWithoutFee);
             return;
         }
         // fill payee with locally calculated winner and hope for the best
@@ -430,7 +430,7 @@ void CMasternodePayments::FillBlockPayee(CBlockIndex* pindexPrev, CMutableTransa
     CBitcoinAddress address2(address1);
     LogPrint("mnpayments","CMasternodePayments::FillBlockPayee -- Masternode payment %f to %s\n", (double)masternodePayment, address2.ToString().c_str());
 	// Pay the POG Pool
-	if (fPOGEnabled && fPOGPaymentsEnabled && fIsPogSuperblock) PayPOGRecipients(pindexPrev, txNew, nBlockHeight, blockRewardWithoutFee);
+	if (fIsPogSuperblock) PayPOGRecipients(pindexPrev, txNew, nBlockHeight, blockRewardWithoutFee);
 }
 
 

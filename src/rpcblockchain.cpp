@@ -1935,18 +1935,6 @@ UniValue exec(const UniValue& params, bool fHelp)
 		CBlock block;
         if (!DecodeHexBlk(block, sBlockHex))
                 throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "Block decode failed");
-		/*
-		std::string sTxHex = params[2].get_str();
-		CTransaction tx;
-	    if (!DecodeHexTx(tx, sTxHex))
-		    throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "TX decode failed");
-		if (block.vtx[0].GetHash().GetHex() != tx.GetHash().GetHex())
-		{
-		    throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "Coinbase TX not in block");
-		}
-
-		*/
-
 		if (block.vtx.size() < 1)
 		    throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "Deserialization Error");
     
@@ -1980,7 +1968,7 @@ UniValue exec(const UniValue& params, bool fHelp)
 		int64_t nHeaderAge = GetAdjustedTime() - block.GetBlockTime();
 		bool bActiveRACCheck = nHeaderAge < (60 * 15) ? true : false;
 		
-		if (bActiveRACCheck)
+		if (bActiveRACCheck && PODCEnabled(pindexPrev->nHeight))
 		{
 			if (fSigValid)
 			{
