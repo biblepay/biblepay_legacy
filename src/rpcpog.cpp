@@ -1317,16 +1317,24 @@ std::string GetSporkValue(std::string sKey)
 
 double GetDifficultyN(const CBlockIndex* blockindex, double N)
 {
-	if (PODCEnabled(blockindex->nHeight))
+	int nHeight = 0;
+	if (blockindex == NULL)
 	{
-		if (chainActive.Tip() == NULL) return 1;
-		int nHeight = (blockindex == NULL) ? chainActive.Tip()->nHeight : blockindex->nHeight;
+		if (chainActive.Tip() != NULL) nHeight = chainActive.Tip()->nHeight;
+	}
+	else
+	{
+		nHeight = blockindex->nHeight;
+	}
+
+	if (PODCEnabled(nHeight))
+	{
 		double nBlockMagnitude = GetBlockMagnitude(nHeight);
 		return nBlockMagnitude;
 	}
 	
 	// Returns Difficulty * N (Most likely this will be used to display the Diff in the wallet, since the BibleHash is much harder to solve than an ASIC hash)
-	if ((blockindex && !fProd && blockindex->nHeight >= 1) || (blockindex && fProd && blockindex->nHeight >= 7000))
+	if ((!fProd && nHeight >= 1) || (fProd && nHeight >= 7000))
 	{
 		return GetDifficulty(blockindex)*(N/10); //f7000 feature
 	}

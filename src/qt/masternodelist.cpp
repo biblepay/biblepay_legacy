@@ -171,6 +171,45 @@ void MasternodeList::StartAll(std::string strCommand)
     updateMyNodeList(true);
 }
 
+void MasternodeList::StartOne()
+{
+    int nCountSuccessful = 0;
+    int nCountFailed = 0;
+    std::string strFailedHtml;
+	if (pwalletMain->IsLocked()) return;
+
+    BOOST_FOREACH(CMasternodeConfig::CMasternodeEntry mne, masternodeConfig.getEntries()) 
+	{
+        std::string strError;
+        CMasternodeBroadcast mnb;
+        int32_t nOutputIndex = 0;
+        if(!ParseInt32(mne.getOutputIndex(), &nOutputIndex))  continue;
+        CTxIn txin = CTxIn(uint256S(mne.getTxHash()), nOutputIndex);
+        masternode_info_t infoMn = mnodeman.GetMasternodeInfo(txin);
+		std::string sStatus = CMasternode::StateToString(infoMn.nActiveState); 
+		if (sStatus != "NEW_START_REQUIRED") continue;
+		{
+		    if (!ConnectNode((CAddress)infoMn.addr, NULL, true))
+			{
+				LogPrintf("StartOne::UnableToStart %s ",infoMn.addr.ToString().c_str());
+				continue;
+			}
+			bool fSuccess = CMasternodeBroadcast::Create(mne.getIp(), mne.getPrivKey(), mne.getTxHash(), mne.getOutputIndex(), strError, mnb);
+			if(fSuccess) 
+			{
+				nCountSuccessful++;
+				mnodeman.UpdateMasternodeList(mnb);
+				mnb.Relay();
+				mnodeman.NotifyMasternodeUpdates();
+			}
+			LogPrintf("StartOne::Started %f %s", 
+				fSuccess, infoMn.addr.ToString().c_str());
+			break;
+		}
+    }
+}
+
+
 void MasternodeList::updateMyMasternodeInfo(QString strAlias, QString strAddr, masternode_info_t& infoMn)
 {
     bool fOldRowFound = false;
@@ -240,6 +279,8 @@ void MasternodeList::updateMyNodeList(bool fForce)
 
     // reset "timer"
     ui->secondsLabel->setText("0");
+
+	StartOne();
 }
 
 void MasternodeList::updateNodeList()

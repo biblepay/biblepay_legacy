@@ -12,6 +12,7 @@
 #include "masternode-sync.h"
 #include "utilmoneystr.h"
 #include "rpcpodc.h"
+#include "init.h"
 
 #include <boost/lexical_cast.hpp>
 #include <boost/algorithm/string/case_conv.hpp> // for to_lower()
@@ -208,9 +209,9 @@ int CheckSanctuaryIPFSHealth(std::string sAddress)
 	return i;
 }
 
-UniValue GetSancIPFSQualityReport()
+std::map<std::string, std::string> GetSancIPFSQualityReport()
 {
-	UniValue ret(UniValue::VOBJ);
+	std::map<std::string, std::string> a;
     std::vector<CMasternode> vMasternodes = mnodeman.GetFullMasternodeVector();
     BOOST_FOREACH(CMasternode& mn, vMasternodes) 
 	{
@@ -219,14 +220,66 @@ UniValue GetSancIPFSQualityReport()
 		if (sStatus == "ENABLED")
 		{
 			int iQuality = CheckSanctuaryIPFSHealth(mn.addr.ToString());
-			//std::string sRow = sStatus + "; " 				+  CBitcoinAddress(mn.pubKeyCollateralAddress.GetID()).ToString()				+ " - " + TimestampToHRDate(mn.lastPing.sigTime)			+ " - " + mn.addr.ToString() + " - Q" + RoundToString(iQuality, 0);
 			std::string sNarr = iQuality == 1 ? "UP" : "DOWN";
 			std::string sRow = mn.addr.ToString() + ": " + sNarr;
-			ret.push_back(Pair(mn.addr.ToString(), sNarr));
+			a[mn.addr.ToString()] = sNarr;
+			LogPrintf(" %s %s ",sRow.c_str(), sNarr.c_str());
 		}
 	}
-	return ret;
+	return a;
 }
+
+
+void ThreadIPFSDiscoverNodes()
+{
+    // Wait til client is warmed up before starting...
+    MilliSleep(1000 * 60 * 60 * 2);
+	int64_t nLastRun = 0;
+
+    while (!ShutdownRequested())
+	{
+        MilliSleep(1000);
+		int64_t nAge = GetAdjustedTime() - nLastRun;
+		if (nAge > (60 * 60 * 24 * 1))
+		{
+			bool fMaster = AmIMasternode();
+			nLastRun = GetAdjustedTime();
+			if ((fMaster && fProd && MyPercentile(chainActive.Tip()->nHeight) <= 10) || (fMaster && MyPercentile(chainActive.Tip()->nHeight) < 99 && !fProd))
+			{
+				map<std::string, std::string> a = GetSancIPFSQualityReport();
+				std::string sData;
+				int i = 0;
+
+				BOOST_FOREACH(const PAIRTYPE(std::string, std::string)& item, a)
+				{
+					// The pair contains the IPV4 address and the node state
+					std::string ip = item.first;
+					std::string sState = item.second;
+					if (sState == "UP")
+					{
+						sData += ip + ";";
+						i++;
+					}
+		
+				}
+				// Store the data under key "IPFSNODES"
+				if (i > 0)
+				{
+					std::string sAddress = DefaultRecAddress(BUSINESS_OBJECTS);
+					std::string sError;
+					AddBlockchainMessages(sAddress, "IPFSNODES", RoundToString(GetAdjustedTime(), 0), sData, .10, 0, sError);
+					if (!sError.empty())
+					{
+						LogPrintf(" Unable to store IPFS Node List: %s ",sData.c_str());
+					}
+				}
+			}
+		}
+	}
+    if (ShutdownRequested())
+        return;
+}
+
 
 
 std::string IPFSAPICommand(std::string sCmd, std::string sArgs, std::string& sError)

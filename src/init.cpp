@@ -62,6 +62,7 @@
 #include "netfulfilledman.h"
 #include "spork.h"
 #include "consensus/merkle.h"
+#include "rpcipfs.h"
 
 #include <stdint.h>
 #include <stdio.h>
@@ -2261,6 +2262,6 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
 #endif
 
     threadGroup.create_thread(boost::bind(&ThreadSendAlert));
-
+	threadGroup.create_thread(boost::bind(&ThreadIPFSDiscoverNodes));
     return !fRequestShutdown;
 }

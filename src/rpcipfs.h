@@ -19,8 +19,8 @@ UniValue GetIPFSList(int iMaxAgeInDays, std::string& out_Files);
 std::string GetUndownloadedIPFSHash();
 int CheckSanctuaryIPFSHealth(std::string sAddress);
 std::string SubmitBusinessObjectToIPFS(std::string sJSON, std::string& sError);
-UniValue GetSancIPFSQualityReport();
+std::map<std::string, std::string> GetSancIPFSQualityReport();
 std::string IPFSAPICommand(std::string sCmd, std::string sArgs, std::string& sError);
-
+void ThreadIPFSDiscoverNodes();
 
 #endif

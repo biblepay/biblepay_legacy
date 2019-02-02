@@ -2718,8 +2718,12 @@ UniValue exec(const UniValue& params, bool fHelp)
 	}
 	else if (sItem == "ipfsquality")
 	{
-		UniValue a = GetSancIPFSQualityReport();
-		return a;
+		map<std::string,std::string> a = GetSancIPFSQualityReport();
+
+		BOOST_FOREACH(const PAIRTYPE(std::string, std::string)& item, a)
+		{
+			results.push_back(Pair(item.first, item.second));
+		}
 	}
 	else if (sItem == "mnsporktest14")
 	{
