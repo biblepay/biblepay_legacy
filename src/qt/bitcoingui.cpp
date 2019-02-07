@@ -349,7 +349,7 @@ void BitcoinGUI::createActions()
 	pogLeaderboardAction = new QAction(QIcon(":/icons/" + theme + "/chat"), tr("POG Leaderboar&d"), this);
     pogLeaderboardAction->setStatusTip(tr("See other BiblePay POG Participants who are actively helping our Orphan Foundation tithing in the POG Pool"));
     pogLeaderboardAction->setToolTip(pogLeaderboardAction->statusTip());
-	if (!fProd) pogLeaderboardAction->setCheckable(true);
+	if (fPOGEnabled || true) pogLeaderboardAction->setCheckable(true);
     tabGroup->addAction(pogLeaderboardAction);
 
 	
@@ -708,15 +708,15 @@ void BitcoinGUI::createMenuBar()
 		businessObjects->addAction(businessObjectListMenuAction);
     }
 
-	// Chat - TestNet
-	if (!fProd)
+	// Chat - TestNet (The problem below is fPOGEnabled is set to true after QT is initalized... sigh)
+	if (fPOGEnabled || true)
 	{
 		QMenu *menuChat = appMenuBar->addMenu(tr("&Chat"));
 		menuChat->addAction(openChatGeneralAction);
 		menuChat->addAction(openChatPMAction);
 	}
 
-	if (!fProd)
+	if (fPOGEnabled || true)
 	{
 		QMenu *menuPOG = appMenuBar->addMenu(tr("&POG"));
 		menuPOG->addAction(pogLeaderboardListMenuAction);
@@ -771,7 +771,7 @@ void BitcoinGUI::createToolBars()
         {
             toolbar->addAction(distributedComputingAction);
         }
-		if (!fProd)
+		if (fPOGEnabled || true)
 		{
 			toolbar->addAction(pogLeaderboardAction);
 		}
