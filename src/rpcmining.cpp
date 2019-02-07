@@ -401,7 +401,6 @@ UniValue pogpool(const UniValue& params, bool fHelp)
 			CTitheObject oTithe = item.second;
 			std::string sRow = "Amount: " + RoundToString((double)(oTithe.Amount/COIN),2) 
 				+ ", Weight: " + RoundToString(oTithe.Weight, 4) 
-				+ ", Payment_Tier: " + RoundToString(oTithe.PaymentTier, 0) 
 				+ ", Height: " + RoundToString(oTithe.Height, 0) 
 				+ ", NickName: " + oTithe.NickName;
 			if (nDetails > 1) sRow += ", Trace: " + oTithe.Trace;
