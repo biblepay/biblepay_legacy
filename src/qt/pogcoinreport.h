@@ -15,7 +15,7 @@
 class OptionsModel;
 class PlatformStyle;
 class WalletModel;
-
+class UniValue;
 
 namespace Ui {
 class PoGCoinReport;
@@ -33,27 +33,17 @@ public:
     explicit PoGCoinReport(const PlatformStyle *platformStyle, QWidget *parent = 0);
     ~PoGCoinReport();
 	void setModel(WalletModel *model);
-	void UpdateObject(std::string objType);
-
 
 private:
     Ui::PoGCoinReport *ui;
 	WalletModel *model;
-    void createUI(const QStringList &headers, const QString &pStr);
-    QVector<QVector<QString> > SplitData(const QString &pStr);
-	QStringList GetHeaders(std::string sFields);
-	void addFooterRow(int& rows, int& iFooterRow, std::string sCaption, std::string sValue);
-	std::string sHeaderFields;
-	std::string ObjectType;
-	std::string GetHtmlForm(std::string PK);
-	int GetUrlColumn(std::string sTarget);
+
+    void Refresh();
+    UniValue CallRPC(std::string args);
+    void DimensionalReport( std::string sType, double min_coin_age, double min_coin_amt /*, QColor Color = QColor(255,255,255) */);
 
 private Q_SLOTS:
-    void slotNavigateTo();
-	void slotCustomMenuRequested(QPoint pos);
-	void slotView();
-	void slotList();
-	void RefreshPogLeaderboard();
+
 
 };
 

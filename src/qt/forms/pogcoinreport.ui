@@ -2,6 +2,14 @@
 <ui version="4.0">
  <class>PoGCoinReport</class>
  <widget class="QWidget" name="PoGCoinReport">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>759</width>
+    <height>468</height>
+   </rect>
+  </property>
   <property name="sizePolicy">
    <sizepolicy hsizetype="Maximum" vsizetype="Maximum">
     <horstretch>0</horstretch>
@@ -11,7 +19,7 @@
   <property name="windowTitle">
    <string>Form</string>
   </property>
-  <widget class="QTableWidget" name="tableWidget">
+  <widget class="QTableWidget" name="coinsTable">
    <property name="geometry">
     <rect>
      <x>20</x>
@@ -36,7 +44,7 @@
     </property>
    </column>
   </widget>
-  <widget class="QWidget" name="">
+  <widget class="QWidget" name="layoutWidget">
    <property name="geometry">
     <rect>
      <x>20</x>
@@ -54,7 +62,7 @@
      </widget>
     </item>
     <item>
-     <widget class="QLabel" name="label_2">
+     <widget class="QLabel" name="label_canTithe">
       <property name="text">
        <string>YES/NO</string>
       </property>
@@ -68,7 +76,7 @@
      </widget>
     </item>
     <item>
-     <widget class="QLabel" name="label_4">
+     <widget class="QLabel" name="label_coinAge">
       <property name="text">
        <string>MCAge</string>
       </property>
@@ -82,13 +90,26 @@
      </widget>
     </item>
     <item>
-     <widget class="QLabel" name="label_6">
+     <widget class="QLabel" name="label_coinAmount">
       <property name="text">
        <string>MCAmt</string>
       </property>
      </widget>
     </item>
    </layout>
+  </widget>
+  <widget class="QLabel" name="label_debug">
+   <property name="geometry">
+    <rect>
+     <x>20</x>
+     <y>340</y>
+     <width>711</width>
+     <height>21</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Debug label</string>
+   </property>
   </widget>
  </widget>
  <resources/>

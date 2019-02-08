@@ -279,7 +279,6 @@ void WalletView::gotoPOGLeaderboardListPage()
 void WalletView::gotoPOGCoinReportPage()
 {
     setCurrentWidget(pogCoinReportPage);
-    businessObjectListPage->UpdateObject("pog_coinreport");
 }
 
 

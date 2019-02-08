@@ -1,11 +1,16 @@
 #include "pogcoinreport.h"
 #include "bitcoinunits.h"
 #include "ui_pogcoinreport.h"
-#include "secdialog.h"
-#include "ui_secdialog.h"
 #include "walletmodel.h"
 #include "guiutil.h"
+#include "rpcclient.h"
+#include "rpcserver.h"
 #include "rpcpog.h"
+#include "main.h"
+
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonArray>
 #include <QPainter>
 #include <QTableWidget>
 #include <QGridLayout>
@@ -13,35 +18,27 @@
 #include <QTimer>
 #include <univalue.h>
 #include <boost/algorithm/string/case_conv.hpp> // for to_lower()
+#include <boost/algorithm/string.hpp>
+
+using namespace std;
 
 bool bSlotsCreated = false;
-
-QStringList PoGCoinReport::GetHeaders(std::string sFields)
-{
-	QStringList pHeaders;
-	UniValue aBO;
-	if (ObjectType != "pog_leaderboard")
-	{
-		aBO	= GetBusinessObjectByFieldValue("object", "object_name", ObjectType);
-		sFields = "id," + aBO["fields"].getValStr();	
-	}
-	
-	sHeaderFields = sFields;
-
-	std::vector<std::string> vFields = Split(sFields.c_str(),",");
-	for (int i = 0; i < (int)vFields.size(); i++)
-	{
-		std::string sFieldName = vFields[i];
-		pHeaders << GUIUtil::TOQS(sFieldName);
-	}
-	return pHeaders;
-}
 
 PoGCoinReport::PoGCoinReport(const PlatformStyle *platformStyle, QWidget *parent) : ui(new Ui::PoGCoinReport)
 {
     ui->setupUi(this);
-}
 
+    // Coin table
+    int columnStatusWidth = 200;
+    int columnAmounWidth = 100;
+    int columnAgeWidth = 100;
+
+    ui->coinsTable->setColumnWidth(0, columnStatusWidth);
+    ui->coinsTable->setColumnWidth(1, columnAmounWidth);
+    ui->coinsTable->setColumnWidth(2, columnAgeWidth);
+
+    Refresh();
+}
 
 PoGCoinReport::~PoGCoinReport()
 {
@@ -53,240 +50,115 @@ void PoGCoinReport::setModel(WalletModel *model)
     this->model = model;
 }
 
-void PoGCoinReport::RefreshPogLeaderboard()
+void PoGCoinReport::Refresh()
 {
-	if (ObjectType == "pog_leaderboard") 
-		UpdateObject("pog_leaderboard");
-}
+    try {
+        UniValue jsonVal = CallRPC( string("titheinfo") );
+        double min_coin_age = 0 , min_coin_amt = 0;
 
-void PoGCoinReport::UpdateObject(std::string objType)
-{
-	ObjectType = objType;
-	std::string sFields;
-    QString pString;
+        if ( jsonVal.isObject() )
+        {
+            QString tithability;
+            
+            UniValue json_min_coin_age = find_value(jsonVal.get_obj(), "min_coin_age");
+            if ( json_min_coin_age.isNum() )    {
+                min_coin_age = json_min_coin_age.get_real();
+                ui->label_coinAge->setText(QString::number(min_coin_age, 'g', 8));
+            }
+            UniValue json_min_coin_amt = find_value(jsonVal.get_obj(), "min_coin_amt");
+            if ( json_min_coin_amt.isNum() )    {
+                min_coin_amt = json_min_coin_amt.get_real();
+                ui->label_coinAmount->setText(QString::number(min_coin_amt, 'g', 8));
+            }
+            UniValue json_tithability = find_value(jsonVal.get_obj(), "Tithability_Summary");
+            if ( json_tithability.isStr() )    {
 
-	if (objType == "pog_leaderboard")
-	{
-		sFields = "id,nickname,address,height,amount,weight";
-        pString = GUIUtil::TOQS(GetPOGPoGCoinReport(ObjectType, sFields));
-		// Update once per minute
-		QTimer::singleShot(60000, this, SLOT(RefreshPogLeaderboard()));
-	}
-	else
-	{
-		UniValue aBO = GetBusinessObjectByFieldValue("object", "object_name", ObjectType);
-		sFields = aBO["fields"].getValStr();
-        pString	= GUIUtil::TOQS(GetPoGCoinReport(ObjectType, sFields));
-	}
-	// Show the difficulty, my_tithes, my_nickname, grand total (amount) as grand total rows
-    QStringList pHeaders = GetHeaders(sFields);
-    this->createUI(pHeaders, pString);
-}
+                tithability = QString::fromStdString(json_tithability.get_str());
+                ui->label_canTithe->setText( tithability );
+                QString style = (tithability=="YES")?"QLabel { background-color : green; }":"QLabel { background-color : red; }";
+                ui->label_canTithe->setStyleSheet( style );
+            }
+        }
+        
+        if ( min_coin_age > 0 && min_coin_amt > 0 ) {
+            DimensionalReport( "Tithable coins",  min_coin_age, min_coin_amt );
+            DimensionalReport( "Aged but not amount",  min_coin_age, 0.01 );
+            DimensionalReport( "Amount but not age",  0.01, min_coin_amt );
+        }
 
-void PoGCoinReport::addFooterRow(int& rows, int& iFooterRow, std::string sCaption, std::string sValue)
-{
-	rows++;
-    ui->tableWidget->setItem(rows, 0, new QTableWidgetItem(GUIUtil::TOQS(sCaption)));
-	ui->tableWidget->setItem(rows, 1, new QTableWidgetItem(GUIUtil::TOQS(sValue)));
-}
-
-void PoGCoinReport::createUI(const QStringList &headers, const QString &pStr)
-{
-    ui->tableWidget->setShowGrid(true);
-	ui->tableWidget->setRowCount(0);
-
-    ui->tableWidget->setSelectionMode(QAbstractItemView::SingleSelection);
-    ui->tableWidget->setSelectionBehavior(QAbstractItemView::SelectRows);
-    ui->tableWidget->horizontalHeader()->setStretchLastSection(true);
-
-    QVector<QVector<QString> > pMatrix;
-	if (pStr == "") return;
-
-    pMatrix = SplitData(pStr);
-	int rows = pMatrix.size();
-	int iFooterRow = 0;
-	int iAmountCol = 0;
-	int iNameCol = 0;
-	if (ObjectType == "pog_leaderboard") 
-	{
-		iFooterRow += 6;
-		iAmountCol = -1;
-		iNameCol = GetUrlColumn("nickname");
-	}
-	else
-	{
-		iAmountCol = GetUrlColumn("Amount");
-		iFooterRow = (iAmountCol > -1) ? 1 : 0;
-	}
-
-    ui->tableWidget->setRowCount(rows + iFooterRow);
-    int cols = pMatrix[0].size() - 1;
-    ui->tableWidget->setColumnCount(cols);
-    ui->tableWidget->setHorizontalHeaderLabels(headers);
-    QString s;
-	double dGrandTotal = 0;
-	
-    for(int i = 0; i < rows; i++)
-	{
-		bool bHighlighted = (iNameCol > 0 && pMatrix[i][iNameCol] == GUIUtil::TOQS(msNickName));
-	
-        for(int j = 0; j < cols; j++)
-		{
-			QTableWidgetItem* q = new QTableWidgetItem(pMatrix[i][j]);
-			ui->tableWidget->setItem(i, j, q);
-		}
-		if (bHighlighted)
-		{
-			ui->tableWidget->selectRow(i);
-			ui->tableWidget->item(i, iNameCol)->setBackground(Qt::yellow);
-		}
-
-		if (iAmountCol > -1)
-		{
-			dGrandTotal += cdbl(GUIUtil::FROMQS(pMatrix[i][iAmountCol]), 2);
-		}
-	}
-	
-	if (ObjectType == "pog_leaderboard")
-	{
-		std::string sXML = GUIUtil::FROMQS(pStr);
-		addFooterRow(rows, iFooterRow, "Difficulty:", ExtractXML(sXML, "<difficulty>","</difficulty>"));
-		addFooterRow(rows, iFooterRow, "My Tithes:", ExtractXML(sXML, "<my_tithes>","</my_tithes>"));
-		addFooterRow(rows, iFooterRow, "My Nick Name:", ExtractXML(sXML, "<my_nickname>","</my_nickname>"));
-		addFooterRow(rows, iFooterRow, "Total Pool Tithes:", ExtractXML(sXML, "<total>","</total>"));
-		addFooterRow(rows, iFooterRow, "Total Pool Participants:", ExtractXML(sXML, "<participants>","</participants>"));
-	}
-	else if (iFooterRow > 0)
-	{
-		ui->tableWidget->setItem(rows, 0, new QTableWidgetItem("Grand Total:"));
-		ui->tableWidget->setItem(rows, iAmountCol, new QTableWidgetItem(GUIUtil::TOQS(RoundToString(dGrandTotal, 2))));
-	}
-
-    ui->tableWidget->setEditTriggers(QAbstractItemView::NoEditTriggers);
-    ui->tableWidget->resizeRowsToContents();
-    ui->tableWidget->resizeColumnsToContents();
-    ui->tableWidget->setContextMenuPolicy(Qt::CustomContextMenu);
-
-	// Column widths should be set 
-	for (int j=0; j < cols; j++)
-	{
-		ui->tableWidget->setColumnWidth(j, 128);
-	}
-
-	if (!bSlotsCreated)
-	{
-		connect(ui->tableWidget, SIGNAL(customContextMenuRequested(QPoint)), this, SLOT(slotCustomMenuRequested(QPoint)));
-		bSlotsCreated = true;
-	}
-}
-
-void PoGCoinReport::slotCustomMenuRequested(QPoint pos)
-{
-    /* Create an object context menu */
-    QMenu * menu = new QMenu(this);
-    //  Create, Connect and Set the actions to the menu
-    menu->addAction(tr("Navigate To"), this, SLOT(slotNavigateTo()));
-	menu->addAction(tr("List"), this, SLOT(slotList()));
-	menu->addAction(tr("View"), this, SLOT(slotView()));
-	if (ObjectType=="orphan")
-	{
-		if (Params().NetworkIDString() != "main") menu->addAction(tr("Write Orphan"), this, SLOT(slotWriteOrphan()));
-	}
-	if (ObjectType == "letter")
-	{
-		if (Params().NetworkIDString() != "main") menu->addAction(tr("Review Letter"), this, SLOT(slotReviewLetter()));
-	}
-
-    menu->popup(ui->tableWidget->viewport()->mapToGlobal(pos));
-}
-
-int PoGCoinReport::GetUrlColumn(std::string sTarget)
-{
-	boost::to_upper(sTarget);
-	// UniValue aBO = GetBusinessObjectByFieldValue("object", "object_name", ObjectType);
-	// std::string sFields = "id," + aBO["fields"].getValStr();	
-	std::vector<std::string> vFields = Split(sHeaderFields.c_str(), ",");
-	for (int i = 0; i < (int)vFields.size(); i++)
-	{
-		std::string sFieldName = vFields[i];
-		boost::to_upper(sFieldName);
-		if (sFieldName == sTarget) return i;
-	}
-	return -1;
-}
-
-
-void PoGCoinReport::slotList()
-{
-    int row = ui->tableWidget->selectionModel()->currentIndex().row();
-    if(row >= 0)
+    }
+    catch ( runtime_error e)
     {
-		// Navigate to the List of the Object
-        std::string sID = GUIUtil::FROMQS(ui->tableWidget->item(row, 0)->text()); // PK-2PK-IPFS Hash of business object
-		int iCol = GetUrlColumn("object_name");
-		if (iCol > -1)
-		{
-			std::string sTarget = GUIUtil::FROMQS(ui->tableWidget->item(row, iCol)->text());
-			// Close existing menu
-			UpdateObject(sTarget);
-		}
+        return;
     }
 }
 
-void PoGCoinReport::slotView()
+void PoGCoinReport::DimensionalReport( string sType, double min_coin_age, double min_coin_amt /*, QColor Color = QColor(255,255,255)*/ )
 {
-    int row = ui->tableWidget->selectionModel()->currentIndex().row();
-    if(row >= 0)
+    try {
+        std::ostringstream cmd;
+        cmd << "exec getdimensionalbalance " << min_coin_age << " " << min_coin_amt;
+        UniValue jsonVal = CallRPC( string( cmd.str() ) );
+        if ( jsonVal.isObject() )
+        {
+            vector<string> key_vector = jsonVal.getKeys();
+            vector<string>::iterator it;
+            int i = 0;  // counter.
+            double total = 0;
+            string key, value, coin_amount, coin_age;
+
+            for(it = key_vector.begin(); it != key_vector.end(); it++,i++ )    {
+                key = *it;
+                UniValue json_value = find_value(jsonVal.get_obj(), *it);
+                if ( json_value.isNum() && key.compare("Total") == 0 )    {
+                    total = json_value.get_real();
+                    ui->label_debug->setText( QString::number(total, 'g', 8) );
+                }
+                else if ( key.compare("Command") == 0 ) {
+                    continue; // pass along
+                }
+                else {
+                    value = json_value.get_str();
+                    coin_amount = key.substr(7);
+                    coin_age = value.substr(4);
+
+                    QString strType = QString::fromStdString(sType);
+                    QString strAmount = QString::fromStdString(coin_amount);
+                    QString strAge = QString::fromStdString(coin_age);
+
+                    ui->coinsTable->insertRow(0);
+
+                    QTableWidgetItem* TypeItem = new QTableWidgetItem(strType);
+                    QTableWidgetItem* AmountItem = new QTableWidgetItem(strAmount);;
+                    QTableWidgetItem* AgeItem = new QTableWidgetItem(strAge);
+
+                    ui->coinsTable->setItem(0, 0, TypeItem);
+                    ui->coinsTable->setItem(0, 1, AmountItem);
+                    ui->coinsTable->setItem(0, 2, AgeItem);
+                }
+            }
+        }
+    }
+    catch ( runtime_error e)
     {
-        QMessageBox msgBox;
-        std::string id = GUIUtil::FROMQS(ui->tableWidget->item(row, 0)->text()); // PK-2PK-IPFS Hash of business object
-		msgBox.setWindowTitle(GUIUtil::TOQS(id));
-	    msgBox.setText(GUIUtil::TOQS(GetHtmlForm(id)));
-        msgBox.setStandardButtons(QMessageBox::Ok);
-        msgBox.setDefaultButton(QMessageBox::Ok);
-		msgBox.exec();
+        return;
     }
 }
 
-
-void PoGCoinReport::slotNavigateTo()
+UniValue PoGCoinReport::CallRPC(string args)
 {
-    int row = ui->tableWidget->selectionModel()->currentIndex().row();
-    if(row >= 0)
-    {
-		// Open the URL
-        QMessageBox msgBox;
-		int iURLCol = GetUrlColumn("URL");
-		if (iURLCol > -1)
-		{
-			QString Url = ui->tableWidget->item(row, iURLCol)->text();
-			QUrl pUrl(Url);
-			QDesktopServices::openUrl(pUrl);
-		}
-    }
-}
+    vector<string> vArgs;
+    boost::split(vArgs, args, boost::is_any_of(" \t"));
+    string strMethod = vArgs[0];
+    vArgs.erase(vArgs.begin());
+    UniValue params = RPCConvertValues(strMethod, vArgs);
 
-QVector<QVector<QString> > PoGCoinReport::SplitData(const QString &pStr)
-{
-	QStringList proposals = pStr.split(QRegExp("<object>"),QString::SkipEmptyParts);
-    int nProposals = proposals.size();
-    QVector<QVector<QString> > proposalMatrix;
-    for (int i=0; i < nProposals; i++)
-    {
-        QStringList proposalDetail = proposals[i].split(QRegExp("<col>"));
-        int detailSize = proposalDetail.size();
-		if (detailSize > 1)
-		{
-			proposalMatrix.append(QVector<QString>());
-			for (int j = 0; j < detailSize; j++)
-			{
-				QString sData = proposalDetail[j];
-				/*  Reserved for BitcoinUnits
-					sData = BitcoinUnits::format(2, cdbl(GUIUtil::FROMQS(sData), 2) * 100, false, BitcoinUnits::separatorAlways);		
-				*/
-				proposalMatrix[i].append(sData);
-			}
-		}
+    rpcfn_type method = tableRPC[strMethod]->actor;
+    try {
+        UniValue result = (*method)(params, false);
+        return result;
     }
-	return proposalMatrix;
+    catch (const UniValue& objError) {
+        throw runtime_error(find_value(objError, "message").get_str());
+    }
 }

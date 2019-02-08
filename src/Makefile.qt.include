@@ -46,7 +46,8 @@ QT_FORMS_UI = \
   qt/forms/signverifymessagedialog.ui \
   qt/forms/proposals.ui \
   qt/forms/secdialog.ui \
-  qt/forms/transactiondescdialog.ui
+  qt/forms/transactiondescdialog.ui \
+  qt/forms/pogcoinreport.ui
 
 QT_MOC_CPP = \
   qt/moc_addressbookpage.cpp \
@@ -82,6 +83,7 @@ QT_MOC_CPP = \
   qt/moc_distributedcomputingdialog.cpp \
   qt/moc_proposaladddialog.cpp \
   qt/moc_chatdialog.cpp \
+  qt/moc_pogcoinreport.cpp \
   qt/moc_contactadddialog.cpp \
   qt/moc_businessobjectlist.cpp \
   qt/moc_writeorphan.cpp \
@@ -187,7 +189,8 @@ BITCOIN_QT_H = \
   qt/walletview.h \
   qt/proposals.h \
   qt/secdialog.h \
-  qt/winshutdownmonitor.h
+  qt/winshutdownmonitor.h \
+  qt/pogcoinreport.h
 
 RES_ICONS = \
   qt/res/icons/bitcoin.ico \
@@ -512,7 +515,8 @@ BITCOIN_QT_CPP += \
   qt/walletmodeltransaction.cpp \
   qt/walletview.cpp \
   qt/proposals.cpp \
-  qt/secdialog.cpp
+  qt/secdialog.cpp \
+  qt/pogcoinreport.cpp
 endif
 
 RES_IMAGES = \

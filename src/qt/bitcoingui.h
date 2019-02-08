@@ -125,11 +125,14 @@ private:
     QAction *receiveCoinsMenuAction;
 	QAction *distributedComputingAction;
 	QAction *pogLeaderboardAction;
+    QAction *pogCoinReportAction;
 	QAction *distributedComputingMenuAction;
 	QAction *proposalAddMenuAction;
 	QAction *contactAddMenuAction;
 	QAction *businessObjectListMenuAction;
 	QAction *pogLeaderboardListMenuAction;
+    QAction *pogCoinReportMenuAction;
+
 	QAction *proposalListAction;
 
     QAction *optionsAction;
@@ -250,6 +253,7 @@ private Q_SLOTS:
 
 	/** Switch to POG Leaderboard */
 	void gotoPOGLeaderboardListPage();
+    void gotoPOGCoinReport();
 
     /** Show Sign/Verify Message dialog and switch to sign message tab */
     void gotoSignMessageTab(QString addr = "");
