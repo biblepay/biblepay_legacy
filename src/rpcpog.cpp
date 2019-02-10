@@ -784,6 +784,7 @@ std::string StoreBusinessObjectWithPK(UniValue& oBusinessObject, std::string& sE
 		double dStorageFee = 1;
 		std::string sTxId = "";
 		sTxId = SendBusinessObject(sOT, sPK + sSecondaryKey, sIPFSHash, dStorageFee, sSignKey, true, sError);
+		WriteCache(sPK, sSecondaryKey, sIPFSHash, GetAdjustedTime());
 		return sTxId;
 	}
 	return "";
@@ -1697,7 +1698,7 @@ std::string SendBusinessObject(std::string sType, std::string sPrimaryKey, std::
 		if (bSigned) 
 		{
 			sMessageSig = "<BOSIG>" + sSignature + "</BOSIG>";
-			WriteCache(sType, sSignKey, sValue, GetAdjustedTime());
+			// (Remove this - this lets an IPFS object appear in a list before 6 confirms) - Leave to discuss: WriteCache(sType, sSignKey, sValue, GetAdjustedTime());
 		}
 	}
 	std::string s1 = sMessageType + sMessageKey + sMessageValue + sNonce + sBOSignKey + sMessageSig;

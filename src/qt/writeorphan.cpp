@@ -19,7 +19,17 @@
 #include <QDir>
 #include <QTimer>
 
-
+std::string GetLetterId(std::string sObjId)
+{
+	std::vector<std::string> vFields = Split(sObjId.c_str(), "-");
+	if (vFields.size() > 1)
+	{
+		std::string sID = vFields[1];
+		return sID;
+	}
+	return sObjId;
+}
+	
 WriteOrphan::WriteOrphan(QWidget *parent, std::string xMode, std::string xOrphanID, std::string xLetterID) : QDialog(parent),ui(new Ui::WriteOrphan)
 {
     ui->setupUi(this);
@@ -40,7 +50,7 @@ WriteOrphan::WriteOrphan(QWidget *parent, std::string xMode, std::string xOrphan
 	else
 	{
 		// The letter ID is the IPFS letter ID
-		sObjectID = xLetterID;
+		sObjectID = GetLetterId(xLetterID);
 	}
 	// The Attachment directory is the hash of the letterID
 	sDir = GetSANDirectory2() + RetrieveMd5(sObjectID) + "/";
@@ -51,6 +61,12 @@ WriteOrphan::WriteOrphan(QWidget *parent, std::string xMode, std::string xOrphan
 		ui->btnSave->setEnabled(false);
 		ui->btnAttachImage->setEnabled(false);
 	}
+	else if (sMode == "EDIT")
+	{
+		Load();
+		ui->btnSave->setEnabled(true);
+		ui->btnAttachImage->setEnabled(true);
+	}
 	PopulateAttachedPics();
 	connect(ui->btnAttachImage, SIGNAL(clicked()), this, SLOT(AttachImage()));
 	connect(ui->btnSave, SIGNAL(clicked()), this, SLOT(SaveRecord()));
@@ -60,7 +76,7 @@ WriteOrphan::WriteOrphan(QWidget *parent, std::string xMode, std::string xOrphan
 void WriteOrphan::SaveRecord()
 {
 	std::string sTXID = Save();
-	std::string sNarr = (sTXID.empty()) ? "Unable to save record.  (Ensure wallet is unlocked and retry, next check IPFS configuration.)" : "Successfully saved letter " + sTXID + ".  Thank you for writing to BiblePay Orphans!";
+	std::string sNarr = (sTXID.empty()) ? "Unable to save record.  (Ensure wallet is unlocked and retry, next check IPFS configuration.)" : "Successfully saved letter " + sObjectID + "-" + sTXID + ".  Thank you for writing to BiblePay Orphans!";
 	QMessageBox::warning(this, tr("Save Letter"), GUIUtil::TOQS(sNarr));
 }
 
@@ -147,9 +163,7 @@ void WriteOrphan::Load()
 	if (nTries > MAX_RETRIES_NETWORK_FAILURE) return;  // In case of network failure, this occurs if the page links cannot be downloaded
 	std::string sError;
 	UniValue aBO(UniValue::VOBJ);
-	std::vector<std::string> vFields = Split(sObjectID.c_str(), "-");
-	
-	aBO = GetBusinessObject("LETTER", vFields[1], sError);
+	aBO = GetBusinessObject("LETTER", GetLetterId(sObjectID), sError);
 	sOrphanID = aBO["orphanid"].getValStr();
 	std::string sBody = aBO["body"].getValStr();
 	std::string sAdded = aBO["added"].getValStr();
@@ -182,6 +196,7 @@ std::string WriteOrphan::Save()
 	UniValue oBO(UniValue::VOBJ);
 	oBO.push_back(Pair("objecttype", "letter"));
 	oBO.push_back(Pair("primarykey", "letter"));
+	// Allow re-saving the object using the original object ID if the user has permissions
 	oBO.push_back(Pair("secondarykey", sObjectID));
 	oBO.push_back(Pair("added", RoundToString(GetAdjustedTime(), 0)));
 	oBO.push_back(Pair("deleted", "0"));
