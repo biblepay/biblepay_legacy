@@ -173,6 +173,8 @@ void MasternodeList::StartAll(std::string strCommand)
 
 void MasternodeList::StartOne()
 {
+	return;
+
     int nCountSuccessful = 0;
     int nCountFailed = 0;
     std::string strFailedHtml;
