@@ -19,6 +19,7 @@ class DistributedComputingDialog;
 class ProposalAddDialog;
 class ContactAddDialog;
 class BusinessObjectList;
+class PoGCoinReport;
 
 class Proposals;
 class SendCoinsDialog;
@@ -73,6 +74,7 @@ private:
 	ProposalAddDialog *proposalAddPage;
 	ContactAddDialog *contactAddPage;
 	BusinessObjectList *businessObjectListPage;
+    PoGCoinReport *pogCoinReportPage;
 
 	Proposals *proposalListPage;
     SendCoinsDialog *sendCoinsPage;
@@ -111,6 +113,7 @@ public Q_SLOTS:
 	void gotoBusinessObjectListPage();
 
 	void gotoPOGLeaderboardListPage();
+    void gotoPOGCoinReportPage();
 
     /** Show Sign/Verify Message dialog and switch to sign message tab */
     void gotoSignMessageTab(QString addr = "");

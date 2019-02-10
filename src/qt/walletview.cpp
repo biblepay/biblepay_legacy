@@ -17,6 +17,7 @@
 #include "proposaladddialog.h"
 #include "contactadddialog.h"
 #include "businessobjectlist.h"
+#include "pogcoinreport.h"
 #include "sendcoinsdialog.h"
 #include "signverifymessagedialog.h"
 #include "transactiontablemodel.h"
@@ -81,6 +82,7 @@ WalletView::WalletView(const PlatformStyle *platformStyle, QWidget *parent):
 	proposalListPage = new Proposals(platformStyle);
     contactAddPage = new ContactAddDialog(platformStyle);
 	businessObjectListPage = new BusinessObjectList(platformStyle);
+    pogCoinReportPage = new PoGCoinReport(platformStyle);
 
     usedSendingAddressesPage = new AddressBookPage(platformStyle, AddressBookPage::ForEditing, AddressBookPage::SendingTab, this);
     usedReceivingAddressesPage = new AddressBookPage(platformStyle, AddressBookPage::ForEditing, AddressBookPage::ReceivingTab, this);
@@ -92,6 +94,7 @@ WalletView::WalletView(const PlatformStyle *platformStyle, QWidget *parent):
 	addWidget(proposalAddPage);
 	addWidget(contactAddPage);
 	addWidget(businessObjectListPage);
+    addWidget(pogCoinReportPage);
 	addWidget(proposalListPage);
     addWidget(sendCoinsPage);
 
@@ -272,6 +275,12 @@ void WalletView::gotoPOGLeaderboardListPage()
 	setCurrentWidget(businessObjectListPage);
 	businessObjectListPage->UpdateObject("pog_leaderboard");
 }
+
+void WalletView::gotoPOGCoinReportPage()
+{
+    setCurrentWidget(pogCoinReportPage);
+}
+
 
 void WalletView::gotoProposalListPage()
 {
