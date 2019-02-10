@@ -3188,10 +3188,12 @@ UniValue exec(const UniValue& params, bool fHelp)
 				 results.push_back(Pair("vout", sRecipient));
 			 }
 		}
+		/*
 	    int nTitheCount = mempool.getTitheCount();
 		double dPogDiff = GetPOGDifficulty(chainActive.Tip());
 		results.push_back(Pair("tithe_count", nTitheCount));
-		retults.push_back(Pair("pog_difficulty", dPogDiff));
+		results.push_back(Pair("pog_difficulty", dPogDiff));
+		*/
 	}
 	else if (sItem == "chat1")
 	{

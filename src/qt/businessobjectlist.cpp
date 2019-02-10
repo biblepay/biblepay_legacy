@@ -153,10 +153,9 @@ void BusinessObjectList::createUI(const QStringList &headers, const QString &pSt
 	
 	if (ObjectType == "pog_leaderboard")
 	{
-		// Sort by Tithe amount descending
-		ui->tableWidget->sortByColumn(4, Qt::DescendingOrder);
+		// Sort by ShareWeight descending
+		ui->tableWidget->sortByColumn(5, Qt::DescendingOrder);
 		ui->tableWidget->setSortingEnabled(true);
-
 		std::string sXML = GUIUtil::FROMQS(pStr);
 		addFooterRow(rows, iFooterRow, "Difficulty:", ExtractXML(sXML, "<difficulty>","</difficulty>"));
 		addFooterRow(rows, iFooterRow, "My Tithes:", ExtractXML(sXML, "<my_tithes>","</my_tithes>"));
