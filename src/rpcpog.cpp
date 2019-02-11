@@ -172,12 +172,37 @@ TitheDifficultyParams GetTitheParams(const CBlockIndex* pindex)
 	td.min_coin_amount = 0;
 	td.max_tithe_amount = 0;
 	if (pindex == NULL || pindex->nHeight == 0) return td;
+	if (fProd && pindex->nHeight > POG_V2_CUTOVER_HEIGHT_PROD) return GetTitheParams2(pindex);
 	CAmount nTitheCap = GetTitheCap(pindex);
 	if (nTitheCap < 1) return td;
 	double nQLevel = (((double)pindex->n24HourTithes/COIN) / ((double)nTitheCap/COIN));
 	td.min_coin_age = R2X(Quantize(0, 60, nQLevel));
 	td.min_coin_amount = R2X(Quantize(1, 25000, nQLevel)) * COIN;
 	td.max_tithe_amount = R2X(Quantize(300, 1, nQLevel)) * COIN; // Descending tithe amount
+	return td;
+}
+
+TitheDifficultyParams GetTitheParams2(const CBlockIndex* pindex)
+{
+	// V2.0 - R ANDREWS - BIBLEPAY - FEB 9th, 2019
+	// V1.0 was subject to catastrophic cycling (due to a high max_tithe_amount accomodating too few participants and due to having no coin age requirement at the lowest diff - and due to the mempool overflow rejection business logic rule not being in place in prod)
+	// After the cutover height, we use V2.0 in prod
+
+	// Tithe Parameter Ranges:
+	// min_coin_age  : .25 - 60 (days)
+	// min_coin_amount : 1 - 25000
+	// max_tithe_amount: 10 - .25 (descending)
+	TitheDifficultyParams td;
+	td.min_coin_age = 99999;
+	td.min_coin_amount = 0;
+	td.max_tithe_amount = 0;
+	if (pindex == NULL || pindex->nHeight == 0) return td;
+	CAmount nTitheCap = GetTitheCap(pindex);
+	if (nTitheCap < 1) return td;
+	double nQLevel = (((double)pindex->n24HourTithes/COIN) / ((double)nTitheCap/COIN));
+	td.min_coin_age = R2X(Quantize(.25, 60, nQLevel));
+	td.min_coin_amount = R2X(Quantize(1, 25000, nQLevel)) * COIN;
+	td.max_tithe_amount = R2X(Quantize(10, .25, nQLevel)) * COIN; // Descending tithe amount
 	return td;
 }
 
@@ -1698,7 +1723,6 @@ std::string SendBusinessObject(std::string sType, std::string sPrimaryKey, std::
 		if (bSigned) 
 		{
 			sMessageSig = "<BOSIG>" + sSignature + "</BOSIG>";
-			// (Remove this - this lets an IPFS object appear in a list before 6 confirms) - Leave to discuss: WriteCache(sType, sSignKey, sValue, GetAdjustedTime());
 		}
 	}
 	std::string s1 = sMessageType + sMessageKey + sMessageValue + sNonce + sBOSignKey + sMessageSig;
@@ -1710,8 +1734,6 @@ std::string SendBusinessObject(std::string sType, std::string sPrimaryKey, std::
 	if (!sError.empty()) return "";
     return wtx.GetHash().GetHex().c_str();
 }
-
-
 
 int GetSignalInt(std::string sLocalSignal)
 {

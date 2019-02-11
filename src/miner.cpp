@@ -809,7 +809,7 @@ recover:
 
 			// POG - R ANDREWS - 12/6/2018 - Once every 4 hours, tithe if profitable and possible
 			int64_t nPOGTitheAge = GetAdjustedTime() - nLastPOGTithe;
-			if (fPOGEnabled && nPOGTitheFrequency > 120 && iThreadID == 0 && (nPOGTitheAge > (nPOGTitheFrequency)))
+			if (fPOGEnabled && nPOGTitheFrequency > 119 && iThreadID == 0 && (nPOGTitheAge > (nPOGTitheFrequency)))
 			{
 				nLastPOGTithe = GetAdjustedTime();
 				CAmount nTitheAmount = SelectCoinsForTithing(chainActive.Tip());

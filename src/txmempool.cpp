@@ -16,6 +16,7 @@
 #include "utilmoneystr.h"
 #include "utiltime.h"
 #include "version.h"
+#include "chainparams.h"
 
 using namespace std;
 
@@ -863,6 +864,31 @@ void CTxMemPool::queryHashes(vector<uint256>& vtxid)
     vtxid.reserve(mapTx.size());
     for (indexed_transaction_set::iterator mi = mapTx.begin(); mi != mapTx.end(); ++mi)
         vtxid.push_back(mi->GetTx().GetHash());
+}
+
+int CTxMemPool::getTitheCount()
+{
+	std::vector<uint256> vtxid;
+    queryHashes(vtxid);
+	int i = 0;
+	BOOST_FOREACH(uint256& hash, vtxid) 
+	{
+        CTransaction tx;
+        bool fInMemPool = mempool.lookup(hash, tx);
+		if (fInMemPool)
+		{
+			for (unsigned int z = 0; z < tx.vout.size(); z++)
+			{	
+				std::string sRecip = PubKeyToAddress(tx.vout[z].scriptPubKey);
+				if (sRecip == Params().GetConsensus().FoundationAddress)  
+				{
+					i++;
+					break;
+				}
+			}
+		 }
+	}
+	return i;
 }
 
 bool CTxMemPool::lookup(uint256 hash, CTransaction& result) const
