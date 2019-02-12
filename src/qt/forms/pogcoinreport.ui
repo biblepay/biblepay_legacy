@@ -23,9 +23,9 @@
    <property name="geometry">
     <rect>
      <x>20</x>
-     <y>60</y>
-     <width>721</width>
-     <height>271</height>
+     <y>30</y>
+     <width>411</width>
+     <height>371</height>
     </rect>
    </property>
    <column>
@@ -47,38 +47,17 @@
   <widget class="QWidget" name="layoutWidget">
    <property name="geometry">
     <rect>
-     <x>20</x>
-     <y>20</y>
-     <width>721</width>
-     <height>18</height>
+     <x>450</x>
+     <y>80</y>
+     <width>161</width>
+     <height>291</height>
     </rect>
    </property>
-   <layout class="QHBoxLayout" name="horizontalLayout">
+   <layout class="QVBoxLayout" name="verticalLayout">
     <item>
      <widget class="QLabel" name="label">
       <property name="text">
        <string>CAN TITHE</string>
-      </property>
-     </widget>
-    </item>
-    <item>
-     <widget class="QLabel" name="label_canTithe">
-      <property name="text">
-       <string>YES/NO</string>
-      </property>
-     </widget>
-    </item>
-    <item>
-     <widget class="QLabel" name="label_3">
-      <property name="text">
-       <string>Min. coin age</string>
-      </property>
-     </widget>
-    </item>
-    <item>
-     <widget class="QLabel" name="label_coinAge">
-      <property name="text">
-       <string>MCAge</string>
       </property>
      </widget>
     </item>
@@ -90,9 +69,44 @@
      </widget>
     </item>
     <item>
-     <widget class="QLabel" name="label_coinAmount">
+     <widget class="QLabel" name="label_3">
       <property name="text">
-       <string>MCAmt</string>
+       <string>Min. coin age</string>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <widget class="QLabel" name="label_6">
+      <property name="text">
+       <string>Max. tithe amount</string>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <widget class="QLabel" name="label_7">
+      <property name="text">
+       <string>Tithe Cap</string>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <widget class="QLabel" name="label_9">
+      <property name="text">
+       <string>My tithes</string>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <widget class="QLabel" name="label_8">
+      <property name="text">
+       <string>Total tithes</string>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <widget class="QLabel" name="label_10">
+      <property name="text">
+       <string>Total participants</string>
       </property>
      </widget>
     </item>
@@ -102,7 +116,7 @@
    <property name="geometry">
     <rect>
      <x>20</x>
-     <y>340</y>
+     <y>430</y>
      <width>711</width>
      <height>21</height>
     </rect>
@@ -110,6 +124,110 @@
    <property name="text">
     <string>Debug label</string>
    </property>
+  </widget>
+  <widget class="QWidget" name="horizontalLayoutWidget">
+   <property name="geometry">
+    <rect>
+     <x>450</x>
+     <y>30</y>
+     <width>281</width>
+     <height>31</height>
+    </rect>
+   </property>
+   <layout class="QHBoxLayout" name="horizontalLayout_2">
+    <item>
+     <widget class="QLabel" name="label_4">
+      <property name="text">
+       <string>Refresh every</string>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <widget class="QLineEdit" name="editAutorefreshSeconds">
+      <property name="maximumSize">
+       <size>
+        <width>50</width>
+        <height>16777215</height>
+       </size>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <widget class="QLabel" name="label_2">
+      <property name="text">
+       <string>seconds</string>
+      </property>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QWidget" name="verticalLayoutWidget">
+   <property name="geometry">
+    <rect>
+     <x>620</x>
+     <y>80</y>
+     <width>105</width>
+     <height>291</height>
+    </rect>
+   </property>
+   <layout class="QVBoxLayout" name="verticalLayout_2">
+    <item>
+     <widget class="QLabel" name="label_canTithe">
+      <property name="text">
+       <string>YES/NO</string>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <widget class="QLabel" name="label_coinAmount">
+      <property name="text">
+       <string>MCAmt</string>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <widget class="QLabel" name="label_coinAge">
+      <property name="text">
+       <string>MCAge</string>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <widget class="QLabel" name="label_maxTitheAmt">
+      <property name="text">
+       <string>MTAmt</string>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <widget class="QLabel" name="label_TitheCap">
+      <property name="text">
+       <string>TitheCap</string>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <widget class="QLabel" name="label_MyTithes">
+      <property name="text">
+       <string>MyTithes</string>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <widget class="QLabel" name="label_TotalTithes">
+      <property name="text">
+       <string>TotalTithes</string>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <widget class="QLabel" name="label_TotalParticipants">
+      <property name="text">
+       <string>TotalParticipants</string>
+      </property>
+     </widget>
+    </item>
+   </layout>
   </widget>
  </widget>
  <resources/>

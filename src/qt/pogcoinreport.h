@@ -10,12 +10,15 @@
 #include <QDesktopServices>
 #include <QUrl>
 #include <QMenu>
+#include <QTimer>
 #include <QTableWidget>
 
 class OptionsModel;
 class PlatformStyle;
 class WalletModel;
 class UniValue;
+
+#define POGCOINREPORT_UPDATE_SECONDS                    15
 
 namespace Ui {
 class PoGCoinReport;
@@ -35,6 +38,7 @@ public:
 	void setModel(WalletModel *model);
 
 private:
+    QTimer *timer;
     Ui::PoGCoinReport *ui;
 	WalletModel *model;
 
@@ -43,8 +47,9 @@ private:
     void DimensionalReport( std::string sType, double min_coin_age, double min_coin_amt /*, QColor Color = QColor(255,255,255) */);
 
 private Q_SLOTS:
+    void updateCoinReport();
 
-
+    void on_editAutorefreshSeconds_editingFinished();
 };
 
 #endif // POGCOINREPORT_H
