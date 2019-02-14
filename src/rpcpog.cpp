@@ -95,6 +95,8 @@ std::string CreateBankrollDenominations(double nQuantity, CAmount denominationAm
 {
 	// First mark the denominations with the 1milliBBP TitheMarker (this saves them from being spent in PODC Updates):
 	denominationAmount += ((.001) * COIN);
+	CAmount nBankrollMask = .001 * COIN;
+
 	CAmount nTotal = denominationAmount * nQuantity;
 
 	CAmount curBalance = pwalletMain->GetUnlockedBalance();
@@ -122,7 +124,7 @@ std::string CreateBankrollDenominations(double nQuantity, CAmount denominationAm
 	
 	bool fUseInstantSend = false;
 	double minCoinAge = 0;
-    if (!pwalletMain->CreateTransaction(vecSend, wtx, reservekey, nFeeRequired, nChangePosRet, sError, NULL, true, ONLY_NOT1000IFMN, fUseInstantSend, 0, minCoinAge, 0, denominationAmount)) 
+    if (!pwalletMain->CreateTransaction(vecSend, wtx, reservekey, nFeeRequired, nChangePosRet, sError, NULL, true, ONLY_NOT1000IFMN, fUseInstantSend, 0, minCoinAge, 0, nBankrollMask)) 
 	{
 		if (!sError.empty())
 		{
@@ -1196,7 +1198,7 @@ std::string AddBlockchainMessages(std::string sAddress, std::string sType, std::
 	// Never spend sanctuary funds - R ANDREWS - BIBLEPAY
 	// PODC_Update: Addl params required to enforce coin_age: bool fUseInstantSend=false, int iMinConfirms = 0, double dMinCoinAge = 0, CAmount caMinCoinAmount = 0
 	// Ensure we don't spend POG bankroll denominations
-	CAmount nBankrollMask = (.001) * COIN;
+	CAmount nBankrollMask = .001 * COIN;
 
     if (!pwalletMain->CreateTransaction(vecSend, wtx, reservekey, nFeeRequired, nChangePosRet,
                                          sError, NULL, true, ONLY_NOT1000IFMN, fUseInstantSend, 0, minCoinAge, 0, nBankrollMask)) 
