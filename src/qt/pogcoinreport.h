@@ -50,6 +50,18 @@ private Q_SLOTS:
     void updateCoinReport();
 
     void on_editAutorefreshSeconds_editingFinished();
+    void on_btnCreateBankroll_clicked();
+};
+
+class NumericTableWidgetItem : public QTableWidgetItem {
+    public:
+        NumericTableWidgetItem(const QString &s):QTableWidgetItem(s) {
+        }
+
+        bool operator <(const QTableWidgetItem &other) const
+        {
+            return text().toDouble() < other.text().toDouble();
+        }
 };
 
 #endif // POGCOINREPORT_H

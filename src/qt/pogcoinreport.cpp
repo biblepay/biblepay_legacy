@@ -38,9 +38,6 @@ PoGCoinReport::PoGCoinReport(const PlatformStyle *platformStyle, QWidget *parent
     ui->coinsTable->setColumnWidth(1, columnAmounWidth);
     ui->coinsTable->setColumnWidth(2, columnAgeWidth);
 
-    ui->editAutorefreshSeconds->setValidator( new QIntValidator(0, 100, this) );
-    ui->editAutorefreshSeconds->setText(QString::number(POGCOINREPORT_UPDATE_SECONDS));
-
     Refresh();
 
     timer = new QTimer(this);
@@ -188,8 +185,8 @@ void PoGCoinReport::DimensionalReport( string sType, double min_coin_age, double
                     ui->coinsTable->insertRow(0);
 
                     QTableWidgetItem* TypeItem = new QTableWidgetItem(strType);
-                    QTableWidgetItem* AmountItem = new QTableWidgetItem(strAmount);;
-                    QTableWidgetItem* AgeItem = new QTableWidgetItem(strAge);
+                    QTableWidgetItem* AmountItem = new NumericTableWidgetItem(strAmount);
+                    QTableWidgetItem* AgeItem = new NumericTableWidgetItem(strAge);
 
                     ui->coinsTable->setItem(0, 0, TypeItem);
                     ui->coinsTable->setItem(0, 1, AmountItem);
@@ -226,4 +223,60 @@ void PoGCoinReport::on_editAutorefreshSeconds_editingFinished()
 {
     ui->label_debug->setText( "on_editAutorefreshSeconds_editingFinished" );
     timer->setInterval(ui->editAutorefreshSeconds->text().toInt()*1000);
+}
+
+void PoGCoinReport::on_btnCreateBankroll_clicked()
+{
+    try {
+        double bankroll_notes=0, bankroll_denomination=0;
+
+        /*
+        std::ostringstream cmd;
+        cmd << "exec bankroll " << min_coin_age << " " << min_coin_amt;
+        UniValue jsonVal = CallRPC( string( cmd.str() ) );
+        if ( jsonVal.isObject() )
+        {
+            vector<string> key_vector = jsonVal.getKeys();
+            vector<string>::iterator it;
+            int i = 0;  // counter.
+            double total = 0;
+            string key, value, coin_amount, coin_age;
+
+            for(it = key_vector.begin(); it != key_vector.end(); it++,i++ )    {
+                key = *it;
+                UniValue json_value = find_value(jsonVal.get_obj(), *it);
+                if ( json_value.isNum() && key.compare("Total") == 0 )    {
+                    total = json_value.get_real();
+                    ui->label_debug->setText( QString::number(total, 'g', 8) );
+                }
+                else if ( key.compare("Command") == 0 ) {
+                    continue; // pass along
+                }
+                else {
+                    value = json_value.get_str();
+                    coin_amount = key.substr(7);
+                    coin_age = value.substr(4);
+
+                    QString strType = QString::fromStdString(sType);
+                    QString strAmount = QString::fromStdString(coin_amount);
+                    QString strAge = QString::fromStdString(coin_age);
+
+                    ui->coinsTable->insertRow(0);
+
+                    QTableWidgetItem* TypeItem = new QTableWidgetItem(strType);
+                    QTableWidgetItem* AmountItem = new NumericTableWidgetItem(strAmount);
+                    QTableWidgetItem* AgeItem = new NumericTableWidgetItem(strAge);
+
+                    ui->coinsTable->setItem(0, 0, TypeItem);
+                    ui->coinsTable->setItem(0, 1, AmountItem);
+                    ui->coinsTable->setItem(0, 2, AgeItem);
+                }
+            }
+        }
+        */
+    }
+    catch ( runtime_error e)
+    {
+        return;
+    }
 }

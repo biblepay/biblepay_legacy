@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>759</width>
-    <height>468</height>
+    <height>613</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -23,9 +23,9 @@
    <property name="geometry">
     <rect>
      <x>20</x>
-     <y>30</y>
+     <y>80</y>
      <width>411</width>
-     <height>371</height>
+     <height>321</height>
     </rect>
    </property>
    <column>
@@ -115,9 +115,9 @@
   <widget class="QLabel" name="label_debug">
    <property name="geometry">
     <rect>
-     <x>20</x>
-     <y>430</y>
-     <width>711</width>
+     <x>450</x>
+     <y>380</y>
+     <width>271</width>
      <height>21</height>
     </rect>
    </property>
@@ -143,12 +143,15 @@
      </widget>
     </item>
     <item>
-     <widget class="QLineEdit" name="editAutorefreshSeconds">
-      <property name="maximumSize">
-       <size>
-        <width>50</width>
-        <height>16777215</height>
-       </size>
+     <widget class="QSpinBox" name="editAutorefreshSeconds">
+      <property name="minimum">
+       <number>10</number>
+      </property>
+      <property name="maximum">
+       <number>600</number>
+      </property>
+      <property name="value">
+       <number>15</number>
       </property>
      </widget>
     </item>
@@ -176,12 +179,18 @@
       <property name="text">
        <string>YES/NO</string>
       </property>
+      <property name="alignment">
+       <set>Qt::AlignCenter</set>
+      </property>
      </widget>
     </item>
     <item>
      <widget class="QLabel" name="label_coinAmount">
       <property name="text">
        <string>MCAmt</string>
+      </property>
+      <property name="alignment">
+       <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
       </property>
      </widget>
     </item>
@@ -190,12 +199,18 @@
       <property name="text">
        <string>MCAge</string>
       </property>
+      <property name="alignment">
+       <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+      </property>
      </widget>
     </item>
     <item>
      <widget class="QLabel" name="label_maxTitheAmt">
       <property name="text">
        <string>MTAmt</string>
+      </property>
+      <property name="alignment">
+       <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
       </property>
      </widget>
     </item>
@@ -204,12 +219,18 @@
       <property name="text">
        <string>TitheCap</string>
       </property>
+      <property name="alignment">
+       <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+      </property>
      </widget>
     </item>
     <item>
      <widget class="QLabel" name="label_MyTithes">
       <property name="text">
        <string>MyTithes</string>
+      </property>
+      <property name="alignment">
+       <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
       </property>
      </widget>
     </item>
@@ -218,12 +239,191 @@
       <property name="text">
        <string>TotalTithes</string>
       </property>
+      <property name="alignment">
+       <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+      </property>
      </widget>
     </item>
     <item>
      <widget class="QLabel" name="label_TotalParticipants">
       <property name="text">
        <string>TotalParticipants</string>
+      </property>
+      <property name="alignment">
+       <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+      </property>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QLabel" name="label_11">
+   <property name="geometry">
+    <rect>
+     <x>20</x>
+     <y>420</y>
+     <width>101</width>
+     <height>16</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <pointsize>16</pointsize>
+    </font>
+   </property>
+   <property name="text">
+    <string>ACTIONS</string>
+   </property>
+  </widget>
+  <widget class="QWidget" name="gridLayoutWidget">
+   <property name="geometry">
+    <rect>
+     <x>20</x>
+     <y>440</y>
+     <width>701</width>
+     <height>121</height>
+    </rect>
+   </property>
+   <layout class="QGridLayout" name="gridLayout">
+    <item row="0" column="11">
+     <widget class="QPushButton" name="btnCreateBankroll">
+      <property name="text">
+       <string>Create</string>
+      </property>
+     </widget>
+    </item>
+    <item row="1" column="0">
+     <widget class="QLabel" name="label_15">
+      <property name="text">
+       <string>Tithe amount</string>
+      </property>
+     </widget>
+    </item>
+    <item row="1" column="2">
+     <widget class="QLabel" name="label_16">
+      <property name="text">
+       <string>Min. age</string>
+      </property>
+     </widget>
+    </item>
+    <item row="0" column="2">
+     <widget class="QLabel" name="label_13">
+      <property name="text">
+       <string>Notes of</string>
+      </property>
+     </widget>
+    </item>
+    <item row="1" column="1">
+     <widget class="QLineEdit" name="editTitheAmount"/>
+    </item>
+    <item row="0" column="0">
+     <widget class="QLabel" name="label_12">
+      <property name="text">
+       <string>Create bankroll denominations</string>
+      </property>
+     </widget>
+    </item>
+    <item row="1" column="3">
+     <widget class="QLineEdit" name="editTitheMinAge"/>
+    </item>
+    <item row="1" column="5">
+     <widget class="QLabel" name="label_17">
+      <property name="text">
+       <string>Min. amount</string>
+      </property>
+     </widget>
+    </item>
+    <item row="1" column="10">
+     <widget class="QLineEdit" name="editTitheMinAmount"/>
+    </item>
+    <item row="1" column="11">
+     <widget class="QPushButton" name="btnTitheSend">
+      <property name="text">
+       <string>Tithe</string>
+      </property>
+     </widget>
+    </item>
+    <item row="0" column="5">
+     <widget class="QLabel" name="label_14">
+      <property name="text">
+       <string>BBP</string>
+      </property>
+     </widget>
+    </item>
+    <item row="0" column="1">
+     <widget class="QDoubleSpinBox" name="editBRNotes">
+      <property name="decimals">
+       <number>2</number>
+      </property>
+      <property name="minimum">
+       <double>1.000000000000000</double>
+      </property>
+      <property name="maximum">
+       <double>99999.000000000000000</double>
+      </property>
+      <property name="singleStep">
+       <double>5.000000000000000</double>
+      </property>
+      <property name="value">
+       <double>1.000000000000000</double>
+      </property>
+     </widget>
+    </item>
+    <item row="0" column="3">
+     <widget class="QDoubleSpinBox" name="editBRAmount">
+      <property name="minimum">
+       <double>1.000000000000000</double>
+      </property>
+      <property name="maximum">
+       <double>99999.000000000000000</double>
+      </property>
+      <property name="singleStep">
+       <double>5.000000000000000</double>
+      </property>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QWidget" name="horizontalLayoutWidget_2">
+   <property name="geometry">
+    <rect>
+     <x>20</x>
+     <y>30</y>
+     <width>411</width>
+     <height>31</height>
+    </rect>
+   </property>
+   <layout class="QHBoxLayout" name="horizontalLayout_3">
+    <item>
+     <widget class="QLabel" name="label_18">
+      <property name="text">
+       <string>Custom min age</string>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <widget class="QSpinBox" name="editCustomAge">
+      <property name="value">
+       <number>1</number>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <widget class="QLabel" name="label_19">
+      <property name="text">
+       <string>Custom min amount</string>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <widget class="QSpinBox" name="editCustomAmount">
+      <property name="maximum">
+       <number>999999</number>
+      </property>
+      <property name="singleStep">
+       <number>10</number>
+      </property>
+      <property name="value">
+       <number>100</number>
       </property>
      </widget>
     </item>
