@@ -1927,6 +1927,7 @@ std::map<int64_t, CTitheObject> CWallet::GetDimensionalCoins(double nMinAge, CAm
 					CTitheObject c;
 					c.Amount = nAmount;
 					c.Age = nAge;
+                    c.TXID = pcoin->GetHash().ToString();
 					nOrdinal++;
 					mapTithes.insert(make_pair(nOrdinal, c));
 					if (false) LogPrintf("\nCounting Age %f Amount %f ",nAge, (double)(nAmount/COIN));

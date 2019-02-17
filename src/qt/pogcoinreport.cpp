@@ -228,12 +228,15 @@ void PoGCoinReport::on_editAutorefreshSeconds_editingFinished()
 void PoGCoinReport::on_btnCreateBankroll_clicked()
 {
     try {
-        double bankroll_notes=0, bankroll_denomination=0;
+        int bankroll_notes=0, bankroll_denomination=0;
 
-        /*
+        bankroll_notes = ui->editBRNotes->value();
+        bankroll_denomination = ui->editBRAmount->value();
+
         std::ostringstream cmd;
-        cmd << "exec bankroll " << min_coin_age << " " << min_coin_amt;
+        cmd << "exec bankroll " << bankroll_notes << " " << bankroll_denomination;
         UniValue jsonVal = CallRPC( string( cmd.str() ) );
+        /*
         if ( jsonVal.isObject() )
         {
             vector<string> key_vector = jsonVal.getKeys();

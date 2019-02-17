@@ -350,34 +350,28 @@
      </widget>
     </item>
     <item row="0" column="1">
-     <widget class="QDoubleSpinBox" name="editBRNotes">
-      <property name="decimals">
-       <number>2</number>
-      </property>
-      <property name="minimum">
-       <double>1.000000000000000</double>
-      </property>
+     <widget class="QSpinBox" name="editBRNotes">
       <property name="maximum">
-       <double>99999.000000000000000</double>
+       <number>9999</number>
       </property>
       <property name="singleStep">
-       <double>5.000000000000000</double>
+       <number>5</number>
       </property>
       <property name="value">
-       <double>1.000000000000000</double>
+       <number>10</number>
       </property>
      </widget>
     </item>
     <item row="0" column="3">
-     <widget class="QDoubleSpinBox" name="editBRAmount">
-      <property name="minimum">
-       <double>1.000000000000000</double>
-      </property>
+     <widget class="QSpinBox" name="editBRAmount">
       <property name="maximum">
-       <double>99999.000000000000000</double>
+       <number>9999</number>
       </property>
       <property name="singleStep">
-       <double>5.000000000000000</double>
+       <number>5</number>
+      </property>
+      <property name="value">
+       <number>5</number>
       </property>
      </widget>
     </item>
