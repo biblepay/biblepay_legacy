@@ -3102,21 +3102,29 @@ UniValue exec(const UniValue& params, bool fHelp)
 	}
 	else if (sItem == "getdimensionalbalance")
 	{
-		if (params.size() != 3)
-			throw runtime_error("You must specify min_coin_age (days), min_coin_amount.  IE: exec getdimensionalbalance 1 1000.");
+        if (params.size() < 4 && params.size() > 6)
+            throw runtime_error("You must specify min_coin_age (days), min_coin_amount [, bShowTxID, max_coin_age, max_coin_amount].  IE: exec getdimensionalbalance 1 1000.");
+
+        bool bShowTxID = false;
+        double dMaxAge = 9999999;
+        CAmount caMaxAmt = MAX_MONEY;
+
+        if (params.size() >= 4)     bShowTxID = params[3].get_bool();
+        if (params.size() >= 5)     dMaxAge = cdbl(params[4].get_str(), 4);
+        if (params.size() >= 6)     caMaxAmt = cdbl(params[5].get_str(), 4) * COIN;
 
 		double dMinAge = cdbl(params[1].get_str(), 4);
 		CAmount caMinAmt = cdbl(params[2].get_str(), 4) * COIN;
 		if (caMinAmt < (.01 * COIN)) caMinAmt = (.01 * COIN);
 		LogPrintf("GetDimensionalBalance::Checking For MinAge %f, Amount %f ", dMinAge, (double)(caMinAmt/COIN));
-		std::map<int64_t, CTitheObject> dtb = pwalletMain->GetDimensionalCoins(dMinAge, caMinAmt);
+        std::map<int64_t, CTitheObject> dtb = pwalletMain->GetDimensionalCoins(dMinAge, caMinAmt, dMaxAge, caMaxAmt);
 		CAmount nTotal = 0;
 		BOOST_FOREACH(const PAIRTYPE(int64_t, CTitheObject)& item, dtb)
     	{
 			CTitheObject c = item.second;
-			results.push_back(Pair("Amount " + RoundToString(((double)(c.Amount / COIN)), 2), 
-				"Age " + RoundToString(c.Age, 2)));
-			nTotal += c.Amount;
+            results.push_back(Pair( ((bShowTxID)?"["+c.TXID+"] ":"") +"Amount " + RoundToString(((double)(c.Amount / COIN)), 2),
+                "Age " + RoundToString(c.Age, 2)));
+            nTotal += c.Amount;
 		}
 		results.push_back(Pair("Total", (double)(nTotal / COIN)));
 	}

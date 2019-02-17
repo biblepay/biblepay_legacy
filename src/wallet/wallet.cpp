@@ -1904,7 +1904,7 @@ CAmount CWallet::GetUnlockedBalance() const
 }
 
 
-std::map<int64_t, CTitheObject> CWallet::GetDimensionalCoins(double nMinAge, CAmount nMinAmount) const
+std::map<int64_t, CTitheObject> CWallet::GetDimensionalCoins(double nMinAge, CAmount nMinAmount, double nMaxAge, CAmount nMaxAmount) const
 {
 	map<int64_t, CTitheObject> mapTithes;
     LOCK2(cs_main, cs_wallet);
@@ -1922,7 +1922,7 @@ std::map<int64_t, CTitheObject> CWallet::GetDimensionalCoins(double nMinAge, CAm
 				double nAge = (double)(GetAdjustedTime() - pcoin->GetTxTime()) / 86400;
 				if (nAge < 0) nAge = 0;
 				bool fLocked = (nAmount == (SANCTUARY_COLLATERAL * COIN));
-				if (!fLocked && nAge >= nMinAge && nAmount >= nMinAmount)
+                if (!fLocked && nAge >= nMinAge && nAmount >= nMinAmount && nAge < nMaxAge && nAmount < nMaxAmount)
 				{
 					CTitheObject c;
 					c.Amount = nAmount;
