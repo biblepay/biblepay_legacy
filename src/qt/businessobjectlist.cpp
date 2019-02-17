@@ -2,6 +2,7 @@
 #include "bitcoinunits.h"
 #include "ui_businessobjectlist.h"
 #include "secdialog.h"
+#include "masternode-sync.h"
 #include "ui_secdialog.h"
 #include "writeorphan.h"
 #include "walletmodel.h"
@@ -66,7 +67,7 @@ void BusinessObjectList::UpdateObject(std::string objType)
 	std::string sFields;
     QString pString;
 
-	if (objType == "pog_leaderboard")
+    if (objType == "pog_leaderboard" && masternodeSync.IsBlockchainSynced() )
 	{
 		sFields = "id,nickname,address,height,amount,weight";
 		pString = GUIUtil::TOQS(GetPOGBusinessObjectList(ObjectType, sFields));
