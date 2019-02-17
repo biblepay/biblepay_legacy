@@ -1892,7 +1892,7 @@ CAmount CWallet::GetUnlockedBalance() const
                 bool fLocked = (nAmount == (SANCTUARY_COLLATERAL * COIN));
 				if (!fLocked)
 				{
-					if (nCoinDepth > 5) 
+					if (nCoinDepth >= 5) 
 					{
 						nTotal += nAmount;
 					}
@@ -2276,6 +2276,21 @@ void CWallet::AvailableCoins(vector<COutput>& vCoins, bool fOnlyConfirmed, const
             if (nDepth == 0 && !pcoin->InMempool())
                 continue;
 		
+			bool fBankrollTx = false;
+			if (nBankrollMask > 0)
+			{
+				for (unsigned int i = 0; i < pcoin->vout.size(); i++) 
+				{
+					if (CompareMask(pcoin->vout[i].nValue, nBankrollMask)) 
+					{
+						if (false) LogPrintf("\n AvailableCoins::Skipping output %f for %f ",i, (double)pcoin->vout[i].nValue/COIN);
+						fBankrollTx = true;
+					}
+				}
+			}
+			
+		    if (fBankrollTx) continue;
+
             for (unsigned int i = 0; i < pcoin->vout.size(); i++) 
 			{
                 bool found = false;
@@ -2285,11 +2300,6 @@ void CWallet::AvailableCoins(vector<COutput>& vCoins, bool fOnlyConfirmed, const
 				if (cct.Color=="401" && nCoinType != ONLY_RETIREMENT_COINS) continue;
 				if (nMinAmount > 0 && pcoin->vout[i].nValue < nMinAmount) continue;
 				if (nMinAge    > 0 && nAge < nMinAge) continue;
-				if (nBankrollMask > 0)
-				{
-					// If the mask matches, dont spend these POG bankroll denominations
-					if (CompareMask(pcoin->vout[i].nValue, nBankrollMask)) continue;
-				}
 				if (nCoinType == ONLY_RETIREMENT_COINS && cct.Color=="401")
 				{
 					found = true;
@@ -2557,7 +2567,8 @@ bool CWallet::SelectCoins(const CAmount& nTargetValue, set<pair<const CWalletTx*
             if(!out.fSpendable)
                 continue;
 
-            if(nCoinType == ONLY_DENOMINATED) {
+            if(nCoinType == ONLY_DENOMINATED) 
+			{
                 CTxIn txin = CTxIn(out.tx->GetHash(),out.i);
                 int nRounds = GetInputPrivateSendRounds(txin);
                 // make sure it's actually anonymized

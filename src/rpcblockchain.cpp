@@ -3188,6 +3188,10 @@ UniValue exec(const UniValue& params, bool fHelp)
 				 results.push_back(Pair("vout", sRecipient));
 			 }
 		}
+	    int nTitheCount = mempool.getTitheCount();
+		double dPogDiff = GetPOGDifficulty(chainActive.Tip());
+		results.push_back(Pair("tithe_count", nTitheCount));
+		results.push_back(Pair("pog_difficulty", dPogDiff));
 	}
 	else if (sItem == "chat1")
 	{
@@ -3244,10 +3248,7 @@ UniValue exec(const UniValue& params, bool fHelp)
 		results.push_back(Pair("amt", (double)nAmount/COIN));
 		results.push_back(Pair("compare", CompareMask(nAmount, nMask)));
 		results.push_back(Pair("min_relay_fee", DEFAULT_MIN_RELAY_TX_FEE));
-	}
-	else if (sItem == "develop")
-	{
-		results.push_back(Pair("develop_branch", 1));
+
 	}
 	else if (sItem == "datalist")
 	{

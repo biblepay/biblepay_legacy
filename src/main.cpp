@@ -1699,8 +1699,33 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState &state, const C
 				}
 			}
 		}
+		// BiblePay - If Difficulty is < MIN_POG_DIFF and POG_COUNT > MAX_POG_COUNT, reject the transaction - R ANDREWS - 2/9/2019
+		if (chainActive.Tip() != NULL)
+		{
+			int nTitheCount = pool.getTitheCount();
+			double dPogDiff = GetPOGDifficulty(chainActive.Tip());
+			std::string sRecipient = PubKeyToAddress(tx.vout[0].scriptPubKey);
+			bool bIsTithe = (sRecipient == chainparams.GetConsensus().FoundationAddress);
+			if (bIsTithe && dPogDiff < LOW_POG_DIFF && nTitheCount > TITHE_OVERFLOW) 
+			{
+				LogPrintf("AcceptToMemPool::Tithe Overflow Type I; Tithe Rejected; Tithe Count %f, Pog Diff %f ", nTitheCount, dPogDiff);
+				return false;
+			}
+			else if (bIsTithe && nTitheCount > (TITHE_OVERFLOW * 2))
+			{
+				LogPrintf("AcceptToMemPool::Tithe Overflow Type II; Tithe Rejected; Tithe Count %f, Pog Diff %f ", nTitheCount, dPogDiff);
+				return false;
+			}
+			else if (bIsTithe && dPogDiff < LOW_POG_DIFF && chainActive.Height() < POG_V2_CUTOVER_HEIGHT_PROD && nTitheCount > (TITHE_OVERFLOW / 15))
+			{
+				LogPrintf("AcceptToMemPool::Tithe Overflow Type III; Tithe Rejected; Tithe Count %f, Pog Diff %f ", nTitheCount, dPogDiff);
+				return false;
+			}
+			LogPrintf("Tithe Count %f, Diff %f  ",(double)nTitheCount, dPogDiff);
+		}
+
         // If we aren't going to actually accept it but just were verifying it, we are fine already
-        if(fDryRun) return true;
+        if (fDryRun) return true;
 
         // Check against previous transactions
         // This is done last to help prevent CPU exhaustion denial-of-service attacks.

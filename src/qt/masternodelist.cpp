@@ -173,9 +173,12 @@ void MasternodeList::StartAll(std::string strCommand)
 
 void MasternodeList::StartOne()
 {
+	return;
+
     int nCountSuccessful = 0;
     int nCountFailed = 0;
     std::string strFailedHtml;
+	return;
 	if (pwalletMain->IsLocked()) return;
 
     BOOST_FOREACH(CMasternodeConfig::CMasternodeEntry mne, masternodeConfig.getEntries()) 

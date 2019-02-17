@@ -8,13 +8,13 @@
 
 #include <list>
 #include <set>
-
 #include "addressindex.h"
 #include "spentindex.h"
 #include "amount.h"
 #include "coins.h"
 #include "primitives/transaction.h"
 #include "sync.h"
+#include "chainparams.h"
 
 #undef foreach
 #include "boost/multi_index_container.hpp"
@@ -482,6 +482,8 @@ public:
     void clear();
     void _clear(); //lock free
     void queryHashes(std::vector<uint256>& vtxid);
+	int getTitheCount();
+
     void pruneSpent(const uint256& hash, CCoins &coins);
     unsigned int GetTransactionsUpdated() const;
     void AddTransactionsUpdated(unsigned int n);

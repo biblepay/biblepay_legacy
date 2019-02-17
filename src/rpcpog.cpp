@@ -95,6 +95,8 @@ std::string CreateBankrollDenominations(double nQuantity, CAmount denominationAm
 {
 	// First mark the denominations with the 1milliBBP TitheMarker (this saves them from being spent in PODC Updates):
 	denominationAmount += ((.001) * COIN);
+	CAmount nBankrollMask = .001 * COIN;
+
 	CAmount nTotal = denominationAmount * nQuantity;
 
 	CAmount curBalance = pwalletMain->GetUnlockedBalance();
@@ -122,7 +124,7 @@ std::string CreateBankrollDenominations(double nQuantity, CAmount denominationAm
 	
 	bool fUseInstantSend = false;
 	double minCoinAge = 0;
-    if (!pwalletMain->CreateTransaction(vecSend, wtx, reservekey, nFeeRequired, nChangePosRet, sError, NULL, true, ONLY_NOT1000IFMN, fUseInstantSend, 0, minCoinAge, 0, denominationAmount)) 
+    if (!pwalletMain->CreateTransaction(vecSend, wtx, reservekey, nFeeRequired, nChangePosRet, sError, NULL, true, ONLY_NOT1000IFMN, fUseInstantSend, 0, minCoinAge, 0, nBankrollMask)) 
 	{
 		if (!sError.empty())
 		{
@@ -172,12 +174,37 @@ TitheDifficultyParams GetTitheParams(const CBlockIndex* pindex)
 	td.min_coin_amount = 0;
 	td.max_tithe_amount = 0;
 	if (pindex == NULL || pindex->nHeight == 0) return td;
+	if (fProd && pindex->nHeight > POG_V2_CUTOVER_HEIGHT_PROD) return GetTitheParams2(pindex);
 	CAmount nTitheCap = GetTitheCap(pindex);
 	if (nTitheCap < 1) return td;
 	double nQLevel = (((double)pindex->n24HourTithes/COIN) / ((double)nTitheCap/COIN));
 	td.min_coin_age = R2X(Quantize(0, 60, nQLevel));
 	td.min_coin_amount = R2X(Quantize(1, 25000, nQLevel)) * COIN;
 	td.max_tithe_amount = R2X(Quantize(300, 1, nQLevel)) * COIN; // Descending tithe amount
+	return td;
+}
+
+TitheDifficultyParams GetTitheParams2(const CBlockIndex* pindex)
+{
+	// V2.0 - R ANDREWS - BIBLEPAY - FEB 9th, 2019
+	// V1.0 was subject to catastrophic cycling (due to a high max_tithe_amount accomodating too few participants and due to having no coin age requirement at the lowest diff - and due to the mempool overflow rejection business logic rule not being in place in prod)
+	// After the cutover height, we use V2.0 in prod
+
+	// Tithe Parameter Ranges:
+	// min_coin_age  : .25 - 60 (days)
+	// min_coin_amount : 1 - 25000
+	// max_tithe_amount: 10 - .25 (descending)
+	TitheDifficultyParams td;
+	td.min_coin_age = 99999;
+	td.min_coin_amount = 0;
+	td.max_tithe_amount = 0;
+	if (pindex == NULL || pindex->nHeight == 0) return td;
+	CAmount nTitheCap = GetTitheCap(pindex);
+	if (nTitheCap < 1) return td;
+	double nQLevel = (((double)pindex->n24HourTithes/COIN) / ((double)nTitheCap/COIN));
+	td.min_coin_age = R2X(Quantize(.25, 60, nQLevel));
+	td.min_coin_amount = R2X(Quantize(1, 25000, nQLevel)) * COIN;
+	td.max_tithe_amount = R2X(Quantize(10, .25, nQLevel)) * COIN; // Descending tithe amount
 	return td;
 }
 
@@ -784,6 +811,7 @@ std::string StoreBusinessObjectWithPK(UniValue& oBusinessObject, std::string& sE
 		double dStorageFee = 1;
 		std::string sTxId = "";
 		sTxId = SendBusinessObject(sOT, sPK + sSecondaryKey, sIPFSHash, dStorageFee, sSignKey, true, sError);
+		WriteCache(sPK, sSecondaryKey, sIPFSHash, GetAdjustedTime());
 		return sTxId;
 	}
 	return "";
@@ -1170,7 +1198,7 @@ std::string AddBlockchainMessages(std::string sAddress, std::string sType, std::
 	// Never spend sanctuary funds - R ANDREWS - BIBLEPAY
 	// PODC_Update: Addl params required to enforce coin_age: bool fUseInstantSend=false, int iMinConfirms = 0, double dMinCoinAge = 0, CAmount caMinCoinAmount = 0
 	// Ensure we don't spend POG bankroll denominations
-	CAmount nBankrollMask = (.001) * COIN;
+	CAmount nBankrollMask = .001 * COIN;
 
     if (!pwalletMain->CreateTransaction(vecSend, wtx, reservekey, nFeeRequired, nChangePosRet,
                                          sError, NULL, true, ONLY_NOT1000IFMN, fUseInstantSend, 0, minCoinAge, 0, nBankrollMask)) 
@@ -1697,7 +1725,6 @@ std::string SendBusinessObject(std::string sType, std::string sPrimaryKey, std::
 		if (bSigned) 
 		{
 			sMessageSig = "<BOSIG>" + sSignature + "</BOSIG>";
-			WriteCache(sType, sSignKey, sValue, GetAdjustedTime());
 		}
 	}
 	std::string s1 = sMessageType + sMessageKey + sMessageValue + sNonce + sBOSignKey + sMessageSig;
@@ -1709,8 +1736,6 @@ std::string SendBusinessObject(std::string sType, std::string sPrimaryKey, std::
 	if (!sError.empty()) return "";
     return wtx.GetHash().GetHex().c_str();
 }
-
-
 
 int GetSignalInt(std::string sLocalSignal)
 {
