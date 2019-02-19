@@ -95,6 +95,8 @@ std::string CreateBankrollDenominations(double nQuantity, CAmount denominationAm
 {
 	// First mark the denominations with the 1milliBBP TitheMarker (this saves them from being spent in PODC Updates):
 	denominationAmount += ((.001) * COIN);
+	CAmount nBankrollMask = .001 * COIN;
+
 	CAmount nTotal = denominationAmount * nQuantity;
 
 	CAmount curBalance = pwalletMain->GetUnlockedBalance();
@@ -122,7 +124,7 @@ std::string CreateBankrollDenominations(double nQuantity, CAmount denominationAm
 	
 	bool fUseInstantSend = false;
 	double minCoinAge = 0;
-    if (!pwalletMain->CreateTransaction(vecSend, wtx, reservekey, nFeeRequired, nChangePosRet, sError, NULL, true, ONLY_NOT1000IFMN, fUseInstantSend, 0, minCoinAge, 0, denominationAmount)) 
+    if (!pwalletMain->CreateTransaction(vecSend, wtx, reservekey, nFeeRequired, nChangePosRet, sError, NULL, true, ONLY_NOT1000IFMN, fUseInstantSend, 0, minCoinAge, 0, nBankrollMask)) 
 	{
 		if (!sError.empty())
 		{
@@ -172,12 +174,37 @@ TitheDifficultyParams GetTitheParams(const CBlockIndex* pindex)
 	td.min_coin_amount = 0;
 	td.max_tithe_amount = 0;
 	if (pindex == NULL || pindex->nHeight == 0) return td;
+	if (fProd && pindex->nHeight > POG_V2_CUTOVER_HEIGHT_PROD) return GetTitheParams2(pindex);
 	CAmount nTitheCap = GetTitheCap(pindex);
 	if (nTitheCap < 1) return td;
 	double nQLevel = (((double)pindex->n24HourTithes/COIN) / ((double)nTitheCap/COIN));
 	td.min_coin_age = R2X(Quantize(0, 60, nQLevel));
 	td.min_coin_amount = R2X(Quantize(1, 25000, nQLevel)) * COIN;
 	td.max_tithe_amount = R2X(Quantize(300, 1, nQLevel)) * COIN; // Descending tithe amount
+	return td;
+}
+
+TitheDifficultyParams GetTitheParams2(const CBlockIndex* pindex)
+{
+	// V2.0 - R ANDREWS - BIBLEPAY - FEB 9th, 2019
+	// V1.0 was subject to catastrophic cycling (due to a high max_tithe_amount accomodating too few participants and due to having no coin age requirement at the lowest diff - and due to the mempool overflow rejection business logic rule not being in place in prod)
+	// After the cutover height, we use V2.0 in prod
+
+	// Tithe Parameter Ranges:
+	// min_coin_age  : .25 - 60 (days)
+	// min_coin_amount : 1 - 25000
+	// max_tithe_amount: 10 - .25 (descending)
+	TitheDifficultyParams td;
+	td.min_coin_age = 99999;
+	td.min_coin_amount = 0;
+	td.max_tithe_amount = 0;
+	if (pindex == NULL || pindex->nHeight == 0) return td;
+	CAmount nTitheCap = GetTitheCap(pindex);
+	if (nTitheCap < 1) return td;
+	double nQLevel = (((double)pindex->n24HourTithes/COIN) / ((double)nTitheCap/COIN));
+	td.min_coin_age = R2X(Quantize(.25, 60, nQLevel));
+	td.min_coin_amount = R2X(Quantize(1, 25000, nQLevel)) * COIN;
+	td.max_tithe_amount = R2X(Quantize(10, .25, nQLevel)) * COIN; // Descending tithe amount
 	return td;
 }
 
@@ -193,7 +220,6 @@ CAmount SelectCoinsForTithing(const CBlockIndex* pindex)
 	}
 	return nBigCoin;
 }
-
 
 CAmount GetTitheTotal(CTransaction tx)
 {
@@ -244,7 +270,7 @@ std::string PubKeyToAddress(const CScript& scriptPubKey)
 }    
 
 
-void GetTxTimeAndAmount(uint256 hashInput, int hashInputOrdinal, int64_t& out_nTime, CAmount& out_caAmount)
+void GetTxTimeAndAmountAndHeight(uint256 hashInput, int hashInputOrdinal, int64_t& out_nTime, CAmount& out_caAmount, int& out_height)
 {
 	CTransaction tx1;
 	uint256 hashBlock1;
@@ -256,6 +282,7 @@ void GetTxTimeAndAmount(uint256 hashInput, int hashInputOrdinal, int64_t& out_nT
 		{
 			CBlockIndex* pindexHistorical = mapBlockIndex[hashBlock1];              
 			out_nTime = pindexHistorical->GetBlockTime();
+			out_height = pindexHistorical->nHeight;
 			return;
 		}
 		else
@@ -281,7 +308,8 @@ bool IsTitheLegal(CTransaction ctx, CBlockIndex* pindex, CAmount tithe_amount)
 	int hashInputOrdinal = ctx.vin[0].prevout.n;
 	int64_t nTxTime = 0;
 	CAmount caAmount = 0;
-	GetTxTimeAndAmount(hashInput, hashInputOrdinal, nTxTime, caAmount);
+	int iHeight = 0;
+	GetTxTimeAndAmountAndHeight(hashInput, hashInputOrdinal, nTxTime, caAmount, iHeight);
 	
 	double nTitheAge = (double)((pindex->GetBlockTime() - nTxTime) / 86400);
 	if (false && !fProd && fPOGEnabled && fDebugMaster) 
@@ -295,15 +323,15 @@ bool IsTitheLegal(CTransaction ctx, CBlockIndex* pindex, CAmount tithe_amount)
 	return false;
 }
 
-double GetTitheAge(CTransaction ctx, CBlockIndex* pindex)
+double GetTitheAgeAndSpentAmount(CTransaction ctx, CBlockIndex* pindex, CAmount& spentAmount)
 {
 	// R ANDREWS - BIBLEPAY - 1/4/2018 
 	if (pindex==NULL || pindex->pprev==NULL || pindex->nHeight < 2) return false;
 	uint256 hashInput = ctx.vin[0].prevout.hash;
 	int hashInputOrdinal = ctx.vin[0].prevout.n;
 	int64_t nTxTime = 0;
-	CAmount caAmount = 0;
-	GetTxTimeAndAmount(hashInput, hashInputOrdinal, nTxTime, caAmount);
+	int iHeight = 0;
+	GetTxTimeAndAmountAndHeight(hashInput, hashInputOrdinal, nTxTime, spentAmount, iHeight);
 	double nTitheAge = R2X((double)(pindex->GetBlockTime() - nTxTime) / 86400);
 	return nTitheAge;
 }
@@ -1171,7 +1199,7 @@ std::string AddBlockchainMessages(std::string sAddress, std::string sType, std::
 	// Never spend sanctuary funds - R ANDREWS - BIBLEPAY
 	// PODC_Update: Addl params required to enforce coin_age: bool fUseInstantSend=false, int iMinConfirms = 0, double dMinCoinAge = 0, CAmount caMinCoinAmount = 0
 	// Ensure we don't spend POG bankroll denominations
-	CAmount nBankrollMask = (.001) * COIN;
+	CAmount nBankrollMask = .001 * COIN;
 
     if (!pwalletMain->CreateTransaction(vecSend, wtx, reservekey, nFeeRequired, nChangePosRet,
                                          sError, NULL, true, ONLY_NOT1000IFMN, fUseInstantSend, 0, minCoinAge, 0, nBankrollMask)) 
@@ -1439,6 +1467,42 @@ double GetBlockMagnitude(int nChainHeight)
     return dPODCDiff;
 }
 
+CTitheObject TxToTithe(CTransaction txTithe, const CBlockIndex* pindex)
+{
+	CTitheObject c;
+	c.Amount = GetTitheTotal(txTithe);
+	if (c.Amount == 0) return c;
+	uint256 hashInput = txTithe.vin[0].prevout.hash;
+	int hashInputOrdinal = txTithe.vin[0].prevout.n;
+	int64_t nTxTime = 0;
+	CAmount caAmount = 0;
+	int iHeight = 0;
+	GetTxTimeAndAmountAndHeight(hashInput, hashInputOrdinal, nTxTime, caAmount, iHeight);
+	if (pindex == NULL) return c;
+	c.Age = (double)(pindex->GetBlockTime() - nTxTime) / 86400;
+	c.Amount = GetTitheTotal(txTithe);
+	c.CoinAmount = caAmount;
+	c.SpentHeight = iHeight;
+	c.Height = pindex->nHeight;
+	const Consensus::Params& consensusParams = Params().GetConsensus();
+    c.Address = consensusParams.FoundationAddress;
+	return c;
+}
+
+int IsTitheLegal3(CTitheObject oTithe, TitheDifficultyParams tdp)
+{
+	CBitcoinAddress cbaAddress(oTithe.Address);
+	if (!cbaAddress.IsValid()) return -1;
+	if (oTithe.Amount < (.25 * COIN)) return -2;
+	// Special rule for testnet:
+	if (oTithe.Amount <= (10 * COIN) && !fProd) return 1;
+	// End of special testnet rule
+	if (oTithe.Amount > tdp.max_tithe_amount) return -3;
+	if (oTithe.Age < tdp.min_coin_age) return -4;
+	if (oTithe.CoinAmount < tdp.min_coin_amount) return -5;
+	return 1;
+}
+
 bool IsTitheLegal2(CTitheObject oTithe, TitheDifficultyParams tdp)
 {
 	CBitcoinAddress cbaAddress(oTithe.Address);
@@ -1490,7 +1554,17 @@ CPoolObject GetPoolVector(const CBlockIndex* pindexSource, int iPaymentTier)
 		BOOST_FOREACH(const PAIRTYPE(std::string, CTitheObject)& item, pindex->mapTithes)
 	    {
 			CTitheObject oTithe = item.second;
-			int iLegal = IsTitheLegal2(oTithe, tdp);
+			int iLegal = 0;
+			
+			if (pindex->nHeight > POG_V3_CUTOVER_HEIGHT_PROD && fProd)
+			{
+				iLegal = IsTitheLegal3(oTithe, tdp);
+			}
+			else
+			{
+				iLegal = IsTitheLegal2(oTithe, tdp);
+			}
+			
 			int iTitheNum = 0;
 			if (iLegal == 1)
 			{		
@@ -1689,7 +1763,6 @@ std::string SendBusinessObject(std::string sType, std::string sPrimaryKey, std::
 	std::string sNonce            = "<NONCE>" + sNonceValue + "</NONCE>";
 	std::string sBOSignKey        = "<BOSIGNER>" + sSignKey + "</BOSIGNER>";
 	std::string sMessageSig = "";
-	LogPrintf(" signing business object %s key %s ",sPrimaryKey.c_str(), sSignKey.c_str());
 
 	if (fSign)
 	{
@@ -1698,7 +1771,10 @@ std::string SendBusinessObject(std::string sType, std::string sPrimaryKey, std::
 		if (bSigned) 
 		{
 			sMessageSig = "<BOSIG>" + sSignature + "</BOSIG>";
-			// (Remove this - this lets an IPFS object appear in a list before 6 confirms) - Leave to discuss: WriteCache(sType, sSignKey, sValue, GetAdjustedTime());
+		}
+		else
+		{
+			LogPrintf(" signing business object failed %s key %s ",sPrimaryKey.c_str(), sSignKey.c_str());
 		}
 	}
 	std::string s1 = sMessageType + sMessageKey + sMessageValue + sNonce + sBOSignKey + sMessageSig;
@@ -1710,8 +1786,6 @@ std::string SendBusinessObject(std::string sType, std::string sPrimaryKey, std::
 	if (!sError.empty()) return "";
     return wtx.GetHash().GetHex().c_str();
 }
-
-
 
 int GetSignalInt(std::string sLocalSignal)
 {
@@ -2062,14 +2136,21 @@ void UpdatePogPool(CBlockIndex* pindex, const CBlock& block)
 		{
 			std::string sNickName = "";
 			std::string sTither = GetTitherAddress(block.vtx[nTx], sNickName);
+			// 2-18-2019
 			CAmount nAmount = GetTitheAmount(block.vtx[nTx]);
-			if (!sTither.empty() && nAmount > (.49*COIN) && nAmount <= (300.00*COIN))
+			bool bInduct = (fProd && !sTither.empty() && pindex->nHeight > POG_V3_CUTOVER_HEIGHT_PROD && fProd && nAmount > (.25 * COIN) && nAmount <= (10.00*COIN))
+				|| (fProd && pindex->nHeight <= POG_V3_CUTOVER_HEIGHT_PROD && !sTither.empty() && nAmount > (.49*COIN) && nAmount <= (300.00*COIN))
+				|| (!fProd && !sTither.empty() && nAmount > (.49*COIN) && nAmount <= (300.00*COIN));
+						
+			if (bInduct)
 			{
 				std::string sTXID = block.vtx[nTx].GetHash().GetHex();
 				CTitheObject cTithe = pindex->mapTithes[sTXID];
-				cTithe.Age = GetTitheAge(block.vtx[nTx], pindex);
+				CAmount nSpentAmount = 0;
+				cTithe.Age = GetTitheAgeAndSpentAmount(block.vtx[nTx], pindex, nSpentAmount);
 				nTithes += nAmount;
 				cTithe.Amount = nAmount;
+				cTithe.CoinAmount = nSpentAmount;
 				cTithe.Height = pindex->nHeight;
 				cTithe.Address = sTither;
 				cTithe.NickName = sNickName;

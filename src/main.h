@@ -87,9 +87,14 @@ static const int F14000_CUTOVER_HEIGHT_PROD = 77000; // October 14th, 2018
 static const int F14000_CUTOVER_HEIGHT_TESTNET = 54300; // Sep. 1, 2018
 static const int FPOG_CUTOVER_HEIGHT_TESTNET = 95945;  // Dec. 23rd, 2018
 static const int FPOG_CUTOVER_HEIGHT_PROD = 100001;   // Feb 7th, 2019 (100,001)
-static const int PODC_LAST_BLOCK_PROD = 106150; // March 8th, 2019 (106,150)
+static const int PODC_LAST_BLOCK_PROD = 107000; // March 13th, 2019
 static const int PODC_LAST_BLOCK_TESTNET = 126150; 
+static const int POG_V2_CUTOVER_HEIGHT_PROD = 102025;
+static const int POG_V3_CUTOVER_HEIGHT_PROD = 103175;
+static const int LOW_POG_DIFF = 5000;
+static const int TITHE_OVERFLOW = 75;
 static const int MINIMUM_EMAIL_LENGTH = 5; // 3 character domain + . + 1 character name
+
 /** Default for -maxorphantx, maximum number of orphan transactions kept in memory */
 static const unsigned int DEFAULT_MAX_ORPHAN_TRANSACTIONS = 100;
 /** Default for -limitancestorcount, max number of in-mempool ancestors */

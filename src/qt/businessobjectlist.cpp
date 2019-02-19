@@ -1,6 +1,7 @@
 #include "businessobjectlist.h"
 #include "bitcoinunits.h"
 #include "ui_businessobjectlist.h"
+#include "masternode-sync.h"
 #include "secdialog.h"
 #include "ui_secdialog.h"
 #include "writeorphan.h"
@@ -66,12 +67,12 @@ void BusinessObjectList::UpdateObject(std::string objType)
 	std::string sFields;
     QString pString;
 
-	if (objType == "pog_leaderboard")
+	if (objType == "pog_leaderboard" && masternodeSync.IsBlockchainSynced())
 	{
 		sFields = "id,nickname,address,height,amount,weight";
 		pString = GUIUtil::TOQS(GetPOGBusinessObjectList(ObjectType, sFields));
-		// Update once per minute
-		QTimer::singleShot(60000, this, SLOT(RefreshPogLeaderboard()));
+        // Update once per two minutes
+        QTimer::singleShot(120000, this, SLOT(RefreshPogLeaderboard()));
 	}
 	else
 	{
@@ -113,7 +114,7 @@ void BusinessObjectList::createUI(const QStringList &headers, const QString &pSt
 	if (ObjectType == "pog_leaderboard") 
 	{
 		iFooterRow += 6;
-		iAmountCol = -1;
+        iAmountCol = GetUrlColumn("Amount");
 		iNameCol = GetUrlColumn("nickname");
 	}
 	else
@@ -135,8 +136,13 @@ void BusinessObjectList::createUI(const QStringList &headers, const QString &pSt
 	
         for(int j = 0; j < cols; j++)
 		{
-			QTableWidgetItem* q = new QTableWidgetItem(pMatrix[i][j]);
-			if (j == iAmountCol) q = new QTableWidgetItem(cdbl(GUIUtil::FROMQS(pMatrix[i][j]), 2));
+            QTableWidgetItem* q;
+            if (j == iAmountCol) {
+                q = new NumericTableWidgetItem(pMatrix[i][j]);
+            }
+            else {
+                q = new QTableWidgetItem(pMatrix[i][j]);
+            }
 			ui->tableWidget->setItem(i, j, q);
 		}
 		if (bHighlighted)
@@ -153,8 +159,15 @@ void BusinessObjectList::createUI(const QStringList &headers, const QString &pSt
 	
 	if (ObjectType == "pog_leaderboard")
 	{
-		// Sort by ShareWeight descending
-		ui->tableWidget->sortByColumn(5, Qt::DescendingOrder);
+        // Sort by ShareWeight descending (unless there is already a different one)
+        int default_order = 5;
+        int current_order = ui->tableWidget->horizontalHeader()->sortIndicatorSection();
+        Qt::SortOrder default_indicator = Qt::DescendingOrder;
+        Qt::SortOrder current_indicator = ui->tableWidget->horizontalHeader()->sortIndicatorOrder();
+        //ui->label_debug->setText(QString::number(ui->tableWidget->horizontalHeader()->sortIndicatorSection())+";"+QString::number(ui->tableWidget->horizontalHeader()->sortIndicatorOrder()));
+        if (default_order==current_order && default_indicator==current_indicator)   {
+            ui->tableWidget->sortByColumn(default_order, default_indicator);
+        }
 		ui->tableWidget->setSortingEnabled(true);
 		std::string sXML = GUIUtil::FROMQS(pStr);
 		addFooterRow(rows, iFooterRow, "Difficulty:", ExtractXML(sXML, "<difficulty>","</difficulty>"));
@@ -189,6 +202,9 @@ void BusinessObjectList::createUI(const QStringList &headers, const QString &pSt
 
 void BusinessObjectList::slotCustomMenuRequested(QPoint pos)
 {
+    if (ObjectType == "pog_leaderboard")        // disable custom menu for pog leaderboard
+        return;
+
     /* Create an object context menu */
     QMenu * menu = new QMenu(this);
     //  Create, Connect and Set the actions to the menu

@@ -106,28 +106,28 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *platformStyle, const NetworkStyle *n
     signMessageAction(0),
     verifyMessageAction(0),
     aboutAction(0),
-	sinnerAction(0),
-	TheLordsPrayerAction(0),
-	TheApostlesCreedAction(0),
-	TheNiceneCreedAction(0),
-	ReadBibleAction(0),
-	CreateNewsAction(0),
-	ReadNewsAction(0),
-	OneClickMiningAction(0),
-	TheTenCommandmentsAction(0),
-	JesusConciseCommandmentsAction(0),
-	openChatGeneralAction(0),
-	openChatPMAction(0),
+    sinnerAction(0),
+    TheLordsPrayerAction(0),
+    TheApostlesCreedAction(0),
+    TheNiceneCreedAction(0),
+    ReadBibleAction(0),
+    CreateNewsAction(0),
+    ReadNewsAction(0),
+    OneClickMiningAction(0),
+    TheTenCommandmentsAction(0),
+    JesusConciseCommandmentsAction(0),
+    openChatGeneralAction(0),
+    openChatPMAction(0),
     receiveCoinsAction(0),
     receiveCoinsMenuAction(0),
-	distributedComputingAction(0),
-	distributedComputingMenuAction(0),
-	proposalAddMenuAction(0),
-	contactAddMenuAction(0),
-	businessObjectListMenuAction(0),
-	pogLeaderboardListMenuAction(0),
+    distributedComputingAction(0),
+    distributedComputingMenuAction(0),
+    proposalAddMenuAction(0),
+    contactAddMenuAction(0),
+    businessObjectListMenuAction(0),
+    pogLeaderboardListMenuAction(0),
     pogCoinReportMenuAction(0),
-	proposalListAction(0),
+    proposalListAction(0),
     optionsAction(0),
     toggleHideAction(0),
     encryptWalletAction(0),
@@ -341,49 +341,49 @@ void BitcoinGUI::createActions()
     distributedComputingAction = new QAction(QIcon(":/icons/" + theme + "/key"), tr("&Distributed Computing"), this);
     distributedComputingAction->setStatusTip(tr("Set up Biblepay Distributed Computing options (help cure cancer)"));
     distributedComputingAction->setToolTip(distributedComputingAction->statusTip());
-	if (PODCEnabled(0))
-	{
-		distributedComputingAction->setCheckable(true);
-	    tabGroup->addAction(distributedComputingAction);
-	}
+    if (PODCEnabled(0))
+    {
+        distributedComputingAction->setCheckable(true);
+        tabGroup->addAction(distributedComputingAction);
+    }
 
-	pogLeaderboardAction = new QAction(QIcon(":/icons/" + theme + "/chat"), tr("POG Leaderboar&d"), this);
+    pogLeaderboardAction = new QAction(QIcon(":/icons/" + theme + "/chat"), tr("&POG Leaderboard"), this);
     pogLeaderboardAction->setStatusTip(tr("See other BiblePay POG Participants who are actively helping our Orphan Foundation tithing in the POG Pool"));
     pogLeaderboardAction->setToolTip(pogLeaderboardAction->statusTip());
-	if (fPOGEnabled || true) pogLeaderboardAction->setCheckable(true);
+    if (fPOGEnabled || true) pogLeaderboardAction->setCheckable(true);
     tabGroup->addAction(pogLeaderboardAction);
 
-    pogCoinReportAction = new QAction(QIcon(":/icons/" + theme + "/gear"), tr("POG &Engine Room"), this);
+    pogCoinReportAction = new QAction(QIcon(":/icons/" + theme + "/gear"), tr("&POG &Engine Room"), this);
     pogCoinReportAction->setStatusTip(tr("Manage coin and tithability status regarding current PoG difficulty parameters"));
     pogCoinReportAction->setToolTip(pogCoinReportAction->statusTip());
     if (fPOGEnabled || true) pogCoinReportAction->setCheckable(true);
     tabGroup->addAction(pogCoinReportAction);
 
-	proposalListAction = new QAction(QIcon(":/icons/" + theme + "/edit"), tr("&Proposals"), this);
+    proposalListAction = new QAction(QIcon(":/icons/" + theme + "/edit"), tr("&Proposals"), this);
     proposalListAction->setStatusTip(tr("List Proposals"));
     proposalListAction->setToolTip(proposalListAction->statusTip());
-	proposalListAction->setCheckable(true);
-	
-	tabGroup->addAction(proposalListAction);
+    proposalListAction->setCheckable(true);
 
-	receiveCoinsMenuAction = new QAction(QIcon(":/icons/" + theme + "/receiving_addresses"), receiveCoinsAction->text(), this);
+    tabGroup->addAction(proposalListAction);
+
+    receiveCoinsMenuAction = new QAction(QIcon(":/icons/" + theme + "/receiving_addresses"), receiveCoinsAction->text(), this);
     receiveCoinsMenuAction->setStatusTip(receiveCoinsAction->statusTip());
     receiveCoinsMenuAction->setToolTip(receiveCoinsMenuAction->statusTip());
 
-	distributedComputingMenuAction = new QAction(QIcon(":/icons/" + theme + "/key"), distributedComputingAction->text(), this);
+    distributedComputingMenuAction = new QAction(QIcon(":/icons/" + theme + "/key"), distributedComputingAction->text(), this);
     distributedComputingMenuAction->setStatusTip(distributedComputingAction->statusTip());
     distributedComputingMenuAction->setToolTip(distributedComputingMenuAction->statusTip());
-	
-	historyAction = new QAction(QIcon(":/icons/" + theme + "/history"), tr("&Transactions"), this);
+
+    historyAction = new QAction(QIcon(":/icons/" + theme + "/history"), tr("&Transactions"), this);
     historyAction->setStatusTip(tr("Browse transaction history"));
     historyAction->setToolTip(historyAction->statusTip());
     historyAction->setCheckable(true);
 
-	orphanAction = new QAction(QIcon(":/icons/" + theme + "/edit"), tr("&Show Accountability"), this);
+    orphanAction = new QAction(QIcon(":/icons/" + theme + "/edit"), tr("&Show Accountability"), this);
     orphanAction->setStatusTip(tr("Show Accountability Page"));
     orphanAction->setToolTip(orphanAction->statusTip());
     orphanAction->setCheckable(true);
-	tabGroup->addAction(orphanAction);
+    tabGroup->addAction(orphanAction);
 
 #ifdef Q_OS_MAC
     historyAction->setShortcut(QKeySequence(Qt::CTRL + Qt::Key_4));
@@ -419,22 +419,22 @@ void BitcoinGUI::createActions()
     connect(sendCoinsMenuAction, SIGNAL(triggered()), this, SLOT(gotoSendCoinsPage()));
     connect(receiveCoinsAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
     connect(receiveCoinsAction, SIGNAL(triggered()), this, SLOT(gotoReceiveCoinsPage()));
-	connect(distributedComputingAction, SIGNAL(triggered()), this, SLOT(gotoDistributedComputingPage()));
+    connect(distributedComputingAction, SIGNAL(triggered()), this, SLOT(gotoDistributedComputingPage()));
     connect(pogLeaderboardAction, SIGNAL(triggered()), this, SLOT(gotoPOGLeaderboard()));
     connect(pogCoinReportAction, SIGNAL(triggered()), this, SLOT(gotoPoGCoinReport()));
-	connect(proposalListAction, SIGNAL(triggered()), this, SLOT(gotoProposalListPage()));
-	connect(contactAddMenuAction, SIGNAL(triggered()), this, SLOT(gotoContactAddPage()));
-	connect(businessObjectListMenuAction, SIGNAL(triggered()), this, SLOT(gotoBusinessObjectListPage()));
+    connect(proposalListAction, SIGNAL(triggered()), this, SLOT(gotoProposalListPage()));
+    connect(contactAddMenuAction, SIGNAL(triggered()), this, SLOT(gotoContactAddPage()));
+    connect(businessObjectListMenuAction, SIGNAL(triggered()), this, SLOT(gotoBusinessObjectListPage()));
     connect(pogLeaderboardListMenuAction, SIGNAL(triggered()), this, SLOT(gotoPOGLeaderboard()));
     connect(pogCoinReportMenuAction, SIGNAL(triggered()), this, SLOT(gotoPoGCoinReport()));
 
     connect(receiveCoinsMenuAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
     connect(receiveCoinsMenuAction, SIGNAL(triggered()), this, SLOT(gotoReceiveCoinsPage()));
-	connect(distributedComputingMenuAction, SIGNAL(triggered()), this, SLOT(gotoDistributedComputingPage()));
+    connect(distributedComputingMenuAction, SIGNAL(triggered()), this, SLOT(gotoDistributedComputingPage()));
 
     connect(historyAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
     connect(historyAction, SIGNAL(triggered()), this, SLOT(gotoHistoryPage()));
-	connect(orphanAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
+    connect(orphanAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
     connect(orphanAction, SIGNAL(triggered()), this, SLOT(gotoAccountabilityPage()));
 
 
@@ -444,63 +444,63 @@ void BitcoinGUI::createActions()
     quitAction->setStatusTip(tr("Quit application"));
     quitAction->setShortcut(QKeySequence(Qt::CTRL + Qt::Key_Q));
     quitAction->setMenuRole(QAction::QuitRole);
-    
-	aboutAction = new QAction(QIcon(":/icons/" + theme + "/about"), tr("&About Biblepay Core"), this);
+
+    aboutAction = new QAction(QIcon(":/icons/" + theme + "/about"), tr("&About Biblepay Core"), this);
     aboutAction->setStatusTip(tr("Show information about Biblepay Core"));
     aboutAction->setMenuRole(QAction::AboutRole);
     aboutAction->setEnabled(false);
-    
-	openChatGeneralAction = new QAction(QIcon(":/icons/" + theme + "/chat"), tr("Chat Room - General"), this);
-	openChatGeneralAction->setStatusTip(tr("Open General Chat Room"));
+
+    openChatGeneralAction = new QAction(QIcon(":/icons/" + theme + "/chat"), tr("Chat Room - General"), this);
+    openChatGeneralAction->setStatusTip(tr("Open General Chat Room"));
     openChatGeneralAction->setEnabled(false);
-	
-	openChatPMAction = new QAction(QIcon(":/icons/" + theme + "/chat"), tr("Private Message"), this);
-	openChatPMAction->setStatusTip(tr("Open Private Message Window"));
+
+    openChatPMAction = new QAction(QIcon(":/icons/" + theme + "/chat"), tr("Private Message"), this);
+    openChatPMAction->setStatusTip(tr("Open Private Message Window"));
     openChatPMAction->setEnabled(false);
-	
-	// POG
-	pogLeaderboardListMenuAction = new QAction(QIcon(":/icons/" + theme + "/chat"), tr("POG Leaderboar&d"), this);
+
+    // POG
+    pogLeaderboardListMenuAction = new QAction(QIcon(":/icons/" + theme + "/chat"), tr("POG Leaderboar&d"), this);
     pogLeaderboardListMenuAction->setStatusTip(tr("POG Leaderboard"));
     pogLeaderboardListMenuAction->setEnabled(true);
 
     pogCoinReportMenuAction = new QAction(QIcon(":/icons/" + theme + "/gear"), tr("POG &Engine Room"), this);
     pogCoinReportMenuAction->setStatusTip(tr("POG Engine Room"));
     pogCoinReportMenuAction->setEnabled(true);
-	
-	sinnerAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("The Sinners Prayer"), this);
+
+    sinnerAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("The Sinners Prayer"), this);
     sinnerAction->setStatusTip(tr("Show the Sinners Prayer"));
     sinnerAction->setMenuRole(QAction::AboutRole);
     sinnerAction->setEnabled(false);
 
-	TheLordsPrayerAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("The Lords Prayer"), this);
+    TheLordsPrayerAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("The Lords Prayer"), this);
     TheLordsPrayerAction->setStatusTip(tr("Show the Lords Prayer"));
-	TheLordsPrayerAction->setEnabled(false);
+    TheLordsPrayerAction->setEnabled(false);
 
-	TheApostlesCreedAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("The Apostles Creed"), this);
+    TheApostlesCreedAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("The Apostles Creed"), this);
     TheApostlesCreedAction->setStatusTip(tr("Show the Lords Prayer"));
     TheApostlesCreedAction->setEnabled(false);
 
-	TheNiceneCreedAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("The Nicene Creed"), this);
+    TheNiceneCreedAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("The Nicene Creed"), this);
     TheNiceneCreedAction->setStatusTip(tr("Show the Nicene Creed"));
     TheNiceneCreedAction->setEnabled(false);
 
-	TheTenCommandmentsAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("The Ten Commandments"), this);
+    TheTenCommandmentsAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("The Ten Commandments"), this);
     TheTenCommandmentsAction->setStatusTip(tr("Show the Ten Commandments"));
     TheTenCommandmentsAction->setEnabled(false);
 
-	JesusConciseCommandmentsAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("Jesus Concise Commandments"), this);
+    JesusConciseCommandmentsAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("Jesus Concise Commandments"), this);
     JesusConciseCommandmentsAction->setStatusTip(tr("Show Jesus Concise Commandments"));
     JesusConciseCommandmentsAction->setEnabled(false);
 
-	ReadBibleAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("Read Bible"), this);
+    ReadBibleAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("Read Bible"), this);
     ReadBibleAction->setStatusTip(tr("Read Bible"));
     ReadBibleAction->setEnabled(false);
 
-	OneClickMiningAction = new QAction(QIcon(":/icons/" + theme + "/editpaste"), tr("One Click Mining Configuration"), this);
+    OneClickMiningAction = new QAction(QIcon(":/icons/" + theme + "/editpaste"), tr("One Click Mining Configuration"), this);
     OneClickMiningAction->setStatusTip(tr("One Click Mining Configuration"));
     OneClickMiningAction->setEnabled(false);
 
-	aboutQtAction = new QAction(QIcon(":/icons/" + theme + "/about_qt"), tr("About &Qt"), this);
+    aboutQtAction = new QAction(QIcon(":/icons/" + theme + "/about_qt"), tr("About &Qt"), this);
     aboutQtAction->setStatusTip(tr("Show information about Qt"));
     aboutQtAction->setMenuRole(QAction::AboutQtRole);
 
@@ -536,34 +536,34 @@ void BitcoinGUI::createActions()
     openPeersAction->setStatusTip(tr("Show peers info"));
     openRepairAction = new QAction(QIcon(":/icons/" + theme + "/options"), tr("Wallet &Repair"), this);
     openRepairAction->setStatusTip(tr("Show wallet repair options"));
-	
+
     // Add submenu items to Proposals
     openProposalsAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("Proposal &List"), this);
     openProposalsAction->setStatusTip(tr("Show Proposal List"));
     openProposalsAction->setEnabled(false);
-	
-	// Add submenu for Proposal Add
-	proposalAddMenuAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("Proposal &Add"), this);
+
+    // Add submenu for Proposal Add
+    proposalAddMenuAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("Proposal &Add"), this);
     proposalAddMenuAction->setStatusTip(tr("Add Proposal"));
     proposalAddMenuAction->setEnabled(false);
-	
-	// Add Contact Add Menu item
-	contactAddMenuAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("Contact &Add"), this);
+
+    // Add Contact Add Menu item
+    contactAddMenuAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("Contact &Add"), this);
     contactAddMenuAction->setStatusTip(tr("Add Contact"));
     contactAddMenuAction->setEnabled(true);
-	// Business Object List Menu Item
-	businessObjectListMenuAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("Business Object &List"), this);
+    // Business Object List Menu Item
+    businessObjectListMenuAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("Business Object &List"), this);
     businessObjectListMenuAction->setStatusTip(tr("Business Object List"));
     businessObjectListMenuAction->setEnabled(true);
-		
+
     openFundedProposalsAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("&Funded Proposal List"), this);
     openFundedProposalsAction->setStatusTip(tr("Show Funded Proposal List"));
-	openFundedProposalsAction->setEnabled(false);
-	    
+    openFundedProposalsAction->setEnabled(false);
+
     openConfEditorAction = new QAction(QIcon(":/icons/" + theme + "/edit"), tr("Open Wallet &Configuration File"), this);
     openConfEditorAction->setStatusTip(tr("Open configuration file"));
     openMNConfEditorAction = new QAction(QIcon(":/icons/" + theme + "/edit"), tr("Open &Masternode Configuration File"), this);
-    openMNConfEditorAction->setStatusTip(tr("Open Masternode configuration file"));    
+    openMNConfEditorAction->setStatusTip(tr("Open Masternode configuration file"));
     showBackupsAction = new QAction(QIcon(":/icons/" + theme + "/browse"), tr("Show Automatic &Backups"), this);
     showBackupsAction->setStatusTip(tr("Show automatically created wallet backups"));
     // initially disable the debug window menu items
@@ -591,18 +591,18 @@ void BitcoinGUI::createActions()
 
     connect(quitAction, SIGNAL(triggered()), qApp, SLOT(quit()));
     connect(aboutAction, SIGNAL(triggered()), this, SLOT(aboutClicked()));
-	connect(sinnerAction, SIGNAL(triggered()), this, SLOT(sinnerClicked()));
-	connect(TheLordsPrayerAction, SIGNAL(triggered()), this, SLOT(TheLordsPrayerClicked()));
-	connect(openChatGeneralAction, SIGNAL(triggered()), this, SLOT(openChatGeneralClicked()));
-	connect(openChatPMAction, SIGNAL(triggered()), this, SLOT(openChatPMClicked()));
+    connect(sinnerAction, SIGNAL(triggered()), this, SLOT(sinnerClicked()));
+    connect(TheLordsPrayerAction, SIGNAL(triggered()), this, SLOT(TheLordsPrayerClicked()));
+    connect(openChatGeneralAction, SIGNAL(triggered()), this, SLOT(openChatGeneralClicked()));
+    connect(openChatPMAction, SIGNAL(triggered()), this, SLOT(openChatPMClicked()));
 
-	connect(TheApostlesCreedAction, SIGNAL(triggered()), this, SLOT(TheApostlesCreedClicked()));
-	connect(TheNiceneCreedAction, SIGNAL(triggered()), this, SLOT(TheNiceneCreedClicked()));
-	connect(ReadBibleAction, SIGNAL(triggered()), this, SLOT(ReadBibleClicked()));
-	connect(OneClickMiningAction, SIGNAL(triggered()), this, SLOT(OneClickMiningClicked()));
+    connect(TheApostlesCreedAction, SIGNAL(triggered()), this, SLOT(TheApostlesCreedClicked()));
+    connect(TheNiceneCreedAction, SIGNAL(triggered()), this, SLOT(TheNiceneCreedClicked()));
+    connect(ReadBibleAction, SIGNAL(triggered()), this, SLOT(ReadBibleClicked()));
+    connect(OneClickMiningAction, SIGNAL(triggered()), this, SLOT(OneClickMiningClicked()));
 
-	connect(TheTenCommandmentsAction, SIGNAL(triggered()), this, SLOT(TheTenCommandmentsClicked()));
-	connect(JesusConciseCommandmentsAction, SIGNAL(triggered()), this, SLOT(JesusConciseCommandmentsClicked()));
+    connect(TheTenCommandmentsAction, SIGNAL(triggered()), this, SLOT(TheTenCommandmentsClicked()));
+    connect(JesusConciseCommandmentsAction, SIGNAL(triggered()), this, SLOT(JesusConciseCommandmentsClicked()));
 
     connect(aboutQtAction, SIGNAL(triggered()), qApp, SLOT(aboutQt()));
     connect(optionsAction, SIGNAL(triggered()), this, SLOT(optionsClicked()));
@@ -616,10 +616,10 @@ void BitcoinGUI::createActions()
     connect(openGraphAction, SIGNAL(triggered()), this, SLOT(showGraph()));
     connect(openPeersAction, SIGNAL(triggered()), this, SLOT(showPeers()));
     connect(openRepairAction, SIGNAL(triggered()), this, SLOT(showRepair()));
-	connect(contactAddMenuAction, SIGNAL(triggered()), this, SLOT(gotoContactAddPage()));
-	connect(proposalAddMenuAction, SIGNAL(triggered()), this, SLOT(gotoProposalAddPage()));
-	connect(businessObjectListMenuAction, SIGNAL(triggered()), this, SLOT(gotoBusinessObjectListPage()));
-	connect(pogLeaderboardListMenuAction, SIGNAL(triggered()), this, SLOT(gotoPOGLeaderboardListPage()));
+    connect(contactAddMenuAction, SIGNAL(triggered()), this, SLOT(gotoContactAddPage()));
+    connect(proposalAddMenuAction, SIGNAL(triggered()), this, SLOT(gotoProposalAddPage()));
+    connect(businessObjectListMenuAction, SIGNAL(triggered()), this, SLOT(gotoBusinessObjectListPage()));
+    connect(pogLeaderboardListMenuAction, SIGNAL(triggered()), this, SLOT(gotoPOGLeaderboardListPage()));
     connect(pogCoinReportMenuAction, SIGNAL(triggered()), this, SLOT(gotoPOGCoinReport()));
 
     // Open configs and backup folder from menu
@@ -630,9 +630,9 @@ void BitcoinGUI::createActions()
     // Get restart command-line parameters and handle restart
     connect(rpcConsole, SIGNAL(handleRestart(QStringList)), this, SLOT(handleRestart(QStringList)));
 
-	// Proposals:
+    // Proposals:
     connect(openProposalsAction, SIGNAL(triggered()), this, SLOT(gotoProposalListPage()));
-	
+
     // prevents an open debug window from becoming stuck/unusable on client shutdown
     connect(quitAction, SIGNAL(triggered()), rpcConsole, SLOT(hide()));
 
@@ -707,46 +707,46 @@ void BitcoinGUI::createMenuBar()
         tools->addAction(openConfEditorAction);
         tools->addAction(openMNConfEditorAction);
         tools->addAction(showBackupsAction);
-		tools->addAction(OneClickMiningAction);
+        tools->addAction(OneClickMiningAction);
     }
-	
-	if(walletFrame)
+
+    if(walletFrame)
     {
         QMenu *proposals = appMenuBar->addMenu(tr("&Proposals"));
         proposals->addAction(openProposalsAction);
-    	proposals->addAction(proposalAddMenuAction);
-		QMenu *contacts = appMenuBar->addMenu(tr("&Contacts"));
-		contacts->addAction(contactAddMenuAction);
-		QMenu *businessObjects = appMenuBar->addMenu(tr("&Business Objects"));
-		businessObjects->addAction(businessObjectListMenuAction);
+        proposals->addAction(proposalAddMenuAction);
+        QMenu *contacts = appMenuBar->addMenu(tr("&Contacts"));
+        contacts->addAction(contactAddMenuAction);
+        QMenu *businessObjects = appMenuBar->addMenu(tr("&Business Objects"));
+        businessObjects->addAction(businessObjectListMenuAction);
     }
 
-	// Chat - TestNet (The problem below is fPOGEnabled is set to true after QT is initalized... sigh)
-	if (fPOGEnabled || true)
-	{
-		QMenu *menuChat = appMenuBar->addMenu(tr("&Chat"));
-		menuChat->addAction(openChatGeneralAction);
-		menuChat->addAction(openChatPMAction);
-	}
+    // Chat - TestNet (The problem below is fPOGEnabled is set to true after QT is initalized... sigh)
+    if (fPOGEnabled || true)
+    {
+        QMenu *menuChat = appMenuBar->addMenu(tr("&Chat"));
+        menuChat->addAction(openChatGeneralAction);
+        menuChat->addAction(openChatPMAction);
+    }
 
-	if (fPOGEnabled || true)
-	{
-		QMenu *menuPOG = appMenuBar->addMenu(tr("&POG"));
-		menuPOG->addAction(pogLeaderboardListMenuAction);
+    if (fPOGEnabled || true)
+    {
+        QMenu *menuPOG = appMenuBar->addMenu(tr("&POG"));
+        menuPOG->addAction(pogLeaderboardListMenuAction);
         menuPOG->addAction(pogCoinReportMenuAction);
-	}
+    }
 
-	// BiblePay - Prayers, Jesus' Commandments, and Reading the Bible
-	QMenu *menuBible = appMenuBar->addMenu(tr("&Bible"));
-	menuBible->addAction(sinnerAction);
-	menuBible->addAction(TheLordsPrayerAction);
-	menuBible->addAction(TheApostlesCreedAction);
-	menuBible->addAction(TheNiceneCreedAction);
-	menuBible->addAction(TheTenCommandmentsAction);
-	menuBible->addAction(JesusConciseCommandmentsAction);
-	menuBible->addAction(ReadBibleAction);
-	
-	QMenu *help = appMenuBar->addMenu(tr("&Help"));
+    // BiblePay - Prayers, Jesus' Commandments, and Reading the Bible
+    QMenu *menuBible = appMenuBar->addMenu(tr("&Bible"));
+    menuBible->addAction(sinnerAction);
+    menuBible->addAction(TheLordsPrayerAction);
+    menuBible->addAction(TheApostlesCreedAction);
+    menuBible->addAction(TheNiceneCreedAction);
+    menuBible->addAction(TheTenCommandmentsAction);
+    menuBible->addAction(JesusConciseCommandmentsAction);
+    menuBible->addAction(ReadBibleAction);
+
+    QMenu *help = appMenuBar->addMenu(tr("&Help"));
     help->addAction(showHelpMessageAction);
     help->addAction(showPrivateSendHelpAction);
     help->addSeparator();
@@ -781,17 +781,17 @@ void BitcoinGUI::createToolBars()
         toolbar->addAction(overviewAction);
         toolbar->addAction(sendCoinsAction);
         toolbar->addAction(historyAction);
-		if (PODCEnabled(0)) 
+        if (PODCEnabled(0))
         {
             toolbar->addAction(distributedComputingAction);
         }
-		if (fPOGEnabled || true)
-		{
-			toolbar->addAction(pogLeaderboardAction);
+        if (fPOGEnabled || true)
+        {
+            toolbar->addAction(pogLeaderboardAction);
             toolbar->addAction(pogCoinReportAction);
-		}
-		toolbar->addAction(proposalListAction);
-		toolbar->addAction(receiveCoinsAction);
+        }
+        toolbar->addAction(proposalListAction);
+        toolbar->addAction(receiveCoinsAction);
         QSettings settings;
         if (settings.value("fShowMasternodesTab").toBool())
         {
@@ -842,7 +842,7 @@ void BitcoinGUI::setClientModel(ClientModel *clientModel)
             MacDockIconHandler *dockIconHandler = MacDockIconHandler::instance();
             dockIconHandler->setMainWindow((QMainWindow *)this);
             dockIconMenu = dockIconHandler->dockMenu();
- 
+
             createIconMenu(dockIconMenu);
 #endif
         }
@@ -894,7 +894,7 @@ bool BitcoinGUI::addWallet(const QString& name, WalletModel *walletModel)
     if(!walletFrame)
         return false;
     setWalletActionsEnabled(true);
-	this->lastWalletModel = walletModel;
+    this->lastWalletModel = walletModel;
     return walletFrame->addWallet(name, walletModel);
 }
 
@@ -922,16 +922,18 @@ void BitcoinGUI::setWalletActionsEnabled(bool enabled)
     receiveCoinsAction->setEnabled(enabled);
     receiveCoinsMenuAction->setEnabled(enabled);
 
-	if (PODCEnabled(0))
-	{
-		distributedComputingAction->setEnabled(enabled);
-		distributedComputingMenuAction->setEnabled(enabled);
-	}
-	proposalListAction->setEnabled(enabled);
-	contactAddMenuAction->setEnabled(enabled);
-	businessObjectListMenuAction->setEnabled(enabled);
-	proposalAddMenuAction->setEnabled(enabled);
-	pogLeaderboardListMenuAction->setEnabled(enabled);
+    if (PODCEnabled(0))
+    {
+        distributedComputingAction->setEnabled(enabled);
+        distributedComputingMenuAction->setEnabled(enabled);
+    }
+    proposalListAction->setEnabled(enabled);
+    contactAddMenuAction->setEnabled(enabled);
+    businessObjectListMenuAction->setEnabled(enabled);
+    proposalAddMenuAction->setEnabled(enabled);
+    pogLeaderboardAction->setEnabled(enabled);
+    pogCoinReportAction->setEnabled(enabled);
+    pogLeaderboardListMenuAction->setEnabled(enabled);
     pogCoinReportMenuAction->setEnabled(enabled);
 
     historyAction->setEnabled(enabled);
@@ -966,7 +968,7 @@ void BitcoinGUI::createIconMenu(QMenu *pmenu)
     pmenu->addSeparator();
     pmenu->addAction(sendCoinsMenuAction);
     pmenu->addAction(receiveCoinsMenuAction);
-	pmenu->addAction(distributedComputingMenuAction);
+    pmenu->addAction(distributedComputingMenuAction);
     pmenu->addSeparator();
     pmenu->addAction(signMessageAction);
     pmenu->addAction(verifyMessageAction);
@@ -1025,39 +1027,39 @@ void BitcoinGUI::TheLordsPrayerClicked()
     dlg.exec();
 }
 
-void CenterWidget(QWidget *widget, bool bTile) 
+void CenterWidget(QWidget *widget, bool bTile)
 {
-	QRect screenGeometry = QApplication::desktop()->screenGeometry();
+    QRect screenGeometry = QApplication::desktop()->screenGeometry();
     int x = (screenGeometry.width() - widget->width()) / 2;
     int y = (screenGeometry.height() - widget->height()) / 2;
-	if (bTile)
-	{
-			double iX = (rand() % 190) / 100;
-			double iY = (rand() % 190) / 100;
-			x = iX * x;
-			y = iY * y;
-	}
+    if (bTile)
+    {
+            double iX = (rand() % 190) / 100;
+            double iY = (rand() % 190) / 100;
+            x = iX * x;
+            y = iY * y;
+    }
     widget->move(x, y);
 }
 
 void BitcoinGUI::openChatGeneralClicked()
 {
     if(!clientModel) return;
-	std::string sNickName = GetArg("-nickname", "");
-	ChatDialog *dlg = new ChatDialog(this, false, sNickName, "General");
-	dlg->setClientModel(this->clientModel);
-	dlg->show();
-	CenterWidget(dlg, true);
+    std::string sNickName = GetArg("-nickname", "");
+    ChatDialog *dlg = new ChatDialog(this, false, sNickName, "General");
+    dlg->setClientModel(this->clientModel);
+    dlg->show();
+    CenterWidget(dlg, true);
 }
 
 void BitcoinGUI::openChatPMClicked()
 {
     if(!clientModel) return;
-	std::string sNickName = GetArg("-nickname", "");
+    std::string sNickName = GetArg("-nickname", "");
     ChatDialog *dlg = new ChatDialog(this, true, sNickName, "");
-	dlg->setClientModel(this->clientModel);
-	dlg->show();
-	CenterWidget(dlg, true);
+    dlg->setClientModel(this->clientModel);
+    dlg->show();
+    CenterWidget(dlg, true);
 }
 
 
@@ -1077,31 +1079,31 @@ void BitcoinGUI::TheNiceneCreedClicked()
 
 void BitcoinGUI::ReadBibleClicked()
 {
-	if(!clientModel) return;
-	HelpMessageDialog dlg(this, HelpMessageDialog::readbible, 0, uint256S("0x0"), "");
-	dlg.exec();
+    if(!clientModel) return;
+    HelpMessageDialog dlg(this, HelpMessageDialog::readbible, 0, uint256S("0x0"), "");
+    dlg.exec();
 }
 
 
 void BitcoinGUI::CreateNewsClicked()
 {
-	if(!clientModel) return;
-	HelpMessageDialog dlg(this, HelpMessageDialog::createnews, 0, uint256S("0x0"), "");
-	dlg.exec();
+    if(!clientModel) return;
+    HelpMessageDialog dlg(this, HelpMessageDialog::createnews, 0, uint256S("0x0"), "");
+    dlg.exec();
 }
 
 void BitcoinGUI::OneClickMiningClicked()
 {
-	if(!clientModel) return;
-	std::string sNarr = "Are you sure you would like to configure Biblepay Mining (this means biblepay will search for new blocks in the background, and will resume during each restart)?";
-	int ret = QMessageBox::warning(this, tr("Modify Biblepay Configuration File for Mining?"), GUIUtil::TOQS(sNarr), QMessageBox::Ok | QMessageBox::Cancel, QMessageBox::Ok);
-	if (ret==QMessageBox::Ok)
-	{
-		// Modify user configuration file
-		bool fSuccess = InstantiateOneClickMiningEntries();
-		sNarr = fSuccess ? "Configuration Succeeded" : "Configuration Failed.";
-		QMessageBox::warning(this, GUIUtil::TOQS(sNarr), GUIUtil::TOQS(sNarr), QMessageBox::Ok, QMessageBox::Ok);
-	}
+    if(!clientModel) return;
+    std::string sNarr = "Are you sure you would like to configure Biblepay Mining (this means biblepay will search for new blocks in the background, and will resume during each restart)?";
+    int ret = QMessageBox::warning(this, tr("Modify Biblepay Configuration File for Mining?"), GUIUtil::TOQS(sNarr), QMessageBox::Ok | QMessageBox::Cancel, QMessageBox::Ok);
+    if (ret==QMessageBox::Ok)
+    {
+        // Modify user configuration file
+        bool fSuccess = InstantiateOneClickMiningEntries();
+        sNarr = fSuccess ? "Configuration Succeeded" : "Configuration Failed.";
+        QMessageBox::warning(this, GUIUtil::TOQS(sNarr), GUIUtil::TOQS(sNarr), QMessageBox::Ok, QMessageBox::Ok);
+    }
 }
 
 void BitcoinGUI::TheTenCommandmentsClicked()
@@ -1240,38 +1242,38 @@ void BitcoinGUI::gotoDistributedComputingPage()
 
 void BitcoinGUI::gotoProposalAddPage()
 {
-	proposalAddMenuAction->setChecked(true);
-	if (walletFrame) walletFrame->gotoProposalAddPage();
+    proposalAddMenuAction->setChecked(true);
+    if (walletFrame) walletFrame->gotoProposalAddPage();
 }
 
 void BitcoinGUI::gotoBusinessObjectListPage()
 {
-	businessObjectListMenuAction->setChecked(true);
-	if (walletFrame) walletFrame->gotoBusinessObjectListPage();
+    businessObjectListMenuAction->setChecked(true);
+    if (walletFrame) walletFrame->gotoBusinessObjectListPage();
 }
 
 void BitcoinGUI::gotoPOGLeaderboardListPage()
 {
-	pogLeaderboardListMenuAction->setChecked(true);
-	if (walletFrame) walletFrame->gotoPOGLeaderboardListPage();
+    pogLeaderboardAction->setChecked(true);
+    if (walletFrame) walletFrame->gotoPOGLeaderboardListPage();
 }
 
 void BitcoinGUI::gotoPOGCoinReport()
 {
-    pogCoinReportMenuAction->setChecked(true);
+    pogCoinReportAction->setChecked(true);
     if (walletFrame) walletFrame->gotoPOGCoinReport();
 }
 
 void BitcoinGUI::gotoContactAddPage()
 {
-	contactAddMenuAction->setChecked(true);
-	if (walletFrame) walletFrame->gotoContactAddPage();
+    contactAddMenuAction->setChecked(true);
+    if (walletFrame) walletFrame->gotoContactAddPage();
 }
 
 void BitcoinGUI::gotoProposalListPage()
 {
-	proposalListAction->setChecked(true);
-	if (walletFrame) walletFrame->gotoProposalListPage();
+    proposalListAction->setChecked(true);
+    if (walletFrame) walletFrame->gotoProposalListPage();
 }
 
 void BitcoinGUI::gotoReceiveCoinsPage()
@@ -1362,7 +1364,7 @@ void BitcoinGUI::setNumBlocks(int count, const QDateTime& blockDate, double nVer
         const int WEEK_IN_SECONDS = 7*24*60*60;
         const int YEAR_IN_SECONDS = 31556952; // Average length of year in Gregorian calendar
         if(secs < 2*DAY_IN_SECONDS)
-        { 
+        {
             timeBehindText = tr("%n hour(s)","",secs/HOUR_IN_SECONDS);
         }
         else if(secs < 2*WEEK_IN_SECONDS)
@@ -1406,15 +1408,15 @@ void BitcoinGUI::setNumBlocks(int count, const QDateTime& blockDate, double nVer
         tooltip += QString("<br>");
         tooltip += tr("Transactions after this will not yet be visible.");
     }
-	else
-	{
+    else
+    {
 
-		#ifdef ENABLE_WALLET
+        #ifdef ENABLE_WALLET
         if(walletFrame)
             walletFrame->showOutOfSyncWarning(false);
-		#endif // ENABLE_WALLET
+        #endif // ENABLE_WALLET
 
-	}
+    }
 
     // Don't word-wrap this (fixed-width) tooltip
     tooltip = QString("<nobr>") + tooltip + QString("</nobr>");
@@ -1441,14 +1443,14 @@ void BitcoinGUI::setAdditionalDataSyncProgress(double nSyncProgress)
     {
         QString strSyncStatus;
         tooltip = tr("Up to date") + QString(".<br>") + tooltip;
-        if(masternodeSync.IsSynced() || chainActive.Tip()->nHeight < Params().GetConsensus().nMasternodePaymentsStartBlock) 
-		{
+        if(masternodeSync.IsSynced() || chainActive.Tip()->nHeight < Params().GetConsensus().nMasternodePaymentsStartBlock)
+        {
             progressBarLabel->setVisible(false);
             progressBar->setVisible(false);
             labelBlocksIcon->setPixmap(QIcon(":/icons/" + theme + "/synced").pixmap(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE));
         }
-		else
-		{
+        else
+        {
             labelBlocksIcon->setPixmap(platformStyle->SingleColorIcon(QString(
                 ":/movies/spinner-%1").arg(spinnerFrame, 3, 10, QChar('0')))
                 .pixmap(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE));
@@ -1582,21 +1584,23 @@ void BitcoinGUI::showEvent(QShowEvent *event)
     openRepairAction->setEnabled(true);
     aboutAction->setEnabled(true);
     optionsAction->setEnabled(true);
-	openFundedProposalsAction->setEnabled(false);
-	openFundedProposalsAction->setVisible(false);
-	openProposalsAction->setEnabled(true); // Enabling List Proposals in Prod so we can test the Paid filter during this next superblock (6-28-2018) (Proposals have been tested in testnet)
-	sinnerAction->setEnabled(true);
-	TheLordsPrayerAction->setEnabled(true);
-	TheApostlesCreedAction->setEnabled(true);
-	TheNiceneCreedAction->setEnabled(true);
-	openChatGeneralAction->setEnabled(true);
-	openChatPMAction->setEnabled(true);
-	pogLeaderboardListMenuAction->setEnabled(true);
+    openFundedProposalsAction->setEnabled(false);
+    openFundedProposalsAction->setVisible(false);
+    openProposalsAction->setEnabled(true); // Enabling List Proposals in Prod so we can test the Paid filter during this next superblock (6-28-2018) (Proposals have been tested in testnet)
+    sinnerAction->setEnabled(true);
+    TheLordsPrayerAction->setEnabled(true);
+    TheApostlesCreedAction->setEnabled(true);
+    TheNiceneCreedAction->setEnabled(true);
+    openChatGeneralAction->setEnabled(true);
+    openChatPMAction->setEnabled(true);
+    pogLeaderboardAction->setEnabled(true);
+    pogCoinReportAction->setEnabled(true);
+    pogLeaderboardListMenuAction->setEnabled(true);
     pogCoinReportMenuAction->setEnabled(true);
-	TheTenCommandmentsAction->setEnabled(true);
-	JesusConciseCommandmentsAction->setEnabled(true);
-	ReadBibleAction->setEnabled(true);
-	OneClickMiningAction->setEnabled(true);
+    TheTenCommandmentsAction->setEnabled(true);
+    JesusConciseCommandmentsAction->setEnabled(true);
+    ReadBibleAction->setEnabled(true);
+    OneClickMiningAction->setEnabled(true);
 }
 
 #ifdef ENABLE_WALLET
@@ -1610,12 +1614,12 @@ void BitcoinGUI::incomingTransaction(const QString& date, int unit, const CAmoun
         msg += tr("Label: %1\n").arg(label);
     else if (!address.isEmpty())
         msg += tr("Address: %1\n").arg(address);
-	// Robert Andrew (BiblePay) - January 3rd, 2018 : Add a bible verse to the Incoming Transaction
-	std::string tx = GUIUtil::FROMQS(txid).substr(0,64);
-	uint256 uTxId = uint256S("0x" + GUIUtil::FROMQS(txid));
-	std::string sVerse = GetBibleHashVerseNumber(uTxId, 1, 1, 1, NULL, 1);
-	QString qsVerse = GUIUtil::TOQS(sVerse);
-	msg += tr("Verse: %1\n").arg(qsVerse);	
+    // Robert Andrew (BiblePay) - January 3rd, 2018 : Add a bible verse to the Incoming Transaction
+    std::string tx = GUIUtil::FROMQS(txid).substr(0,64);
+    uint256 uTxId = uint256S("0x" + GUIUtil::FROMQS(txid));
+    std::string sVerse = GetBibleHashVerseNumber(uTxId, 1, 1, 1, NULL, 1);
+    QString qsVerse = GUIUtil::TOQS(sVerse);
+    msg += tr("Verse: %1\n").arg(qsVerse);
     message((amount)<0 ? tr("Sent transaction") : tr("Incoming transaction"), msg, CClientUIInterface::MSG_INFORMATION);
 }
 #endif // ENABLE_WALLET
@@ -1685,7 +1689,7 @@ void BitcoinGUI::setEncryptionStatus(int status)
         changePassphraseAction->setEnabled(true);
         unlockWalletAction->setVisible(false);
         lockWalletAction->setVisible(true);
-        encryptWalletAction->setEnabled(false); 
+        encryptWalletAction->setEnabled(false);
         break;
     case WalletModel::UnlockedForMixingOnly:
         labelEncryptionIcon->show();
@@ -1695,7 +1699,7 @@ void BitcoinGUI::setEncryptionStatus(int status)
         changePassphraseAction->setEnabled(true);
         unlockWalletAction->setVisible(true);
         lockWalletAction->setVisible(true);
-        encryptWalletAction->setEnabled(false); 
+        encryptWalletAction->setEnabled(false);
         break;
     case WalletModel::Locked:
         labelEncryptionIcon->show();
@@ -1705,7 +1709,7 @@ void BitcoinGUI::setEncryptionStatus(int status)
         changePassphraseAction->setEnabled(true);
         unlockWalletAction->setVisible(true);
         lockWalletAction->setVisible(false);
-        encryptWalletAction->setEnabled(false); 
+        encryptWalletAction->setEnabled(false);
         break;
     }
 }
@@ -1743,91 +1747,91 @@ void BitcoinGUI::toggleHidden()
 
 void BitcoinGUI::detectShutdown()
 {
-	if (fReboot2)
-	{
-		LogPrintf("\r\n ** Erasing Chain and Rebooting Wallet Now ** \r\n");
-		fReboot2 = false;
+    if (fReboot2)
+    {
+        LogPrintf("\r\n ** Erasing Chain and Rebooting Wallet Now ** \r\n");
+        fReboot2 = false;
         rpcConsole->walletEraseChain();
-	}
-	
-	// Governance - Check to see if we should submit a proposal
-	nProposalModulus++;
-	if (nProposalModulus % 15 == 0 && !fLoadingIndex && fWalletLoaded)
-	{
-		nProposalModulus = 0;
-		// Chat - If someone is paging us...
-		if (mlPaged > 1 && !msPagedFrom.empty() && clientModel)
-		{
-			mlPaged = 0;
-			std::string sNickName = GetArg("-nickname", "");
-			ChatDialog *dlg = new ChatDialog(this, true, sNickName, msPagedFrom);
-			dlg->setClientModel(this->clientModel);
-			dlg->show();
-			msPagedFrom = "";
-		}
-		if (fProposalNeedsSubmitted)
-		{
-			nProposalModulus = 0;
-			if(masternodeSync.IsSynced() && chainActive.Tip()->nHeight > (nProposalPrepareHeight + 6)) 
-			{
-				fProposalNeedsSubmitted = false;
-				std::string sError = "";
-				std::string sGovObj = "";
-				bool fSubmitted = SubmitProposalToNetwork(uTxIdFee, nProposalStartTime, msProposalHex, sError, sGovObj);
-				msProposalResult = fSubmitted ? "Submitted Proposal Successfully <br>( " + sGovObj + " )" : sError;
-				LogPrintf(" Proposal Submission Result:  %s  \n", msProposalResult.c_str());
-			}
-			else
-			{
-				msProposalResult = "Waiting for block " + RoundToString(nProposalPrepareHeight + 6, 0) + " to submit pending proposal. ";
-			}
-		}
-	}
-	// PODC - Check to see if user prefers to use Auto Unlock feature - R Andrews - Biblepay - 3/3/2018
-	if (!fCheckedPODCUnlock && fWalletLoaded)
-	{
-		fCheckedPODCUnlock = true;
-		bool bFeatureEnabled = GetArg("-disablepodcunlock", "false") == "true" ? false : true;
-		// If Wallet is locked and PODC is enabled and feature is enabled...
-		if (bFeatureEnabled && pwalletMain->IsLocked())
-		{
-			{
-				bool bOK;
-				std::string sPassword = "";
-				if (!fPOGEnabled)
-				{
-					sPassword = GUIUtil::FROMQS(QInputDialog::getText(this, tr("PODC Update Auto-Unlock Feature"),
+    }
+
+    // Governance - Check to see if we should submit a proposal
+    nProposalModulus++;
+    if (nProposalModulus % 15 == 0 && !fLoadingIndex && fWalletLoaded)
+    {
+        nProposalModulus = 0;
+        // Chat - If someone is paging us...
+        if (mlPaged > 1 && !msPagedFrom.empty() && clientModel)
+        {
+            mlPaged = 0;
+            std::string sNickName = GetArg("-nickname", "");
+            ChatDialog *dlg = new ChatDialog(this, true, sNickName, msPagedFrom);
+            dlg->setClientModel(this->clientModel);
+            dlg->show();
+            msPagedFrom = "";
+        }
+        if (fProposalNeedsSubmitted)
+        {
+            nProposalModulus = 0;
+            if(masternodeSync.IsSynced() && chainActive.Tip()->nHeight > (nProposalPrepareHeight + 6))
+            {
+                fProposalNeedsSubmitted = false;
+                std::string sError = "";
+                std::string sGovObj = "";
+                bool fSubmitted = SubmitProposalToNetwork(uTxIdFee, nProposalStartTime, msProposalHex, sError, sGovObj);
+                msProposalResult = fSubmitted ? "Submitted Proposal Successfully <br>( " + sGovObj + " )" : sError;
+                LogPrintf(" Proposal Submission Result:  %s  \n", msProposalResult.c_str());
+            }
+            else
+            {
+                msProposalResult = "Waiting for block " + RoundToString(nProposalPrepareHeight + 6, 0) + " to submit pending proposal. ";
+            }
+        }
+    }
+    // PODC - Check to see if user prefers to use Auto Unlock feature - R Andrews - Biblepay - 3/3/2018
+    if (!fCheckedPODCUnlock && fWalletLoaded)
+    {
+        fCheckedPODCUnlock = true;
+        bool bFeatureEnabled = GetArg("-disablepodcunlock", "false") == "true" ? false : true;
+        // If Wallet is locked and PODC is enabled and feature is enabled...
+        if (bFeatureEnabled && pwalletMain->IsLocked())
+        {
+            {
+                bool bOK;
+                std::string sPassword = "";
+                if (!fPOGEnabled)
+                {
+                    sPassword = GUIUtil::FROMQS(QInputDialog::getText(this, tr("PODC Update Auto-Unlock Feature"),
                                           tr("Please enter your wallet password for PODC updates, or click <Cancel> to skip:"),
-										  QLineEdit::Password, "", &bOK));
-				}
-				else
-				{
-					sPassword = GUIUtil::FROMQS(QInputDialog::getText(this, tr("POG/PODC Auto-Unlock Feature"),
+                                          QLineEdit::Password, "", &bOK));
+                }
+                else
+                {
+                    sPassword = GUIUtil::FROMQS(QInputDialog::getText(this, tr("POG/PODC Auto-Unlock Feature"),
                        tr("Please enter your wallet password for automatic POG tithes, or click <Cancel> to skip:"),
-					   QLineEdit::Password, "", &bOK));
-				}
-				if (!sPassword.empty())
-				{
-					msEncryptedString.reserve(400);
-					msEncryptedString = sPassword.c_str();
-					// Test the password
-					if (!pwalletMain->Unlock(msEncryptedString, false))
-					{
-						LogPrintf(" Unable to unlock wallet with password provided. \n");
-						QMessageBox::warning(this, tr("PODC Unlock Failed"), tr("Failed to unlock wallet with password provided."), 
-							QMessageBox::Ok, QMessageBox::Ok);
-					}
-					else
-					{
-						pwalletMain->Lock();
-						LogPrintf(" PODC Password tested successfully. \n");
-					}
-					
-				}
-				sPassword = "                                                                                                                                                                "; // Erase from memory
-			}
-		}
-	}
+                       QLineEdit::Password, "", &bOK));
+                }
+                if (!sPassword.empty())
+                {
+                    msEncryptedString.reserve(400);
+                    msEncryptedString = sPassword.c_str();
+                    // Test the password
+                    if (!pwalletMain->Unlock(msEncryptedString, false))
+                    {
+                        LogPrintf(" Unable to unlock wallet with password provided. \n");
+                        QMessageBox::warning(this, tr("PODC Unlock Failed"), tr("Failed to unlock wallet with password provided."),
+                            QMessageBox::Ok, QMessageBox::Ok);
+                    }
+                    else
+                    {
+                        pwalletMain->Lock();
+                        LogPrintf(" PODC Password tested successfully. \n");
+                    }
+
+                }
+                sPassword = "                                                                                                                                                                "; // Erase from memory
+            }
+        }
+    }
 
 
     if (fInternalRequestedShutdown || ShutdownRequested())
@@ -1870,15 +1874,15 @@ static bool ThreadSafeMessageBox(BitcoinGUI *gui, const std::string& message, co
     style &= ~CClientUIInterface::SECURE;
     bool ret = false;
 
-	if (style==10)
-	{
-		bool ok;
-		QString	sUserResponse = QInputDialog::getText(gui, QString::fromStdString(caption),
-			QString::fromStdString(message), QLineEdit::Password,"", &ok);
-		msGUIResponse = GUIUtil::FROMQS(sUserResponse);
-		sUserResponse="";
-		return ok;
-	}
+    if (style==10)
+    {
+        bool ok;
+        QString	sUserResponse = QInputDialog::getText(gui, QString::fromStdString(caption),
+            QString::fromStdString(message), QLineEdit::Password,"", &ok);
+        msGUIResponse = GUIUtil::FROMQS(sUserResponse);
+        sUserResponse="";
+        return ok;
+    }
 
     // In case of modal message, use blocking connection to wait for user to click a button
     QMetaObject::invokeMethod(gui, "message",

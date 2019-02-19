@@ -1480,7 +1480,7 @@ UniValue exec(const UniValue& params, bool fHelp)
 		if (sType.empty() || sPrimaryKey.empty() || sValue.empty())
 			throw runtime_error(sError);
 		sError = "";
-    	std::string sResult = SendBlockchainMessage(sType, sPrimaryKey, sValue, 1, true, sError);
+    	std::string sResult = SendBlockchainMessage(sType, sPrimaryKey, sValue, .24, true, sError);
 		results.push_back(Pair("Sent", sValue));
 		results.push_back(Pair("TXID", sResult));
 		if (!sError.empty()) results.push_back(Pair("Error", sError));
@@ -3089,11 +3089,11 @@ UniValue exec(const UniValue& params, bool fHelp)
 			BOOST_FOREACH(const PAIRTYPE(std::string, CTitheObject)& item, pindex->mapTithes)
 		    {
 				CTitheObject oTithe = item.second;
-				int iLegal = IsTitheLegal2(oTithe, tdp);
+				int iLegal = IsTitheLegal3(oTithe, tdp);
 				std::string sErr = TitheErrorToString(iLegal);
 
-				std::string sRow = "Legal: " + RoundToString(iLegal, 0) + " [" + sErr + "], Amount: " + RoundToString((double)(oTithe.Amount/COIN),2) 
-					+ ", Height: " + RoundToString(oTithe.Height, 0) 
+				std::string sRow = "Legal: " + RoundToString(iLegal, 0) + " [" + sErr + "], Amount: " + RoundToString((double)oTithe.Amount/COIN, 2) 
+					+ ", Height: " + RoundToString(oTithe.Height, 0) + ", Spent_Coin_Value: " + RoundToString((double)oTithe.CoinAmount/COIN, 2)
 					+ ", " + oTithe.TXID + "-" + RoundToString(oTithe.Ordinal, 0) 
 					+ ", Age: " + RoundToString(oTithe.Age, 2) + ", NickName: " + oTithe.NickName;
 				results.push_back(Pair(oTithe.Address, sRow));
@@ -3102,23 +3102,30 @@ UniValue exec(const UniValue& params, bool fHelp)
 	}
 	else if (sItem == "getdimensionalbalance")
 	{
-		if (params.size() != 3)
-			throw runtime_error("You must specify min_coin_age (days), min_coin_amount.  IE: exec getdimensionalbalance 1 1000.");
+        if (params.size() < 3 || params.size() > 5)
+            throw runtime_error("You must specify min_coin_age (days), min_coin_amount [, max_coin_age, max_coin_amount].  IE: exec getdimensionalbalance 1 1000.");
+
+        bool bShowTxID = false;
+        double dMaxAge = 9999999;
+        CAmount caMaxAmt = MAX_MONEY;
+
+        if (params.size() >= 4)     dMaxAge = cdbl(params[3].get_str(), 4);
+        if (params.size() >= 5)     caMaxAmt = cdbl(params[4].get_str(), 4) * COIN;
 
 		double dMinAge = cdbl(params[1].get_str(), 4);
 		CAmount caMinAmt = cdbl(params[2].get_str(), 4) * COIN;
 		if (caMinAmt < (.01 * COIN)) caMinAmt = (.01 * COIN);
-		LogPrintf("GetDimensionalBalance::Checking For MinAge %f, Amount %f ", dMinAge, (double)(caMinAmt/COIN));
-		std::map<int64_t, CTitheObject> dtb = pwalletMain->GetDimensionalCoins(dMinAge, caMinAmt);
+        LogPrintf("GetDimensionalBalance::Checking For MinAge %f, Amount %f, MaxAge %f, MaxAmount %f \r\n  ", dMinAge, (double)(caMinAmt/COIN), dMaxAge, (double)(caMaxAmt/COIN));
+        std::map<int64_t, CTitheObject> dtb = pwalletMain->GetDimensionalCoins(dMinAge, caMinAmt, dMaxAge, caMaxAmt);
 		CAmount nTotal = 0;
 		BOOST_FOREACH(const PAIRTYPE(int64_t, CTitheObject)& item, dtb)
     	{
 			CTitheObject c = item.second;
-			results.push_back(Pair("Amount " + RoundToString(((double)(c.Amount / COIN)), 2), 
-				"Age " + RoundToString(c.Age, 2)));
-			nTotal += c.Amount;
+            results.push_back(Pair("Amount " + RoundToString(((double)(c.Amount / COIN)), 2),
+                "Age " + RoundToString(c.Age, 2)));
+            nTotal += c.Amount;
 		}
-		results.push_back(Pair("Total", (double)(nTotal / COIN)));
+        results.push_back(Pair("Total", (double)(nTotal / COIN)));
 	}
 	else if (sItem == "bankroll")
 	{
@@ -3140,7 +3147,7 @@ UniValue exec(const UniValue& params, bool fHelp)
 	else if (sItem == "istithelegal")
 	{
 		if (params.size() != 2)
-			throw runtime_error("You must specify txid.");
+			throw runtime_error("You must specify a txid.");
 		std::string sTxId = params[1].get_str();
 		CTransaction txTithe;
 		uint256 hashBlockTithe;
@@ -3152,21 +3159,33 @@ UniValue exec(const UniValue& params, bool fHelp)
 			int hashInputOrdinal = txTithe.vin[0].prevout.n;
 			int64_t nTxTime = 0;
 			CAmount caAmount = 0;
-			GetTxTimeAndAmount(hashInput, hashInputOrdinal, nTxTime, caAmount);
+			int iHeight = 0;
+			GetTxTimeAndAmountAndHeight(hashInput, hashInputOrdinal, nTxTime, caAmount, iHeight);
 			if (mapBlockIndex.count(hashBlockTithe) == 0) throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
 		    CBlockIndex* pindex = mapBlockIndex[hashBlockTithe];
-			double nTitheAge = (double)((pindex->GetBlockTime() - nTxTime) / 86400);
 			CAmount nTotal = GetTitheTotal(txTithe);
-			bool bTitheLegal = (nTitheAge >= pindex->pprev->nMinCoinAge && caAmount >= pindex->pprev->nMinCoinAmount && nTotal <= pindex->pprev->nMaxTitheAmount);
+			CTitheObject oTithe = TxToTithe(txTithe, pindex);
+			TitheDifficultyParams tdp = GetTitheParams(pindex);
+			int iLegal = IsTitheLegal3(oTithe, tdp);
+			std::string sErr = TitheErrorToString(iLegal);
+			if (iLegal == 1) sErr = "VALID";
 
-			results.push_back(Pair("Tithe_Legal", bTitheLegal));
-			results.push_back(Pair("Tithe_Age", nTitheAge));
-			results.push_back(Pair("Tithe_Spent_Coin_Amount", (double)(caAmount/COIN)));
-			results.push_back(Pair("Tithe_Amount", (double)(nTotal/COIN)));
-			results.push_back(Pair("Block_diff_min_coin_age", pindex->nMinCoinAge));
-			results.push_back(Pair("Block_diff_min_coin_amt", (double)(pindex->nMinCoinAmount/COIN)));
-			results.push_back(Pair("Block_diff_max_tithe_amt", (double)(pindex->nMaxTitheAmount/COIN)));
+			results.push_back(Pair("Tithe_Legal", iLegal));
+			results.push_back(Pair("Tithe_Legal_Result", sErr));
+			
+			results.push_back(Pair("Tx_Time", pindex->GetBlockTime()));
 			results.push_back(Pair("Tithed_Height", pindex->nHeight));
+
+			results.push_back(Pair("Spent_Time", nTxTime));
+			results.push_back(Pair("Spent_Height", oTithe.SpentHeight));
+			results.push_back(Pair("Spent_Coin_Amount", (double)oTithe.CoinAmount / COIN));
+	
+			results.push_back(Pair("Tithe_Age", (double)oTithe.Age));
+			results.push_back(Pair("Tithe_Amount", (double)oTithe.Amount / COIN));
+
+			results.push_back(Pair("Block_diff_min_coin_age", pindex->nMinCoinAge));
+			results.push_back(Pair("Block_diff_min_coin_amt", (double)(pindex->nMinCoinAmount / COIN)));
+			results.push_back(Pair("Block_diff_max_tithe_amt", (double)(pindex->nMaxTitheAmount / COIN)));
 		}
 		else
 		{
@@ -3188,12 +3207,10 @@ UniValue exec(const UniValue& params, bool fHelp)
 				 results.push_back(Pair("vout", sRecipient));
 			 }
 		}
-		/*
 	    int nTitheCount = mempool.getTitheCount();
 		double dPogDiff = GetPOGDifficulty(chainActive.Tip());
 		results.push_back(Pair("tithe_count", nTitheCount));
 		results.push_back(Pair("pog_difficulty", dPogDiff));
-		*/
 	}
 	else if (sItem == "chat1")
 	{
@@ -3250,10 +3267,7 @@ UniValue exec(const UniValue& params, bool fHelp)
 		results.push_back(Pair("amt", (double)nAmount/COIN));
 		results.push_back(Pair("compare", CompareMask(nAmount, nMask)));
 		results.push_back(Pair("min_relay_fee", DEFAULT_MIN_RELAY_TX_FEE));
-	}
-	else if (sItem == "develop")
-	{
-		results.push_back(Pair("develop_branch", 1));
+
 	}
 	else if (sItem == "datalist")
 	{

@@ -748,7 +748,7 @@ public:
     std::vector<uint256> ResendWalletTransactionsBefore(int64_t nTime);
     CAmount GetBalance() const;
 	CAmount GetUnlockedBalance() const;
-	std::map<int64_t, CTitheObject> GetDimensionalCoins(double nMinAge, CAmount nMinAmount) const;
+    std::map<int64_t, CTitheObject> GetDimensionalCoins(double nMinAge, CAmount nMinAmount, double nMaxAge=9999999, CAmount nMaxAmount=MAX_MONEY) const;
 	CAmount GetUnconfirmedBalance() const;
     CAmount GetImmatureBalance() const;
     CAmount GetWatchOnlyBalance() const;
