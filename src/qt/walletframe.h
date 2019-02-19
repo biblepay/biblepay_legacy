@@ -72,7 +72,7 @@ public Q_SLOTS:
 	void gotoBusinessObjectListPage();
 
 	void gotoPOGLeaderboardListPage();
-    void gotoPOGCoinReport();
+    void gotoPOGCoinReportPage();
 
     /** Switch to send coins page */
     void gotoSendCoinsPage(QString addr = "");

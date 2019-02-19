@@ -171,7 +171,7 @@ void WalletFrame::gotoPOGLeaderboardListPage()
 
 }
 
-void WalletFrame::gotoPOGCoinReport()
+void WalletFrame::gotoPOGCoinReportPage()
 {
     QMap<QString, WalletView*>::const_iterator i;
     for (i = mapWalletViews.constBegin(); i != mapWalletViews.constEnd(); ++i)

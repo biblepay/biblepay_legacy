@@ -7868,7 +7868,7 @@ void MemorizeUTXOWeight(TxMessage t, double dAmount, double dAge, double dMinCoi
 		
 		if (fSigValid && dAge >= dMinCoinAge)
 		{
-			if (fDebugMaster) LogPrintf(" UTXOAge %f, Amount %f ", dAge, dAmount);
+			if (false && fDebugMaster) LogPrintf(" UTXOAge %f, Amount %f ", dAge, dAmount);
 			WriteCache("UTXOWeight", t.sCPID, RoundToString(dAmount, 0), t.nTime);
 			WriteCache("CPIDTasks", t.sCPID, t.sPODCTasks, t.nTime);
 			if (IsMature(t.nTime, 14400))

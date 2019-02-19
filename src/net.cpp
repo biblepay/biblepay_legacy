@@ -3258,7 +3258,7 @@ int ipfs_http_get(const std::string& request, const std::string& ip_address, int
 	if (!fd.good()) return -1;
 	
 	int iOffset = 0;
-	LogPrintf(" sending %s ",ip_address.c_str());
+	if (false) LogPrintf(" sending %s ",ip_address.c_str());
 
     ::send(socketnumber, request.c_str(), request.length(), MSG_NOSIGNAL | MSG_DONTWAIT);
 	double begin = clock();
@@ -3356,7 +3356,7 @@ int ipfs_download(const std::string& url, const std::string& filename, double dT
     if (addrIP.IsValid())
 	{
 		domain = GetIPFromAddress(addrIP.ToString());
-		LogPrintf(" domain %s ",domain.c_str());
+		if (false) LogPrintf(" domain %s ",domain.c_str());
 	}
 	
     if (domain.length() > 0)

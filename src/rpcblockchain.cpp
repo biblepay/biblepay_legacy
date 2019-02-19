@@ -3115,7 +3115,7 @@ UniValue exec(const UniValue& params, bool fHelp)
 		double dMinAge = cdbl(params[1].get_str(), 4);
 		CAmount caMinAmt = cdbl(params[2].get_str(), 4) * COIN;
 		if (caMinAmt < (.01 * COIN)) caMinAmt = (.01 * COIN);
-        LogPrintf("GetDimensionalBalance::Checking For MinAge %f, Amount %f, MaxAge %f, MaxAmount %f \r\n  ", dMinAge, (double)(caMinAmt/COIN), dMaxAge, (double)(caMaxAmt/COIN));
+        if (false) LogPrintf("GetDimensionalBalance::Checking For MinAge %f, Amount %f, MaxAge %f, MaxAmount %f \r\n  ", dMinAge, (double)(caMinAmt/COIN), dMaxAge, (double)(caMaxAmt/COIN));
         std::map<int64_t, CTitheObject> dtb = pwalletMain->GetDimensionalCoins(dMinAge, caMinAmt, dMaxAge, caMaxAmt);
 		CAmount nTotal = 0;
 		BOOST_FOREACH(const PAIRTYPE(int64_t, CTitheObject)& item, dtb)
