@@ -221,7 +221,6 @@ CAmount SelectCoinsForTithing(const CBlockIndex* pindex)
 	return nBigCoin;
 }
 
-
 CAmount GetTitheTotal(CTransaction tx)
 {
 	CAmount nTotal = 0;
@@ -271,7 +270,7 @@ std::string PubKeyToAddress(const CScript& scriptPubKey)
 }    
 
 
-void GetTxTimeAndAmount(uint256 hashInput, int hashInputOrdinal, int64_t& out_nTime, CAmount& out_caAmount)
+void GetTxTimeAndAmountAndHeight(uint256 hashInput, int hashInputOrdinal, int64_t& out_nTime, CAmount& out_caAmount, int& out_height)
 {
 	CTransaction tx1;
 	uint256 hashBlock1;
@@ -283,6 +282,7 @@ void GetTxTimeAndAmount(uint256 hashInput, int hashInputOrdinal, int64_t& out_nT
 		{
 			CBlockIndex* pindexHistorical = mapBlockIndex[hashBlock1];              
 			out_nTime = pindexHistorical->GetBlockTime();
+			out_height = pindexHistorical->nHeight;
 			return;
 		}
 		else
@@ -308,7 +308,8 @@ bool IsTitheLegal(CTransaction ctx, CBlockIndex* pindex, CAmount tithe_amount)
 	int hashInputOrdinal = ctx.vin[0].prevout.n;
 	int64_t nTxTime = 0;
 	CAmount caAmount = 0;
-	GetTxTimeAndAmount(hashInput, hashInputOrdinal, nTxTime, caAmount);
+	int iHeight = 0;
+	GetTxTimeAndAmountAndHeight(hashInput, hashInputOrdinal, nTxTime, caAmount, iHeight);
 	
 	double nTitheAge = (double)((pindex->GetBlockTime() - nTxTime) / 86400);
 	if (false && !fProd && fPOGEnabled && fDebugMaster) 
@@ -322,15 +323,15 @@ bool IsTitheLegal(CTransaction ctx, CBlockIndex* pindex, CAmount tithe_amount)
 	return false;
 }
 
-double GetTitheAge(CTransaction ctx, CBlockIndex* pindex)
+double GetTitheAgeAndSpentAmount(CTransaction ctx, CBlockIndex* pindex, CAmount& spentAmount)
 {
 	// R ANDREWS - BIBLEPAY - 1/4/2018 
 	if (pindex==NULL || pindex->pprev==NULL || pindex->nHeight < 2) return false;
 	uint256 hashInput = ctx.vin[0].prevout.hash;
 	int hashInputOrdinal = ctx.vin[0].prevout.n;
 	int64_t nTxTime = 0;
-	CAmount caAmount = 0;
-	GetTxTimeAndAmount(hashInput, hashInputOrdinal, nTxTime, caAmount);
+	int iHeight = 0;
+	GetTxTimeAndAmountAndHeight(hashInput, hashInputOrdinal, nTxTime, spentAmount, iHeight);
 	double nTitheAge = R2X((double)(pindex->GetBlockTime() - nTxTime) / 86400);
 	return nTitheAge;
 }
@@ -1466,6 +1467,42 @@ double GetBlockMagnitude(int nChainHeight)
     return dPODCDiff;
 }
 
+CTitheObject TxToTithe(CTransaction txTithe, const CBlockIndex* pindex)
+{
+	CTitheObject c;
+	c.Amount = GetTitheTotal(txTithe);
+	if (c.Amount == 0) return c;
+	uint256 hashInput = txTithe.vin[0].prevout.hash;
+	int hashInputOrdinal = txTithe.vin[0].prevout.n;
+	int64_t nTxTime = 0;
+	CAmount caAmount = 0;
+	int iHeight = 0;
+	GetTxTimeAndAmountAndHeight(hashInput, hashInputOrdinal, nTxTime, caAmount, iHeight);
+	if (pindex == NULL) return c;
+	c.Age = (double)(pindex->GetBlockTime() - nTxTime) / 86400;
+	c.Amount = GetTitheTotal(txTithe);
+	c.CoinAmount = caAmount;
+	c.SpentHeight = iHeight;
+	c.Height = pindex->nHeight;
+	const Consensus::Params& consensusParams = Params().GetConsensus();
+    c.Address = consensusParams.FoundationAddress;
+	return c;
+}
+
+int IsTitheLegal3(CTitheObject oTithe, TitheDifficultyParams tdp)
+{
+	CBitcoinAddress cbaAddress(oTithe.Address);
+	if (!cbaAddress.IsValid()) return -1;
+	if (oTithe.Amount < (.25 * COIN)) return -2;
+	// Special rule for testnet:
+	if (oTithe.Amount <= (10 * COIN) && !fProd) return 1;
+	// End of special testnet rule
+	if (oTithe.Amount > tdp.max_tithe_amount) return -3;
+	if (oTithe.Age < tdp.min_coin_age) return -4;
+	if (oTithe.CoinAmount < tdp.min_coin_amount) return -5;
+	return 1;
+}
+
 bool IsTitheLegal2(CTitheObject oTithe, TitheDifficultyParams tdp)
 {
 	CBitcoinAddress cbaAddress(oTithe.Address);
@@ -1517,7 +1554,17 @@ CPoolObject GetPoolVector(const CBlockIndex* pindexSource, int iPaymentTier)
 		BOOST_FOREACH(const PAIRTYPE(std::string, CTitheObject)& item, pindex->mapTithes)
 	    {
 			CTitheObject oTithe = item.second;
-			int iLegal = IsTitheLegal2(oTithe, tdp);
+			int iLegal = 0;
+			
+			if (pindex->nHeight > POG_V3_CUTOVER_HEIGHT_PROD && fProd)
+			{
+				iLegal = IsTitheLegal3(oTithe, tdp);
+			}
+			else
+			{
+				iLegal = IsTitheLegal2(oTithe, tdp);
+			}
+			
 			int iTitheNum = 0;
 			if (iLegal == 1)
 			{		
@@ -1716,7 +1763,6 @@ std::string SendBusinessObject(std::string sType, std::string sPrimaryKey, std::
 	std::string sNonce            = "<NONCE>" + sNonceValue + "</NONCE>";
 	std::string sBOSignKey        = "<BOSIGNER>" + sSignKey + "</BOSIGNER>";
 	std::string sMessageSig = "";
-	LogPrintf(" signing business object %s key %s ",sPrimaryKey.c_str(), sSignKey.c_str());
 
 	if (fSign)
 	{
@@ -1725,6 +1771,10 @@ std::string SendBusinessObject(std::string sType, std::string sPrimaryKey, std::
 		if (bSigned) 
 		{
 			sMessageSig = "<BOSIG>" + sSignature + "</BOSIG>";
+		}
+		else
+		{
+			LogPrintf(" signing business object failed %s key %s ",sPrimaryKey.c_str(), sSignKey.c_str());
 		}
 	}
 	std::string s1 = sMessageType + sMessageKey + sMessageValue + sNonce + sBOSignKey + sMessageSig;
@@ -2086,14 +2136,21 @@ void UpdatePogPool(CBlockIndex* pindex, const CBlock& block)
 		{
 			std::string sNickName = "";
 			std::string sTither = GetTitherAddress(block.vtx[nTx], sNickName);
+			// 2-18-2019
 			CAmount nAmount = GetTitheAmount(block.vtx[nTx]);
-			if (!sTither.empty() && nAmount > (.49*COIN) && nAmount <= (300.00*COIN))
+			bool bInduct = (fProd && !sTither.empty() && pindex->nHeight > POG_V3_CUTOVER_HEIGHT_PROD && fProd && nAmount > (.25 * COIN) && nAmount <= (10.00*COIN))
+				|| (fProd && pindex->nHeight <= POG_V3_CUTOVER_HEIGHT_PROD && !sTither.empty() && nAmount > (.49*COIN) && nAmount <= (300.00*COIN))
+				|| (!fProd && !sTither.empty() && nAmount > (.49*COIN) && nAmount <= (300.00*COIN));
+						
+			if (bInduct)
 			{
 				std::string sTXID = block.vtx[nTx].GetHash().GetHex();
 				CTitheObject cTithe = pindex->mapTithes[sTXID];
-				cTithe.Age = GetTitheAge(block.vtx[nTx], pindex);
+				CAmount nSpentAmount = 0;
+				cTithe.Age = GetTitheAgeAndSpentAmount(block.vtx[nTx], pindex, nSpentAmount);
 				nTithes += nAmount;
 				cTithe.Amount = nAmount;
+				cTithe.CoinAmount = nSpentAmount;
 				cTithe.Height = pindex->nHeight;
 				cTithe.Address = sTither;
 				cTithe.NickName = sNickName;
