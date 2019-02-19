@@ -1705,23 +1705,49 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState &state, const C
 			int nTitheCount = pool.getTitheCount();
 			double dPogDiff = GetPOGDifficulty(chainActive.Tip());
 			std::string sRecipient = PubKeyToAddress(tx.vout[0].scriptPubKey);
-			bool bIsTithe = (sRecipient == chainparams.GetConsensus().FoundationAddress);
-			if (bIsTithe && dPogDiff < LOW_POG_DIFF && nTitheCount > TITHE_OVERFLOW) 
+			CAmount nTitheAmount = GetTitheTotal(tx);
+			if (nTitheAmount > 0)
 			{
-				LogPrintf("AcceptToMemPool::Tithe Overflow Type I; Tithe Rejected; Tithe Count %f, Pog Diff %f ", nTitheCount, dPogDiff);
-				return false;
+				if (dPogDiff < LOW_POG_DIFF && nTitheCount > TITHE_OVERFLOW) 
+				{
+					LogPrintf("AcceptToMemPool::Tithe Overflow Type I; Tithe Rejected; Tithe Count %f, Pog Diff %f ", nTitheCount, dPogDiff);
+					return false;
+				}
+				else if (nTitheCount > (TITHE_OVERFLOW))
+				{
+					LogPrintf("AcceptToMemPool::Tithe Overflow Type II; Tithe Rejected; Tithe Count %f, Pog Diff %f ", nTitheCount, dPogDiff);
+					return false;
+				}
+				else if (dPogDiff < LOW_POG_DIFF && chainActive.Height() < POG_V2_CUTOVER_HEIGHT_PROD && nTitheCount > (TITHE_OVERFLOW / 15))
+				{
+					LogPrintf("AcceptToMemPool::Tithe Overflow Type III; Tithe Rejected; Tithe Count %f, Pog Diff %f ", nTitheCount, dPogDiff);
+					return false;
+				}
+				else if (chainActive.Height() < POG_V3_CUTOVER_HEIGHT_PROD && fProd && nTitheAmount > (10 * COIN) && chainActive.Height() > POG_V2_CUTOVER_HEIGHT_PROD)
+				{
+					LogPrintf("AcceptToMemPool::Tithe Too Large; Tithe Rejected; Tithe Count %f, Pog Diff %f ", nTitheCount, dPogDiff);
+					return false;
+				}
+
+				/*
+				TitheDifficultyParams tdp = GetTitheParams(chainActive.Tip());
+
+				else if (nTitheAmount > (10 * COIN))
+				{
+					LogPrintf("AcceptToMemPool::Tithe Too Large; Tithe Rejected; Tithe Count %f, Pog Diff %f ", nTitheCount, dPogDiff);
+					return false;
+				}
+				CTitheObject oTithe = TxToTithe(tx, chainActive.Tip());
+				int iLegal = IsTitheLegal3(oTithe, tdp);
+				if (iLegal != 1)
+				{
+					std::string sErr = TitheErrorToString(iLegal);
+					LogPrintf("AcceptToMemPool::Illegal Tithe; Tithe Rejected; Status %s, TitheCount %f, Pog Diff %f", sErr.c_str(), nTitheCount, dPogDiff);
+					return false;
+				}
+				LogPrintf("Tithe Count %f, Diff %f  ",(double)nTitheCount, dPogDiff);
+				*/
 			}
-			else if (bIsTithe && nTitheCount > (TITHE_OVERFLOW * 2))
-			{
-				LogPrintf("AcceptToMemPool::Tithe Overflow Type II; Tithe Rejected; Tithe Count %f, Pog Diff %f ", nTitheCount, dPogDiff);
-				return false;
-			}
-			else if (bIsTithe && dPogDiff < LOW_POG_DIFF && chainActive.Height() < POG_V2_CUTOVER_HEIGHT_PROD && nTitheCount > (TITHE_OVERFLOW / 15))
-			{
-				LogPrintf("AcceptToMemPool::Tithe Overflow Type III; Tithe Rejected; Tithe Count %f, Pog Diff %f ", nTitheCount, dPogDiff);
-				return false;
-			}
-			LogPrintf("Tithe Count %f, Diff %f  ",(double)nTitheCount, dPogDiff);
 		}
 
         // If we aren't going to actually accept it but just were verifying it, we are fine already
@@ -4607,11 +4633,10 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIn
 
 	// Rob A., Biblepay, 3/7/2018, Kick Off BotNet Rules
 	double dBlockVersion = GetBlockVersion(block.vtx[0]);
-	if (fProd && nHeight > F11000_CUTOVER_HEIGHT_PROD && dBlockVersion < 1101)
+	if (fProd && nHeight > POG_V3_CUTOVER_HEIGHT_PROD && dBlockVersion < 1189)
 	{
-		 LogPrintf("ContextualCheckBlock::ERROR Rejecting block version %f at height %f \n",(double)dBlockVersion,(double)nHeight);
-		 return false;
-	}
+		return state.DoS(10, error("%s: Rejecting pog block version < 1189", __func__), REJECT_INVALID, "bad-block-version");
+ 	}
 
 	if (!fProd && nHeight > FPOG_CUTOVER_HEIGHT_TESTNET && dBlockVersion < 1179)
 	{
@@ -4619,7 +4644,26 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIn
 	     return state.DoS(10, error("%s: Rejecting testnet block version < 1179", __func__), REJECT_INVALID, "bad-testnet-block-version");
     }
 
-	// Rob A. - BiblePay - 12/3/2018
+	// Rob A. - BiblePay - 12/3/2018, 2/18/2019
+	/* // We are doing this in IsTitheLegal3 in the induction phase for safety
+	
+	if (nHeight > POG_V3_CUTOVER_HEIGHT_PROD && fProd)
+	{
+		int iTitheCount = 0;
+		BOOST_FOREACH(const CTransaction& tx, block.vtx) 
+		{
+			CAmount nTitheAmount = GetTitheTotal(tx);
+			if (nTitheAmount > 0) iTitheCount++;
+			if (nTitheAmount > (10 * COIN))
+				return state.DoS(10, error("%s: POG amount too high", __func__), REJECT_INVALID, "pog-tithe-too-high");
+		}
+		if (iTitheCount > TITHE_OVERFLOW)
+		{
+			return state.DoS(10, error("%s: POG quantity too high", __func__), REJECT_INVALID, "pog-qty-too-high");
+		}
+    }
+	*/
+
 	if (POGEnabled(nHeight, block.GetBlockTime()) && !fReindex)
 	{
 		bool fIsPogSuperblock = CSuperblock::IsPOGSuperblock(nHeight);
@@ -7896,11 +7940,26 @@ TxMessage GetTxMessage(std::string sMessage, int64_t nTime, int iPosition, std::
 	t.fPrayersMustBeSigned = (GetSporkDouble("prayersmustbesigned", 0) == 1);
 
 	if (t.sMessageType == "PRAYER" && (!(Contains(t.sMessageKey, "(") ))) t.sMessageKey += " (" + t.sTimestamp + ")";
-	if (t.sMessageType == "SPORK" || (t.sMessageType == "PRAYER" && t.fPrayersMustBeSigned))
+	if (t.sMessageType == "SPORK")
 	{
 		t.fSporkSigValid = CheckSporkSig(t);
 		if (!t.fSporkSigValid) t.sMessageValue  = "";
 		t.fPassedSecurityCheck = t.fSporkSigValid;
+	}
+	else if (t.sMessageType == "PRAYER" && t.fPrayersMustBeSigned)
+	{
+		double dMinimumUnsignedPrayerDonation = GetSporkDouble("minimumunsignedprayerdonationamount", 3000);
+		// If donation is to Foundation and meets minimum amount and is not signed
+		if (dFoundationDonation >= dMinimumUnsignedPrayerDonation)
+		{
+			t.fPassedSecurityCheck = true;
+		}
+		else
+		{
+			t.fSporkSigValid = CheckSporkSig(t);
+			if (!t.fSporkSigValid) t.sMessageValue  = "";
+			t.fPassedSecurityCheck = t.fSporkSigValid;
+		}
 	}
 	else if (t.sMessageType == "PRAYER" && !t.fPrayersMustBeSigned)
 	{

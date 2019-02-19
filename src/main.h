@@ -90,6 +90,7 @@ static const int FPOG_CUTOVER_HEIGHT_PROD = 100001;   // Feb 7th, 2019 (100,001)
 static const int PODC_LAST_BLOCK_PROD = 107000; // March 13th, 2019
 static const int PODC_LAST_BLOCK_TESTNET = 126150; 
 static const int POG_V2_CUTOVER_HEIGHT_PROD = 102025;
+static const int POG_V3_CUTOVER_HEIGHT_PROD = 103175;
 static const int LOW_POG_DIFF = 5000;
 static const int TITHE_OVERFLOW = 75;
 static const int MINIMUM_EMAIL_LENGTH = 5; // 3 character domain + . + 1 character name

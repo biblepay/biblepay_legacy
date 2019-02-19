@@ -34,7 +34,7 @@ std::string GenerateNewAddress(std::string& sError, std::string sName);
 CAmount SelectCoinsForTithing(const CBlockIndex* pindex);
 CAmount GetTitheTotal(CTransaction tx);
 bool IsTitheLegal(CTransaction ctx, CBlockIndex* pindex, CAmount tithe_amount);
-void GetTxTimeAndAmount(uint256 hashInput, int hashInputOrdinal, int64_t& out_nTime, CAmount& out_caAmount);
+void GetTxTimeAndAmountAndHeight(uint256 hashInput, int hashInputOrdinal, int64_t& out_nTime, CAmount& out_caAmount, int& out_height);
 std::string SendTithe(CAmount caTitheAmount, double dMinCoinAge, CAmount caMinCoinAmount, CAmount caMaxTitheAmount, std::string& sError);
 CAmount GetTitheCap(const CBlockIndex* pindexLast);
 double R2X(double var);
@@ -96,6 +96,7 @@ void UpdatePogPool(CBlockIndex* pindex, const CBlock& block);
 void InitializePogPool(const CBlockIndex* pindexLast, int nSize, const CBlock& block);
 std::string GetTitherAddress(CTransaction ctx, std::string& sNickName);
 CAmount GetTitheAmount(CTransaction ctx);
+double GetTitheAgeAndSpentAmount(CTransaction ctx, CBlockIndex* pindex, CAmount& spentAmount);
 
 struct TitheDifficultyParams
 {
@@ -110,6 +111,8 @@ std::vector<char> ReadBytesAll(char const* filename);
 std::string VectToString(std::vector<unsigned char> v);
 CAmount StringToAmount(std::string sValue);
 bool IsTitheLegal2(CTitheObject oTithe, TitheDifficultyParams tdp);
+int IsTitheLegal3(CTitheObject oTithe, TitheDifficultyParams tdp);
+CTitheObject TxToTithe(CTransaction txTithe, const CBlockIndex* pindex);
 bool CompareMask(CAmount nValue, CAmount nMask);
 std::string TitheErrorToString(int TitheError);
 std::string GetPOGBusinessObjectList(std::string sType, std::string sFields);

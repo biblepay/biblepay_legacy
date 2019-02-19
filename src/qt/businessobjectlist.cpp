@@ -1,6 +1,7 @@
 #include "businessobjectlist.h"
 #include "bitcoinunits.h"
 #include "ui_businessobjectlist.h"
+#include "masternode-sync.h"
 #include "secdialog.h"
 #include "ui_secdialog.h"
 #include "writeorphan.h"
@@ -66,12 +67,12 @@ void BusinessObjectList::UpdateObject(std::string objType)
 	std::string sFields;
     QString pString;
 
-	if (objType == "pog_leaderboard")
+	if (objType == "pog_leaderboard" && masternodeSync.IsBlockchainSynced())
 	{
 		sFields = "id,nickname,address,height,amount,weight";
 		pString = GUIUtil::TOQS(GetPOGBusinessObjectList(ObjectType, sFields));
-		// Update once per minute
-		QTimer::singleShot(60000, this, SLOT(RefreshPogLeaderboard()));
+		// Update once per two minutes
+		QTimer::singleShot(120000, this, SLOT(RefreshPogLeaderboard()));
 	}
 	else
 	{

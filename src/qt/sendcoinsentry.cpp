@@ -101,9 +101,14 @@ void SendCoinsEntry::updateFoundationAddress()
 	bool bCheckedF = (ui->chkForceTithe->checkState() == Qt::Checked);
 	bool bCheckedD = (ui->checkboxFoundation->checkState() == Qt::Checked);
 
-	if (bCheckedF || bCheckedD)
+	if (bCheckedD)
 	{
 		ui->payTo->setText(GUIUtil::TOQS(chainparams.GetConsensus().FoundationAddress));
+	    ui->payAmount->setFocus();
+	}
+	else if (bCheckedF)
+	{
+		ui->payTo->setText(GUIUtil::TOQS(chainparams.GetConsensus().FoundationPODSAddress));
 	    ui->payAmount->setFocus();
 	}
 	initPOGDifficulty();
