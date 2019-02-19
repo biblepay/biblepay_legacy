@@ -25,8 +25,6 @@
 
 using namespace std;
 
-bool bSlotsCreated = false;
-
 PoGCoinReport::PoGCoinReport(const PlatformStyle *platformStyle, QWidget *parent) : ui(new Ui::PoGCoinReport)
 {
     ui->setupUi(this);
