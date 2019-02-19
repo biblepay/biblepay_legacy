@@ -14,6 +14,8 @@
 #include <QProgressBar>
 #include <QString>
 #include <QTableView>
+#include <QTableWidget>
+#include <QTableWidgetItem>
 
 #include <boost/filesystem.hpp>
 
@@ -239,5 +241,19 @@ namespace GUIUtil
 #endif
 
 } // namespace GUIUtil
+
+// subclass for ordering numeric columns in QTableWidget
+class NumericTableWidgetItem : public QTableWidgetItem {
+    public:
+        NumericTableWidgetItem(const QString &s):QTableWidgetItem(s) {
+        }
+        NumericTableWidgetItem(double d):QTableWidgetItem(d) {
+        }
+
+        bool operator <(const QTableWidgetItem &other) const
+        {
+            return text().toDouble() < other.text().toDouble();
+        }
+};
 
 #endif // BITCOIN_QT_GUIUTIL_H
