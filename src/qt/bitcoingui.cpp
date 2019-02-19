@@ -126,6 +126,7 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *platformStyle, const NetworkStyle *n
 	contactAddMenuAction(0),
 	businessObjectListMenuAction(0),
 	pogLeaderboardListMenuAction(0),
+    pogCoinReportMenuAction(0),
 	proposalListAction(0),
     optionsAction(0),
     toggleHideAction(0),
@@ -352,7 +353,12 @@ void BitcoinGUI::createActions()
 	if (fPOGEnabled || true) pogLeaderboardAction->setCheckable(true);
     tabGroup->addAction(pogLeaderboardAction);
 
-	
+    pogCoinReportAction = new QAction(QIcon(":/icons/" + theme + "/gear"), tr("POG &Engine Room"), this);
+    pogCoinReportAction->setStatusTip(tr("Manage coin and tithability status regarding current PoG difficulty parameters"));
+    pogCoinReportAction->setToolTip(pogCoinReportAction->statusTip());
+    if (fPOGEnabled || true) pogCoinReportAction->setCheckable(true);
+    tabGroup->addAction(pogCoinReportAction);
+
 	proposalListAction = new QAction(QIcon(":/icons/" + theme + "/edit"), tr("&Proposals"), this);
     proposalListAction->setStatusTip(tr("List Proposals"));
     proposalListAction->setToolTip(proposalListAction->statusTip());
@@ -414,11 +420,13 @@ void BitcoinGUI::createActions()
     connect(receiveCoinsAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
     connect(receiveCoinsAction, SIGNAL(triggered()), this, SLOT(gotoReceiveCoinsPage()));
 	connect(distributedComputingAction, SIGNAL(triggered()), this, SLOT(gotoDistributedComputingPage()));
-	connect(pogLeaderboardAction, SIGNAL(triggered()), this, SLOT(gotoPOGLeaderboardListPage()));
+    connect(pogLeaderboardAction, SIGNAL(triggered()), this, SLOT(gotoPOGLeaderboard()));
+    connect(pogCoinReportAction, SIGNAL(triggered()), this, SLOT(gotoPoGCoinReport()));
 	connect(proposalListAction, SIGNAL(triggered()), this, SLOT(gotoProposalListPage()));
 	connect(contactAddMenuAction, SIGNAL(triggered()), this, SLOT(gotoContactAddPage()));
 	connect(businessObjectListMenuAction, SIGNAL(triggered()), this, SLOT(gotoBusinessObjectListPage()));
-	connect(pogLeaderboardListMenuAction, SIGNAL(triggered()), this, SLOT(gotoPOGLeaderboardListPage()));
+    connect(pogLeaderboardListMenuAction, SIGNAL(triggered()), this, SLOT(gotoPOGLeaderboard()));
+    connect(pogCoinReportMenuAction, SIGNAL(triggered()), this, SLOT(gotoPoGCoinReport()));
 
     connect(receiveCoinsMenuAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
     connect(receiveCoinsMenuAction, SIGNAL(triggered()), this, SLOT(gotoReceiveCoinsPage()));
@@ -454,6 +462,10 @@ void BitcoinGUI::createActions()
 	pogLeaderboardListMenuAction = new QAction(QIcon(":/icons/" + theme + "/chat"), tr("POG Leaderboar&d"), this);
     pogLeaderboardListMenuAction->setStatusTip(tr("POG Leaderboard"));
     pogLeaderboardListMenuAction->setEnabled(true);
+
+    pogCoinReportMenuAction = new QAction(QIcon(":/icons/" + theme + "/gear"), tr("POG &Engine Room"), this);
+    pogCoinReportMenuAction->setStatusTip(tr("POG Engine Room"));
+    pogCoinReportMenuAction->setEnabled(true);
 	
 	sinnerAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("The Sinners Prayer"), this);
     sinnerAction->setStatusTip(tr("Show the Sinners Prayer"));
@@ -608,6 +620,7 @@ void BitcoinGUI::createActions()
 	connect(proposalAddMenuAction, SIGNAL(triggered()), this, SLOT(gotoProposalAddPage()));
 	connect(businessObjectListMenuAction, SIGNAL(triggered()), this, SLOT(gotoBusinessObjectListPage()));
 	connect(pogLeaderboardListMenuAction, SIGNAL(triggered()), this, SLOT(gotoPOGLeaderboardListPage()));
+    connect(pogCoinReportMenuAction, SIGNAL(triggered()), this, SLOT(gotoPOGCoinReport()));
 
     // Open configs and backup folder from menu
     connect(openConfEditorAction, SIGNAL(triggered()), this, SLOT(showConfEditor()));
@@ -720,6 +733,7 @@ void BitcoinGUI::createMenuBar()
 	{
 		QMenu *menuPOG = appMenuBar->addMenu(tr("&POG"));
 		menuPOG->addAction(pogLeaderboardListMenuAction);
+        menuPOG->addAction(pogCoinReportMenuAction);
 	}
 
 	// BiblePay - Prayers, Jesus' Commandments, and Reading the Bible
@@ -774,6 +788,7 @@ void BitcoinGUI::createToolBars()
 		if (fPOGEnabled || true)
 		{
 			toolbar->addAction(pogLeaderboardAction);
+            toolbar->addAction(pogCoinReportAction);
 		}
 		toolbar->addAction(proposalListAction);
 		toolbar->addAction(receiveCoinsAction);
@@ -917,6 +932,7 @@ void BitcoinGUI::setWalletActionsEnabled(bool enabled)
 	businessObjectListMenuAction->setEnabled(enabled);
 	proposalAddMenuAction->setEnabled(enabled);
 	pogLeaderboardListMenuAction->setEnabled(enabled);
+    pogCoinReportMenuAction->setEnabled(enabled);
 
     historyAction->setEnabled(enabled);
     QSettings settings;
@@ -1238,6 +1254,12 @@ void BitcoinGUI::gotoPOGLeaderboardListPage()
 {
 	pogLeaderboardListMenuAction->setChecked(true);
 	if (walletFrame) walletFrame->gotoPOGLeaderboardListPage();
+}
+
+void BitcoinGUI::gotoPOGCoinReport()
+{
+    pogCoinReportMenuAction->setChecked(true);
+    if (walletFrame) walletFrame->gotoPOGCoinReport();
 }
 
 void BitcoinGUI::gotoContactAddPage()
@@ -1570,6 +1592,7 @@ void BitcoinGUI::showEvent(QShowEvent *event)
 	openChatGeneralAction->setEnabled(true);
 	openChatPMAction->setEnabled(true);
 	pogLeaderboardListMenuAction->setEnabled(true);
+    pogCoinReportMenuAction->setEnabled(true);
 	TheTenCommandmentsAction->setEnabled(true);
 	JesusConciseCommandmentsAction->setEnabled(true);
 	ReadBibleAction->setEnabled(true);
