@@ -8,6 +8,7 @@
 #include "rpcserver.h"
 #include "rpcpog.h"
 #include "main.h"
+#include "init.h"
 
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -29,6 +30,8 @@ bool bSlotsCreated = false;
 PoGCoinReport::PoGCoinReport(const PlatformStyle *platformStyle, QWidget *parent) : ui(new Ui::PoGCoinReport)
 {
     ui->setupUi(this);
+
+    ui->label_debug->setTextInteractionFlags(Qt::TextSelectableByMouse);
 
     // Coin table
     int columnStatusWidth = 200;
@@ -62,7 +65,9 @@ void PoGCoinReport::updateCoinReport()
     if (masternodeSync.IsBlockchainSynced())
     {
         Refresh();
-        ui->label_debug->setText(tr("Synced"));
+        if (ui->label_debug->text()==tr("Out of sync")) {
+            ui->label_debug->setText(tr("Synced"));
+        }
     }
     else {
         ui->label_debug->setText(tr("Out of sync"));
@@ -100,7 +105,7 @@ void PoGCoinReport::Refresh()
                 ui->label_canTithe->setStyleSheet( style );
             }
 
-            QString WalletUnlocked = (pwalletMain->IsLocked())?"ŸES":"NO";
+            QString WalletUnlocked = (pwalletMain->IsLocked())?"NO":"YES";
             ui->label_WalletUnlocked->setText( WalletUnlocked );
             QString style = (WalletUnlocked=="YES")?"QLabel { background-color : green; }":"QLabel { background-color : red; }";
             ui->label_WalletUnlocked->setStyleSheet( style );

@@ -411,13 +411,13 @@
        </size>
       </property>
       <property name="minimum">
-       <double>1.000000000000000</double>
+       <double>0.000000000000000</double>
       </property>
       <property name="maximum">
        <double>99990000.000000000000000</double>
       </property>
       <property name="value">
-       <double>5.000000000000000</double>
+       <double>0.000000000000000</double>
       </property>
      </widget>
     </item>
@@ -430,7 +430,7 @@
        </size>
       </property>
       <property name="minimum">
-       <double>1.000000000000000</double>
+       <double>0.000000000000000</double>
       </property>
       <property name="maximum">
        <double>999999990000.000000000000000</double>
@@ -439,7 +439,7 @@
        <double>100.000000000000000</double>
       </property>
       <property name="value">
-       <double>1000.000000000000000</double>
+       <double>0.000000000000000</double>
       </property>
      </widget>
     </item>
@@ -562,20 +562,17 @@
     </item>
    </layout>
   </widget>
-  <widget class="QLineEdit" name="label_debug">
-   <property name="enabled">
-    <bool>true</bool>
-   </property>
+  <widget class="QLabel" name="label_debug">
    <property name="geometry">
     <rect>
      <x>450</x>
      <y>390</y>
      <width>271</width>
-     <height>21</height>
+     <height>16</height>
     </rect>
    </property>
-   <property name="readOnly">
-    <bool>true</bool>
+   <property name="text">
+    <string>Output</string>
    </property>
   </widget>
  </widget>
