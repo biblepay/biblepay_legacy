@@ -18,6 +18,7 @@
 #include <QApplication>
 #include <QClipboard>
 #include <QUrl>
+#include <QTimer>
 
 SendCoinsEntry::SendCoinsEntry(const PlatformStyle *platformStyle, QWidget *parent) :
     QStackedWidget(parent),
@@ -146,8 +147,8 @@ void SendCoinsEntry::initPOGDifficulty()
 		TitheDifficultyParams tdp = GetTitheParams(chainActive.Tip());
 		double pog_diff = GetPOGDifficulty(chainActive.Tip());
 		std::string sValue = "POG Difficulty: " + RoundToString(pog_diff, 4) + ", MinCoinAge: " + RoundToString(tdp.min_coin_age, 4) 
-			+ ", MinCoinValue: " + RoundToString((double)(tdp.min_coin_amount/COIN), 4) 
-				+ ", MaxTitheAmount: " + RoundToString((double)(tdp.max_tithe_amount/COIN), 4);
+			+ ", MinCoinValue: " + RoundToString((double)tdp.min_coin_amount / COIN, 4) 
+				+ ", MaxTitheAmount: " + RoundToString((double)tdp.max_tithe_amount / COIN, 4);
 		std::string sCSS = "QLabel { background-color : transparent; color: red; }";
 		ui->lblPogDifficulty->setStyleSheet(GUIUtil::TOQS(sCSS));
 		ui->lblPogDifficultyCaption->setStyleSheet(GUIUtil::TOQS(sCSS));
@@ -178,11 +179,11 @@ void SendCoinsEntry::initPOGDifficulty()
 		std::string sSummary = (nTithability > 0) ? "YES" : "NO";
 
 		std::string sTitheValue = "Qty: " + RoundToString(nQty, 0) 
-			+ ", LargeCoin: " + RoundToString((double)(nMaxCoin/COIN), 2) 
-			+ ", AvgAge: " 
+			+ ", Largest Coin: " + RoundToString((double)nMaxCoin / COIN, 2) 
+			+ ", Avg Age: " 
 			+ RoundToString(nAvgAge, 4) 
-			+ ", TotalTitheBalance: " 
-			+ RoundToString((double)(nTotal/COIN), 2) + ", Tithability: " + RoundToString((double)(nTithability/COIN), 4) + ", Summary: " + sSummary;
+			+ ", Total Tithe Balance: " 
+			+ RoundToString((double)nTotal/COIN, 2) + ", Tithability: " + RoundToString((double)nTithability / COIN, 4) + ", Summary: " + sSummary;
 		
 		ui->lblTitheAbility->setStyleSheet(GUIUtil::TOQS(sCSS));
 		ui->lblTitheAbilityCaption->setStyleSheet(GUIUtil::TOQS(sCSS));
@@ -190,6 +191,8 @@ void SendCoinsEntry::initPOGDifficulty()
 		ui->lblTitheAbilityCaption->setText(GUIUtil::TOQS("Tithe Ability:"));
 		ui->lblTitheAbility->setText(GUIUtil::TOQS(sTitheValue));
 		ui->lblTitheAbility->setVisible(true);
+		LogPrintf(" single_shot initpogdiff \n");
+		QTimer::singleShot(60000, this, SLOT(initPOGDifficulty()));
     }
 	else
 	{

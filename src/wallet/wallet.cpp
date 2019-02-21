@@ -1913,29 +1913,40 @@ std::map<int64_t, CTitheObject> CWallet::GetDimensionalCoins(double nMinAge, CAm
     for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it)
     {
         const CWalletTx* pcoin = &(*it).second;
+        uint256 hash = (*it).first;
+
         if (pcoin->IsTrusted())
 		{
-            CAmount nAmount = pcoin->GetAvailableCredit(false, "");
-			if (nAmount > (.001*COIN))
+            //CAmount nAmount = pcoin->GetAvailableCredit(false, "");
+
+		    for (unsigned int i = 0; i < pcoin->vout.size(); i++)
 			{
-				nTotal += nAmount;
-				double nAge = (double)(GetAdjustedTime() - pcoin->GetTxTime()) / 86400;
-				if (nAge < 0) nAge = 0;
-				bool fLocked = (nAmount == (SANCTUARY_COLLATERAL * COIN));
-                if (!fLocked && nAge >= nMinAge && nAmount >= nMinAmount && nAge < nMaxAge && nAmount < nMaxAmount)
+				if (!IsSpent(hash, i))
 				{
-					CTitheObject c;
-					c.Amount = nAmount;
-					c.Age = nAge;
-                    c.TXID = pcoin->GetHash().ToString();
-					nOrdinal++;
-					mapTithes.insert(make_pair(nOrdinal, c));
-					if (false) LogPrintf("\nCounting Age %f Amount %f ",nAge, (double)(nAmount/COIN));
-				}
-				else
-				{
-					if (false && fDebugMaster) LogPrintf("\nGetDimensionalCoins::NotCounting Locked %f, MinAge %f, MinAmt %f, Age %f == Coin Value %f ",
-						fLocked, nMinAge, (double)(nMinAmount/COIN), nAge, (double)(nAmount/COIN));
+					const CTxOut &txout = pcoin->vout[i];
+					CAmount nAmount = GetCredit(txout, ISMINE_SPENDABLE);
+					if (nAmount > (.001*COIN))
+					{
+						nTotal += nAmount;
+						double nAge = (double)(GetAdjustedTime() - pcoin->GetTxTime()) / 86400;
+						if (nAge < 0) nAge = 0;
+						bool fLocked = (nAmount == (SANCTUARY_COLLATERAL * COIN));
+						if (!fLocked && nAge >= nMinAge && nAmount >= nMinAmount && nAge < nMaxAge && nAmount < nMaxAmount)
+						{
+							CTitheObject c;
+							c.Amount = nAmount;
+							c.Age = nAge;
+							c.TXID = pcoin->GetHash().ToString();
+							nOrdinal++;
+							mapTithes.insert(make_pair(nOrdinal, c));
+							if (false) LogPrintf("\nCounting Age %f Amount %f ",nAge, (double)nAmount/COIN);
+						}
+						else
+						{
+							if (false && fDebugMaster) LogPrintf("\nGetDimensionalCoins::NotCounting Locked %f, MinAge %f, MinAmt %f, Age %f == Coin Value %f ",
+								fLocked, nMinAge, (double)(nMinAmount/COIN), nAge, (double)nAmount/COIN);
+						}
+					}
 				}
 			}
 		}

@@ -3105,7 +3105,6 @@ UniValue exec(const UniValue& params, bool fHelp)
         if (params.size() < 3 || params.size() > 5)
             throw runtime_error("You must specify min_coin_age (days), min_coin_amount [, max_coin_age, max_coin_amount].  IE: exec getdimensionalbalance 1 1000.");
 
-        bool bShowTxID = false;
         double dMaxAge = 9999999;
         CAmount caMaxAmt = MAX_MONEY;
 
@@ -3163,7 +3162,6 @@ UniValue exec(const UniValue& params, bool fHelp)
 			GetTxTimeAndAmountAndHeight(hashInput, hashInputOrdinal, nTxTime, caAmount, iHeight);
 			if (mapBlockIndex.count(hashBlockTithe) == 0) throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
 		    CBlockIndex* pindex = mapBlockIndex[hashBlockTithe];
-			CAmount nTotal = GetTitheTotal(txTithe);
 			CTitheObject oTithe = TxToTithe(txTithe, pindex);
 			TitheDifficultyParams tdp = GetTitheParams(pindex);
 			int iLegal = IsTitheLegal3(oTithe, tdp);
@@ -3267,7 +3265,25 @@ UniValue exec(const UniValue& params, bool fHelp)
 		results.push_back(Pair("amt", (double)nAmount/COIN));
 		results.push_back(Pair("compare", CompareMask(nAmount, nMask)));
 		results.push_back(Pair("min_relay_fee", DEFAULT_MIN_RELAY_TX_FEE));
+	}
+	else if (sItem == "pogdifficultysimulation")
+	{
+		results.push_back(Pair("Difficulty", "Parameters"));
+		CAmount nTitheCap = GetTitheCap(chainActive.Tip());
 
+		for (CAmount n24HourTithes = 0; n24HourTithes <= nTitheCap; n24HourTithes += (1000 * COIN))
+		{
+			TitheDifficultyParams td;
+			double nQLevel = (((double)n24HourTithes/COIN) / ((double)nTitheCap/COIN));
+			double nDifficulty = 65535 * nQLevel;
+			td.min_coin_age = R2X(Quantize(.25, 60, nQLevel));
+			td.min_coin_amount = R2X(Quantize(1, 25000, nQLevel)) * COIN;
+			td.max_tithe_amount = R2X(Quantize(10, .50, nQLevel)) * COIN;
+			std::string sRow = "Min_Coin_Age: " + RoundToString(td.min_coin_age, 2) + ", Min_Coin_Amount: " + RoundToString((double)td.min_coin_amount / COIN, 2) + ", Max_Tithe_Amount: " 
+				+ RoundToString((double)td.max_tithe_amount / COIN, 2);
+			std::string sKey = "Difficulty: " + RoundToString(nDifficulty, 0) + " (Tithes=" + RoundToString(n24HourTithes / COIN, 2) + ") ";
+			results.push_back(Pair(sKey, sRow));
+		}
 	}
 	else if (sItem == "datalist")
 	{
