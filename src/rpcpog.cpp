@@ -1485,6 +1485,8 @@ CTitheObject TxToTithe(CTransaction txTithe, const CBlockIndex* pindex)
 	GetTxTimeAndAmountAndHeight(hashInput, hashInputOrdinal, nTxTime, caAmount, iHeight);
 	if (pindex == NULL) return c;
 	c.Age = (double)(pindex->GetBlockTime() - nTxTime) / 86400;
+	// If tithe references a future tithe
+	if (c.Age > 365) c.Age = -1;
 	c.Amount = GetTitheTotal(txTithe);
 	c.CoinAmount = caAmount;
 	c.SpentHeight = iHeight;

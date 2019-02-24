@@ -1699,7 +1699,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState &state, const C
 				}
 			}
 		}
-		// BiblePay - If Difficulty is < MIN_POG_DIFF and POG_COUNT > MAX_POG_COUNT, reject the transaction - R ANDREWS - 2/9/2019
+		// BiblePay - If Difficulty is < MIN_POG_DIFF and POG_COUNT > MAX_POG_COUNT, reject the transaction - R ANDREWS - 2/24/2019
 		if (chainActive.Tip() != NULL)
 		{
 			int nTitheCount = pool.getTitheCount();
@@ -1723,21 +1723,29 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState &state, const C
 					LogPrintf("AcceptToMemPool::Tithe Overflow Type III; Tithe Rejected; Tithe Count %f, Pog Diff %f ", nTitheCount, dPogDiff);
 					return false;
 				}
-				else if (chainActive.Height() < POG_V3_CUTOVER_HEIGHT_PROD && fProd && nTitheAmount > (10 * COIN) && chainActive.Height() > POG_V2_CUTOVER_HEIGHT_PROD)
+				else if (chainActive.Height() < POG_V3_CUTOVER_HEIGHT_PROD && fProd && nTitheAmount > (MAX_TITHE_AMOUNT * COIN) && chainActive.Height() > POG_V2_CUTOVER_HEIGHT_PROD)
 				{
 					LogPrintf("AcceptToMemPool::Tithe Too Large; Tithe Rejected; Tithe Count %f, Pog Diff %f ", nTitheCount, dPogDiff);
 					return false;
 				}
 
-				if (nTitheAmount > (.50 * COIN) && nTitheCount > 2)
+				if (nTitheAmount > (MIN_TITHE_AMOUNT * COIN) && nTitheCount > MIN_MEMPOOL_TITHE_THRESHHOLD)
 				{
 					TitheDifficultyParams tdp = GetTitheParams(chainActive.Tip());
 					CTitheObject oTithe = TxToTithe(tx, chainActive.Tip());
 					int iLegal = IsTitheLegal3(oTithe, tdp);
+					// Enforce non-complex and single vout (we already enforce single vin)
 					if (iLegal != 1)
 					{
 						std::string sErr = TitheErrorToString(iLegal);
-						if (fDebugMaster && false) LogPrintf("AcceptToMemPool::Illegal Tithe; Tithe Rejected; Status %s, TitheCount %f, Pog Diff %f", sErr.c_str(), nTitheCount, dPogDiff);
+						if (fDebugMaster) LogPrintf("\nAcceptToMemPool::Illegal Tithe; Tithe Rejected; Status %s, Age %f, Amount %f, TitheCount %f, Pog Diff %f", 
+							sErr.c_str(), oTithe.Age, (double)oTithe.Amount/COIN, nTitheCount, dPogDiff);
+						return false;
+					}
+					if (tx.vout.size() > (MIN_MEMPOOL_TITHE_THRESHHOLD * 2))
+					{
+						if (fDebugMaster) LogPrintf("\nAcceptToMemPool::Too many outputs; Tithe Rejected; Age %f, Amount %f, TitheCount %f, Pog Diff %f", 
+							 oTithe.Age, (double)oTithe.Amount/COIN, nTitheCount, dPogDiff);
 						return false;
 					}
 				}

@@ -93,6 +93,9 @@ static const int POG_V2_CUTOVER_HEIGHT_PROD = 102025;
 static const int POG_V3_CUTOVER_HEIGHT_PROD = 103175;
 static const int LOW_POG_DIFF = 5000;
 static const int TITHE_OVERFLOW = 75;
+static const int MAX_TITHE_AMOUNT = 10;
+static const double MIN_TITHE_AMOUNT = .50;
+static const int MIN_MEMPOOL_TITHE_THRESHHOLD = 2;
 static const int MINIMUM_EMAIL_LENGTH = 5; // 3 character domain + . + 1 character name
 
 /** Default for -maxorphantx, maximum number of orphan transactions kept in memory */
