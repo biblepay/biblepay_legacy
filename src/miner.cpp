@@ -686,10 +686,13 @@ std::string GetCPIDSignature(int iThreadID)
 		bool fSigned = SignCPID("", sCPIDError, sFullSignature);
 		if (!fSigned)
 		{
+			/*
+			Its legal now to mine without the CPID:
 			if (fDebugMaster) LogPrint("podc", "\n Failed to Sign CPID Signature.  %s ", sCPIDError);
 			// Lets tell the user about this also
 			std::string sCPIDFullError = "Failed to sign CPID Signature (" + sCPIDError + ")";
 			WriteCache("poolthread" + RoundToString(iThreadID,0), "poolinfo2", sCPIDFullError, GetAdjustedTime());
+			*/
 		}
 		else
 		{
@@ -857,9 +860,9 @@ recover:
 				// UpdateHashesPerSec(nHashesDone);
 				goto recover;
             }
-			if ((!sErr.empty()) || (sFullSignature.empty() && PODCEnabled(chainActive.Tip()->nHeight)))
+			if (!sErr.empty())
 			{
-				std::string sMsg = "Unable to mine... Cant sign block template with CPID " + msGlobalCPID + " - Error " + sErr;
+				std::string sMsg = "Unable to mine... Cant sign block template - Error " + sErr;
 				nHashesDone++;
 				WriteCache("poolthread" + RoundToString(iThreadID,0), "poolinfo1", sMsg, GetAdjustedTime());
 				MilliSleep(60000);
@@ -982,12 +985,6 @@ recover:
 							if (!fPrayersMemorized)
 							{
 								WriteCache("poolthread" + RoundToString(iThreadID,0), "poolinfo1", "Please wait for CPIDs to be memorized...", GetAdjustedTime());
-								MilliSleep(1000);
-								break;
-							}
-							else if (sFullSignature.empty())
-							{
-								WriteCache("poolthread" + RoundToString(iThreadID,0), "poolinfo1", "Unable to sign CPID", GetAdjustedTime());
 								MilliSleep(1000);
 								break;
 							}

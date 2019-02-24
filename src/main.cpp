@@ -1729,24 +1729,18 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState &state, const C
 					return false;
 				}
 
-				/*
-				TitheDifficultyParams tdp = GetTitheParams(chainActive.Tip());
-
-				else if (nTitheAmount > (10 * COIN))
+				if (nTitheAmount > (.50 * COIN) && nTitheCount > 2)
 				{
-					LogPrintf("AcceptToMemPool::Tithe Too Large; Tithe Rejected; Tithe Count %f, Pog Diff %f ", nTitheCount, dPogDiff);
-					return false;
+					TitheDifficultyParams tdp = GetTitheParams(chainActive.Tip());
+					CTitheObject oTithe = TxToTithe(tx, chainActive.Tip());
+					int iLegal = IsTitheLegal3(oTithe, tdp);
+					if (iLegal != 1)
+					{
+						std::string sErr = TitheErrorToString(iLegal);
+						if (fDebugMaster && false) LogPrintf("AcceptToMemPool::Illegal Tithe; Tithe Rejected; Status %s, TitheCount %f, Pog Diff %f", sErr.c_str(), nTitheCount, dPogDiff);
+						return false;
+					}
 				}
-				CTitheObject oTithe = TxToTithe(tx, chainActive.Tip());
-				int iLegal = IsTitheLegal3(oTithe, tdp);
-				if (iLegal != 1)
-				{
-					std::string sErr = TitheErrorToString(iLegal);
-					LogPrintf("AcceptToMemPool::Illegal Tithe; Tithe Rejected; Status %s, TitheCount %f, Pog Diff %f", sErr.c_str(), nTitheCount, dPogDiff);
-					return false;
-				}
-				LogPrintf("Tithe Count %f, Diff %f  ",(double)nTitheCount, dPogDiff);
-				*/
 			}
 		}
 

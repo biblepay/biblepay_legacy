@@ -280,7 +280,7 @@ UniValue tithe(const UniValue& params, bool fHelp)
             + HelpExampleRpc("tithe 1 2 3", "")
         );
 
-	if (params.size() != 3 && params.size() != 1)
+	if (params.size() != 3 && params.size() != 1 && params.size() != 4)
 			throw runtime_error("You must specify amount, min_coin_age (days), min_coin_amount.  IE: exec tithe 200 1 1000.");
 	UniValue results(UniValue::VOBJ);
 	CAmount caAmount = cdbl(params[0].get_str(), 4) * COIN;
@@ -294,8 +294,12 @@ UniValue tithe(const UniValue& params, bool fHelp)
 		dMinCoinAge = tdp.min_coin_age;
 		caMinCoinAmount = tdp.min_coin_amount;
 	}
+	CAmount max_tithe_amount = tdp.max_tithe_amount;
+	if (params.size() == 4) 
+		max_tithe_amount = cdbl(params[3].get_str(), 4) * COIN;
+
 	std::string sError = "";
-	std::string sTxId = SendTithe(caAmount, dMinCoinAge, caMinCoinAmount, tdp.max_tithe_amount, sError);
+	std::string sTxId = SendTithe(caAmount, dMinCoinAge, caMinCoinAmount, max_tithe_amount, sError);
 	if (!sError.empty())
 	{
 		results.push_back(Pair("Error", sError));

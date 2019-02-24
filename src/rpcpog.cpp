@@ -365,8 +365,9 @@ bool RPCSendMoney(std::string& sError, const CTxDestination &address, CAmount nV
     int nChangePosRet = -1;
 	bool fForce = false;
     CRecipient recipient = {scriptPubKey, nValue, fForce, fSubtractFeeFromAmount, false, false, false, "", "", "", ""};
-    vecSend.push_back(recipient);
-	int nMinConfirms = 0;
+	vecSend.push_back(recipient);
+	
+    int nMinConfirms = 0;
     if (!pwalletMain->CreateTransaction(vecSend, wtxNew, reservekey, nFeeRequired, nChangePosRet, strError, NULL, true, 
 		fUsePrivateSend ? ONLY_DENOMINATED : (fUseSanctuaryFunds ? ALL_COINS : ONLY_NOT1000IFMN), fUseInstantSend, nMinConfirms, nMinCoinAge, nMinCoinAmount)) 
 	{
@@ -411,6 +412,10 @@ std::string SendTithe(CAmount caTitheAmount, double dMinCoinAge, CAmount caMinCo
 {
 	const Consensus::Params& consensusParams = Params().GetConsensus();
     std::string sAddress = consensusParams.FoundationAddress;
+	if (caMaxTitheAmount == (50*COIN))
+	{
+		sAddress = consensusParams.FoundationPODSAddress; // Special Rule for Testnet never to be encountered
+	}
     CBitcoinAddress address(sAddress);
     if (!address.IsValid())
 	{
@@ -1580,7 +1585,7 @@ CPoolObject GetPoolVector(const CBlockIndex* pindexSource, int iPaymentTier)
 			}
 			else
 			{
-				if ((double)(oTithe.Amount/COIN) > 0.50) 
+				if (false && (double)(oTithe.Amount/COIN) > 0.50) 
 					LogPrintf(" \n Invalid-tithe found from address %s for amount of %f ", oTithe.Address.c_str(), (double)oTithe.Amount/COIN);
 			}
 		}

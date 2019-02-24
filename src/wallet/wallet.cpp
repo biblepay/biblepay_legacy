@@ -3396,11 +3396,36 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
                         }
                         else
                         {
+							// R ANDREWS - 2/23/2019 - If this is a tithe, be sure we make our change back into a POG denomination:
+							if (dMinCoinAge > 0 && caMinCoinAmount > 0 && nChange > (2 * COIN))
+							{
+				                std::string sTitheReturnAddress = DefaultRecAddress("TITHES");
+								CBitcoinAddress addrTitheReturn(sTitheReturnAddress);
+								if (addrTitheReturn.IsValid()) 
+								{
+									CAmount nPogDenom = .001 * COIN;
+									CScript scriptTitheReturn = GetScriptForDestination(addrTitheReturn.Get());
+									double dWholeBBP = cdbl(RoundToString((double)nChange / COIN, 0), 0) - 1;
+									CAmount nWholeDenominated = (dWholeBBP * COIN) + nPogDenom;
+									CAmount nOwed = nChange - nWholeDenominated;
+									if (nOwed > 0 && nChange > nOwed)
+									{
+										CTxOut newTitheReturnTxOut;
+										newTitheReturnTxOut = CTxOut(nOwed, scriptTitheReturn);
+									    int nTithePosRet = GetRandInt(txNew.vout.size() + 1);
+										vector<CTxOut>::iterator pos0 = txNew.vout.begin() + nTithePosRet;
+										txNew.vout.insert(pos0, newTitheReturnTxOut);
+										txNew.vout[nTithePosRet].sTxOutMessage = "<change>2</change>";
+										// Reduce change 
+										CAmount nChangeLeft = nChange - nOwed;
+										newTxOut = CTxOut(nChangeLeft, scriptChange);
+									}
+								}
+							}
                             // Insert change txn at random position:
-							// PODC Support - do not duplicate cpid signature due to change, this will actually corrupt the base64 in the signature - R ANDREWS - 3/20/2018
-                            nChangePosRet = GetRandInt(txNew.vout.size()+1);
-                            vector<CTxOut>::iterator position = txNew.vout.begin() + nChangePosRet;
-                            txNew.vout.insert(position, newTxOut);
+							nChangePosRet = GetRandInt(txNew.vout.size()+1);
+							vector<CTxOut>::iterator position = txNew.vout.begin() + nChangePosRet;
+							txNew.vout.insert(position, newTxOut);
 							txNew.vout[nChangePosRet].sTxOutMessage = "<change>1</change>";
                         }
                     }
