@@ -1951,7 +1951,6 @@ std::map<int64_t, CTitheObject> CWallet::GetDimensionalCoins(double nMinAge, CAm
 			}
 		}
     }
-	if (fDebugMaster && false) LogPrintf(" GrandTotal: %f ", (double)nTotal/COIN);
     return mapTithes;
 }
 

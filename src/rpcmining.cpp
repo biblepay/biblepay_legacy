@@ -403,7 +403,7 @@ UniValue pogpool(const UniValue& params, bool fHelp)
 		BOOST_FOREACH(const PAIRTYPE(std::string, CTitheObject)& item, c.mapTithes)
 		{
 			CTitheObject oTithe = item.second;
-			std::string sRow = "Amount: " + RoundToString((double)(oTithe.Amount/COIN),2) 
+			std::string sRow = "Amount: " + RoundToString((double)oTithe.Amount / COIN, 2) 
 				+ ", Weight: " + RoundToString(oTithe.Weight, 4) 
 				+ ", Height: " + RoundToString(oTithe.Height, 0) 
 				+ ", NickName: " + oTithe.NickName;

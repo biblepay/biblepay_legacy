@@ -641,6 +641,7 @@ std::string GetActiveProposals()
 			}
 		}
 	}
+	// DEAD CODE
 	if (fDebugMaster && false) LogPrintf("Proposals %s \n", sXML.c_str());
 	return sXML;
 }
@@ -907,7 +908,7 @@ std::string GetPOGBusinessObjectList(std::string sType, std::string sFields)
 		std::string sPK = sType + "-" + RoundToString(i, 0);
 		
 		o.push_back(Pair("id", sPK));
-		o.push_back(Pair("amount", RoundToString((double)(oTithe.Amount/COIN), 2)));
+		o.push_back(Pair("amount", RoundToString((double)oTithe.Amount / COIN, 2)));
 		o.push_back(Pair("weight", RoundToString(oTithe.Weight, 4)));
 		o.push_back(Pair("height", RoundToString(oTithe.Height, 0)));
 		if (oTithe.NickName.empty())

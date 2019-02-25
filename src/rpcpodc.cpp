@@ -404,6 +404,7 @@ double GetSumOfXMLColumnFromXMLFile(std::string sFileName, std::string sObjectNa
 				double dAvgCredit = cdbl(sValue,2);
 				double dModifiedCredit = GetResearcherCredit(dDRMode, dAvgCredit, dUTXOWeight, dTaskWeight, dUnbanked, 0, dReqSPM, dReqSPR, dRACThreshhold, dTeamPercentage);
 				dTotal += dModifiedCredit;
+				// DEAD CODE
 				if (fDebugMaster && false) LogPrintf(" Adding CPID %s, Team %f, modifiedrac %f from RAC %f  with nonbbptp %f   DRMode %f,  Grand Total %f \n", 
 					sCPID.c_str(), dTeam, dModifiedCredit, dAvgCredit, dNonBiblepayTeamPercentage, dDRMode, dTotal);
 			}

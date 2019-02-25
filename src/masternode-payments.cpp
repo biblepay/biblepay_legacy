@@ -728,8 +728,6 @@ void CMasternodeBlockPayees::AddPayee(const CMasternodePaymentVote& vote)
     }
     CMasternodePayee payeeNew(vote.payee, vote.GetHash(), vote.vinMasternode);
 	// BiblePay 10-26-2017 - Track Sanctuary VIN on voted payees
-	// Verify collateral
-
 	CAmount nCollateral = GetSanctuaryCollateral(vote.vinMasternode);
 	if (fDebugMaster && false) LogPrintf(" Sanctuary AddPayee VIN %s collateral %f txid %s %f\n", vote.vinMasternode.prevout.ToStringShort(), 
 		nCollateral, vote.vinMasternode.prevout.hash.GetHex().c_str(), vote.vinMasternode.prevout.n);
