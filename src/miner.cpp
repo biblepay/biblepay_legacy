@@ -820,19 +820,19 @@ recover:
 				if (nTitheAmount >= (.50 * COIN))
 				{
 					// This means we have an aged coin that meets the current round's difficulty params, go ahead and tithe it
-					if (nTitheAmount >= tdp.max_tithe_amount)
+					if (nTitheAmount >= (tdp.max_tithe_amount - (.01 * COIN)))
 					{
-						nTitheAmount = tdp.max_tithe_amount;
+						nTitheAmount = tdp.max_tithe_amount - (.01 * COIN);
 					}
 					std::string sError = "";
 					std::string sTxId = SendTithe(nTitheAmount, tdp.min_coin_age, tdp.min_coin_amount, tdp.max_tithe_amount, sError);
 					if (!sError.empty())
 					{
-						LogPrintf("\nBiblePayMiner::SendTithe::Error - Unable to send tithe - Amount %f, Error %s ", (double)nTitheAmount/COIN, sError.c_str());
+						LogPrintf("\nBiblePayMiner::SendTithe::Error - Unable to send tithe - Amount %f, Error %s ", (double)nTitheAmount / COIN, sError.c_str());
 					}
 					else
 					{
-						LogPrintf("\nBiblePayMiner::SendTithe::Sent Tithe in amount of %f ", (double)nTitheAmount/COIN);
+						LogPrintf("\nBiblePayMiner::SendTithe::Sent Tithe in amount of %f ", (double)nTitheAmount / COIN);
 					}
 				}
 			}

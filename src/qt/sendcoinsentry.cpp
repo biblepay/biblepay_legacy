@@ -191,7 +191,6 @@ void SendCoinsEntry::initPOGDifficulty()
 		ui->lblTitheAbilityCaption->setText(GUIUtil::TOQS("Tithe Ability:"));
 		ui->lblTitheAbility->setText(GUIUtil::TOQS(sTitheValue));
 		ui->lblTitheAbility->setVisible(true);
-		LogPrintf(" single_shot initpogdiff \n");
 		QTimer::singleShot(60000, this, SLOT(initPOGDifficulty()));
     }
 	else

@@ -1748,6 +1748,8 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState &state, const C
 							 oTithe.Age, (double)oTithe.Amount/COIN, nTitheCount, dPogDiff);
 						return false;
 					}
+					// Reject multiple tithes from same banknote in same block
+
 				}
 			}
 		}
