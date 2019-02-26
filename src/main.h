@@ -405,6 +405,7 @@ bool WriteKey(std::string sKey, std::string sValue);
 void MemorizePrayer(std::string sMessage, int64_t nTime, double dAmount, int iPosition, std::string sTxID, int nHeight, double dFoundationDonation, double dAge, double dMinCoinAge);
 void SetOverviewStatus();
 int Get24HourAvgBits(const CBlockIndex* pindexSource, int nPrevBits);
+bool VerifyTitheConditions();
 
 
 /**

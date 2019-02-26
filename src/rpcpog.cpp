@@ -221,6 +221,25 @@ CAmount SelectCoinsForTithing(const CBlockIndex* pindex)
 	return nBigCoin;
 }
 
+CTitheObject SelectCoinForTithing(const CBlockIndex* pindex)
+{
+	TitheDifficultyParams tdp = GetTitheParams(pindex);
+	std::map<int64_t, CTitheObject> dtb = pwalletMain->GetDimensionalCoins(tdp.min_coin_age, tdp.min_coin_amount);
+	// Scan for Coin with the least Coin Age that meets diff parameters
+	double dMinCoinAge = 9999;
+	CTitheObject cMostApplicable;
+	BOOST_FOREACH(const PAIRTYPE(int64_t, CTitheObject)& item, dtb)
+	{
+		CTitheObject c = item.second;
+		if (c.Age < dMinCoinAge)
+		{
+			dMinCoinAge = c.Age;
+			cMostApplicable = c;
+		}
+	}
+	return cMostApplicable;
+}
+
 CAmount GetTitheTotal(CTransaction tx)
 {
 	CAmount nTotal = 0;
@@ -338,7 +357,7 @@ double GetTitheAgeAndSpentAmount(CTransaction ctx, CBlockIndex* pindex, CAmount&
 
 
 bool RPCSendMoney(std::string& sError, const CTxDestination &address, CAmount nValue, bool fSubtractFeeFromAmount, CWalletTx& wtxNew, 
-	bool fUseInstantSend=false, bool fUsePrivateSend=false, bool fUseSanctuaryFunds=false, double nMinCoinAge = 0, CAmount nMinCoinAmount = 0)
+	bool fUseInstantSend=false, bool fUsePrivateSend=false, bool fUseSanctuaryFunds=false, double nMinCoinAge = 0, CAmount nMinCoinAmount = 0, std::string sSpecificTxId = "", int nSpecificOutput = 0)
 {
     CAmount curBalance = pwalletMain->GetBalance();
 
@@ -368,8 +387,9 @@ bool RPCSendMoney(std::string& sError, const CTxDestination &address, CAmount nV
 	vecSend.push_back(recipient);
 	
     int nMinConfirms = 0;
+	CAmount nBankrollMask = 0;
     if (!pwalletMain->CreateTransaction(vecSend, wtxNew, reservekey, nFeeRequired, nChangePosRet, strError, NULL, true, 
-		fUsePrivateSend ? ONLY_DENOMINATED : (fUseSanctuaryFunds ? ALL_COINS : ONLY_NOT1000IFMN), fUseInstantSend, nMinConfirms, nMinCoinAge, nMinCoinAmount)) 
+		fUsePrivateSend ? ONLY_DENOMINATED : (fUseSanctuaryFunds ? ALL_COINS : ONLY_NOT1000IFMN), fUseInstantSend, nMinConfirms, nMinCoinAge, nMinCoinAmount, nBankrollMask, sSpecificTxId, nSpecificOutput)) 
 	{
         if (!fSubtractFeeFromAmount && nValue + nFeeRequired > pwalletMain->GetBalance())
 		{
@@ -389,8 +409,8 @@ bool RPCSendMoney(std::string& sError, const CTxDestination &address, CAmount nV
 }
 
 
-void RPCSendMoneyToDestinationWithMinimumBalance(const CTxDestination& address, CAmount nValue, CAmount nMinimumBalanceRequired, double dMinCoinAge, CAmount caMinCoinValue, 
-	CWalletTx& wtxNew, std::string& sError)
+void RPCSendMoneyToDestinationWithMinimumBalance(const CTxDestination& address, CAmount nValue, CAmount nMinimumBalanceRequired, 
+	double dMinCoinAge, CAmount caMinCoinValue, std::string sSpecificTxId, int nSpecificOutput,	CWalletTx& wtxNew, std::string& sError)
 {
 	if (pwalletMain->IsLocked())
 	{
@@ -403,12 +423,12 @@ void RPCSendMoneyToDestinationWithMinimumBalance(const CTxDestination& address, 
 		sError = "Insufficient funds";
 		return;
 	}
-    RPCSendMoney(sError, address, nValue, false, wtxNew, false, false, false, dMinCoinAge, caMinCoinValue);
+    RPCSendMoney(sError, address, nValue, false, wtxNew, false, false, false, dMinCoinAge, caMinCoinValue, sSpecificTxId, nSpecificOutput);
 }
 
 
 
-std::string SendTithe(CAmount caTitheAmount, double dMinCoinAge, CAmount caMinCoinAmount, CAmount caMaxTitheAmount, std::string& sError)
+std::string SendTithe(CAmount caTitheAmount, double dMinCoinAge, CAmount caMinCoinAmount, CAmount caMaxTitheAmount, std::string sSpecificTxId, int nSpecificOutput, std::string& sError)
 {
 	const Consensus::Params& consensusParams = Params().GetConsensus();
     std::string sAddress = consensusParams.FoundationAddress;
@@ -458,7 +478,7 @@ std::string SendTithe(CAmount caTitheAmount, double dMinCoinAge, CAmount caMinCo
 	if (caTitheAmount <= (10*COIN) && !fProd) dMinCoinAge = 0;
 	// End of TestNet Rule
 
-    RPCSendMoneyToDestinationWithMinimumBalance(address.Get(), caTitheAmount, caTitheAmount, dMinCoinAge, caMinCoinAmount, wtx, sError);
+    RPCSendMoneyToDestinationWithMinimumBalance(address.Get(), caTitheAmount, caTitheAmount, dMinCoinAge, caMinCoinAmount, sSpecificTxId, nSpecificOutput, wtx, sError);
 	
 	if (bTriedToUnlock) pwalletMain->Lock();
 	if (!sError.empty()) return "";
@@ -917,7 +937,7 @@ std::string GetPOGBusinessObjectList(std::string sType, std::string sFields)
 		}
 		else
 		{
-			o.push_back(Pair("nickname", oTithe.NickName));
+			o.push_back(Pair("nickname", Caption(oTithe.NickName)));
 		}
 		o.push_back(Pair("address", oTithe.Address));
 		std::string sRow = "";
@@ -1789,7 +1809,7 @@ std::string SendBusinessObject(std::string sType, std::string sPrimaryKey, std::
 	wtx.sTxMessageConveyed = s1;
 	LOCK2(cs_main, pwalletMain->cs_wallet);
 	{
-		RPCSendMoneyToDestinationWithMinimumBalance(address.Get(), nAmount, nMinimumBalance, 0, 0, wtx, sError);
+		RPCSendMoneyToDestinationWithMinimumBalance(address.Get(), nAmount, nMinimumBalance, 0, 0, "", 0, wtx, sError);
 	}
 	if (!sError.empty()) return "";
     return wtx.GetHash().GetHex().c_str();
@@ -2280,3 +2300,10 @@ bool POGEnabled(int nHeight, int64_t nTime)
 	}
 	return fPOG;
 }
+
+std::string Caption(std::string sDefault)
+{
+	std::string sValue = ReadCache("message", sDefault);
+	return sValue.empty() ? sDefault : sValue;		
+}
+

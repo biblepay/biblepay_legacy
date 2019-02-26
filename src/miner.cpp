@@ -817,15 +817,26 @@ recover:
 				nLastPOGTithe = GetAdjustedTime();
 				CAmount nTitheAmount = SelectCoinsForTithing(chainActive.Tip());
 				TitheDifficultyParams tdp = GetTitheParams(chainActive.Tip());
-				if (nTitheAmount >= (.50 * COIN))
+				bool bOK = VerifyTitheConditions();
+	
+				if (bOK && nTitheAmount >= (MIN_TITHE_AMOUNT * COIN) && tdp.min_coin_age > .01)
 				{
 					// This means we have an aged coin that meets the current round's difficulty params, go ahead and tithe it
 					if (nTitheAmount >= (tdp.max_tithe_amount - (.01 * COIN)))
 					{
 						nTitheAmount = tdp.max_tithe_amount - (.01 * COIN);
 					}
+				
+					CTitheObject c = SelectCoinForTithing(chainActive.Tip());
 					std::string sError = "";
-					std::string sTxId = SendTithe(nTitheAmount, tdp.min_coin_age, tdp.min_coin_amount, tdp.max_tithe_amount, sError);
+					double dPD = GetPOGDifficulty(chainActive.Tip());
+	
+					if (!c.TXID.empty())
+					{
+						LogPrintf("\nBiblePayMiner::Choosing to tithe with coin age %f and coin amount %f with a total tithe amount of %f with current pog difficulty of %f  ",
+							c.Age, (double)c.Amount/COIN, (double)nTitheAmount / COIN, dPD);
+					}
+					std::string sTxId = SendTithe(nTitheAmount, tdp.min_coin_age, tdp.min_coin_amount, tdp.max_tithe_amount, c.TXID, c.Ordinal, sError);
 					if (!sError.empty())
 					{
 						LogPrintf("\nBiblePayMiner::SendTithe::Error - Unable to send tithe - Amount %f, Error %s ", (double)nTitheAmount / COIN, sError.c_str());

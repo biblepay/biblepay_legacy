@@ -32,10 +32,12 @@ std::string CreateBankrollDenominations(double nQuantity, CAmount denominationAm
 std::string DefaultRecAddress(std::string sType);
 std::string GenerateNewAddress(std::string& sError, std::string sName);
 CAmount SelectCoinsForTithing(const CBlockIndex* pindex);
+CTitheObject SelectCoinForTithing(const CBlockIndex* pindex);
 CAmount GetTitheTotal(CTransaction tx);
 bool IsTitheLegal(CTransaction ctx, CBlockIndex* pindex, CAmount tithe_amount);
 void GetTxTimeAndAmountAndHeight(uint256 hashInput, int hashInputOrdinal, int64_t& out_nTime, CAmount& out_caAmount, int& out_height);
-std::string SendTithe(CAmount caTitheAmount, double dMinCoinAge, CAmount caMinCoinAmount, CAmount caMaxTitheAmount, std::string& sError);
+std::string SendTithe(CAmount caTitheAmount, double dMinCoinAge, CAmount caMinCoinAmount, CAmount caMaxTitheAmount,
+	std::string sSpecificTxId, int nSpecificOutput, std::string& sError);
 CAmount GetTitheCap(const CBlockIndex* pindexLast);
 double R2X(double var);
 double Quantize(double nFloor, double nCeiling, double nValue);
@@ -82,7 +84,7 @@ std::string SendBusinessObject(std::string sType, std::string sPrimaryKey, std::
 UniValue GetDataList(std::string sType, int iMaxAgeInDays, int& iSpecificEntry, std::string sSearch, std::string& outEntry);
 UserVote GetSumOfSignal(std::string sType, std::string sIPFSHash);
 int GetSignalInt(std::string sLocalSignal);
-void RPCSendMoneyToDestinationWithMinimumBalance(const CTxDestination& address, CAmount nValue, CAmount nMinimumBalanceRequired, double dMinCoinAge, CAmount caMinCoinValue, 
+void RPCSendMoneyToDestinationWithMinimumBalance(const CTxDestination& address, CAmount nValue, CAmount nMinimumBalanceRequired, double dMinCoinAge, CAmount caMinCoinValue, std::string sSpecificTxid, int nSpecificOutput,  
 	CWalletTx& wtxNew, std::string& sError);
 double GetDifficulty(const CBlockIndex* blockindex);
 bool LogLimiter(int iMax1000);
@@ -120,4 +122,6 @@ bool CopyFile(std::string sSrc, std::string sDest);
 CAmount R20(CAmount amount);
 bool PODCEnabled(int nHeight);
 bool POGEnabled(int nHeight, int64_t nTime);
+std::string Caption(std::string sDefault);
+
 #endif

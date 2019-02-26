@@ -299,7 +299,24 @@ UniValue tithe(const UniValue& params, bool fHelp)
 		max_tithe_amount = cdbl(params[3].get_str(), 4) * COIN;
 
 	std::string sError = "";
-	std::string sTxId = SendTithe(caAmount, dMinCoinAge, caMinCoinAmount, max_tithe_amount, sError);
+	// 2-26-2019 - R ANDREWS - Use specific coin to preserve coin age
+	CTitheObject c = SelectCoinForTithing(chainActive.Tip());
+	if (c.Amount == 0 || c.TXID == "")
+	{
+		sError = "Unable to find any coins that meet this difficulty level.";
+		results.push_back(Pair("Error", sError));
+		return results;
+	}
+	// Prevent tithe rejections resulting in orphaned transactions
+	bool bOK = VerifyTitheConditions();
+	if (!bOK)
+	{
+		sError = "This block is currently full of tithes.  Please wait until the next block.";
+		results.push_back(Pair("Error", sError));
+		return results;
+	}
+	
+	std::string sTxId = SendTithe(caAmount, dMinCoinAge, caMinCoinAmount, max_tithe_amount, c.TXID, c.Ordinal, sError);
 	if (!sError.empty())
 	{
 		results.push_back(Pair("Error", sError));
@@ -322,7 +339,6 @@ UniValue titheinfo(const UniValue& params, bool fHelp)
             + HelpExampleRpc("titheinfo", "")
         );
     UniValue results(UniValue::VOBJ);
-	double dPD = GetPOGDifficulty(chainActive.Tip());
 	results.push_back(Pair("24_hour_tithes", (double)chainActive.Tip()->n24HourTithes/COIN));
 	results.push_back(Pair("pog_difficulty", chainActive.Tip()->nPOGDifficulty));
 	// check the tithe params
@@ -347,6 +363,12 @@ UniValue titheinfo(const UniValue& params, bool fHelp)
 	if (nQty > 0) nAvgAge = nTotalAge / nQty;
 	CAmount nTithability = nMaxCoin;
 	if (nTithability > tdp.max_tithe_amount) nTithability = tdp.max_tithe_amount;
+	bool bOK = VerifyTitheConditions();
+	if (!bOK)
+	{
+		nTithability = 0;
+		results.push_back(Pair("Error", "Sorry, this block is full of tithes.  Please wait until the next block."));
+	}
 	std::string sSummary = (nTithability > 0) ? "YES" : "NO";
 	results.push_back(Pair("Tithable_Coin_Quantity", nQty));
 	results.push_back(Pair("Tithable_Largest_Coin", (double)nMaxCoin/COIN));
@@ -368,6 +390,10 @@ UniValue titheinfo(const UniValue& params, bool fHelp)
 		results.push_back(Pair("Lowest_ROI%", dBasePercent));
 		results.push_back(Pair("Highest_ROI%", dGiftedPercent));
 	}
+	CTitheObject c = SelectCoinForTithing(chainActive.Tip());
+	results.push_back(Pair("Best_coin_txid", c.TXID + "-" + RoundToString(c.Ordinal, 0)));
+	results.push_back(Pair("Best_coin_amount", (double)c.Amount / COIN));
+	results.push_back(Pair("Best_coin_age", c.Age));
 	return results;
 }
 
@@ -406,9 +432,8 @@ UniValue pogpool(const UniValue& params, bool fHelp)
 			std::string sRow = "Amount: " + RoundToString((double)oTithe.Amount / COIN, 2) 
 				+ ", Weight: " + RoundToString(oTithe.Weight, 4) 
 				+ ", Height: " + RoundToString(oTithe.Height, 0) 
-				+ ", NickName: " + oTithe.NickName;
+				+ ", NickName: " + Caption(oTithe.NickName);
 			if (nDetails > 1) sRow += ", Trace: " + oTithe.Trace;
-
 			results.push_back(Pair(oTithe.Address, sRow));
 		}
 	}

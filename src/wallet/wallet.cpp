@@ -1937,6 +1937,7 @@ std::map<int64_t, CTitheObject> CWallet::GetDimensionalCoins(double nMinAge, CAm
 							c.Amount = nAmount;
 							c.Age = nAge;
 							c.TXID = pcoin->GetHash().ToString();
+							c.Ordinal = i;  //This allows us to choose the most applicable coin for tithing (IE least age, least value)
 							nOrdinal++;
 							mapTithes.insert(make_pair(nOrdinal, c));
 							if (false) LogPrintf("\nCounting Age %f Amount %f ",nAge, (double)nAmount/COIN);
@@ -2254,7 +2255,7 @@ CAmount CWallet::GetImmatureWatchOnlyBalance() const
 
 void CWallet::AvailableCoins(vector<COutput>& vCoins, bool fOnlyConfirmed, const CCoinControl *coinControl, 
 	bool fIncludeZeroValue, AvailableCoinsType nCoinType, bool fUseInstantSend, int iMinConfirms, double nMinAge, 
-	CAmount nMinAmount, CAmount nBankrollMask) const
+	CAmount nMinAmount, CAmount nBankrollMask, std::string sSpecificTxId, int nSpecificOutput) const
 {
     vCoins.clear();
     {
@@ -2300,6 +2301,8 @@ void CWallet::AvailableCoins(vector<COutput>& vCoins, bool fOnlyConfirmed, const
 			}
 			
 		    if (fBankrollTx) continue;
+			// 2-26-2019 - R ANDREWS - Add ability to send specific wallet tx (this allows POG to choose the lowest coin age)
+			if (!sSpecificTxId.empty()) if (pcoin->GetHash().ToString() != sSpecificTxId) continue;
 
             for (unsigned int i = 0; i < pcoin->vout.size(); i++) 
 			{
@@ -2310,12 +2313,9 @@ void CWallet::AvailableCoins(vector<COutput>& vCoins, bool fOnlyConfirmed, const
 				if (cct.Color=="401" && nCoinType != ONLY_RETIREMENT_COINS) continue;
 				if (nMinAmount > 0 && pcoin->vout[i].nValue < nMinAmount) continue;
 				if (nMinAge    > 0 && nAge < nMinAge) continue;
-				if (nCoinType == ONLY_RETIREMENT_COINS && cct.Color=="401")
-				{
-					found = true;
-				}
-				
-				else if(nCoinType == ONLY_DENOMINATED) 
+				if (!sSpecificTxId.empty()) if (pcoin->GetHash().ToString() != sSpecificTxId || i != (int)nSpecificOutput) continue;
+
+				if(nCoinType == ONLY_DENOMINATED) 
 				{
                     found = IsDenominatedAmount(pcoin->vout[i].nValue);
                 }
@@ -2562,12 +2562,12 @@ bool CWallet::SelectCoinsMinConf(const CAmount& nTargetValue, int nConfMine, int
 
 bool CWallet::SelectCoins(const CAmount& nTargetValue, set<pair<const CWalletTx*,unsigned int> >& setCoinsRet, CAmount& nValueRet, 
 	const CCoinControl* coinControl, AvailableCoinsType nCoinType, bool fUseInstantSend, int iMinConfirms, double dMinCoinAge, 
-	CAmount caMinCoinAmount, CAmount nBankrollMask) const
+	CAmount caMinCoinAmount, CAmount nBankrollMask, std::string sSpecificTxId, int nSpecificOutput) const
 {
     // Note: this function should never be used for "always free" tx types like dstx
 
     vector<COutput> vCoins;
-    AvailableCoins(vCoins, true, coinControl, false, nCoinType, fUseInstantSend, iMinConfirms, dMinCoinAge, caMinCoinAmount, nBankrollMask);
+    AvailableCoins(vCoins, true, coinControl, false, nCoinType, fUseInstantSend, iMinConfirms, dMinCoinAge, caMinCoinAmount, nBankrollMask, sSpecificTxId, nSpecificOutput);
 
     // coin control -> return all selected outputs (we want all selected to go into the transaction for sure)
     if (coinControl && coinControl->HasSelected() && !coinControl->fAllowOtherInputs)
@@ -3131,7 +3131,7 @@ std::string SimpleLimitedString(std::string sMyLimitedString, int MAXLENGTH)
 bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wtxNew, CReserveKey& reservekey, CAmount& nFeeRet,
                                 int& nChangePosRet, std::string& strFailReason, 
 								const CCoinControl* coinControl, bool sign, AvailableCoinsType nCoinType, 
-								bool fUseInstantSend, int iMinConfirms, double dMinCoinAge, CAmount caMinCoinAmount, CAmount nBankrollMask)
+								bool fUseInstantSend, int iMinConfirms, double dMinCoinAge, CAmount caMinCoinAmount, CAmount nBankrollMask, std::string sSpecificTxId, int nSpecificOutput)
 
 {
     CAmount nFeePay = fUseInstantSend ? CTxLockRequest().GetMinFee() : 0;
@@ -3266,7 +3266,7 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
                 CAmount nValueIn = 0;
 
 
-                if (!SelectCoins(nValueToSelect, setCoins, nValueIn, coinControl, nCoinType, fUseInstantSend, iMinConfirms, dMinCoinAge, caMinCoinAmount, nBankrollMask))
+                if (!SelectCoins(nValueToSelect, setCoins, nValueIn, coinControl, nCoinType, fUseInstantSend, iMinConfirms, dMinCoinAge, caMinCoinAmount, nBankrollMask, sSpecificTxId, nSpecificOutput))
                 {
  					if (dMinCoinAge > 0)
 					{

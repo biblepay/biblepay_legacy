@@ -101,6 +101,8 @@ std::string BiblepayHttpPost(bool bPost, int iThreadID, std::string sActionName,
 	std::string sPage, int iPort, std::string sSolution, int iOptBreak);
 std::string BiblepayHTTPSPost(bool bPost, int iThreadID, std::string sActionName, std::string sDistinctUser, std::string sPayload, std::string sBaseURL, std::string sPage, int iPort,
 	std::string sSolution, int iTimeoutSecs, int iMaxSize, int iBreakOnError = 0);
+std::string BiblePayHTTPSPost2(bool bPost, std::string sProtocol, std::string sDomain, std::string sPage, std::string sPayload, std::string sFileName);
+
 std::string BiblepayIPFSPost(std::string sFN, std::string sPayload);
 
 std::string SQL(std::string sCommand, std::string sAddress, std::string sArguments, std::string& sError);

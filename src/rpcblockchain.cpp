@@ -3095,7 +3095,7 @@ UniValue exec(const UniValue& params, bool fHelp)
 				std::string sRow = "Legal: " + RoundToString(iLegal, 0) + " [" + sErr + "], Amount: " + RoundToString((double)oTithe.Amount/COIN, 2) 
 					+ ", Height: " + RoundToString(oTithe.Height, 0) + ", Spent_Coin_Value: " + RoundToString((double)oTithe.CoinAmount/COIN, 2)
 					+ ", " + oTithe.TXID + "-" + RoundToString(oTithe.Ordinal, 0) 
-					+ ", Age: " + RoundToString(oTithe.Age, 2) + ", NickName: " + oTithe.NickName;
+					+ ", Age: " + RoundToString(oTithe.Age, 2) + ", NickName: " + Caption(oTithe.NickName);
 				results.push_back(Pair(oTithe.Address, sRow));
 			}
 		}
@@ -3136,6 +3136,8 @@ UniValue exec(const UniValue& params, bool fHelp)
 		std::string sTxId = CreateBankrollDenominations(nQty, denomination, sError);
 		if (!sError.empty())
 		{
+			if (sError == "Signing transaction failed") 
+				sError += ".  (Please ensure your wallet is unlocked).";
 			results.push_back(Pair("Error", sError));
 		}
 		else

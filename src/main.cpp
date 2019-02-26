@@ -7599,7 +7599,7 @@ std::string GetVersionAlert()
 	sCurrentVersion = strReplace(sCurrentVersion, ".", "");
 	double dCurrentVersion = cdbl(sCurrentVersion, 0);
 	std::string sNarr = "";
-	if (dCurrentVersion < dGithubVersion) sNarr = "<br>** Client Out of Date (v=" + sCurrentVersion + "/v=" + sGithubVersion + ") **";
+	if (dCurrentVersion < dGithubVersion && fProd) sNarr = "<br>** Client Out of Date (v=" + sCurrentVersion + "/v=" + sGithubVersion + ") **";
 	return sNarr;
 }
 
@@ -8466,6 +8466,13 @@ double GetBlockVersion(CTransaction ctx)
 	if (sBlockVersion.length() == 3) sBlockVersion += "0"; 
 	double dBlockVersion = cdbl(sBlockVersion, 0);
 	return dBlockVersion;
+}
+
+bool VerifyTitheConditions()
+{
+	int nTitheCount = mempool.getTitheCount();
+	if (nTitheCount > TITHE_OVERFLOW) return false;
+	return true;
 }
 
 

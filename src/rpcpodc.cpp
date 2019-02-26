@@ -1425,7 +1425,7 @@ std::string SendBlockchainMessage(std::string sType, std::string sPrimaryKey, st
 
 	std::string s1 = sMessageType + sMessageKey + sMessageValue + sNonce + sMessageSig;
 	wtx.sTxMessageConveyed = s1;
-    RPCSendMoneyToDestinationWithMinimumBalance(address.Get(), nAmount, nMinimumBalance, 0, 0, wtx, sError);
+    RPCSendMoneyToDestinationWithMinimumBalance(address.Get(), nAmount, nMinimumBalance, 0, 0, "", 0, wtx, sError);
 	if (!sError.empty()) return "";
     return wtx.GetHash().GetHex().c_str();
 }
@@ -1602,7 +1602,7 @@ std::string AssociateDCAccount(std::string sProjectId, std::string sBoincEmail, 
 std::string GetGithubVersion()
 {
 	std::string sURL = "https://" + GetSporkValue("pool");
-	std::string sRestfulURL = "SAN/version.htm";
+	std::string sRestfulURL = "SAN/LastMandatoryVersion.htm";
 	std::string sResponse = BiblepayHTTPSPost(false, 0, "", "", "", sURL, sRestfulURL, 443, "", 25, 10000, 1);
 	if (sResponse.length() > 6)
 	{

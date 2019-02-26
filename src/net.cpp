@@ -32,6 +32,7 @@
 #include <openssl/err.h>
 #include <openssl/bio.h>
 // End of Internet SSL
+#include <boost/asio.hpp>
 
 
 #ifdef WIN32
@@ -55,6 +56,7 @@
 #include <fstream>
 
 using std::ofstream;
+
 
 // Dump addresses to peers.dat every 15 minutes (900s)
 #define DUMP_ADDRESSES_INTERVAL 900
@@ -3103,6 +3105,79 @@ std::string BiblepayIPFSPost(std::string sFileName, std::string sPayload)
 		return sData;
 }
 
+std::string BiblePayHTTPSPost2(bool bPost, std::string sProtocol, std::string sDomain, std::string sPage, std::string sPayload, std::string sFileName)
+{
+	std::ostringstream ssOut;
+	try
+	{
+		// This code is not being used in prod.  The reason Rob is merging this method in:  We are comparing different http/s post methods (boost, ev_http, sockets, QT, etc) - not for performance but for reliability and compatibility with future features.  QT won't work in the daemon, sockets require us to rebuild the protocol from the ground up, curl requires a dependency that wont build natively for exchanges, openSSL only works with HTTPS (not with HTTP which IPFS requires), and finally boost works with both http & https and in both daemon and QT.  Therefore Rob is doing more testing with the boost method for the time being.
+	    map<string, string> mapRequestHeaders;
+		mapRequestHeaders["Agent"] = FormatFullVersion();
+		mapRequestHeaders["Filename"] = sFileName;
+		std::vector<char> v = ReadBytesAll(sFileName.c_str());
+		std::vector<unsigned char> uData(v.begin(), v.end());
+		std::string s64 = EncodeBase64(&uData[0], uData.size());
+		std::string sPost = PrepareHTTPPost(bPost, sPage, sDomain, s64, mapRequestHeaders);
+	    boost::asio::io_service io_service;
+	    // Get a list of endpoints corresponding to the server name.
+	    boost::asio::ip::tcp::resolver resolver(io_service);
+		boost::asio::ip::tcp::resolver::query query(sDomain, sProtocol);
+		boost::asio::ip::tcp::resolver::iterator endpoint_iterator = resolver.resolve(query);
+	    // Try each endpoint until we successfully establish a connection.
+		boost::asio::ip::tcp::socket socket(io_service);
+		boost::asio::connect(socket, endpoint_iterator);
+	    boost::asio::streambuf request;
+		std::ostream request_stream(&request);
+		request_stream << sPost;
+		// Send the request.
+		boost::asio::write(socket, request);
+		boost::asio::streambuf response;
+		boost::asio::read_until(socket, response, "\r\n");
+	    // Check that response is OK.
+		std::istream response_stream(&response);
+		std::string http_version;
+		response_stream >> http_version;
+		unsigned int status_code;
+		response_stream >> status_code;
+		std::string status_message;
+		std::getline(response_stream, status_message);
+		if (!response_stream || http_version.substr(0, 5) != "HTTP/")
+		{
+			return "invalid http response";
+	    }
+		if (status_code != 200)
+		{
+			return "response returned with status code " + RoundToString(status_code, 0);
+	    }
+	    // Read the response headers, which are terminated by a blank line.
+		boost::asio::read_until(socket, response, "\r\n");
+	    std::string header;
+		while (std::getline(response_stream, header) && header != "\r")
+		{
+			ssOut << header << "\n";
+		}
+		ssOut << "\n";
+	    // Write whatever content we already have to output.
+		if (response.size() > 0)
+			ssOut << &response;
+	    // Read until EOF, writing data to output as we go.
+		boost::system::error_code error;
+		while (boost::asio::read(socket, response, boost::asio::transfer_at_least(1), error))
+		{
+			ssOut << &response;
+			std::string s1 = ssOut.str();
+			if (Contains(s1, "</html>") || Contains(s1,"<eof>") || Contains(s1,"<END>"))
+				break;
+		}
+  }
+  catch (std::exception& e)
+  {
+    cout << e.what();
+	return "Exception";
+  }
+  std::string  sRead = ssOut.str();
+  return sRead;
+}
 
 std::string BiblepayHTTPSPost(bool bPost, int iThreadID, std::string sActionName, std::string sDistinctUser, std::string sPayload, std::string sBaseURL, 
 	std::string sPage, int iPort, std::string sSolution, int iTimeoutSecs, int iMaxSize, int iBreakOnError)

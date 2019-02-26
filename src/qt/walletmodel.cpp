@@ -406,16 +406,34 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
 		double dMinCoinAge = 0;
 		CAmount caMinCoinAmount = 0;
 		CAmount caMaxTitheAmount = 0;
+		std::string sSpecificTxId = "";
+		int nSpecificOutput = 0;
 		if (fTithed && fPOGEnabled && !fForce)
 		{
 			TitheDifficultyParams tdp = GetTitheParams(chainActive.Tip());
 			dMinCoinAge = tdp.min_coin_age;
 			caMinCoinAmount = tdp.min_coin_amount;
 			caMaxTitheAmount = tdp.max_tithe_amount;
+			bool bOK = VerifyTitheConditions();
+			if (!bOK)
+			{
+				Q_EMIT message(tr("Send Coins"), tr("Sorry, this block is already full of tithes.  Please wait until the next block to tithe."), CClientUIInterface::MSG_ERROR);
+					return TransactionCreationFailed;
+			}
+
+			CTitheObject c = SelectCoinForTithing(chainActive.Tip());
+			if (c.Amount == 0 || c.TXID == "")
+			{
+				Q_EMIT message(tr("Send Coins"), tr("Unable to find any coins that meet this difficulty level of %1 biblepay.").arg(caMaxTitheAmount/COIN), CClientUIInterface::MSG_ERROR);
+					return TransactionCreationFailed;
+			}
+			sSpecificTxId = c.TXID;
+			nSpecificOutput = c.Ordinal;
 		}
 	
+		CAmount nBankrollMask = 0;
         bool fCreated = wallet->CreateTransaction(vecSend, *newTx, *keyChange, nFeeRequired, nChangePosRet, strFailReason, coinControl, true, recipients[0].inputType, 
-			recipients[0].fUseInstantSend, 0, dMinCoinAge, caMinCoinAmount);
+			recipients[0].fUseInstantSend, 0, dMinCoinAge, caMinCoinAmount, nBankrollMask, sSpecificTxId, nSpecificOutput);
 
         transaction.setTransactionFee(nFeeRequired);
         if (fSubtractFeeFromAmount && fCreated)

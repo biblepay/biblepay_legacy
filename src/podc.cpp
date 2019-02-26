@@ -636,4 +636,3 @@ int64_t StringToUnixTime(std::string sTime)
 	tm.tm_sec = iSecond;
 	return SyntheticUTCTime(&tm);
 }
-
