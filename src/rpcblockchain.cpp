@@ -3078,6 +3078,56 @@ UniValue exec(const UniValue& params, bool fHelp)
 		results.push_back(Pair("Result", sResponse));
 		results.push_back(Pair("Error", sError));
 	}
+	else if (sItem == "mypogaudit")
+	{
+		// Audit the last 205 blocks personal tithes, and sum the illegal vs legal
+		// By default we start at the chain tip, optionally you may enter a block # to start from (and we descend 205 from there).
+		int nStart = chainActive.Tip()->nHeight;
+		if (params.size() == 2)	nStart = cdbl(params[1].get_str(), 0);
+		std::string sTitheAddress = DefaultRecAddress("TITHES");
+		CAmount cLegalTotal = 0;
+		CAmount cIllegalTotal = 0;
+		int nLegalCount = 0;
+		int nIllegalCount = 0;
+
+		for (int nHeight = nStart; nHeight > (nStart - BLOCKS_PER_DAY) && nHeight > 1; nHeight--)
+		{
+			CBlockIndex* pindex = FindBlockByHeight(nHeight);
+			TitheDifficultyParams tdp = GetTitheParams(pindex);
+			if (pindex)
+			{
+				BOOST_FOREACH(const PAIRTYPE(std::string, CTitheObject)& item, pindex->mapTithes)
+			    {
+					CTitheObject oTithe = item.second;
+					if (oTithe.Address == sTitheAddress)
+					{
+						int iLegal = IsTitheLegal3(oTithe, tdp);
+						if (iLegal==1)
+						{
+							cLegalTotal += oTithe.Amount;
+							nLegalCount++;
+						}
+						else
+						{
+							cIllegalTotal += oTithe.Amount;
+							nIllegalCount++;
+						}
+						std::string sErr = TitheErrorToString(iLegal);
+						std::string sRow = "Legal: " + RoundToString(iLegal, 0) + " [" + sErr + "], Amount: " + RoundToString((double)oTithe.Amount/COIN, 2) 
+							+ ", Height: " + RoundToString(oTithe.Height, 0) + ", Spent_Coin_Value: " + RoundToString((double)oTithe.CoinAmount/COIN, 2)
+							+ ", " + oTithe.TXID + "-" + RoundToString(oTithe.Ordinal, 0) 
+							+ ", Age: " + RoundToString(oTithe.Age, 2) + ", NickName: " + Caption(oTithe.NickName);
+						results.push_back(Pair(oTithe.Address, sRow));
+					}
+				}
+			}
+		}
+		// Summary
+		results.push_back(Pair("Total Legal Tithes Amount", (double)cLegalTotal / COIN));
+		results.push_back(Pair("Total Illegal Tithes Amount", (double)cIllegalTotal / COIN));
+		results.push_back(Pair("Total Legal Tithe Count", nLegalCount));
+		results.push_back(Pair("Total Illegal Tithe Count", nIllegalCount));
+	}
 	else if (sItem == "pogaudit")
 	{
 		int nHeight = chainActive.Tip()->nHeight;
