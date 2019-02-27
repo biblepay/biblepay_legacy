@@ -3370,9 +3370,8 @@ UniValue exec(const UniValue& params, bool fHelp)
 		 std::string s64 = EncodeBase64(&vchSig[0], vchSig.size());
 		 results.push_back(Pair("base64_sig", s64));
 		 std::string sBin(vchSig.begin(), vchSig.end());
-		 results.push_back(Pair("sig_size", sBin.length()));
+		 //results.push_back(Pair("sig_size", sBin.length()));
 		 results.push_back(Pair("sig_hash", ss.GetHash().GetHex()));
-
 	     std::string sHex = ConvertBinToHex(sBin);
 		 results.push_back(Pair("sig_hex", sHex));
 		 // Hex of serialized message
