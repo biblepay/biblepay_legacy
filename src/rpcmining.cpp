@@ -377,7 +377,7 @@ UniValue titheinfo(const UniValue& params, bool fHelp)
 	results.push_back(Pair("Tithability_Amount", (double)nTithability/COIN));
 	results.push_back(Pair("Tithability_Summary", sSummary));
 	// Calculate ROI
-	double dTitheCap = (double)(GetTitheCap(chainActive.Tip()) / COIN);
+	double dTitheCap = (double)(GetTitheCap(chainActive.Tip()) / COIN) / GetSporkDouble("tithecapfactor", 1);
 	results.push_back(Pair("Tithe_Cap", dTitheCap));
 	double dDailyMinerEmissions = (double)(GetDailyMinerEmissions(chainActive.Tip()->nHeight) / COIN);
 	double dPoolEmissionsAfterReapers = dDailyMinerEmissions * .80;

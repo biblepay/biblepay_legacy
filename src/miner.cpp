@@ -718,6 +718,7 @@ void static BibleMiner(const CChainParams& chainparams, int iThreadID, int iFeat
 	int64_t nLastGUI = GetAdjustedTime() - 30;
 	int64_t nPODCUpdateFrequency = cdbl(GetSporkValue("podcupdatefrequency"), 0);
 	int64_t nPOGTitheFrequency = cdbl(GetSporkValue("pogtithefrequency"), 0);
+	double nBuffer = cdbl(GetArg("-pogbuffer", ".05"), 2);
 	if (nPODCUpdateFrequency < (60 * 30)) nPODCUpdateFrequency = (60 * 30);
 	if (nPOGTitheFrequency == 0) nPOGTitheFrequency = (60 * 60 * 4);
 	double dUserTitheFrequency = cdbl(GetArg("-tithe", "0"), 2);
@@ -733,8 +734,8 @@ void static BibleMiner(const CChainParams& chainparams, int iThreadID, int iFeat
 	{
 		nPOGTitheFrequency = dUserTitheFrequency * 60;
 	}
-		 
-					
+	if (iThreadID == 0) 
+		WriteCache("poolthread0", "poolinfo2", "POG Tithe Frequency " + RoundToString(nPOGTitheFrequency, 2), GetAdjustedTime());	
 	int iFailCount = 0;
 	// This allows the miner to dictate how much sleep will occur when distributed computing is enabled.  This will let Rosetta use the maximum CPU time.  NOTE: The default is 200ms per 256 hashes.
 	double dMinerSleep = cdbl(GetArg("-minersleep", "325"), 0);
@@ -815,10 +816,18 @@ recover:
 			if (fPOGEnabled && nPOGTitheFrequency > 119 && iThreadID == 0 && (nPOGTitheAge > nPOGTitheFrequency))
 			{
 				nLastPOGTithe = GetAdjustedTime();
+				// Ensure POG Pool is completely up to date
+				CBlock block;
+				if (ReadBlockFromDisk(block, chainActive.Tip(), chainparams.GetConsensus(), "InitializePogPool"))
+				{
+					InitializePogPool(chainActive.Tip(), BLOCKS_PER_DAY, block);
+				}
 				CAmount nTitheAmount = SelectCoinsForTithing(chainActive.Tip());
 				TitheDifficultyParams tdp = GetTitheParams(chainActive.Tip());
 				bool bOK = VerifyTitheConditions();
-	
+				std::string sStatus = "POG Check " + RoundToString(GetAdjustedTime(), 0) + " max_tithe_amount " + RoundToString(tdp.max_tithe_amount/COIN, 0) + ", min_coin_age " + RoundToString(tdp.min_coin_age, 0) + ", my tithe amount " + RoundToString(nTitheAmount/COIN, 2);
+				WriteCache("poolthread0", "poolinfo2", sStatus, GetAdjustedTime());
+					
 				if (bOK && nTitheAmount >= (MIN_TITHE_AMOUNT * COIN) && tdp.min_coin_age > .01)
 				{
 					// This means we have an aged coin that meets the current round's difficulty params, go ahead and tithe it
@@ -830,13 +839,15 @@ recover:
 					CTitheObject c = SelectCoinForTithing(chainActive.Tip());
 					std::string sError = "";
 					double dPD = GetPOGDifficulty(chainActive.Tip());
+					double nAmountBuffer = 1 - nBuffer;
+					double nAgeBuffer = 1 + nBuffer;
 	
 					if (!c.TXID.empty())
 					{
-						LogPrintf("\nBiblePayMiner::Choosing to tithe with coin age %f and coin amount %f with a total tithe amount of %f with current pog difficulty of %f  ",
-							c.Age, (double)c.Amount/COIN, (double)nTitheAmount / COIN, dPD);
+						LogPrintf("\nBiblePayMiner::Choosing to tithe with coin age %f and coin amount %f with a total tithe amount of %f with current pog difficulty of %f with buffered tithe amount of %f. ",
+							c.Age, (double)c.Amount/COIN, (double)nTitheAmount / COIN, dPD, (double)(nTitheAmount * nAmountBuffer)/COIN);
 					}
-					std::string sTxId = SendTithe(nTitheAmount, tdp.min_coin_age, tdp.min_coin_amount, tdp.max_tithe_amount, c.TXID, c.Ordinal, sError);
+					std::string sTxId = SendTithe(nTitheAmount * nAmountBuffer, tdp.min_coin_age * nAgeBuffer, tdp.min_coin_amount, tdp.max_tithe_amount, c.TXID, c.Ordinal, sError);
 					if (!sError.empty())
 					{
 						LogPrintf("\nBiblePayMiner::SendTithe::Error - Unable to send tithe - Amount %f, Error %s ", (double)nTitheAmount / COIN, sError.c_str());
@@ -890,7 +901,7 @@ recover:
 
 			// Clear errors
 			WriteCache("poolthread" + RoundToString(iThreadID,0), "poolinfo1", "", GetAdjustedTime());
-	
+
             //
             // Search
             //

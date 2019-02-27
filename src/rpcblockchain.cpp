@@ -3113,10 +3113,14 @@ UniValue exec(const UniValue& params, bool fHelp)
 							nIllegalCount++;
 						}
 						std::string sErr = TitheErrorToString(iLegal);
+						std::string sConditions = "Max Tithe Amt: " + RoundToString((double)tdp.max_tithe_amount/COIN, 2)  + ", Min Age: " + RoundToString(tdp.min_coin_age, 2) 
+							+ ", Min Coin Value: " + RoundToString((double)tdp.min_coin_amount/COIN, 2);
+
 						std::string sRow = "Legal: " + RoundToString(iLegal, 0) + " [" + sErr + "], Amount: " + RoundToString((double)oTithe.Amount/COIN, 2) 
 							+ ", Height: " + RoundToString(oTithe.Height, 0) + ", Spent_Coin_Value: " + RoundToString((double)oTithe.CoinAmount/COIN, 2)
 							+ ", " + oTithe.TXID + "-" + RoundToString(oTithe.Ordinal, 0) 
-							+ ", Age: " + RoundToString(oTithe.Age, 2) + ", NickName: " + Caption(oTithe.NickName);
+							+ ", Age: " + RoundToString(oTithe.Age, 2) + ", NickName: " + Caption(oTithe.NickName) + " [" + sConditions + "]";
+
 						results.push_back(Pair(oTithe.Address, sRow));
 					}
 				}
@@ -3336,6 +3340,50 @@ UniValue exec(const UniValue& params, bool fHelp)
 			std::string sKey = "Difficulty: " + RoundToString(nDifficulty, 0) + " (Tithes=" + RoundToString(n24HourTithes / COIN, 2) + ") ";
 			results.push_back(Pair(sKey, sRow));
 		}
+	}
+	else if (sItem == "ipfstest1")
+	{
+		std::string sResult = BiblePayHTTPSPost2(true, "http", "pool.biblepay.org", "ipfs.aspx", "na", "gear.png");
+		results.push_back(Pair("result",sResult));
+	}
+	else if (sItem == "stratissignmessage")
+	{
+		 LOCK2(cs_main, pwalletMain->cs_wallet);
+		 EnsureWalletIsUnlocked();
+		 string strAddress = params[1].get_str();
+		 string strMessage = params[2].get_str();
+		 CBitcoinAddress addr(strAddress);
+		 if (!addr.IsValid())
+			throw JSONRPCError(RPC_TYPE_ERROR, "Invalid address");
+		 CKeyID keyID;
+		 if (!addr.GetKeyID(keyID))
+			 throw JSONRPCError(RPC_TYPE_ERROR, "Address does not refer to key");
+		 CKey key;
+		 if (!pwalletMain->GetKey(keyID, key))
+			throw JSONRPCError(RPC_WALLET_ERROR, "Private key not available");
+		 CHashWriter ss(SER_GETHASH, 0);
+		 ss << strMessageMagic;
+		 ss << strMessage;
+		 vector<unsigned char> vchSig;
+		 if (!key.SignCompact(ss.GetHash(), vchSig))
+			throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Sign failed");
+		 std::string s64 = EncodeBase64(&vchSig[0], vchSig.size());
+		 results.push_back(Pair("base64_sig", s64));
+		 std::string sBin(vchSig.begin(), vchSig.end());
+		 results.push_back(Pair("sig_size", sBin.length()));
+		 results.push_back(Pair("sig_hash", ss.GetHash().GetHex()));
+
+	     std::string sHex = ConvertBinToHex(sBin);
+		 results.push_back(Pair("sig_hex", sHex));
+		 // Hex of serialized message
+		 ostringstream s80;
+		 s80 << strMessageMagic;
+		 s80 << strMessage;
+
+		 std::string sMsg = s80.str();
+		 std::string sMsgHex = ConvertBinToHex(sMsg);
+		 results.push_back(Pair("message_hex", sMsgHex));
+
 	}
 	else if (sItem == "datalist")
 	{

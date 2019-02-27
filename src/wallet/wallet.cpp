@@ -2313,7 +2313,7 @@ void CWallet::AvailableCoins(vector<COutput>& vCoins, bool fOnlyConfirmed, const
 				if (cct.Color=="401" && nCoinType != ONLY_RETIREMENT_COINS) continue;
 				if (nMinAmount > 0 && pcoin->vout[i].nValue < nMinAmount) continue;
 				if (nMinAge    > 0 && nAge < nMinAge) continue;
-				if (!sSpecificTxId.empty()) if (pcoin->GetHash().ToString() != sSpecificTxId || i != (int)nSpecificOutput) continue;
+				if (!sSpecificTxId.empty()) if (pcoin->GetHash().ToString() != sSpecificTxId || i != (unsigned int)nSpecificOutput) continue;
 
 				if(nCoinType == ONLY_DENOMINATED) 
 				{
@@ -3417,7 +3417,7 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
 										txNew.vout[nTithePosRet].sTxOutMessage = "<change>2</change>";
 										// Reduce change 
 										CAmount nChangeLeft = nChange - nOwed;
-										newTxOut = CTxOut(nChangeLeft, scriptChange);
+										newTxOut = CTxOut(nChangeLeft, scriptTitheReturn);
 									}
 								}
 							}

@@ -424,7 +424,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
 			CTitheObject c = SelectCoinForTithing(chainActive.Tip());
 			if (c.Amount == 0 || c.TXID == "")
 			{
-				Q_EMIT message(tr("Send Coins"), tr("Unable to find any coins that meet this difficulty level of %1 biblepay.").arg(caMaxTitheAmount/COIN), CClientUIInterface::MSG_ERROR);
+				Q_EMIT message(tr("Send Coins"), tr("Unable to find any coins that meet this difficulty level of %1 biblepay.").arg(GUIUtil::TOQS(RoundToString(caMaxTitheAmount/COIN, 2))), CClientUIInterface::MSG_ERROR);
 					return TransactionCreationFailed;
 			}
 			sSpecificTxId = c.TXID;
@@ -442,7 +442,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
 		{
 			if (fPOGEnabled && fTithed && total > caMaxTitheAmount)
 			{
-				Q_EMIT message(tr("Send Coins"), tr("Your tithe exceeds the current maximum tithe for this difficulty level of %1 biblepay.").arg(caMaxTitheAmount/COIN),
+				Q_EMIT message(tr("Send Coins"), tr("Your tithe exceeds the current maximum tithe for this difficulty level of %1 biblepay.").arg(GUIUtil::TOQS(RoundToString(caMaxTitheAmount/COIN, 2))),
 								 CClientUIInterface::MSG_ERROR);
 					return TransactionCreationFailed;
 			}
