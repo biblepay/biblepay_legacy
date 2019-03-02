@@ -2398,11 +2398,13 @@ UniValue exec(const UniValue& params, bool fHelp)
 				std::string sAddress = GetDCCElement(sData, 1, true);
 				if (nUserId > 0)
 				{ 
+
 					double RAC = GetBoincRACByUserId("project1", nUserId);
 					results.push_back(Pair(s1 + "_ADDRESS", sAddress));
 					results.push_back(Pair(s1 + "_RAC", RAC));
 					double dTeam = GetBoincTeamByUserId("project1", nUserId);
 					results.push_back(Pair(s1 + "_TEAM", dTeam));
+				
 					if (dBiblepayTeam > 0)
 					{
 						if (dBiblepayTeam != dTeam && dNonBiblepayTeamPercentage != 1)
@@ -3370,7 +3372,6 @@ UniValue exec(const UniValue& params, bool fHelp)
 		 std::string s64 = EncodeBase64(&vchSig[0], vchSig.size());
 		 results.push_back(Pair("base64_sig", s64));
 		 std::string sBin(vchSig.begin(), vchSig.end());
-		 //results.push_back(Pair("sig_size", sBin.length()));
 		 results.push_back(Pair("sig_hash", ss.GetHash().GetHex()));
 	     std::string sHex = ConvertBinToHex(sBin);
 		 results.push_back(Pair("sig_hex", sHex));

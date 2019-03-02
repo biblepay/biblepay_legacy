@@ -367,8 +367,9 @@ bool CSuperblockManager::IsSuperblockTriggered(int nBlockHeight)
 
         // note : 12.1 - is epoch calculation correct?
 
-        if(nBlockHeight != pSuperblock->GetBlockStart()) {
-            LogPrintf("\n *****	CSuperblockManager::IsSuperblockTriggered -- block height doesn't match nBlockHeight = %d, blockStart = %d, continuing\n",
+        if(nBlockHeight != pSuperblock->GetBlockStart()) 
+		{
+            LogPrint("gobject", "\n *****	CSuperblockManager::IsSuperblockTriggered -- block height doesn't match nBlockHeight = %d, blockStart = %d, continuing\n",
                      nBlockHeight,
                      pSuperblock->GetBlockStart());
             DBG( cout << "IsSuperblockTriggered Not the target block, continuing"

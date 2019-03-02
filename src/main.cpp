@@ -7599,6 +7599,8 @@ std::string GetVersionAlert()
 	sCurrentVersion = strReplace(sCurrentVersion, ".", "");
 	double dCurrentVersion = cdbl(sCurrentVersion, 0);
 	std::string sNarr = "";
+	bool bDevBranch = (Contains(strSubVersion, "Develop") || Contains(strSubVersion, "Test"));
+	if (bDevBranch) return "";
 	if (dCurrentVersion < dGithubVersion && fProd) sNarr = "<br>** Client Out of Date (v=" + sCurrentVersion + "/v=" + sGithubVersion + ") **";
 	return sNarr;
 }

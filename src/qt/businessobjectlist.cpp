@@ -71,8 +71,8 @@ void BusinessObjectList::UpdateObject(std::string objType)
 	{
 		sFields = "id,nickname,address,height,amount,weight";
 		pString = GUIUtil::TOQS(GetPOGBusinessObjectList(ObjectType, sFields));
-        // Update once per two minutes
-        QTimer::singleShot(120000, this, SLOT(RefreshPogLeaderboard()));
+        // Update once per five minutes
+        QTimer::singleShot(300000, this, SLOT(RefreshPogLeaderboard()));
 	}
 	else
 	{
@@ -129,7 +129,7 @@ void BusinessObjectList::createUI(const QStringList &headers, const QString &pSt
     ui->tableWidget->setHorizontalHeaderLabels(headers);
     QString s;
 	double dGrandTotal = 0;
-	
+	int iHighlighted = 0;
     for(int i = 0; i < rows; i++)
 	{
 		bool bHighlighted = (iNameCol > 0 && pMatrix[i][iNameCol] == GUIUtil::TOQS(msNickName));
@@ -149,6 +149,7 @@ void BusinessObjectList::createUI(const QStringList &headers, const QString &pSt
 		{
 			ui->tableWidget->selectRow(i);
 			ui->tableWidget->item(i, iNameCol)->setBackground(Qt::yellow);
+			iHighlighted = i;
 		}
 
 		if (iAmountCol > -1)
@@ -175,6 +176,13 @@ void BusinessObjectList::createUI(const QStringList &headers, const QString &pSt
 		addFooterRow(rows, iFooterRow, "My Nick Name:", ExtractXML(sXML, "<my_nickname>","</my_nickname>"));
 		addFooterRow(rows, iFooterRow, "Total Pool Tithes:", ExtractXML(sXML, "<total>","</total>"));
 		addFooterRow(rows, iFooterRow, "Total Pool Participants:", ExtractXML(sXML, "<participants>","</participants>"));
+		if (iHighlighted > 0) 
+		{
+			ui->tableWidget->scrollToTop();
+			ui->tableWidget->selectRow(iHighlighted);
+			ui->tableWidget->scrollTo(ui->tableWidget->currentIndex());
+		}
+
 	}
 	else if (iFooterRow > 0)
 	{

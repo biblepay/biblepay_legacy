@@ -1158,14 +1158,13 @@ int64_t GetFileSize(std::string sPath)
 	return (int64_t)boost::filesystem::file_size(sPath);
 }
 
-
 std::string AddBlockchainMessages(std::string sAddress, std::string sType, std::string sPrimaryKey, 
 	std::string sHTML, CAmount nAmount, double minCoinAge, std::string& sError)
 {
 	CBitcoinAddress cbAddress(sAddress);
     if (!cbAddress.IsValid()) 
 	{
-		sError = "Invalid Destination Address";
+		sError = "\nAddBlockchainMessages::Invalid Destination Address:" + sAddress;
 		return "";
 	}
     CWalletTx wtx;

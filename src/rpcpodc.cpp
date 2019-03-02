@@ -1090,48 +1090,53 @@ double GetMagnitudeByAddress(std::string sAddress)
 	return nTotal;
 }
 
+std::string GetPubAddresses()
+{
+	std::string sList = "";
+	BOOST_FOREACH(const PAIRTYPE(CBitcoinAddress, CAddressBookData)& item, pwalletMain->mapAddressBook)
+    {
+        std::string strName = item.second.name;
+		const CBitcoinAddress& address = item.first;
+		bool fMine = IsMine(*pwalletMain, address.Get());
+		std::string sAddress = CBitcoinAddress(address).ToString();
+		if (fMine && !strName.empty()) sList += sAddress + ",";
+	}
+	return sList;
+}
+
 std::string FindResearcherCPIDByAddress(std::string sSearch, std::string& out_address, double& nTotalMagnitude)
 {
 	std::string sDefaultRecAddress = "";
 	msGlobalCPID = "";
 	std::string sLastCPID = "";
 	nTotalMagnitude = 0;
-	BOOST_FOREACH(const PAIRTYPE(CBitcoinAddress, CAddressBookData)& item, pwalletMain->mapAddressBook)
-    {
-        const CBitcoinAddress& address = item.first;
-        std::string strName = item.second.name;
-        bool fMine = IsMine(*pwalletMain, address.Get());
-        if (fMine)
+	std::vector<std::string> vCPIDs = GetListOfDCCS("", true);
+	std::string sList = GetPubAddresses();    
+	if (vCPIDs.size() == 0) return "";
+	for (int i=0; i < (int)vCPIDs.size(); i++)
+	{
+		std::string sCPID = GetDCCElement(vCPIDs[i], 0, false);
+		std::string sChainAddress = GetDCCElement(vCPIDs[i], 1, true);
+		if (Contains(sList, sChainAddress))
 		{
-		    std::string sAddress = CBitcoinAddress(address).ToString();
-			boost::to_upper(strName);
-			// If we have a valid burn in the chain, prefer it
-			std::vector<std::string> vCPIDs = GetListOfDCCS(sAddress, true);
-			if (vCPIDs.size() > 0)
+			nTotalMagnitude += GetMagnitudeByAddress(sChainAddress);
+			if (sSearch.empty() && !sCPID.empty()) 
 			{
-				nTotalMagnitude += GetMagnitudeByAddress(sAddress);
-				for (int i=0; i < (int)vCPIDs.size(); i++)
+				out_address = sChainAddress;
+				msGlobalCPID += sCPID + ";";
+				sLastCPID = sCPID;
+			}
+			else if (!sSearch.empty())
+			{
+				if (sSearch == sChainAddress && !sCPID.empty()) 
 				{
-					std::string sCPID = GetDCCElement(vCPIDs[i], 0, false);
-					if (sSearch.empty() && !sCPID.empty()) 
-					{
-						out_address = sAddress;
-						msGlobalCPID += sCPID + ";";
-						sLastCPID = sCPID;
-					}
-					else if (!sSearch.empty())
-					{
-						if (sSearch == sAddress && !sCPID.empty()) 
-						{
-							nTotalMagnitude = GetMagnitudeByAddress(sAddress);
-							out_address = sAddress;
-							return sCPID;
-						}
-					}
+					nTotalMagnitude = GetMagnitudeByAddress(sChainAddress);
+					out_address = sChainAddress;
+					return sCPID;
 				}
 			}
 		}
-    }
+	}
 	mnMagnitude = nTotalMagnitude;
 	return sLastCPID;
 }
@@ -1534,7 +1539,7 @@ bool AdvertiseDistributedComputingKey(std::string sProjectId, std::string sAuth,
 
 		    // This prevents repeated DCC advertisements
             nLastDCCAdvertised = chainActive.Tip()->nHeight;
-			std::string sResult = SendBlockchainMessage("DCC", sCPID, sData, 1, false, sError);
+			std::string sResult = SendBlockchainMessage("DCC", sCPID, sData, .24, false, sError);
 			if (!sError.empty())
 			{
 				return false;
@@ -2283,6 +2288,9 @@ std::string GetBoincTasksByHost(int iHostID, std::string sProjectId)
 bool PODCUpdate(std::string& sError, bool bForce, std::string sDebugInfo)
 {
 	if (!PODCEnabled(chainActive.Tip()->nHeight)) return false;
+	double dUTXOOverrideAmount = cdbl(GetArg("-utxooverride", "0"), 2);
+	if (dUTXOOverrideAmount == -1) return false;
+				
 	std::vector<std::string> vCPIDS = Split(msGlobalCPID.c_str(), ";");
 	std::string sPrimaryCPID = GetElement(msGlobalCPID, ";", 0);
 	if (sPrimaryCPID.empty())
@@ -2307,7 +2315,7 @@ bool PODCUpdate(std::string& sError, bool bForce, std::string sDebugInfo)
 		bForceUTXO = true;
 	}
 	int64_t iMaxSeconds = 60 * 24 * 30 * 12 * 60;
-	int iInserted = 0;
+    int iInserted = 0;
 	int iCPIDSProcessed = 0;	
 	for (int i = 0; i < (int)vCPIDS.size(); i++)
 	{
@@ -2317,6 +2325,8 @@ bool PODCUpdate(std::string& sError, bool bForce, std::string sDebugInfo)
 			std::string sData = RetrieveDCCWithMaxAge(s1, iMaxSeconds);
 			std::string sAddress = GetDCCElement(sData, 1, true);
 			std::string sOutstanding = "";
+			LogPrintf(" PODCUpdate Processing CPID %s address %s debug %s ",s1.c_str(), sAddress.c_str(), sDebugInfo.c_str());
+
 			if (!sData.empty() && !sAddress.empty())
 			{
 				std::string sUserId = GetDCCElement(sData, 3, true);
@@ -2324,28 +2334,31 @@ bool PODCUpdate(std::string& sError, bool bForce, std::string sDebugInfo)
 				if (nUserId > 0)
 				{
 					iCPIDSProcessed++;
-					std::string sHosts = GetBoincHostsByUser(nUserId, "project1");
-					std::vector<std::string> vH = Split(sHosts.c_str(), ",");
-					for (int j = 0; j < (int)vH.size(); j++)
+					if (bCheckingTasks)
 					{
-						double dHost = cdbl(vH[j], 0);
-						std::string sTasks = GetBoincTasksByHost((int)dHost, "project1");
-						std::vector<std::string> vT = Split(sTasks.c_str(), ",");
-						for (int k = 0; k < (int)vT.size(); k++)
+						std::string sHosts = GetBoincHostsByUser(nUserId, "project1");
+						std::vector<std::string> vH = Split(sHosts.c_str(), ",");
+						for (int j = 0; j < (int)vH.size(); j++)
 						{
-							std::string sTask = vT[k];
-							std::vector<std::string> vEquals = Split(sTask.c_str(), "=");
-							if (vEquals.size() > 1)
+							double dHost = cdbl(vH[j], 0);
+							std::string sTasks = GetBoincTasksByHost((int)dHost, "project1");
+							std::vector<std::string> vT = Split(sTasks.c_str(), ",");
+							for (int k = 0; k < (int)vT.size(); k++)
 							{
-								std::string sTaskID = vEquals[0];
-								std::string sTimestamp = vEquals[1];
-								if (cdbl(sTimestamp,0) > 0 && cdbl(sTaskID,0) > 0)
+								std::string sTask = vT[k];
+								std::vector<std::string> vEquals = Split(sTask.c_str(), "=");
+								if (vEquals.size() > 1)
 								{
-									// Biblepay network does not know this device started this task, add this to the UTXO transaction
-									sOutstanding += sTaskID + "=" + sTimestamp + ",";
-									iInserted++;
-									if (iInserted > 255 || sOutstanding.length() > 35000) break; // Don't let them blow up the blocksize
-									if (iInserted > 1 && !bCheckingTasks) break; // Don't spam the transactions if we aren't using the data
+									std::string sTaskID = vEquals[0];
+									std::string sTimestamp = vEquals[1];
+									if (cdbl(sTimestamp,0) > 0 && cdbl(sTaskID,0) > 0)
+									{
+										// Biblepay network does not know this device started this task, add this to the UTXO transaction
+										sOutstanding += sTaskID + "=" + sTimestamp + ",";
+										iInserted++;
+										if (iInserted > 255 || sOutstanding.length() > 35000) break; // Don't let them blow up the blocksize
+										if (iInserted > 1 && !bCheckingTasks) break; // Don't spam the transactions if we aren't using the data
+									}
 								}
 							}
 						}
@@ -2357,10 +2370,12 @@ bool PODCUpdate(std::string& sError, bool bForce, std::string sDebugInfo)
 				sOutstanding += sDebugInfo + "=" + RoundToString(GetAdjustedTime(), 0) + ",";
 				iInserted++;
 			}
-			if (!sOutstanding.empty())
+			if (!sOutstanding.empty() && !sAddress.empty())
 			{
 				sOutstanding = ChopLast(sOutstanding);
 				mnPODCTried++;
+				LogPrintf(" PODCUpdate::Ready to send PODC for CPID %s for address %s \n", s1.c_str(), sAddress.c_str());
+
 					
 				// Create PODC UTXO Transaction - R Andrews - 02-20-2018 - These tasks will be checked on the Sanctuary side, to ensure they were started at this time.  
 				// If so, the UTXO COINAMOUNT * AGE * RAC will be rewarded for this task.
@@ -2425,7 +2440,7 @@ bool PODCUpdate(std::string& sError, bool bForce, std::string sDebugInfo)
 						}
 						std::string sXML = "<PODC_TASKS>" + sOutstanding + "</PODC_TASKS>" + sFullSig;
 						double dMinCoinAge = cdbl(GetSporkValue("podcmincoinage"), 0);
-	
+						LogPrintf(" PODCUpdate - Creating PODC Update for CPID %s, address %s \n", s1.c_str(), sAddress.c_str());
 						AddBlockchainMessages(sAddress, "PODC_UPDATE", s1, sXML, nTargetValue, dMinCoinAge, sErrorInternal);
 						if (bTriedToUnlock) pwalletMain->Lock();
 
