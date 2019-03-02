@@ -223,9 +223,11 @@ CAmount SelectCoinsForTithing(const CBlockIndex* pindex)
 
 CTitheObject SelectCoinForTithing(const CBlockIndex* pindex)
 {
+	double nBuffer = cdbl(GetArg("-pogbuffer", ".05"), 2);
+	double nAgeBuffer = 1 + nBuffer;
 	TitheDifficultyParams tdp = GetTitheParams(pindex);
-	std::map<int64_t, CTitheObject> dtb = pwalletMain->GetDimensionalCoins(tdp.min_coin_age, tdp.min_coin_amount);
-	// Scan for Coin with the least Coin Age that meets diff parameters
+	std::map<int64_t, CTitheObject> dtb = pwalletMain->GetDimensionalCoins(tdp.min_coin_age * nAgeBuffer, tdp.min_coin_amount);
+	// Scan for Coin with the least Coin Age that meets diff parameters (and honor the buffer (Sakic) )
 	double dMinCoinAge = 9999;
 	CTitheObject cMostApplicable;
 	BOOST_FOREACH(const PAIRTYPE(int64_t, CTitheObject)& item, dtb)
