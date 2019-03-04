@@ -143,7 +143,7 @@ public:
 };
 
 /**
- * Dash RPC command dispatcher.
+ * Biblepay RPC command dispatcher.
  */
 class CRPCTable
 {

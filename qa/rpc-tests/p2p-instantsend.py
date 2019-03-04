@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-# Copyright (c) 2018 The Dash Core developers
+# Copyright (c) 2018 The BiblePay Core developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 from test_framework.mininode import *
-from test_framework.test_framework import DashTestFramework
+from test_framework.test_framework import BiblepayTestFramework
 from test_framework.util import *
 from time import *
 
@@ -12,7 +12,7 @@ from time import *
 InstantSendTest -- test InstantSend functionality (prevent doublespend for unconfirmed transactions)
 '''
 
-class InstantSendTest(DashTestFramework):
+class InstantSendTest(BiblepayTestFramework):
     def __init__(self):
         super().__init__(14, 10, [])
         # set sender,  receiver,  isolated nodes

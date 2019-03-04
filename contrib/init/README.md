@@ -1,11 +1,11 @@
 Sample configuration files for:
 
-SystemD: dashd.service
-Upstart: dashd.conf
-OpenRC:  dashd.openrc
-         dashd.openrcconf
-CentOS:  dashd.init
-OS X:    org.dash.dashd.plist
+SystemD: biblepayd.service
+Upstart: biblepayd.conf
+OpenRC:  biblepayd.openrc
+         biblepayd.openrcconf
+CentOS:  biblepayd.init
+OS X:    org.biblepay.biblepayd.plist
 
 have been made available to assist packagers in creating node packages here.
 

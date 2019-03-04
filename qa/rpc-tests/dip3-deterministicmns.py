@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright (c) 2015-2018 The Dash Core developers
+# Copyright (c) 2015-2018 The BiblePay Core developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -54,7 +54,7 @@ class DIP3Test(BitcoinTestFramework):
         print("funding controller node")
         while self.nodes[0].getbalance() < (self.num_initial_mn + 3) * 1000:
             self.nodes[0].generate(1) # generate enough for collaterals
-        print("controller node has {} dash".format(self.nodes[0].getbalance()))
+        print("controller node has {} biblepay".format(self.nodes[0].getbalance()))
 
         # Make sure we're below block 143 (which activates dip3)
         print("testing rejection of ProTx before dip3 activation")

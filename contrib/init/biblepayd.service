@@ -1,0 +1,22 @@
+[Unit]
+Description=Biblepay's distributed currency daemon
+After=network.target
+
+[Service]
+User=biblepaycore
+Group=biblepaycore
+
+Type=forking
+PIDFile=/var/lib/biblepayd/biblepayd.pid
+ExecStart=/usr/bin/biblepayd -daemon -pid=/var/lib/biblepayd/biblepayd.pid \
+-conf=/etc/biblepaycore/biblepay.conf -datadir=/var/lib/biblepayd -disablewallet
+
+Restart=always
+PrivateTmp=true
+TimeoutStopSec=60s
+TimeoutStartSec=2s
+StartLimitInterval=120s
+StartLimitBurst=5
+
+[Install]
+WantedBy=multi-user.target

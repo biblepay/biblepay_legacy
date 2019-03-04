@@ -45,7 +45,7 @@ env:
 
 before_cache:
   # Save builder image
-  - docker save dash-builder-$BUILD_TARGET-$TRAVIS_JOB_NUMBER $(docker history -q dash-builder-$BUILD_TARGET-$TRAVIS_JOB_NUMBER | grep -v \<missing\>) | gzip -2 > $HOME/cache/docker/dash-builder-$BUILD_TARGET.tar.gz
+  - docker save biblepay-builder-$BUILD_TARGET-$TRAVIS_JOB_NUMBER $(docker history -q biblepay-builder-$BUILD_TARGET-$TRAVIS_JOB_NUMBER | grep -v \<missing\>) | gzip -2 > $HOME/cache/docker/biblepay-builder-$BUILD_TARGET.tar.gz
 
 install:
     # Our scripts try to be Travis agnostic
@@ -58,7 +58,7 @@ install:
     # Keep this as it makes caching related debugging easier
     - ls -lah $HOST_CACHE_DIR && ls -lah $HOST_CACHE_DIR/depends && ls -lah $HOST_CACHE_DIR/ccache && ls -lah $HOST_CACHE_DIR/docker
     # Load cached builder image
-    - if [ -f $HOST_CACHE_DIR/docker/dash-builder-$BUILD_TARGET.tar.gz ]; then zcat $HOST_CACHE_DIR/docker/dash-builder-$BUILD_TARGET.tar.gz | docker load || true; fi
+    - if [ -f $HOST_CACHE_DIR/docker/biblepay-builder-$BUILD_TARGET.tar.gz ]; then zcat $HOST_CACHE_DIR/docker/biblepay-builder-$BUILD_TARGET.tar.gz | docker load || true; fi
     - docker build --pull -t $BUILDER_IMAGE_NAME --build-arg=USER_ID=$UID --build-arg=GROUP_ID=$UID --build-arg=BUILD_TARGET=$BUILD_TARGET -f ci/Dockerfile.builder ci
 before_script:
     # Make sure stdout is in blocking mode. Otherwise builds will fail due to large writes to stdout
@@ -74,7 +74,7 @@ script:
     - test "$DEPENDS_TIMEOUT" != "true" && $DOCKER_RUN_IN_BUILDER ./ci/build_src.sh
     - test "$DEPENDS_TIMEOUT" != "true" && $DOCKER_RUN_IN_BUILDER ./ci/test_unittests.sh
     - test "$DEPENDS_TIMEOUT" != "true" && $DOCKER_RUN_IN_BUILDER ./ci/test_integrationtests.sh -parallel=3
-    - test "$DEPENDS_TIMEOUT" != "true" && if [ "$DOCKER_BUILD" = "true" ]; then BUILD_DIR=build-ci/dashcore-$BUILD_TARGET ./docker/build-docker.sh; fi
+    - test "$DEPENDS_TIMEOUT" != "true" && if [ "$DOCKER_BUILD" = "true" ]; then BUILD_DIR=build-ci/biblepaycore-$BUILD_TARGET ./docker/build-docker.sh; fi
 after_script:
     - echo $TRAVIS_COMMIT_RANGE
     - echo $TRAVIS_COMMIT_LOG

@@ -1,9 +1,9 @@
-// Copyright (c) 2018 The Dash Core developers
+// Copyright (c) 2018 The BiblePay Core developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef DASH_QUORUMS_INIT_H
-#define DASH_QUORUMS_INIT_H
+#ifndef BIBLEPAY_QUORUMS_INIT_H
+#define BIBLEPAY_QUORUMS_INIT_H
 
 class CEvoDB;
 
@@ -15,4 +15,4 @@ void DestroyLLMQSystem();
 
 }
 
-#endif //DASH_QUORUMS_INIT_H
+#endif //BIBLEPAY_QUORUMS_INIT_H

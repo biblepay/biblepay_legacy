@@ -1,6 +1,6 @@
 FROM debian:stretch
-LABEL maintainer="Dash Developers <dev@dash.org>"
-LABEL description="Dockerised DashCore, built from Travis"
+LABEL maintainer="Biblepay Developers <dev@biblepay.org>"
+LABEL description="Dockerised BiblepayCore, built from Travis"
 
 RUN apt-get update && apt-get -y upgrade && apt-get clean && rm -fr /var/cache/apt/*
 

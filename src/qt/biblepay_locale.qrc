@@ -1,0 +1,25 @@
+<!DOCTYPE RCC><RCC version="1.0">
+    <qresource prefix="/translations">
+        <file alias="ar">locale/biblepay_ar.qm</file>
+        <file alias="bg">locale/biblepay_bg.qm</file>
+        <file alias="de">locale/biblepay_de.qm</file>
+        <file alias="en">locale/biblepay_en.qm</file>
+        <file alias="es">locale/biblepay_es.qm</file>
+        <file alias="fi">locale/biblepay_fi.qm</file>
+        <file alias="fr">locale/biblepay_fr.qm</file>
+        <file alias="it">locale/biblepay_it.qm</file>
+        <file alias="ja">locale/biblepay_ja.qm</file>
+        <file alias="ko">locale/biblepay_ko.qm</file>
+        <file alias="nl">locale/biblepay_nl.qm</file>
+        <file alias="pl">locale/biblepay_pl.qm</file>
+        <file alias="pt">locale/biblepay_pt.qm</file>
+        <file alias="ru">locale/biblepay_ru.qm</file>
+        <file alias="sk">locale/biblepay_sk.qm</file>
+        <file alias="sv">locale/biblepay_sv.qm</file>
+        <file alias="th">locale/biblepay_th.qm</file>
+        <file alias="tr">locale/biblepay_tr.qm</file>
+        <file alias="vi">locale/biblepay_vi.qm</file>
+        <file alias="zh_CN">locale/biblepay_zh_CN.qm</file>
+        <file alias="zh_TW">locale/biblepay_zh_TW.qm</file>
+    </qresource>
+</RCC>

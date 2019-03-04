@@ -6,13 +6,13 @@ reset-files.bash
 *.tar.gz
 
 *.exe
-src/dash
-src/dashd
-src/dash-cli
-src/dash-tx
-src/test/test_dash
-src/qt/test/test_dash-qt
-src/bench/bench_dash
+src/biblepay
+src/biblepayd
+src/biblepay-cli
+src/biblepay-tx
+src/test/testbiblepay
+src/qt/test/testbiblepay-qt
+src/bench/benchbiblepay
 
 # autoreconf
 Makefile.in
@@ -35,8 +35,8 @@ config.log
 config.status
 configure
 libtool
-src/config/dash-config.h
-src/config/dash-config.h.in
+src/config/biblepay-config.h
+src/config/biblepay-config.h.in
 src/config/stamp-h1
 share/setup.nsi
 share/qt/Info.plist
@@ -81,12 +81,12 @@ libconftest.dylib*
 # Compilation and Qt preprocessor part
 *.qm
 Makefile
-dash-qt
-Dash-Qt.app
+biblepay-qt
+Biblepay-Qt.app
 
 # Unit-tests
 Makefile.test
-dash-qt_test
+biblepay-qt_test
 src/test/buildenv.py
 
 # Resources cpp
@@ -100,7 +100,7 @@ build
 *.gcno
 *.gcda
 /*.info
-test_dash.coverage/
+testbiblepay.coverage/
 total.coverage/
 coverage_percent.txt
 
@@ -118,15 +118,15 @@ qa/cache/*
 .autotools
 /doc/doxygen/
 
-libdashconsensus.pc
+libbiblepayconsensus.pc
 contrib/devtools/split-debug.sh
-src/qt/dash-qt.bash
+src/qt/biblepay-qt.bash
 qa/pull-tester/tests-config.sh
 
 #development symlinks
-dash-cli
-dashd
-dash-qt
+biblepay-cli
+biblepayd
+biblepay-qt
 make
 
 /docker/bin

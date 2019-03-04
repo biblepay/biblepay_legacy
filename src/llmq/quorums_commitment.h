@@ -1,9 +1,9 @@
-// Copyright (c) 2018 The Dash Core developers
+// Copyright (c) 2018 The BiblePay Core developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef DASH_QUORUMS_COMMITMENT_H
-#define DASH_QUORUMS_COMMITMENT_H
+#ifndef BIBLEPAY_QUORUMS_COMMITMENT_H
+#define BIBLEPAY_QUORUMS_COMMITMENT_H
 
 #include "consensus/params.h"
 
@@ -116,4 +116,4 @@ bool CheckLLMQCommitment(const CTransaction& tx, const CBlockIndex* pindexPrev, 
 
 }
 
-#endif //DASH_QUORUMS_COMMITMENT_H
+#endif //BIBLEPAY_QUORUMS_COMMITMENT_H
