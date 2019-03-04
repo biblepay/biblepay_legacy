@@ -556,13 +556,13 @@ void PrintExceptionContinue(const std::exception* pex, const char* pszThread)
 boost::filesystem::path GetDefaultDataDir()
 {
     namespace fs = boost::filesystem;
-    // Windows < Vista: C:\Documents and Settings\Username\Application Data\BiblepayCore
-    // Windows >= Vista: C:\Users\Username\AppData\Roaming\BiblepayCore
-    // Mac: ~/Library/Application Support/BiblepayCore
+    // Windows < Vista: C:\Documents and Settings\Username\Application Data\BiblepayEvolution
+    // Windows >= Vista: C:\Users\Username\AppData\Roaming\BiblepayEvolution
+    // Mac: ~/Library/Application Support/BiblepayEvolution
     // Unix: ~/.biblepaycore
 #ifdef WIN32
     // Windows
-    return GetSpecialFolderPath(CSIDL_APPDATA) / "BiblepayCore";
+    return GetSpecialFolderPath(CSIDL_APPDATA) / "BiblepayEvolution";
 #else
     fs::path pathRet;
     char* pszHome = getenv("HOME");
@@ -572,10 +572,10 @@ boost::filesystem::path GetDefaultDataDir()
         pathRet = fs::path(pszHome);
 #ifdef MAC_OSX
     // Mac
-    return pathRet / "Library/Application Support/BiblepayCore";
+    return pathRet / "Library/Application Support/BiblepayEvolution";
 #else
     // Unix
-    return pathRet / ".biblepaycore";
+    return pathRet / ".biblepayevolution";
 #endif
 #endif
 }
