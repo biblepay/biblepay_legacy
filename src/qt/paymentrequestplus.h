@@ -7,7 +7,7 @@
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-#include "paymentrequest.pb.h"
+//#include "paymentrequest.pb.h"
 #pragma GCC diagnostic pop
 
 #include "base58.h"

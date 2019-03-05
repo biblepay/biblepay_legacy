@@ -6,7 +6,7 @@
 #include "data/proposals_valid.json.h"
 #include "data/proposals_invalid.json.h"
 
-#include "test/testbiblepay.h"
+#include "test/test_biblepay.h"
 
 #include <iostream>
 #include <fstream>

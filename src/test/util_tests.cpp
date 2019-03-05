@@ -9,7 +9,7 @@
 #include "sync.h"
 #include "utilstrencodings.h"
 #include "utilmoneystr.h"
-#include "test/testbiblepay.h"
+#include "test/test_biblepay.h"
 #include "test/test_random.h"
 
 #include <stdint.h>

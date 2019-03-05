@@ -10,7 +10,7 @@
 #include <vector>
 
 #include "rpc/server.h"
-#include "test/testbiblepay.h"
+#include "test/test_biblepay.h"
 #include "validation.h"
 #include "wallet/test/wallet_test_fixture.h"
 

@@ -11,7 +11,7 @@
 #include "script/sign.h"
 #include "script/ismine.h"
 #include "uint256.h"
-#include "test/testbiblepay.h"
+#include "test/test_biblepay.h"
 
 
 #include <boost/foreach.hpp>

@@ -4,7 +4,7 @@
 
 #include "limitedmap.h"
 
-#include "test/testbiblepay.h"
+#include "test/test_biblepay.h"
 
 #include <boost/test/unit_test.hpp>
 

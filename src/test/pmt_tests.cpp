@@ -9,7 +9,7 @@
 #include "uint256.h"
 #include "arith_uint256.h"
 #include "version.h"
-#include "test/testbiblepay.h"
+#include "test/test_biblepay.h"
 #include "test/test_random.h"
 
 #include <vector>

@@ -14,7 +14,7 @@
 #include "util.h"
 #include "validation.h"
 
-#include "test/testbiblepay.h"
+#include "test/test_biblepay.h"
 
 #include <stdint.h>
 

@@ -4,7 +4,7 @@
 
 #define BOOST_TEST_MODULE Biblepay Test Suite
 
-#include "testbiblepay.h"
+#include "test_biblepay.h"
 
 #include "chainparams.h"
 #include "consensus/consensus.h"

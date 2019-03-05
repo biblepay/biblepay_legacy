@@ -14,7 +14,7 @@
 #include "utilstrencodings.h"
 
 #include "test/testutil.h"
-#include "test/testbiblepay.h"
+#include "test/test_biblepay.h"
 
 #include <fstream>
 

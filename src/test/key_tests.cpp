@@ -9,7 +9,7 @@
 #include "uint256.h"
 #include "util.h"
 #include "utilstrencodings.h"
-#include "test/testbiblepay.h"
+#include "test/test_biblepay.h"
 
 #include <string>
 #include <vector>

@@ -2,7 +2,7 @@
 
 #include "cachemultimap.h"
 
-#include "test/testbiblepay.h"
+#include "test/test_biblepay.h"
 
 #include <algorithm>
 #include <iostream>

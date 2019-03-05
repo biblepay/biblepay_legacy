@@ -4,7 +4,7 @@
 
 #include "chain.h"
 #include "versionbits.h"
-#include "test/testbiblepay.h"
+#include "test/test_biblepay.h"
 #include "test/test_random.h"
 #include "chainparams.h"
 #include "validation.h"

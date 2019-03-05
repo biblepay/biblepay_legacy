@@ -11,3 +11,4 @@ endif
 if BUILD_BITCOIN_UTILS
   dist_man1_MANS+=biblepay-cli.1 biblepay-tx.1
 endif
+ 

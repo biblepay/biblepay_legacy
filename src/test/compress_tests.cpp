@@ -4,7 +4,7 @@
 
 #include "compressor.h"
 #include "util.h"
-#include "test/testbiblepay.h"
+#include "test/test_biblepay.h"
 
 #include <stdint.h>
 

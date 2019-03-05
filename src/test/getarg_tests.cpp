@@ -3,7 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "util.h"
-#include "test/testbiblepay.h"
+#include "test/test_biblepay.h"
 
 #include <string>
 #include <vector>

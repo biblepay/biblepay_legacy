@@ -12,7 +12,7 @@
 #include "script/sign.h"
 #include "util.h"
 #include "utilstrencodings.h"
-#include "test/testbiblepay.h"
+#include "test/test_biblepay.h"
 
 #if defined(HAVE_CONSENSUS_LIB)
 #include "script/biblepayconsensus.h"

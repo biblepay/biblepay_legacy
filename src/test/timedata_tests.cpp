@@ -3,7 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 //
 #include "timedata.h"
-#include "test/testbiblepay.h"
+#include "test/test_biblepay.h"
 
 #include <boost/test/unit_test.hpp>
 

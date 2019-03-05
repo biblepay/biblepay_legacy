@@ -1,7 +1,7 @@
 #!/bin/sh
-# Copyright (c) 2012-2016 The Bitcoin Core developers
+# Copyright (c)  2012-2016 The Bitcoin Core developers
 # Distributed under the MIT software license, see the accompanying
-# file COPYING or http://www.opensource.org/licenses/mit-license.php.
+# file COPYING  or http://www.opensource.org/licenses/mit-license.php.
 
 if [ $# -gt 1 ]; then
     cd "$2"
@@ -22,7 +22,7 @@ SUFFIX=""
 if [ -e "$(which git 2>/dev/null)" -a "$(git rev-parse --is-inside-work-tree 2>/dev/null)" = "true" ]; then
     # clean 'dirty' status of touched files that haven't been modified
     git diff >/dev/null 2>/dev/null 
-
+ 
     # if latest commit is tagged and not dirty, then override using the tag name
     RAWDESC=$(git describe --abbrev=0 2>/dev/null)
     if [ "$(git rev-parse HEAD)" = "$(git rev-list -1 $RAWDESC 2>/dev/null)" ]; then

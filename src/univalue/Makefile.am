@@ -9,7 +9,7 @@ lib_LTLIBRARIES = libunivalue.la
 
 pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = pc/libunivalue.pc
-
+ 
 libunivalue_la_SOURCES = \
 	lib/univalue.cpp \
 	lib/univalue_read.cpp \
