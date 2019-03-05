@@ -6,7 +6,7 @@
 #
 #   AX_BOOST_BASE([MINIMUM-VERSION], [ACTION-IF-FOUND], [ACTION-IF-NOT-FOUND])
 #
-# DESCRIPTION
+# DESCRIPTION 
 #
 #   Test for the Boost C++ libraries of a particular version (or newer)
 #
@@ -170,7 +170,7 @@ if test "x$want_boost" = "xyes"; then
         AC_MSG_RESULT(yes)
     succeeded=yes
     found_system=yes
-        ],[
+        ],[:
         ])
     AC_LANG_POP([C++])
 

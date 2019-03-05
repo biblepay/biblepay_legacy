@@ -21,7 +21,7 @@ export BOOST_TEST_LOG_LEVEL=test_suite
 cd build-ci/biblepaycore-$BUILD_TARGET
 if [ "$DIRECT_WINE_EXEC_TESTS" = "true" ]; then
   # Inside Docker, binfmt isn't working so we can't trust in make invoking windows binaries correctly
-  wine ./src/test/testbiblepay.exe
+  wine ./src/test/test_biblepay.exe
 else
   make $MAKEJOBS check VERBOSE=1
 fi

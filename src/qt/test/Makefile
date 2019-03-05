@@ -1,6 +1,6 @@
 all:
-	$(MAKE) -C ../../ testbiblepay_qt
+	$(MAKE) -C ../../ test_biblepay_qt
 clean:
-	$(MAKE) -C ../../ testbiblepay_qt_clean
+	$(MAKE) -C ../../ test_biblepay_qt_clean
 check:
-	$(MAKE) -C ../../ testbiblepay_qt_check
+	$(MAKE) -C ../../ test_biblepay_qt_check

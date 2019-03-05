@@ -111,9 +111,9 @@ QT_MOC = \
   qt/overviewpage.moc \
   qt/rpcconsole.moc
 
-QT_QRC_CPP = qt/qrcbiblepay.cpp
+QT_QRC_CPP = qt/qrc_biblepay.cpp
 QT_QRC = qt/biblepay.qrc
-QT_QRC_LOCALE_CPP = qt/qrcbiblepay_locale.cpp
+QT_QRC_LOCALE_CPP = qt/qrc_biblepay_locale.cpp
 QT_QRC_LOCALE = qt/biblepay_locale.qrc
 
 PROTOBUF_CC = qt/paymentrequest.pb.cc
@@ -616,7 +616,7 @@ QT_FORMS_H=$(join $(dir $(QT_FORMS_UI)),$(addprefix ui_, $(notdir $(QT_FORMS_UI:
 # Most files will depend on the forms and moc files as includes. Generate them
 # before anything else.
 $(QT_MOC): $(QT_FORMS_H)
-$(qt_libbiblepayqt_a_OBJECTS) $(qtbiblepay_qt_OBJECTS) : | $(QT_MOC)
+$(qt_libbiblepayqt_a_OBJECTS) $(qt_biblepay_qt_OBJECTS) : | $(QT_MOC)
 
 #Generating these with a half-written protobuf header leads to wacky results.
 #This makes sure it's done.
@@ -678,7 +678,7 @@ CLEAN_QT = $(nodist_qt_libbiblepayqt_a_SOURCES) $(QT_QM) $(QT_FORMS_H) qt/*.gcda
 CLEANFILES += $(CLEAN_QT)
 
 biblepay_qt_clean: FORCE
-	rm -f $(CLEAN_QT) $(qt_libbiblepayqt_a_OBJECTS) $(qtbiblepay_qt_OBJECTS) qt/biblepay-qt$(EXEEXT) $(LIBBITCOINQT)
+	rm -f $(CLEAN_QT) $(qt_libbiblepayqt_a_OBJECTS) $(qt_biblepay_qt_OBJECTS) qt/biblepay-qt$(EXEEXT) $(LIBBITCOINQT)
 
 biblepay_qt : qt/biblepay-qt$(EXEEXT)
 
