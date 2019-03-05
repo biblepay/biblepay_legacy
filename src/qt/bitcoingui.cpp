@@ -569,13 +569,17 @@ void BitcoinGUI::createToolBars()
         {
             toolbar->addAction(masternodeAction);
         }
+        
+		toolbar->setOrientation(Qt::Vertical);
         toolbar->setMovable(false); // remove unused icon in upper left corner
         overviewAction->setChecked(true);
+        addToolBar(Qt::LeftToolBarArea, toolbar);
 
         /** Create additional container for toolbar and walletFrame and make it the central widget.
             This is a workaround mostly for toolbar styling on Mac OS but should work fine for every other OSes too.
         */
-        QVBoxLayout *layout = new QVBoxLayout;
+
+        QHBoxLayout *layout = new QHBoxLayout;
         layout->addWidget(toolbar);
         layout->addWidget(walletFrame);
         layout->setSpacing(0);
@@ -583,7 +587,7 @@ void BitcoinGUI::createToolBars()
         QWidget *containerWidget = new QWidget();
         containerWidget->setLayout(layout);
         setCentralWidget(containerWidget);
-    }
+     }
 #endif // ENABLE_WALLET
 }
 

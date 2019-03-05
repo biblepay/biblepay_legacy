@@ -92,13 +92,13 @@ OptionsDialog::OptionsDialog(QWidget *parent, bool enableWallet) :
     }
     
     /* Theme selector */
-    ui->theme->addItem(QString("BIBLEPAY-light"), QVariant("light"));
-    ui->theme->addItem(QString("BIBLEPAY-light-hires"), QVariant("light-hires"));
-    ui->theme->addItem(QString("BIBLEPAY-light-retro"), QVariant("light-retro"));
-    ui->theme->addItem(QString("BIBLEPAY-light-hires-retro"), QVariant("light-hires-retro"));
-    ui->theme->addItem(QString("BIBLEPAY-blue"), QVariant("drkblue"));
-    ui->theme->addItem(QString("BIBLEPAY-Crownium"), QVariant("crownium"));
-    ui->theme->addItem(QString("BIBLEPAY-traditional"), QVariant("trad"));
+    ui->theme->addItem(QString("biblepay-light"), QVariant("light"));
+    ui->theme->addItem(QString("biblepay-light-hires"), QVariant("light-hires"));
+    ui->theme->addItem(QString("biblepay-light-retro"), QVariant("light-retro"));
+    ui->theme->addItem(QString("biblepay-light-hires-retro"), QVariant("light-hires-retro"));
+    ui->theme->addItem(QString("biblepay-blue"), QVariant("drkblue"));
+    ui->theme->addItem(QString("biblepay-bezaleel"), QVariant("bezaleel"));
+    ui->theme->addItem(QString("biblepay-traditional"), QVariant("trad"));
     
     /* Language selector */
     QDir translations(":translations");
