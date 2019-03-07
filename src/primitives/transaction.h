@@ -147,6 +147,7 @@ public:
     CAmount nValue;
     CScript scriptPubKey;
     int nRounds;
+	std::string sTxOutMessage;
 
     CTxOut()
     {
@@ -161,6 +162,8 @@ public:
     inline void SerializationOp(Stream& s, Operation ser_action) {
         READWRITE(nValue);
         READWRITE(*(CScriptBase*)(&scriptPubKey));
+		// R Andrews - Biblepay - Reserve space for Prayers and IPFS TxID pointers
+		READWRITE(LIMITED_STRING(sTxOutMessage, 3000));
     }
 
     void SetNull()
@@ -322,6 +325,7 @@ struct CMutableTransaction
     std::vector<CTxIn> vin;
     std::vector<CTxOut> vout;
     uint32_t nLockTime;
+	std::string sTxMessage;
     std::vector<uint8_t> vExtraPayload; // only available for special transaction types
 
     CMutableTransaction();
@@ -340,6 +344,7 @@ struct CMutableTransaction
         READWRITE(vin);
         READWRITE(vout);
         READWRITE(nLockTime);
+		READWRITE(LIMITED_STRING(sTxMessage,1000));
         if (this->nVersion == 3 && this->nType != TRANSACTION_NORMAL) {
             READWRITE(vExtraPayload);
         }

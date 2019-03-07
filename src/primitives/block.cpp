@@ -19,6 +19,12 @@ uint256 CBlockHeader::GetHash() const
     return HashX11((const char *)vch.data(), (const char *)vch.data() + vch.size());
 }
 
+uint256 CBlockHeader::GetHashBible() const
+{
+	return HashBiblePay(BEGIN(nVersion),END(nNonce));
+}
+
+
 std::string CBlock::ToString() const
 {
     std::stringstream s;

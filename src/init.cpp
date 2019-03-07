@@ -9,7 +9,7 @@
 #endif
 
 #include "init.h"
-
+#include "kjv.h"
 #include "addrman.h"
 #include "amount.h"
 #include "base58.h"
@@ -884,6 +884,9 @@ bool AppInitServers(boost::thread_group& threadGroup)
 // Parameter interaction based on rules
 void InitParameterInteraction()
 {
+	bool fTestNet = GetBoolArg("-testnet", false);
+	fProd = fTestNet ? false : true;
+    
     // when specifying an explicit binding address, you want to listen on it
     // even when -connect or -proxy is specified
     if (IsArgSet("-bind")) {
@@ -1093,9 +1096,7 @@ bool AppInitParameterInteraction()
 {
     const CChainParams& chainparams = Params();
     // ********************************************************* Step 2: parameter interactions
-
     // also see: InitParameterInteraction()
-
     // if using block pruning, then disallow txindex
     if (GetArg("-prune", 0)) {
         if (GetBoolArg("-txindex", DEFAULT_TXINDEX))
@@ -1131,6 +1132,33 @@ bool AppInitParameterInteraction()
 
     if (nMaxConnections < nUserMaxConnections)
         InitWarning(strprintf(_("Reducing -maxconnections from %d to %d, because of system limitations."), nUserMaxConnections, nMaxConnections));
+
+    // ********************************************************* Step 2.1: Extra BiblePay init settings
+	if (chainparams.NetworkIDString() == "main")
+	{
+		fProd = true;
+		// CRITICAL TODO: Add global sOS value (WIN/LIN/MAC)
+	}
+	else if (chainparams.NetworkIDString() == "test")
+	{
+		fProd = false;
+	}
+	else if (chainparams.NetworkIDString() == "regtest")
+	{
+		fProd = false;
+	}
+	else if (chainparams.NetworkIDString() == "devnet")
+	{
+		fProd = false;
+	}
+	else
+	{
+        LogPrintf(" \n Invalid Network Chain Parameter \n");
+        throw std::runtime_error("Invalid Network Chain Parameter");
+  	}
+	
+	LogPrintf("***************************************** BIBLEPAY  *************************************************** \n");
+	LogPrintf("ProdMode: Prod %f",(double)fProd);
 
     // ********************************************************* Step 3: parameter-to-internal-flags
 
@@ -1653,6 +1681,10 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
     if (IsArgSet("-maxuploadtarget")) {
         nMaxOutboundLimit = GetArg("-maxuploadtarget", DEFAULT_MAX_UPLOAD_TARGET)*1024*1024;
     }
+	// ********************************************************* Step 7: Load KJV Bible
+	uiInterface.InitMessage(_("Loading KJV Bible..."));
+	initkjv();
+	
 
     // ********************************************************* Step 7a: check lite mode and load sporks
 

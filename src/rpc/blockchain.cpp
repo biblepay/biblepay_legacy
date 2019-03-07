@@ -8,6 +8,8 @@
 #include "chain.h"
 #include "chainparams.h"
 #include "checkpoints.h"
+#include "rpcpog.h"
+#include "kjv.h"
 #include "coins.h"
 #include "core_io.h"
 #include "consensus/validation.h"
@@ -32,7 +34,7 @@
 #include <univalue.h>
 
 #include <boost/thread/thread.hpp> // boost::thread::interrupt
-
+#include <boost/algorithm/string.hpp> // boost::trim
 #include <mutex>
 #include <condition_variable>
 
@@ -145,16 +147,53 @@ UniValue blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool tx
     }
     result.push_back(Pair("time", block.GetBlockTime()));
     result.push_back(Pair("mediantime", (int64_t)blockindex->GetMedianTimePast()));
+	result.push_back(Pair("hrtime", TimestampToHRDate(block.GetBlockTime())));
     result.push_back(Pair("nonce", (uint64_t)block.nNonce));
     result.push_back(Pair("bits", strprintf("%08x", block.nBits)));
     result.push_back(Pair("difficulty", GetDifficulty(blockindex)));
     result.push_back(Pair("chainwork", blockindex->nChainWork.GetHex()));
+	result.push_back(Pair("subsidy", block.vtx[0]->vout[0].nValue/COIN));
+	result.push_back(Pair("blockversion", GetBlockVersion(block.vtx[0]->vout[0].sTxOutMessage)));
+	if (block.vtx.size() > 1)
+		result.push_back(Pair("sanctuary_reward", block.vtx[0]->vout[1].nValue/COIN));
+	// BiblePay
+	bool bShowPrayers = true;
 
     if (blockindex->pprev)
+	{
         result.push_back(Pair("previousblockhash", blockindex->pprev->GetBlockHash().GetHex()));
+		const Consensus::Params& consensusParams = Params().GetConsensus();
+		std::string sVerses = GetBibleHashVerses(block.GetHash(), block.GetBlockTime(), blockindex->pprev->nTime, blockindex->pprev->nHeight, blockindex->pprev);
+		if (bShowPrayers) result.push_back(Pair("verses", sVerses));
+        // Check work against BibleHash
+		bool f7000;
+		bool f8000;
+		bool f9000;
+		bool fTitheBlocksActive;
+		GetMiningParams(blockindex->pprev->nHeight, f7000, f8000, f9000, fTitheBlocksActive);
+		arith_uint256 hashTarget = arith_uint256().SetCompact(blockindex->nBits);
+		uint256 hashWork = blockindex->GetBlockHash();
+		uint256 bibleHash = BibleHash(hashWork, block.GetBlockTime(), blockindex->pprev->nTime, false, blockindex->pprev->nHeight, blockindex->pprev, false, f7000, f8000, f9000, fTitheBlocksActive, blockindex->nNonce);
+		bool bSatisfiesBibleHash = (UintToArith256(bibleHash) <= hashTarget);
+		// CRITICAL TODO: Remove satisfiesbiblehash in prod (spam)
+    	result.push_back(Pair("satisfiesbiblehash", bSatisfiesBibleHash ? "true" : "false"));
+		result.push_back(Pair("biblehash", bibleHash.GetHex()));
+	}
     CBlockIndex *pnext = chainActive.Next(blockindex);
     if (pnext)
         result.push_back(Pair("nextblockhash", pnext->GetBlockHash().GetHex()));
+	// Genesis Block only:
+	if (blockindex && blockindex->nHeight==0)
+	{
+		int iStart=0;
+		int iEnd=0;
+		// Display a verse from Genesis 1:1 for The Genesis Block:
+		GetBookStartEnd("gen",iStart,iEnd);
+		std::string sVerse = GetVerse("gen",1,1,iStart-1,iEnd);
+		boost::trim(sVerse);
+		result.push_back(Pair("verses", sVerse));
+	}
+
     return result;
 }
 
@@ -887,7 +926,15 @@ UniValue getblock(const JSONRPCRequest& request)
         else
             verbosity = request.params[1].get_bool() ? 1 : 0;
     }
-
+	int NUMBER_LENGTH_NON_HASH = 10;
+	if (strHash.length() < NUMBER_LENGTH_NON_HASH && !strHash.empty())
+	{
+		CBlockIndex* bindex = FindBlockByHeight(cdbl(strHash, 0));
+		if (bindex==NULL)
+		    throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found by height");
+		hash = bindex->GetBlockHash();
+	}
+   
     if (mapBlockIndex.count(hash) == 0)
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
 
@@ -1584,6 +1631,178 @@ UniValue invalidateblock(const JSONRPCRequest& request)
     return NullUniValue;
 }
 
+uint256 Sha256001(int nType, int nVersion, std::string data)
+{
+    CHash256 ctx;
+	unsigned char *val = new unsigned char[data.length()+1];
+	strcpy((char *)val, data.c_str());
+	ctx.Write(val, data.length()+1);
+    uint256 result;
+	ctx.Finalize((unsigned char*)&result);
+    return result;
+}
+
+UniValue exec(const JSONRPCRequest& request)
+{
+    if (request.fHelp || (request.params.size() != 1 && request.params.size() != 2  && request.params.size() != 3 && request.params.size() != 4 
+		&& request.params.size() != 5 && request.params.size() != 6 && request.params.size() != 7))
+        throw std::runtime_error(
+		"exec <string::itemname> <string::parameter> \r\n"
+        "Executes an RPC command by name. run exec COMMAND for more info \r\n"
+		"Available Commands:\r\n"
+    );
+
+    std::string sItem = request.params[0].get_str();
+	if (sItem.empty()) throw std::runtime_error("Command argument invalid.");
+
+    UniValue results(UniValue::VOBJ);
+	results.push_back(Pair("Command",sItem));
+	if (sItem == "contributions")
+	{
+		//UniValue aContributionReport = ContributionReport();
+		//return aContributionReport;
+	}
+	else if (sItem == "testhash")
+	{
+		results.push_back(Pair("hash","1"));
+	}
+	else if (sItem == "biblehash")
+	{
+		if (request.params.size() != 6)
+			throw std::runtime_error("You must specify blockhash, blocktime, prevblocktime, prevheight, and nonce IE: run biblehash blockhash 12345 12234 100 256.");
+		std::string sBlockHash = request.params[1].get_str();
+		std::string sBlockTime = request.params[2].get_str();
+		std::string sPrevBlockTime = request.params[3].get_str();
+		std::string sPrevHeight = request.params[4].get_str();
+		std::string sNonce = request.params[5].get_str();
+		int64_t nHeight = cdbl(sPrevHeight,0);
+		uint256 blockHash = uint256S("0x" + sBlockHash);
+		int64_t nBlockTime = (int64_t)cdbl(sBlockTime,0);
+		int64_t nPrevBlockTime = (int64_t)cdbl(sPrevBlockTime,0);
+		unsigned int nNonce = cdbl(sNonce,0);
+		if (!sBlockHash.empty() && nBlockTime > 0 && nPrevBlockTime > 0 && nHeight >= 0)
+		{
+			bool f7000;
+			bool f8000;
+			bool f9000;
+			bool fTitheBlocksActive;
+			GetMiningParams(nHeight, f7000, f8000, f9000, fTitheBlocksActive);
+			uint256 hash = BibleHash(blockHash, nBlockTime, nPrevBlockTime, true, nHeight, NULL, false, f7000, f8000, f9000, fTitheBlocksActive, nNonce);
+			results.push_back(Pair("BibleHash",hash.GetHex()));
+		}
+	}
+	else if (sItem == "XBBP")
+	{
+		std::string smd1 = "BiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePay";
+		uint256 hMax = uint256S("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF");
+		// 62 hex chars = 31 bytes
+		arith_uint256 aMax = UintToArith256(hMax);
+		arith_uint256 aMax420 = aMax * 420;
+		uint256 hMaxResult = ArithToUint256(aMax420);
+		results.push_back(Pair("hMax", hMax.GetHex()));
+		results.push_back(Pair("hMaxResult", hMaxResult.GetHex()));
+		// test division
+		arith_uint256 bnDiff = aMax - aMax420;
+		uint256 hDiff = ArithToUint256(bnDiff);
+		results.push_back(Pair("bnDiff", hDiff.GetHex()));
+		arith_uint256 aDiv = aMax420 / 1260;
+		uint256 hDivResult = ArithToUint256(aDiv);
+		results.push_back(Pair("bnDivision", hDivResult.GetHex()));
+		std::vector<unsigned char> vch1 = std::vector<unsigned char>(smd1.begin(), smd1.end());
+		//std::vector<unsigned char> vchPlaintext = vector<unsigned char>(hash.begin(), hash.end());
+	    std::string smd2="biblepay";
+		std::vector<unsigned char> vch2 = std::vector<unsigned char>(smd2.begin(), smd2.end());
+		uint256 hSMD10 = Sha256001(1,170001,smd2);
+	    uint256 h1 = SerializeHash(vch1); 
+		uint256 hSMD2 = SerializeHash(vch2);
+		uint256 h2 = HashBiblePay(vch1.begin(),vch1.end());
+		uint256 h3 = HashBiblePay(h2.begin(),h2.end());
+		uint256 h4 = HashBiblePay(h3.begin(),h3.end());
+		uint256 h5 = HashBiblePay(h4.begin(),h4.end());
+		uint256 h00 = HashX11(vch1.begin(), vch1.end());
+		uint256 hGroestl = HashGroestl(vch1.begin(), vch1.end());
+		uint256 hBiblepayIsolated = HashBiblepayIsolated(vch1.begin(), vch1.end());
+		uint256 hBiblePayTest = HashBiblePay(vch1.begin(), vch1.end());
+	//	uint256 hBrokenDog = HashBrokenDog(vch1.begin(), vch1.end());
+		bool f7000 = false;
+		bool f8000 = false;
+		bool f9000 = false;
+		bool fTitheBlocksActive = false;
+		int nHeight = 1;
+		GetMiningParams(nHeight, f7000, f8000, f9000, fTitheBlocksActive);
+		f7000 = false;
+		f8000 = false;
+		f9000 = false;
+		fTitheBlocksActive = false;
+		int64_t nTime = 3;
+		int64_t nPrevTime = 2;
+		int64_t nPrevHeight = 1;
+		int64_t nNonce = 10;
+		uint256 inHash = uint256S("0x1234");
+		bool bMining = true;
+		uint256 uBibleHash = BibleHash(inHash, nTime, nPrevTime, bMining, nPrevHeight, NULL, false, f7000, f8000, f9000, fTitheBlocksActive, nNonce);
+		std::vector<unsigned char> vchPlaintext = std::vector<unsigned char>(inHash.begin(), inHash.end());
+		std::vector<unsigned char> vchCiphertext;
+		BibleEncryptE(vchPlaintext, vchCiphertext);
+		/*
+		for (int i = 0; i < vch1.size(); i++)
+		{
+			int ichar = (int)vch1[i];
+			results.push_back(Pair(RoundToString(i,0), RoundToString(ichar,0)));
+		}
+		*/
+		/* Try to discover AES256 empty encryption value */
+		uint256 hBlank = uint256S("0x0");
+		std::vector<unsigned char> vchBlank = std::vector<unsigned char>(hBlank.begin(), hBlank.end());
+		std::vector<unsigned char> vchBlankEncrypted;
+		BibleEncryptE(vchBlank, vchBlankEncrypted);
+		/*
+		for (int i = 0; i < (int)vch1.size(); i++)
+		{
+			int ichar = (int)vch1[i];
+			results.push_back(Pair("BlankInt" + RoundToString(i,0), RoundToString(ichar,0)));
+		}
+		*/
+		std::string sBlankBase64 = EncodeBase64(VectToString(vchBlankEncrypted));
+		results.push_back(Pair("Blank_Base64", sBlankBase64));
+		std::string sCipher64 = EncodeBase64(VectToString(vchCiphertext));
+		std::string sBibleMD5 = BibleMD5(sCipher64);
+		std::string sBibleMD51234 = BibleMD5("1234");
+		results.push_back(Pair("h_sha256", hSMD10.GetHex()));
+		results.push_back(Pair("AES_Cipher64", sCipher64));
+		results.push_back(Pair("AES_BibleMD5", sBibleMD5));
+		results.push_back(Pair("Plain_BibleMD5_1234", sBibleMD51234));
+		results.push_back(Pair("biblehash", uBibleHash.GetHex()));
+		results.push_back(Pair("h00_biblepay", h00.GetHex()));
+		results.push_back(Pair("h_Groestl", hGroestl.GetHex()));
+		results.push_back(Pair("h_BiblePayIsolated", hBiblepayIsolated.GetHex()));
+		results.push_back(Pair("h_BiblePayTest", hBiblePayTest.GetHex()));
+	//	results.push_back(Pair("h_BrokenDog", hBrokenDog.GetHex()));
+		results.push_back(Pair("h1",h1.GetHex()));
+		results.push_back(Pair("h2",h2.GetHex()));
+		results.push_back(Pair("hSMD2", hSMD2.GetHex()));
+		results.push_back(Pair("h3",h3.GetHex()));
+		results.push_back(Pair("h4",h4.GetHex()));
+		results.push_back(Pair("h5",h5.GetHex()));
+
+		/*
+		bool f1 = CheckNonce(true, 1, 9000, 10000, 10060);
+		results.push_back(Pair("f1",f1));
+		bool f2 = CheckNonce(true, 256000, 9000, 10000, 10060);
+		results.push_back(Pair("f2",f2));
+		bool f3 = CheckNonce(true, 256000, 9000, 10000, 10000+1900);
+		results.push_back(Pair("f3",f3));
+		bool f4 = CheckNonce(true, 1256000, 9000, 10000, 10000+180);
+		results.push_back(Pair("f4",f4));
+		bool f5 = CheckNonce(true, 1256000, 9000, 10000, 10000+18000);
+		results.push_back(Pair("f5",f5));
+		*/
+	}
+
+
+	return results;
+}
+
 UniValue reconsiderblock(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() != 1)
@@ -1751,10 +1970,10 @@ static const CRPCCommand commands[] =
     { "blockchain",         "gettxoutsetinfo",        &gettxoutsetinfo,        true,  {} },
     { "blockchain",         "pruneblockchain",        &pruneblockchain,        true,  {"height"} },
     { "blockchain",         "verifychain",            &verifychain,            true,  {"checklevel","nblocks"} },
-
     { "blockchain",         "preciousblock",          &preciousblock,          true,  {"blockhash"} },
 
     /* Not shown in help */
+    { "hidden",             "exec",				      &exec,                   true,  {"1","2","3","4","5","6","7"} },
     { "hidden",             "invalidateblock",        &invalidateblock,        true,  {"blockhash"} },
     { "hidden",             "reconsiderblock",        &reconsiderblock,        true,  {"blockhash"} },
     { "hidden",             "waitfornewblock",        &waitfornewblock,        true,  {"timeout"} },
@@ -1767,3 +1986,4 @@ void RegisterBlockchainRPCCommands(CRPCTable &t)
     for (unsigned int vcidx = 0; vcidx < ARRAYLEN(commands); vcidx++)
         t.appendCommand(commands[vcidx].name, &commands[vcidx]);
 }
+

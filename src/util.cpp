@@ -279,6 +279,7 @@ bool LogAcceptCategory(const char* category)
                 ptrCategory.reset(new std::set<std::string>(categories.begin(), categories.end()));
                 // thread_specific_ptr automatically deletes the set when the thread ends.
                 // "biblepay" is a composite category enabling all Biblepay-related debug output
+                // Devs: run with -debug=1 to debug everything
                 if(ptrCategory->count(std::string("biblepay"))) {
                     ptrCategory->insert(std::string("privatesend"));
                     ptrCategory->insert(std::string("instantsend"));

@@ -82,6 +82,8 @@ bool fTimestampIndex = false;
 bool fSpentIndex = false;
 bool fHavePruned = false;
 bool fPruneMode = false;
+bool fProd = false;
+
 bool fIsBareMultisigStd = DEFAULT_PERMIT_BAREMULTISIG;
 bool fRequireStandard = true;
 unsigned int nBytesPerSigOp = DEFAULT_BYTES_PER_SIGOP;
@@ -103,12 +105,16 @@ CAmount maxTxFee = DEFAULT_TRANSACTION_MAXFEE;
 CTxMemPool mempool(::minRelayTxFee);
 std::map<uint256, int64_t> mapRejectedBlocks GUARDED_BY(cs_main);
 
+std::map<std::string, std::string> mvApplicationCache;
+std::map<std::string, int64_t> mvApplicationCacheTimestamp;
+
+
 static void CheckBlockIndex(const Consensus::Params& consensusParams);
 
 /** Constant stuff for coinbase transactions we create: */
 CScript COINBASE_FLAGS;
 
-const std::string strMessageMagic = "DarkCoin Signed Message:\n";
+const std::string strMessageMagic = "BiblePay Signed Message:\n";
 
 // Internal stuff
 namespace {
@@ -1147,74 +1153,88 @@ NOTE:   unlike bitcoin we are using PREVIOUS block height here,
 */
 CAmount GetBlockSubsidy(int nPrevBits, int nPrevHeight, const Consensus::Params& consensusParams, bool fSuperblockPartOnly)
 {
-    double dDiff;
+	double dDiff = 0;
     CAmount nSubsidyBase;
+	dDiff = ConvertBitsToDouble(nPrevBits);
+	dDiff = dDiff / 14000;
 
-    if (nPrevHeight <= 4500 && Params().NetworkIDString() == CBaseChainParams::MAIN) {
-        /* a bug which caused diff to not be correctly calculated */
-        dDiff = (double)0x0000ffff / (double)(nPrevBits & 0x00ffffff);
-    } else {
-        dDiff = ConvertBitsToDouble(nPrevBits);
-    }
+	// This rule allows us to take out all of the business logic we had between 2017-2018
+	if (nPrevHeight < EVOLUTION_CUTOVER_HEIGHT) 
+		return (MAX_BLOCK_SUBSIDY * COIN);
 
-    if (nPrevHeight < 5465) {
-        // Early ages...
-        // 1111/((x+1)^2)
-        nSubsidyBase = (1111.0 / (pow((dDiff+1.0),2.0)));
-        if(nSubsidyBase > 500) nSubsidyBase = 500;
-        else if(nSubsidyBase < 1) nSubsidyBase = 1;
-    } else if (nPrevHeight < 17000 || (dDiff <= 75 && nPrevHeight < 24000)) {
-        // CPU mining era
-        // 11111/(((x+51)/6)^2)
-        nSubsidyBase = (11111.0 / (pow((dDiff+51.0)/6.0,2.0)));
-        if(nSubsidyBase > 500) nSubsidyBase = 500;
-        else if(nSubsidyBase < 25) nSubsidyBase = 25;
-    } else {
-        // GPU/ASIC mining era
-        // 2222222/(((x+2600)/9)^2)
-        nSubsidyBase = (2222222.0 / (pow((dDiff+2600.0)/9.0,2.0)));
-        if(nSubsidyBase > 25) nSubsidyBase = 25;
-        else if(nSubsidyBase < 5) nSubsidyBase = 5;
-    }
+		// This setting included in f7000 regulates the extent in which the block subsidy is lowered by increasing diff; once we remove the x11 component from the biblehash, it was necessary to recalculate the reduction to match the prior regulation level.
+		// Dark Gravity Wave Subsidy Decrease (a Higher difficulty equals a Lower total block reward):
+		/*		BiblePay Difficulty Level Chart:
+		 1            19998.2933653649 
+		51            19863.6590388237 
+		101           19730.3798134583 
+		151           19598.4375645471 
+		201           19467.8144693848		
+		251           19338.4930012641 
+		301           19210.4559235953 
+		351           19083.6862841633 
+		401           18958.1674095155 
+		451           18833.8828994796 
+		*/
+		
+    nSubsidyBase = (20000 / (pow((dDiff+1.0),2.0))) + 1;
+    if(nSubsidyBase > 20000) nSubsidyBase = 20000;
+        else if(nSubsidyBase < 5000) nSubsidyBase = 5000;
 
-    // LogPrintf("height %u diff %4.2f reward %d\n", nPrevHeight, dDiff, nSubsidyBase);
     CAmount nSubsidy = nSubsidyBase * COIN;
+    // Yearly decline of production by ~19.5% per year, projected ~5.2 Billion coins max by year 2050+.
+	// http://wiki.biblepay.org/Emission_Schedule
 
-    // yearly decline of production by ~7.1% per year, projected ~18M coins max by year 2050+.
-    for (int i = consensusParams.nSubsidyHalvingInterval; i <= nPrevHeight; i += consensusParams.nSubsidyHalvingInterval) {
-        nSubsidy -= nSubsidy/14;
+	bool fSuperblocksEnabled = nPrevHeight >= consensusParams.nSuperblockStartBlock;
+	int iSubsidyDecreaseInterval = BLOCKS_PER_DAY * 365; // Yearly Initially
+	double iDeflationRate = .10; // 10% deflation from July 2017 to Dec 2017 (until sanctuaries go live) - This bootstraps the coin
+	if (fSuperblocksEnabled)
+	{
+		iSubsidyDecreaseInterval = BLOCKS_PER_DAY * 30; // After sanctuaries go live, Monthly
+		iDeflationRate = .015; // 1.5% per month, compounded monthly (19.5% per year with compounding)
+	}
+    for (int i = iSubsidyDecreaseInterval; i <= nPrevHeight; i += iSubsidyDecreaseInterval) 
+	{
+        nSubsidy -= (nSubsidy * iDeflationRate);
     }
+		
+    // Monthly Budget: 
+	// 10% to Charity budget, 5% for the IT budget, 2.5% PR, 2.5% P2P.  The 80% remaining is split between the miner, PODC rewards and the sanctuary.
+	// https://wiki.biblepay.org/Economics
 
-    // this is only active on devnets
-    if (nPrevHeight < consensusParams.nHighSubsidyBlocks) {
-        nSubsidy *= consensusParams.nHighSubsidyFactor;
-    }
+	double dSuperblockMultiplier = .70;
+    CAmount nSuperblockPart = (nPrevHeight > consensusParams.nBudgetPaymentsStartBlock) ? nSubsidy * dSuperblockMultiplier : 0;
+	CAmount nMainSubsidy = nSubsidy - nSuperblockPart;
+	// nMainSubsidy (15000) - nSuperblockPart (10500) =               // Main Subsidy: 4500                                          
+	CAmount caMasternodePortion = nMainSubsidy * .975;                // Sanctuary Portion = Total - Reaper = 4387                                    
+	CAmount nNetSubsidy = nMainSubsidy - caMasternodePortion;         // Main - Sanctuary = 4500 - 4387 = 113                       
+	CAmount nReaperReward = nNetSubsidy * .20;                                                                
+	CAmount nPOGPoolReward = nNetSubsidy * 4;                         // Pool = 452                                         
+	CAmount nGrossReaperReward = nReaperReward + caMasternodePortion; 
+	CAmount nGrossPOGPoolReward = (nPOGPoolReward * BLOCKS_PER_DAY) + caMasternodePortion; // Sanctuary (4387) + (Pool (452) * Blocks per day (205))
+	nMainSubsidy = nGrossReaperReward; // 452 * 205 (pool) or (4410 - (4410*.975=4299) = 113) (Actual Reaper Reward)
 
-    // Hard fork to reduce the block reward by 10 extra percent (allowing budget/superblocks)
-    CAmount nSuperblockPart = (nPrevHeight > consensusParams.nBudgetPaymentsStartBlock) ? nSubsidy/10 : 0;
-
-    return fSuperblockPartOnly ? nSuperblockPart : nSubsidy - nSuperblockPart;
+	return fSuperblockPartOnly ? nSuperblockPart : nMainSubsidy;
 }
 
 CAmount GetMasternodePayment(int nHeight, CAmount blockValue)
 {
-    CAmount ret = blockValue/5; // start at 20%
-
-    int nMNPIBlock = Params().GetConsensus().nMasternodePaymentsIncreaseBlock;
-    int nMNPIPeriod = Params().GetConsensus().nMasternodePaymentsIncreasePeriod;
-
-                                                                      // mainnet:
-    if(nHeight > nMNPIBlock)                  ret += blockValue / 20; // 158000 - 25.0% - 2014-10-24
-    if(nHeight > nMNPIBlock+(nMNPIPeriod* 1)) ret += blockValue / 20; // 175280 - 30.0% - 2014-11-25
-    if(nHeight > nMNPIBlock+(nMNPIPeriod* 2)) ret += blockValue / 20; // 192560 - 35.0% - 2014-12-26
-    if(nHeight > nMNPIBlock+(nMNPIPeriod* 3)) ret += blockValue / 40; // 209840 - 37.5% - 2015-01-26
-    if(nHeight > nMNPIBlock+(nMNPIPeriod* 4)) ret += blockValue / 40; // 227120 - 40.0% - 2015-02-27
-    if(nHeight > nMNPIBlock+(nMNPIPeriod* 5)) ret += blockValue / 40; // 244400 - 42.5% - 2015-03-30
-    if(nHeight > nMNPIBlock+(nMNPIPeriod* 6)) ret += blockValue / 40; // 261680 - 45.0% - 2015-05-01
-    if(nHeight > nMNPIBlock+(nMNPIPeriod* 7)) ret += blockValue / 40; // 278960 - 47.5% - 2015-06-01
-    if(nHeight > nMNPIBlock+(nMNPIPeriod* 9)) ret += blockValue / 40; // 313520 - 50.0% - 2015-08-03
-
-    return ret;
+	// https://wiki.biblepay.org/Economics
+	const Consensus::Params& consensusParams = Params().GetConsensus();
+    bool fSuperblocksEnabled = nHeight >= consensusParams.nSuperblockStartBlock;
+	// http://forum.biblepay.org/index.php?topic=33.0
+	// Final Distribution: 10% Charity, 2.5% PR, 2.5% P2P, 5% for IT
+	CAmount ret = 0;
+	int nSpork8Height = fProd ? SPORK8_HEIGHT : SPORK8_HEIGHT_TESTNET;
+	if (fProd && nHeight > nSpork8Height)
+	{
+		ret = blockValue * .50; // Tithe blocks have ended, masternodes are live, budgets live, split masternode payment with miner.
+    }
+	if (nHeight > 125000)
+	{
+		ret = blockValue * .50;
+	}
+	return ret;
 }
 
 bool IsInitialBlockDownload()
@@ -2230,7 +2250,7 @@ static bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockInd
     // the peer who sent us this block is missing some data and wasn't able
     // to recognize that block is actually invalid.
     // TODO: resync data (both ways?) and try to reprocess this block later.
-    CAmount blockReward = nFees + GetBlockSubsidy(pindex->pprev->nBits, pindex->pprev->nHeight, chainparams.GetConsensus());
+    CAmount blockReward = nFees + GetBlockSubsidy(pindex->pprev->nBits, pindex->pprev->nHeight, chainparams.GetConsensus(), false);
     std::string strError = "";
     if (!IsBlockValueValid(block, pindex->nHeight, blockReward, strError)) {
         return state.DoS(0, error("ConnectBlock(BIBLEPAY): %s", strError), REJECT_INVALID, "bad-cb-amount");
@@ -3217,8 +3237,13 @@ bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, const 
     // Check proof of work matches claimed amount
     if (fCheckPOW && !CheckProofOfWork(block.GetHash(), block.nBits, consensusParams))
         return state.DoS(50, false, REJECT_INVALID, "high-hash", false, "proof of work failed");
-
-    // Check DevNet
+	
+	// BiblePay - Check timestamp (reject if > 15 minutes in future).  This is is important since we lower the difficulty after all online nodes cannot solve block in one hour!  
+    if (block.GetBlockTime() > GetAdjustedTime() + (15 * 60))
+        return state.Invalid(error("CheckBlockHeader(): BiblePay: Block timestamp way too far in the future"),
+                             REJECT_INVALID, "time-too-new");
+    
+	// Check DevNet
     if (!consensusParams.hashDevnetGenesisBlock.IsNull() &&
             block.hashPrevBlock == consensusParams.hashGenesisBlock &&
             block.GetHash() != consensusParams.hashDevnetGenesisBlock) {
@@ -3338,20 +3363,9 @@ bool ContextualCheckBlockHeader(const CBlockHeader& block, CValidationState& sta
 {
     const int nHeight = pindexPrev == NULL ? 0 : pindexPrev->nHeight + 1;
     // Check proof of work
-    if(Params().NetworkIDString() == CBaseChainParams::MAIN && nHeight <= 68589){
-        // architecture issues with DGW v1 and v2)
-        unsigned int nBitsNext = GetNextWorkRequired(pindexPrev, &block, consensusParams);
-        double n1 = ConvertBitsToDouble(block.nBits);
-        double n2 = ConvertBitsToDouble(nBitsNext);
-
-        if (abs(n1-n2) > n1*0.5)
-            return state.DoS(100, error("%s : incorrect proof of work (DGW pre-fork) - %f %f %f at %d", __func__, abs(n1-n2), n1, n2, nHeight),
-                            REJECT_INVALID, "bad-diffbits");
-    } else {
-        if (block.nBits != GetNextWorkRequired(pindexPrev, &block, consensusParams))
+	if (block.nBits != GetNextWorkRequired(pindexPrev, &block, consensusParams))
             return state.DoS(100, false, REJECT_INVALID, "bad-diffbits", false, strprintf("incorrect proof of work at %d", nHeight));
-    }
-
+    
     // Check timestamp against prev
     if (block.GetBlockTime() <= pindexPrev->GetMedianTimePast())
         return state.Invalid(false, REJECT_INVALID, "time-too-old", strprintf("block's timestamp is too early %d %d", block.GetBlockTime(), pindexPrev->GetMedianTimePast()));

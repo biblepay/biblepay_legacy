@@ -4,7 +4,8 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "pow.h"
-
+#include "kjv.h"
+#include "validation.h"
 #include "arith_uint256.h"
 #include "chain.h"
 #include "chainparams.h"
@@ -80,65 +81,105 @@ unsigned int static KimotoGravityWell(const CBlockIndex* pindexLast, const Conse
 }
 
 unsigned int static DarkGravityWave(const CBlockIndex* pindexLast, const CBlockHeader *pblock, const Consensus::Params& params) {
-    /* current difficulty formula, biblepay - DarkGravity v3, written by Evan Duffield - evan@biblepay.org */
-    const arith_uint256 bnPowLimit = UintToArith256(params.powLimit);
-    int64_t nPastBlocks = 24;
+    /* current difficulty formula, Biblepay - DarkGravity v3, written by Evan Duffield */
+    const CBlockIndex *BlockLastSolved = pindexLast;
+    const CBlockIndex *BlockReading = pindexLast;
+    int64_t nActualTimespan = 0;
+    int64_t LastBlockTime = 0;
+    int64_t PastBlocksMin = 4; 
+    int64_t PastBlocksMax = 4; 
+    int64_t CountBlocks = 0;
+    arith_uint256 PastDifficultyAverage;
+    arith_uint256 PastDifficultyAveragePrev;
+	bool fProdChain = Params().NetworkIDString() == "main" ? true : false;
 
-    // make sure we have at least (nPastBlocks + 1) blocks, otherwise just return powLimit
-    if (!pindexLast || pindexLast->nHeight < nPastBlocks) {
-        return bnPowLimit.GetCompact();
+	// BiblePay - Mandatory Upgrade at block f7000 (As of 08-15-2017 we are @3265 in prod & @1349 in testnet)
+	// This change should prevents blocks from being solved in clumps
+	if (pindexLast)
+	{
+		if ((!fProdChain && pindexLast->nHeight >= 1) || (fProdChain && pindexLast->nHeight >= 7000))
+		{
+			PastBlocksMin = 4;
+			PastBlocksMax = 4;
+		}
+	}
+
+    if (BlockLastSolved == NULL || BlockLastSolved->nHeight == 0 || BlockLastSolved->nHeight < PastBlocksMin) 
+	{
+        return UintToArith256(params.powLimit).GetCompact();
     }
 
-    if (params.fPowAllowMinDifficultyBlocks) {
-        // recent block is more than 2 hours old
-        if (pblock->GetBlockTime() > pindexLast->GetBlockTime() + 2 * 60 * 60) {
-            return bnPowLimit.GetCompact();
+    for (unsigned int i = 1; BlockReading && BlockReading->nHeight > 0; i++) 
+	{
+        if (PastBlocksMax > 0 && i > PastBlocksMax) { break; }
+        CountBlocks++;
+
+        if(CountBlocks <= PastBlocksMin) 
+		{
+            if (CountBlocks == 1) { PastDifficultyAverage.SetCompact(BlockReading->nBits); }
+              else { PastDifficultyAverage = ((PastDifficultyAveragePrev * CountBlocks) + (arith_uint256().SetCompact(BlockReading->nBits))) / (CountBlocks + 1); }
+            PastDifficultyAveragePrev = PastDifficultyAverage;
         }
-        // recent block is more than 10 minutes old
-        if (pblock->GetBlockTime() > pindexLast->GetBlockTime() + params.nPowTargetSpacing * 4) {
-            arith_uint256 bnNew = arith_uint256().SetCompact(pindexLast->nBits) * 10;
-            if (bnNew > bnPowLimit) {
-                bnNew = bnPowLimit;
-            }
-            return bnNew.GetCompact();
+
+        if(LastBlockTime > 0)
+		{
+            int64_t Diff = (LastBlockTime - BlockReading->GetBlockTime());
+            nActualTimespan += Diff;
         }
+        LastBlockTime = BlockReading->GetBlockTime();
+
+        if (BlockReading->pprev == NULL) { assert(BlockReading); break; }
+        BlockReading = BlockReading->pprev;
     }
 
-    const CBlockIndex *pindex = pindexLast;
-    arith_uint256 bnPastTargetAvg;
+    arith_uint256 bnNew(PastDifficultyAverage);
 
-    for (unsigned int nCountBlocks = 1; nCountBlocks <= nPastBlocks; nCountBlocks++) {
-        arith_uint256 bnTarget = arith_uint256().SetCompact(pindex->nBits);
-        if (nCountBlocks == 1) {
-            bnPastTargetAvg = bnTarget;
-        } else {
-            // NOTE: that's not an average really...
-            bnPastTargetAvg = (bnPastTargetAvg * nCountBlocks + bnTarget) / (nCountBlocks + 1);
-        }
+    int64_t _nTargetTimespan = CountBlocks * params.nPowTargetSpacing; 
+	// 3-4-2018 Biblepay:  Change params.nPowTargetSpacing to equal 7 minute blocks during next mandatory, the default calculation calls for 7*60=420 nPowTargetSpacing
+	// Approaching this mathematically, with POBH, we have historically emitted 159 blocks per day out of 202, a rate of 20% below normal - a rate that is too slow.
+	// The dev team believes this is attributed entirely to the late block threshhold parameter.  After the F11000 cutover block, this late threshhold is being reduced
+	// from 30 minutes to 16 minutes, with 16 minutes bringing the blocks from 9 minute spacing to 8.1 minute spacing (meaning we are still going to be slow by 60.1 seconds)
+	// Therefore we must reduce the nPowTargetSpacing by 10% more to compensate for the difference.  Shooting for 7 minute blocks, we now adjust nPowTargetSpacing to 390
+	// In summary we are making the assumption that the gained 30 seconds per block target will equalize the effect our late blocks per day lag the chain.
+	// As of March 9th 2018, we are still emitting blocks 19% too slow, decreasing time interval to 315 
+	if ((fProdChain && pindexLast->nHeight > F11000_CUTOVER_HEIGHT_PROD && pindexLast->nHeight < F12000_CUTOVER_HEIGHT_PROD))
+	{
+		_nTargetTimespan = CountBlocks * 390;
+	}
+	else if (fProdChain && pindexLast->nHeight >= F12000_CUTOVER_HEIGHT_PROD && pindexLast->nHeight < F13000_CUTOVER_HEIGHT_PROD)
+	{
+		_nTargetTimespan = CountBlocks * 310;
+	}
+	else if (fProdChain && pindexLast->nHeight >= F13000_CUTOVER_HEIGHT_PROD)
+	{
+		// 5-31-2018; For June mandatory upgrade: Tighten block solve time down to 7 mins (we are running 4.5% slow)
+		_nTargetTimespan = CountBlocks * 296;
+	}
+	
+	if (!fProdChain && pindexLast->nHeight < 250)
+	{
+		_nTargetTimespan = CountBlocks; // One second blocks in testnet before block 1000
+	}
+	else if (!fProdChain && pindexLast->nHeight > 249 && pindexLast->nHeight < 2500)
+	{
+		_nTargetTimespan = 30;
+	}
 
-        if(nCountBlocks != nPastBlocks) {
-            assert(pindex->pprev); // should never fail
-            pindex = pindex->pprev;
-        }
-    }
+	// if (fDebugMaster) LogPrintf(" Height: %f, targettimespan %f  nActualTimespan %f ",(double)pindexLast->nHeight, (double)_nTargetTimespan, (double)nActualTimespan);
 
-    arith_uint256 bnNew(bnPastTargetAvg);
+    if (nActualTimespan < _nTargetTimespan / 2)
+        nActualTimespan = _nTargetTimespan / 2;
 
-    int64_t nActualTimespan = pindexLast->GetBlockTime() - pindex->GetBlockTime();
-    // NOTE: is this accurate? nActualTimespan counts it for (nPastBlocks - 1) blocks only...
-    int64_t nTargetTimespan = nPastBlocks * params.nPowTargetSpacing;
-
-    if (nActualTimespan < nTargetTimespan/3)
-        nActualTimespan = nTargetTimespan/3;
-    if (nActualTimespan > nTargetTimespan*3)
-        nActualTimespan = nTargetTimespan*3;
+    if (nActualTimespan > _nTargetTimespan * 2)
+        nActualTimespan = _nTargetTimespan * 2;
 
     // Retarget
     bnNew *= nActualTimespan;
-    bnNew /= nTargetTimespan;
+    bnNew /= _nTargetTimespan;
 
-    if (bnNew > bnPowLimit) {
-        bnNew = bnPowLimit;
+    if (bnNew > UintToArith256(params.powLimit))
+	{
+        bnNew = UintToArith256(params.powLimit);
     }
 
     return bnNew.GetCompact();
@@ -185,6 +226,9 @@ unsigned int GetNextWorkRequiredBTC(const CBlockIndex* pindexLast, const CBlockH
 
 unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHeader *pblock, const Consensus::Params& params)
 {
+	// BiblePay only uses DGW
+	return DarkGravityWave(pindexLast, pblock, params);
+   
     // this is only active on devnets
     if (pindexLast->nHeight < params.nMinimumDifficultyBlocks) {
         unsigned int nProofOfWorkLimit = UintToArith256(params.powLimit).GetCompact();
@@ -234,16 +278,22 @@ bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params&
     bool fNegative;
     bool fOverflow;
     arith_uint256 bnTarget;
-
     bnTarget.SetCompact(nBits, &fNegative, &fOverflow);
-
     // Check range
     if (fNegative || bnTarget == 0 || fOverflow || bnTarget > UintToArith256(params.powLimit))
         return false;
+	// CRITICAL:  Move the 80% easier rule for late blocks over to contextual check block
+	int nBlockTime = 0;
+	int nPrevBlockTime = 0;
+	int nPrevHeight = 0;
+	return true;
 
-    // Check proof of work matches claimed amount
-    if (UintToArith256(hash) > bnTarget)
-        return false;
+	uint256 uBibleHash = BibleHash(hash, nBlockTime, nPrevBlockTime, true, nPrevHeight, NULL, false, false, false, false, false, 1);
 
+	if (UintToArith256(hash) > bnTarget) 
+	{
+		return false;
+	}
+	
     return true;
 }

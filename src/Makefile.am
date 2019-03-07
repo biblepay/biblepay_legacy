@@ -132,6 +132,9 @@ BITCOIN_CORE_H = \
   httprpc.h \
   httpserver.h \
   indirectmap.h \
+  kjv.h \
+  rpcpog.h \
+  rpcpodc.h \
   init.h \
   instantx.h \
   key.h \
@@ -239,6 +242,9 @@ libbiblepay_server_a_SOURCES = \
   evo/simplifiedmns.cpp \
   httprpc.cpp \
   httpserver.cpp \
+  kjv.cpp \
+  rpcpog.cpp \
+  rpcpodc.cpp \
   init.cpp \
   instantx.cpp \
   dbwrapper.cpp \
@@ -348,6 +354,7 @@ crypto_libbiblepay_crypto_a_SOURCES += \
   crypto/cubehash.c \
   crypto/echo.c \
   crypto/groestl.c \
+  crypto/biblepay.c \
   crypto/jh.c \
   crypto/keccak.c \
   crypto/luffa.c \
@@ -359,6 +366,7 @@ crypto_libbiblepay_crypto_a_SOURCES += \
   crypto/sph_cubehash.h \
   crypto/sph_echo.h \
   crypto/sph_groestl.h \
+  crypto/sph_biblepay.h \
   crypto/sph_jh.h \
   crypto/sph_keccak.h \
   crypto/sph_luffa.h \

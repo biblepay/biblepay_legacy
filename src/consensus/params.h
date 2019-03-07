@@ -120,6 +120,11 @@ struct Params {
     int nGovernanceMinQuorum; // Min absolute vote count to trigger an action
     int nGovernanceFilterElements;
     int nMasternodeMinimumConfirmations;
+	std::string FoundationAddress;
+	std::string FoundationPODSAddress;
+	int nDCCSuperblockStartBlock;
+	int nDCCSuperblockCycle;
+	
     /** Block height and hash at which BIP34 becomes active */
     int BIP34Height;
     uint256 BIP34Hash;

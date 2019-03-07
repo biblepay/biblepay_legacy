@@ -20,7 +20,7 @@ const std::string CSporkManager::SERIALIZATION_VERSION_STRING = "CSporkManager-V
 std::map<int, int64_t> mapSporkDefaults = {
     {SPORK_2_INSTANTSEND_ENABLED,            0},             // ON
     {SPORK_3_INSTANTSEND_BLOCK_FILTERING,    0},             // ON
-    {SPORK_5_INSTANTSEND_MAX_VALUE,          1000},          // 1000 Biblepay
+    {SPORK_5_INSTANTSEND_MAX_VALUE,          500000},        // 500,000 Biblepay
     {SPORK_6_NEW_SIGS,                       4070908800ULL}, // OFF
     {SPORK_8_MASTERNODE_PAYMENT_ENFORCEMENT, 4070908800ULL}, // OFF
     {SPORK_9_SUPERBLOCKS_ENABLED,            4070908800ULL}, // OFF
@@ -146,8 +146,10 @@ void CSporkManager::ProcessSpork(CNode* pfrom, const std::string& strCommand, CD
             if (!spork.GetSignerKeyID(keyIDSigner, !fSpork6IsActive)
                                      || !setSporkPubKeyIDs.count(keyIDSigner)) {
                 LOCK(cs_main);
+				// CRITICAL - Figure why someone is spamming this spork
                 LogPrintf("CSporkManager::ProcessSpork -- ERROR: invalid signature\n");
-                Misbehaving(pfrom->GetId(), 100);
+				if (false) 
+					Misbehaving(pfrom->GetId(), 100);
                 return;
             }
         }

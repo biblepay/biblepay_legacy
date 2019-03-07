@@ -56,7 +56,7 @@ static const bool DEFAULT_WHITELISTRELAY = true;
 /** Default for DEFAULT_WHITELISTFORCERELAY. */
 static const bool DEFAULT_WHITELISTFORCERELAY = true;
 /** Default for -minrelaytxfee, minimum relay fee for transactions */
-static const unsigned int DEFAULT_MIN_RELAY_TX_FEE = 1000;
+static const unsigned int DEFAULT_MIN_RELAY_TX_FEE = 1000000;
 //! -maxtxfee default
 static const CAmount DEFAULT_TRANSACTION_MAXFEE = 0.1 * COIN;
 //! Discourage users to set fees higher than this amount (in duffs) per kB
@@ -79,6 +79,7 @@ static const unsigned int MAX_BLOCKFILE_SIZE = 0x8000000; // 128 MiB
 static const unsigned int BLOCKFILE_CHUNK_SIZE = 0x1000000; // 16 MiB
 /** The pre-allocation chunk size for rev?????.dat files (since 0.8) */
 static const unsigned int UNDOFILE_CHUNK_SIZE = 0x100000; // 1 MiB
+
 
 /** Maximum number of script-checking threads allowed */
 static const int MAX_SCRIPTCHECK_THREADS = 16;
@@ -130,6 +131,49 @@ static const int64_t DEFAULT_MAX_TIP_AGE = 6 * 60 * 60; // ~144 blocks behind ->
 /** Maximum age of our tip in seconds for us to be considered current for fee estimation */
 static const int64_t MAX_FEE_ESTIMATION_TIP_AGE = 3 * 60 * 60;
 
+
+/** Biblepay-Classic Settings **/
+
+static const std::string BUSINESS_OBJECTS = "BUSINESS_OBJECTS";
+static const int F8000_CUTOVER_HEIGHT = 21350;
+static const int F1000_END_HEIGHT_TESTNET = 1199;
+static const int F8000_CUTOVER_HEIGHT_TESTNET = 12200;
+static const int F7000_CUTOVER_HEIGHT = 7000;
+static const int F7000_CUTOVER_HEIGHT_DIFF_END = 7500;
+static const int F9000_CUTOVER_HEIGHT = 21550;
+static const int F9000_CUTOVER_HEIGHT_TESTNET = 100;
+static const int SPORK8_HEIGHT = 23000;
+static const int SPORK8_HEIGHT_TESTNET = 23000;
+static const int LAST_TITHE_BLOCK = 21565;
+static const int LAST_TITHE_BLOCK_TESTNET = 1000;
+static const int F10000_CUTOVER_HEIGHT = 25910;
+static const int F11000_CUTOVER_HEIGHT_PROD = 33440;
+static const int F11000_CUTOVER_HEIGHT_TESTNET = 1;
+static const int F12000_CUTOVER_HEIGHT_PROD = 35110;
+static const int F13000_CUTOVER_HEIGHT_PROD = 57700; // July 11th, 2018
+static const int F13000_CUTOVER_HEIGHT_TESTNET = 16600;
+static const int F14000_CUTOVER_HEIGHT_PROD = 77000; // October 14th, 2018
+static const int F14000_CUTOVER_HEIGHT_TESTNET = 54300; // Sep. 1, 2018
+static const int FPOG_CUTOVER_HEIGHT_TESTNET = 95945;  // Dec. 23rd, 2018
+static const int FPOG_CUTOVER_HEIGHT_PROD = 100001;   // Feb 7th, 2019 (100,001)
+static const int PODC_LAST_BLOCK_PROD = 107000; // March 13th, 2019
+static const int EVOLUTION_CUTOVER_HEIGHT = 125000;
+static const int PODC_LAST_BLOCK_TESTNET = 126150; 
+static const int POG_V2_CUTOVER_HEIGHT_PROD = 102025;
+static const int POG_V3_CUTOVER_HEIGHT_PROD = 103175;
+static const int LOW_POG_DIFF = 5000;
+static const int TITHE_OVERFLOW = 75;
+static const int MAX_TITHE_AMOUNT = 10;
+static const double MIN_TITHE_AMOUNT = .50;
+static const int MIN_MEMPOOL_TITHE_THRESHHOLD = 2;
+static const int MINIMUM_EMAIL_LENGTH = 5; // 3 character domain + . + 1 character name
+static const unsigned int TITHE_MODULUS = 10; // Number of blocks that pass between charitable tithe contributions
+static const int BLOCKS_PER_DAY = 205;
+static const int SANCTUARY_COLLATERAL = 1550001;
+static int64_t MAX_BLOCK_SUBSIDY = 20000;
+// End of BiblePay Classic Settings
+
+
 /** Default for -permitbaremultisig */
 static const bool DEFAULT_PERMIT_BAREMULTISIG = true;
 static const unsigned int DEFAULT_BYTES_PER_SIGOP = 20;
@@ -172,6 +216,8 @@ extern bool fRequireStandard;
 extern unsigned int nBytesPerSigOp;
 extern bool fCheckBlockIndex;
 extern bool fCheckpointsEnabled;
+extern bool fProd;
+
 extern size_t nCoinCacheUsage;
 /** A fee rate smaller than this is considered zero fee (for relaying, mining and transaction creation) */
 extern CFeeRate minRelayTxFee;
@@ -185,6 +231,8 @@ extern bool fLargeWorkForkFound;
 extern bool fLargeWorkInvalidChainFound;
 
 extern std::map<uint256, int64_t> mapRejectedBlocks;
+extern std::map<std::string, std::string> mvApplicationCache;
+extern std::map<std::string, int64_t> mvApplicationCacheTimestamp;
 
 extern std::atomic<bool> fDIP0001ActiveAtTip;
 

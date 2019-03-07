@@ -8,6 +8,7 @@
 #include "keystore.h"
 #include "serialize.h"
 #include "support/allocators/secure.h"
+#include "base58.h"
 
 class uint256;
 
@@ -111,6 +112,10 @@ public:
 
 bool EncryptAES256(const SecureString& sKey, const SecureString& sPlaintext, const std::string& sIV, std::string& sCiphertext);
 bool DecryptAES256(const SecureString& sKey, const std::string& sCiphertext, const std::string& sIV, SecureString& sPlaintext);
+bool BibleDecrypt(const std::vector<unsigned char>& vchCiphertext,std::vector<unsigned char>& vchPlaintext);
+bool BibleEncrypt(std::vector<unsigned char> vchPlaintext, std::vector<unsigned char> &vchCiphertext);
+std::vector<unsigned char> StringToVector(std::string sData);
+std::string VectorToString(std::vector<unsigned char> v);
 
 
 /** Keystore which keeps the private keys encrypted.
@@ -148,7 +153,19 @@ protected:
     bool Unlock(const CKeyingMaterial& vMasterKeyIn, bool fForMixingOnly = false);
 
 public:
-    CCryptoKeyStore() : fUseCrypto(false), fDecryptionThoroughlyChecked(false), fOnlyMixingAllowed(false)
+
+	std::string ExtractXML(std::string XMLdata, std::string key, std::string key_end);
+	std::vector<char> ReadAllBytes(char const* filename);
+	int RSA_GENERATE_KEYPAIR(std::string sPublicKeyPath, std::string sPrivateKeyPath);
+	unsigned char *RSA_ENCRYPT_CHAR(std::string sPubKeyPath, unsigned char *plaintext, int plaintext_length, int& cipher_len, std::string& sError);
+	void RSA_Encrypt_File(std::string sPubKeyPath, std::string sSourcePath, std::string sEncryptPath, std::string& sError);
+	unsigned char *RSA_DECRYPT_CHAR(std::string sPriKeyPath, unsigned char *ciphertext, int ciphrtext_size, int& plaintxt_len, std::string& sError);
+	void RSA_Decrypt_File(std::string sPriKeyPath, std::string sSourcePath, std::string sDecryptPath, std::string sError);
+	std::string RSA_Encrypt_String(std::string sPubKeyPath, std::string sData, std::string& sError);
+	std::string RSA_Decrypt_String(std::string sPrivKeyPath, std::string sData, std::string& sError);
+
+	
+	CCryptoKeyStore() : fUseCrypto(false), fDecryptionThoroughlyChecked(false), fOnlyMixingAllowed(false)
     {
     }
 

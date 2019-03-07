@@ -1911,6 +1911,17 @@ void CConnman::ThreadOpenAddedConnections()
 {
     {
         LOCK(cs_vAddedNodes);
+
+		// Extra Seed Nodes
+		AddNode("node.biblepay.org"); // Volunteers welcome to run external nodes and we will add during future releases
+		AddNode("dns1.biblepay.org");  // Rob
+		AddNode("dns2.biblepay.org");  // Rob
+		AddNode("dns3.biblepay.org");  // Rob
+		AddNode("dns4.biblepay.org");  // Rob
+		AddNode("dns5.biblepay.org");  // Rob
+		if (!fProd) AddNode("testnet.biblepay.org");
+		if (!fProd) AddNode("test.dnsseed.biblepay-explorer.org"); // Alex 
+
         if (mapMultiArgs.count("-addnode"))
             vAddedNodes = mapMultiArgs.at("-addnode");
     }
