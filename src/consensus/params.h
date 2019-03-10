@@ -120,11 +120,25 @@ struct Params {
     int nGovernanceMinQuorum; // Min absolute vote count to trigger an action
     int nGovernanceFilterElements;
     int nMasternodeMinimumConfirmations;
+	
+	// BiblePay Settings
 	std::string FoundationAddress;
 	std::string FoundationPODSAddress;
 	int nDCCSuperblockStartBlock;
 	int nDCCSuperblockCycle;
-	
+	int F7000_CUTOVER_HEIGHT;
+	int F8000_CUTOVER_HEIGHT;
+	int F9000_CUTOVER_HEIGHT;
+	int F11000_CUTOVER_HEIGHT;
+	int F12000_CUTOVER_HEIGHT;
+	int F13000_CUTOVER_HEIGHT;
+	int F14000_CUTOVER_HEIGHT;
+	int EVOLUTION_CUTOVER_HEIGHT;
+	int FPOG_CUTOVER_HEIGHT;
+	int LAST_TITHE_BLOCK;
+	int PODC_LAST_BLOCK;
+	// End of BiblePay Settings
+
     /** Block height and hash at which BIP34 becomes active */
     int BIP34Height;
     uint256 BIP34Hash;

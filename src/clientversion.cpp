@@ -15,10 +15,20 @@
  */
 const std::string CLIENT_NAME("BiblePay Core");
 
+const int BIBLEPAY_VERSION_MAJOR = 1;
+const int BIBLEPAY_VERSION_MINOR = 2;
+const int BIBLEPAY_VERSION_REVISION = 0;
+const int BIBLEPAY_VERSION_BUILD = 1;
+
+
+const int BIBLE_VERSION =  1000000 * BIBLEPAY_VERSION_MAJOR
+                         +   10000 * BIBLEPAY_VERSION_MINOR
+                         +     100 * BIBLEPAY_VERSION_REVISION
+                         +       1 * BIBLEPAY_VERSION_BUILD;
 /**
  * Client version number
  */
-#define CLIENT_VERSION_SUFFIX ""
+#define CLIENT_VERSION_SUFFIX "b"
 
 
 /**
@@ -79,7 +89,10 @@ std::string FormatVersion(int nVersion)
 
 std::string FormatFullVersion()
 {
-    return CLIENT_BUILD;
+   
+	//NEW VERSION:
+	std::string v=strprintf("%d.%d.%d.%d", BIBLE_VERSION / 1000000, (BIBLE_VERSION / 10000) % 100, (BIBLE_VERSION / 100) % 100, BIBLE_VERSION % 100); 
+	return v;
 }
 
 /** 

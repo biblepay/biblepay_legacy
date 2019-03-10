@@ -223,7 +223,7 @@ class CTransaction
 {
 public:
     // Default transaction version.
-    static const int32_t CURRENT_VERSION=2;
+    static const int32_t CURRENT_VERSION=1;
 
     // Changing the default transaction version requires a two step process: first
     // adapting relay policy by bumping MAX_STANDARD_VERSION, and then later date
@@ -344,7 +344,8 @@ struct CMutableTransaction
         READWRITE(vin);
         READWRITE(vout);
         READWRITE(nLockTime);
-		READWRITE(LIMITED_STRING(sTxMessage,1000));
+		// R ANDREWS - We are retiring this field as it is now on each vout.sTxOutMessage and the change is backwards compatible 
+		// READWRITE(LIMITED_STRING(sTxMessage,1000));
         if (this->nVersion == 3 && this->nType != TRANSACTION_NORMAL) {
             READWRITE(vExtraPayload);
         }

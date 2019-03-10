@@ -14,10 +14,10 @@
  */
 
 //! These need to be macros, as clientversion.cpp's and biblepay*-res.rc's voodoo requires it
-#define CLIENT_VERSION_MAJOR 0
-#define CLIENT_VERSION_MINOR 13
-#define CLIENT_VERSION_REVISION 1
-#define CLIENT_VERSION_BUILD 0
+#define CLIENT_VERSION_MAJOR 1
+#define CLIENT_VERSION_MINOR 2
+#define CLIENT_VERSION_REVISION 0
+#define CLIENT_VERSION_BUILD 1
 
 //! Set to true for release, false for prerelease or test build
 #define CLIENT_VERSION_IS_RELEASE true
@@ -59,6 +59,7 @@ static const int CLIENT_VERSION =
 
 extern const std::string CLIENT_NAME;
 extern const std::string CLIENT_BUILD;
+extern const int BIBLE_VERSION;
 
 std::string FormatVersion(int nVersion);
 std::string FormatFullVersion();

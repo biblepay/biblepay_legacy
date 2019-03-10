@@ -64,7 +64,6 @@ std::string ReadCacheWithMaxAge(std::string sSection, std::string sKey, int64_t 
 void WriteCache(std::string sSection, std::string sKey, std::string sValue, int64_t locktime, bool IgnoreCase=true);
 void PurgeCacheAsOfExpiration(std::string sSection, int64_t nExpiration);
 std::string GetSporkValue(std::string sKey);
-double GetDifficultyN(const CBlockIndex* blockindex, double N);
 std::string TimestampToHRDate(double dtm);
 std::string GetArrayElement(std::string s, std::string delim, int iPos);
 void GetMiningParams(int nPrevHeight, bool& f7000, bool& f8000, bool& f9000, bool& fTitheBlocksActive);
@@ -118,6 +117,7 @@ std::vector<char> ReadBytesAll(char const* filename);
 std::string VectToString(std::vector<unsigned char> v);
 CAmount StringToAmount(std::string sValue);
 bool CompareMask(CAmount nValue, CAmount nMask);
+std::string GetElement(std::string sIn, std::string sDelimiter, int iPos);
 std::string TitheErrorToString(int TitheError);
 std::string GetPOGBusinessObjectList(std::string sType, std::string sFields);
 bool CopyFile(std::string sSrc, std::string sDest);
@@ -126,6 +126,8 @@ bool PODCEnabled(int nHeight);
 bool POGEnabled(int nHeight, int64_t nTime);
 std::string Caption(std::string sDefault);
 std::vector<std::string> Split(std::string s, std::string delim);
+void MemorizeBlockChainPrayers(bool fDuringConnectBlock, bool fSubThread, bool fColdBoot, bool fDuringSanctuaryQuorum);
 double GetBlockVersion(std::string sXML);
+bool CheckStakeSignature(std::string sBitcoinAddress, std::string sSignature, std::string strMessage, std::string& strError);
 
 #endif

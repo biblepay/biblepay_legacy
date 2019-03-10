@@ -25,7 +25,7 @@
 #include "util.h"
 #include "utilstrencodings.h"
 #include "hash.h"
-
+#include "governance-classes.h"
 #include "evo/specialtx.h"
 #include "evo/cbtx.h"
 
@@ -79,7 +79,7 @@ double GetDifficulty(const CBlockIndex* blockindex)
         nShift--;
     }
 
-    return dDiff;
+    return dDiff * POBH_FACTOR;
 }
 
 UniValue blockheaderToJSON(const CBlockIndex* blockindex)
@@ -173,11 +173,12 @@ UniValue blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool tx
 		GetMiningParams(blockindex->pprev->nHeight, f7000, f8000, f9000, fTitheBlocksActive);
 		arith_uint256 hashTarget = arith_uint256().SetCompact(blockindex->nBits);
 		uint256 hashWork = blockindex->GetBlockHash();
-		uint256 bibleHash = BibleHash(hashWork, block.GetBlockTime(), blockindex->pprev->nTime, false, blockindex->pprev->nHeight, blockindex->pprev, false, f7000, f8000, f9000, fTitheBlocksActive, blockindex->nNonce);
+		uint256 bibleHash = BibleHashClassic(hashWork, block.GetBlockTime(), blockindex->pprev->nTime, false, blockindex->pprev->nHeight, blockindex->pprev, false, f7000, f8000, f9000, fTitheBlocksActive, blockindex->nNonce);
 		bool bSatisfiesBibleHash = (UintToArith256(bibleHash) <= hashTarget);
 		// CRITICAL TODO: Remove satisfiesbiblehash in prod (spam)
     	result.push_back(Pair("satisfiesbiblehash", bSatisfiesBibleHash ? "true" : "false"));
 		result.push_back(Pair("biblehash", bibleHash.GetHex()));
+		result.push_back(Pair("chaindata", block.vtx[0]->vout[0].sTxOutMessage));
 	}
     CBlockIndex *pnext = chainActive.Next(blockindex);
     if (pnext)
@@ -1687,21 +1688,119 @@ UniValue exec(const JSONRPCRequest& request)
 			bool f9000;
 			bool fTitheBlocksActive;
 			GetMiningParams(nHeight, f7000, f8000, f9000, fTitheBlocksActive);
-			uint256 hash = BibleHash(blockHash, nBlockTime, nPrevBlockTime, true, nHeight, NULL, false, f7000, f8000, f9000, fTitheBlocksActive, nNonce);
+			uint256 hash = BibleHashClassic(blockHash, nBlockTime, nPrevBlockTime, true, nHeight, NULL, false, f7000, f8000, f9000, fTitheBlocksActive, nNonce);
 			results.push_back(Pair("BibleHash",hash.GetHex()));
+			uint256 hash2 = BibleHashV2(blockHash, nBlockTime, nPrevBlockTime, true, nHeight);
+			results.push_back(Pair("BibleHashV2", hash2.GetHex()));
 		}
+	}
+	else if (sItem == "search")
+	{
+		if (request.params.size() != 2 && request.params.size() != 3)
+			throw std::runtime_error("You must specify type: IE 'exec search PRAYER'.  Optionally you may enter a search phrase: IE 'exec search PRAYER MOTHER'.");
+		std::string sType = request.params[1].get_str();
+		std::string sSearch = "";
+		if (request.params.size() == 3) 
+			sSearch = request.params[2].get_str();
+		int iSpecificEntry = 0;
+		std::string sEntry = "";
+		int iDays = 30;
+		UniValue aDataList = GetDataList(sType, iDays, iSpecificEntry, sSearch, sEntry);
+		return aDataList;
+	}
+	else if (sItem == "getsporkdouble")
+	{
+		std::string sType = request.params[1].get_str();
+		double dValue = GetSporkDouble(sType, 0);
+		results.push_back(Pair(sType, dValue));
+	}
+	else if (sItem == "datalist")
+	{
+		if (request.params.size() != 2 && request.params.size() != 3)
+			throw std::runtime_error("You must specify type: IE 'exec datalist PRAYER'.  Optionally you may enter a lookback period in days: IE 'exec datalist PRAYER 30'.");
+		std::string sType = request.params[1].get_str();
+		double dDays = 30;
+		if (request.params.size() == 3)
+			dDays = cdbl(request.params[2].get_str(),0);
+		int iSpecificEntry = 0;
+		std::string sEntry = "";
+		UniValue aDataList = GetDataList(sType, (int)dDays, iSpecificEntry, "", sEntry);
+		return aDataList;
+	}
+
+	else if (sItem == "getgovlimit")
+	{
+		const Consensus::Params& consensusParams = Params().GetConsensus();
+		int nBits = 486585255;
+		int nHeight = cdbl(request.params[1].get_str(), 0);
+		CAmount nLimit = CSuperblock::GetPaymentsLimit(nHeight);
+		CAmount nReward = GetBlockSubsidy(nBits, nHeight, consensusParams, false);
+		CAmount nRewardGov = GetBlockSubsidy(nBits, nHeight, consensusParams, true);
+		CAmount nSanc = GetMasternodePayment(nHeight, nReward);
+        results.push_back(Pair("Limit", (double)nLimit/COIN));
+		results.push_back(Pair("Subsidy", (double)nReward/COIN));
+		results.push_back(Pair("Sanc", (double)nSanc/COIN));
+		// Evo Audit: 14700 gross, @98400=13518421, @129150=13225309/Daily = @129170=1013205
+		results.push_back(Pair("GovernanceSubsidy", (double)nRewardGov/COIN));
+	}
+	else if (sItem == "hexblocktojson")
+	{
+		std::string sHex = request.params[1].get_str();
+		CBlock block;
+        if (!DecodeHexBlk(block, sHex))
+                throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "Block decode failed");
+        return blockToJSON(block, NULL, true);
+	}
+	else if (sItem == "hextxtojson")
+	{
+		std::string sHex = request.params[1].get_str();
+		
+		CMutableTransaction tx;
+        if (!DecodeHexTx(tx, request.params[0].get_str()))
+                throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "Tx decode failed");
+        UniValue objTx(UniValue::VOBJ);
+        TxToJSON(tx, uint256(), objTx);
+        results.push_back(objTx);
+	}
+	else if (sItem == "hextxtojson2")
+	{
+		std::string sHex = request.params[1].get_str();
+		
+		CMutableTransaction tx;
+        DecodeHexTx(tx, request.params[0].get_str());
+        UniValue objTx(UniValue::VOBJ);
+        TxToJSON(tx, uint256(), objTx);
+        results.push_back(objTx);
+	}
+	else if (sItem == "blocktohex")
+	{
+		std::string sBlock = request.params[1].get_str();
+		int nHeight = (int)cdbl(sBlock,0);
+		if (nHeight < 0 || nHeight > chainActive.Tip()->nHeight) 
+			throw std::runtime_error("Block number out of range.");
+		CBlockIndex* pblockindex = FindBlockByHeight(nHeight);
+		if (pblockindex==NULL)   
+			throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
+		CBlock block;
+		const Consensus::Params& consensusParams = Params().GetConsensus();
+		ReadBlockFromDisk(block, pblockindex, consensusParams);
+		CDataStream ssBlock(SER_NETWORK, PROTOCOL_VERSION);
+		ssBlock << block;
+		std::string sBlockHex = HexStr(ssBlock.begin(), ssBlock.end());
+		CTransaction txCoinbase;
+		std::string sTxCoinbaseHex = EncodeHexTx(*block.vtx[0]);
+		results.push_back(Pair("blockhex", sBlockHex));
+		results.push_back(Pair("txhex", sTxCoinbaseHex));
 	}
 	else if (sItem == "XBBP")
 	{
 		std::string smd1 = "BiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePay";
 		uint256 hMax = uint256S("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF");
-		// 62 hex chars = 31 bytes
 		arith_uint256 aMax = UintToArith256(hMax);
 		arith_uint256 aMax420 = aMax * 420;
 		uint256 hMaxResult = ArithToUint256(aMax420);
 		results.push_back(Pair("hMax", hMax.GetHex()));
 		results.push_back(Pair("hMaxResult", hMaxResult.GetHex()));
-		// test division
 		arith_uint256 bnDiff = aMax - aMax420;
 		uint256 hDiff = ArithToUint256(bnDiff);
 		results.push_back(Pair("bnDiff", hDiff.GetHex()));
@@ -1709,7 +1808,6 @@ UniValue exec(const JSONRPCRequest& request)
 		uint256 hDivResult = ArithToUint256(aDiv);
 		results.push_back(Pair("bnDivision", hDivResult.GetHex()));
 		std::vector<unsigned char> vch1 = std::vector<unsigned char>(smd1.begin(), smd1.end());
-		//std::vector<unsigned char> vchPlaintext = vector<unsigned char>(hash.begin(), hash.end());
 	    std::string smd2="biblepay";
 		std::vector<unsigned char> vch2 = std::vector<unsigned char>(smd2.begin(), smd2.end());
 		uint256 hSMD10 = Sha256001(1,170001,smd2);
@@ -1723,7 +1821,6 @@ UniValue exec(const JSONRPCRequest& request)
 		uint256 hGroestl = HashGroestl(vch1.begin(), vch1.end());
 		uint256 hBiblepayIsolated = HashBiblepayIsolated(vch1.begin(), vch1.end());
 		uint256 hBiblePayTest = HashBiblePay(vch1.begin(), vch1.end());
-	//	uint256 hBrokenDog = HashBrokenDog(vch1.begin(), vch1.end());
 		bool f7000 = false;
 		bool f8000 = false;
 		bool f9000 = false;
@@ -1740,29 +1837,15 @@ UniValue exec(const JSONRPCRequest& request)
 		int64_t nNonce = 10;
 		uint256 inHash = uint256S("0x1234");
 		bool bMining = true;
-		uint256 uBibleHash = BibleHash(inHash, nTime, nPrevTime, bMining, nPrevHeight, NULL, false, f7000, f8000, f9000, fTitheBlocksActive, nNonce);
+		uint256 uBibleHash = BibleHashClassic(inHash, nTime, nPrevTime, bMining, nPrevHeight, NULL, false, f7000, f8000, f9000, fTitheBlocksActive, nNonce);
 		std::vector<unsigned char> vchPlaintext = std::vector<unsigned char>(inHash.begin(), inHash.end());
 		std::vector<unsigned char> vchCiphertext;
 		BibleEncryptE(vchPlaintext, vchCiphertext);
-		/*
-		for (int i = 0; i < vch1.size(); i++)
-		{
-			int ichar = (int)vch1[i];
-			results.push_back(Pair(RoundToString(i,0), RoundToString(ichar,0)));
-		}
-		*/
 		/* Try to discover AES256 empty encryption value */
 		uint256 hBlank = uint256S("0x0");
 		std::vector<unsigned char> vchBlank = std::vector<unsigned char>(hBlank.begin(), hBlank.end());
 		std::vector<unsigned char> vchBlankEncrypted;
 		BibleEncryptE(vchBlank, vchBlankEncrypted);
-		/*
-		for (int i = 0; i < (int)vch1.size(); i++)
-		{
-			int ichar = (int)vch1[i];
-			results.push_back(Pair("BlankInt" + RoundToString(i,0), RoundToString(ichar,0)));
-		}
-		*/
 		std::string sBlankBase64 = EncodeBase64(VectToString(vchBlankEncrypted));
 		results.push_back(Pair("Blank_Base64", sBlankBase64));
 		std::string sCipher64 = EncodeBase64(VectToString(vchCiphertext));
@@ -1777,28 +1860,17 @@ UniValue exec(const JSONRPCRequest& request)
 		results.push_back(Pair("h_Groestl", hGroestl.GetHex()));
 		results.push_back(Pair("h_BiblePayIsolated", hBiblepayIsolated.GetHex()));
 		results.push_back(Pair("h_BiblePayTest", hBiblePayTest.GetHex()));
-	//	results.push_back(Pair("h_BrokenDog", hBrokenDog.GetHex()));
 		results.push_back(Pair("h1",h1.GetHex()));
 		results.push_back(Pair("h2",h2.GetHex()));
 		results.push_back(Pair("hSMD2", hSMD2.GetHex()));
 		results.push_back(Pair("h3",h3.GetHex()));
 		results.push_back(Pair("h4",h4.GetHex()));
 		results.push_back(Pair("h5",h5.GetHex()));
-
-		/*
-		bool f1 = CheckNonce(true, 1, 9000, 10000, 10060);
-		results.push_back(Pair("f1",f1));
-		bool f2 = CheckNonce(true, 256000, 9000, 10000, 10060);
-		results.push_back(Pair("f2",f2));
-		bool f3 = CheckNonce(true, 256000, 9000, 10000, 10000+1900);
-		results.push_back(Pair("f3",f3));
-		bool f4 = CheckNonce(true, 1256000, 9000, 10000, 10000+180);
-		results.push_back(Pair("f4",f4));
-		bool f5 = CheckNonce(true, 1256000, 9000, 10000, 10000+18000);
-		results.push_back(Pair("f5",f5));
-		*/
 	}
-
+	else
+	{
+		results.push_back(Pair("Error", "Command not found"));
+	}
 
 	return results;
 }

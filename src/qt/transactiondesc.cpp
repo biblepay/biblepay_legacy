@@ -9,7 +9,7 @@
 #include "guiutil.h"
 #include "paymentserver.h"
 #include "transactionrecord.h"
-
+#include "guiutil.h"
 #include "base58.h"
 #include "consensus/consensus.h"
 #include "validation.h"
@@ -297,8 +297,17 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionReco
     //
     // Debug view
     //
-    if (fDebug)
+	bool fEvolutionView = true;
+    if (fDebug || fEvolutionView)
     {
+		// In Network Messages or Prayers
+
+		std::string sNetworkMessage;
+		for (unsigned int i1 = 0; i1 < wtx.tx->vout.size(); i1++)
+		{
+			sNetworkMessage += wtx.tx->vout[i1].sTxOutMessage;
+		}
+
         strHTML += "<hr><br>" + tr("Debug information") + "<br><br>";
         BOOST_FOREACH(const CTxIn& txin, wtx.tx->vin)
             if(wallet->IsMine(txin))
@@ -312,6 +321,8 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionReco
 
         strHTML += "<br><b>" + tr("Inputs") + ":</b>";
         strHTML += "<ul>";
+
+		strHTML += "<br><b>"+ tr("Messages") + ":</b> " + GUIUtil::TOQS(sNetworkMessage);
 
         BOOST_FOREACH(const CTxIn& txin, wtx.tx->vin)
         {

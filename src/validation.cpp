@@ -16,6 +16,7 @@
 #include "consensus/merkle.h"
 #include "consensus/validation.h"
 #include "hash.h"
+#include "rpcpog.h"
 #include "init.h"
 #include "policy/policy.h"
 #include "pow.h"
@@ -83,6 +84,7 @@ bool fSpentIndex = false;
 bool fHavePruned = false;
 bool fPruneMode = false;
 bool fProd = false;
+bool fLoadingIndex = false;
 
 bool fIsBareMultisigStd = DEFAULT_PERMIT_BAREMULTISIG;
 bool fRequireStandard = true;
@@ -113,8 +115,8 @@ static void CheckBlockIndex(const Consensus::Params& consensusParams);
 
 /** Constant stuff for coinbase transactions we create: */
 CScript COINBASE_FLAGS;
-
-const std::string strMessageMagic = "BiblePay Signed Message:\n";
+// R ANDREWS:  We need to keep DarkCoin Signed Message for now, as our signed objects are signed this way
+const std::string strMessageMagic = "DarkCoin Signed Message:\n";
 
 // Internal stuff
 namespace {
@@ -1110,8 +1112,13 @@ bool ReadBlockFromDisk(CBlock& block, const CDiskBlockPos& pos, const Consensus:
     }
 
     // Check the header
-    if (!CheckProofOfWork(block.GetHash(), block.nBits, consensusParams))
-        return error("ReadBlockFromDisk: Errors in block header at %s", pos.ToString());
+	// R ANDREWS - Biblepay needs to find the previous block before checking the POW
+	CBlockIndex* pindexPrev = mapBlockIndex[block.hashPrevBlock];
+	if (pindexPrev)
+	{
+		if (!CheckProofOfWork(block.GetHash(), block.nBits, consensusParams, block.GetBlockTime(), pindexPrev->nTime, pindexPrev->nHeight, block.nNonce, pindexPrev, true))
+		    return error("ReadBlockFromDisk: Errors in block header at %s", pos.ToString());
+	}
 
     return true;
 }
@@ -1159,7 +1166,7 @@ CAmount GetBlockSubsidy(int nPrevBits, int nPrevHeight, const Consensus::Params&
 	dDiff = dDiff / 14000;
 
 	// This rule allows us to take out all of the business logic we had between 2017-2018
-	if (nPrevHeight < EVOLUTION_CUTOVER_HEIGHT) 
+	if (nPrevHeight < consensusParams.EVOLUTION_CUTOVER_HEIGHT) 
 		return (MAX_BLOCK_SUBSIDY * COIN);
 
 		// This setting included in f7000 regulates the extent in which the block subsidy is lowered by increasing diff; once we remove the x11 component from the biblehash, it was necessary to recalculate the reduction to match the prior regulation level.
@@ -1185,10 +1192,9 @@ CAmount GetBlockSubsidy(int nPrevBits, int nPrevHeight, const Consensus::Params&
     // Yearly decline of production by ~19.5% per year, projected ~5.2 Billion coins max by year 2050+.
 	// http://wiki.biblepay.org/Emission_Schedule
 
-	bool fSuperblocksEnabled = nPrevHeight >= consensusParams.nSuperblockStartBlock;
 	int iSubsidyDecreaseInterval = BLOCKS_PER_DAY * 365; // Yearly Initially
 	double iDeflationRate = .10; // 10% deflation from July 2017 to Dec 2017 (until sanctuaries go live) - This bootstraps the coin
-	if (fSuperblocksEnabled)
+	if (nPrevHeight >= consensusParams.nSuperblockStartBlock)
 	{
 		iSubsidyDecreaseInterval = BLOCKS_PER_DAY * 30; // After sanctuaries go live, Monthly
 		iDeflationRate = .015; // 1.5% per month, compounded monthly (19.5% per year with compounding)
@@ -1199,41 +1205,22 @@ CAmount GetBlockSubsidy(int nPrevBits, int nPrevHeight, const Consensus::Params&
     }
 		
     // Monthly Budget: 
-	// 10% to Charity budget, 5% for the IT budget, 2.5% PR, 2.5% P2P.  The 80% remaining is split between the miner, PODC rewards and the sanctuary.
+	// 10% to Charity budget, 5% for the IT budget, 2.5% PR, 2.5% P2P (this is 20% for Governance).  An additional 28.5% is held back for the generic superblock contract.  This equals 48.5% being escrowed.
+	// The remaining 50% is split between the miner and the sanctuary.
 	// https://wiki.biblepay.org/Economics
 
-	double dSuperblockMultiplier = .70;
-    CAmount nSuperblockPart = (nPrevHeight > consensusParams.nBudgetPaymentsStartBlock) ? nSubsidy * dSuperblockMultiplier : 0;
-	CAmount nMainSubsidy = nSubsidy - nSuperblockPart;
-	// nMainSubsidy (15000) - nSuperblockPart (10500) =               // Main Subsidy: 4500                                          
-	CAmount caMasternodePortion = nMainSubsidy * .975;                // Sanctuary Portion = Total - Reaper = 4387                                    
-	CAmount nNetSubsidy = nMainSubsidy - caMasternodePortion;         // Main - Sanctuary = 4500 - 4387 = 113                       
-	CAmount nReaperReward = nNetSubsidy * .20;                                                                
-	CAmount nPOGPoolReward = nNetSubsidy * 4;                         // Pool = 452                                         
-	CAmount nGrossReaperReward = nReaperReward + caMasternodePortion; 
-	CAmount nGrossPOGPoolReward = (nPOGPoolReward * BLOCKS_PER_DAY) + caMasternodePortion; // Sanctuary (4387) + (Pool (452) * Blocks per day (205))
-	nMainSubsidy = nGrossReaperReward; // 452 * 205 (pool) or (4410 - (4410*.975=4299) = 113) (Actual Reaper Reward)
-
-	return fSuperblockPartOnly ? nSuperblockPart : nMainSubsidy;
+	double dGovernancePercent = .485;
+	CAmount nSuperblockPart = (nPrevHeight > consensusParams.nBudgetPaymentsStartBlock) ? nSubsidy * dGovernancePercent : 0;
+	CAmount nNetSubsidy = nSubsidy - nSuperblockPart;
+	return fSuperblockPartOnly ? nSuperblockPart : nNetSubsidy;
 }
 
 CAmount GetMasternodePayment(int nHeight, CAmount blockValue)
 {
 	// https://wiki.biblepay.org/Economics
-	const Consensus::Params& consensusParams = Params().GetConsensus();
-    bool fSuperblocksEnabled = nHeight >= consensusParams.nSuperblockStartBlock;
 	// http://forum.biblepay.org/index.php?topic=33.0
-	// Final Distribution: 10% Charity, 2.5% PR, 2.5% P2P, 5% for IT
-	CAmount ret = 0;
-	int nSpork8Height = fProd ? SPORK8_HEIGHT : SPORK8_HEIGHT_TESTNET;
-	if (fProd && nHeight > nSpork8Height)
-	{
-		ret = blockValue * .50; // Tithe blocks have ended, masternodes are live, budgets live, split masternode payment with miner.
-    }
-	if (nHeight > 125000)
-	{
-		ret = blockValue * .50;
-	}
+	// Sanctuaries receive half of the POW-POBH reward
+	CAmount ret = .50 * blockValue;
 	return ret;
 }
 
@@ -2330,6 +2317,12 @@ static bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockInd
     hashPrevBestCoinBase = block.vtx[0]->GetHash();
 
     evoDb->WriteBestBlock(pindex->GetBlockHash());
+	// BIBLEPAY
+	if (!fLoadingIndex) 
+	{
+		MemorizeBlockChainPrayers(true, false, false, false);
+	}
+	// END BIBLEPAY
 
     int64_t nTime7 = GetTimeMicros(); nTimeCallbacks += nTime7 - nTime6;
     LogPrint("bench", "    - Callbacks: %.2fms [%.2fs]\n", 0.001 * (nTime7 - nTime6), nTimeCallbacks * 0.000001);
@@ -3232,11 +3225,12 @@ bool FindUndoPos(CValidationState &state, int nFile, CDiskBlockPos &pos, unsigne
     return true;
 }
 
-bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, const Consensus::Params& consensusParams, bool fCheckPOW)
+bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, const Consensus::Params& consensusParams, bool fCheckPOW, int64_t nBlockTime, int64_t nPrevBlockTime, int nPrevHeight, const CBlockIndex* pindexPrev)
 {
     // Check proof of work matches claimed amount
-    if (fCheckPOW && !CheckProofOfWork(block.GetHash(), block.nBits, consensusParams))
-        return state.DoS(50, false, REJECT_INVALID, "high-hash", false, "proof of work failed");
+	// R ANDREWS - BiblePay needs these 6 additional fields
+	if (fCheckPOW && !CheckProofOfWork(block.GetHash(), block.nBits, Params().GetConsensus(), nBlockTime, nPrevBlockTime, nPrevHeight, block.nNonce, pindexPrev, false))
+         return state.DoS(5, false, REJECT_INVALID, "high-hash", false, "proof of work failed");
 	
 	// BiblePay - Check timestamp (reject if > 15 minutes in future).  This is is important since we lower the difficulty after all online nodes cannot solve block in one hour!  
     if (block.GetBlockTime() > GetAdjustedTime() + (15 * 60))
@@ -3253,8 +3247,8 @@ bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, const 
 
     return true;
 }
-
-bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::Params& consensusParams, bool fCheckPOW, bool fCheckMerkleRoot)
+	
+bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::Params& consensusParams, bool fCheckPOW, bool fCheckMerkleRoot, int64_t nBlockTime, int64_t nPrevBlockTime, int nPrevHeight, CBlockIndex* pindexPrev)
 {
     // These are checks that are independent of context.
 
@@ -3263,7 +3257,8 @@ bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::P
 
     // Check that the header is valid (particularly PoW).  This is mostly
     // redundant with the call in AcceptBlockHeader.
-    if (!CheckBlockHeader(block, state, consensusParams, fCheckPOW))
+	
+    if (!CheckBlockHeader(block, state, consensusParams, fCheckPOW, nBlockTime, nPrevBlockTime, nPrevHeight, pindexPrev))
         return false;
 
     // Check the merkle root.
@@ -3364,7 +3359,13 @@ bool ContextualCheckBlockHeader(const CBlockHeader& block, CValidationState& sta
     const int nHeight = pindexPrev == NULL ? 0 : pindexPrev->nHeight + 1;
     // Check proof of work
 	if (block.nBits != GetNextWorkRequired(pindexPrev, &block, consensusParams))
-            return state.DoS(100, false, REJECT_INVALID, "bad-diffbits", false, strprintf("incorrect proof of work at %d", nHeight));
+	{
+		unsigned int nwr = GetNextWorkRequired(pindexPrev, &block, consensusParams);
+		if ((nHeight > 0 && nHeight < 5) || nHeight == 33441) 
+			return true; // We adjusted something in DGW during this time
+		LogPrintf("\nContextualCheckBlockHeader::FAILED incorrect proof of work at %d, block.nbits %f, next work %f", nHeight, (double)block.nBits, (double)nwr);
+		return state.DoS(100, false, REJECT_INVALID, "bad-diffbits", false, strprintf("incorrect proof of work at %d, block.nbits %f, next work %f", nHeight, (double)block.nBits, (double)nwr));
+	}
     
     // Check timestamp against prev
     if (block.GetBlockTime() <= pindexPrev->GetMedianTimePast())
@@ -3464,18 +3465,20 @@ static bool AcceptBlockHeader(const CBlockHeader& block, CValidationState& state
                 return state.Invalid(error("%s: block %s is marked invalid", __func__, hash.ToString()), 0, "duplicate");
             return true;
         }
-
-        if (!CheckBlockHeader(block, state, chainparams.GetConsensus()))
-            return error("%s: Consensus::CheckBlockHeader: %s, %s", __func__, hash.ToString(), FormatStateMessage(state));
-
-        // Get prev block index
-        CBlockIndex* pindexPrev = NULL;
+		// R ANDREWS - Biblepay needs to find the previous block before checking the block header
+		CBlockIndex* pindexPrev = NULL;
         BlockMap::iterator mi = mapBlockIndex.find(block.hashPrevBlock);
         if (mi == mapBlockIndex.end())
             return state.DoS(10, error("%s: prev block not found", __func__), 0, "bad-prevblk");
-        pindexPrev = (*mi).second;
-        if (pindexPrev->nStatus & BLOCK_FAILED_MASK)
+
+		pindexPrev = (*mi).second;
+		// R ANDREWS - Now we can check the block header:
+		if (!CheckBlockHeader(block, state, chainparams.GetConsensus(), true, block.GetBlockTime(), pindexPrev ? pindexPrev->nTime : 0, pindexPrev ? pindexPrev->nHeight : 0, pindexPrev))
+            return error("%s: Consensus::CheckBlockHeader: %s, %s", __func__, hash.ToString(), FormatStateMessage(state));
+
+		if (pindexPrev->nStatus & BLOCK_FAILED_MASK)
             return state.DoS(100, error("%s: prev block invalid", __func__), REJECT_INVALID, "bad-prevblk");
+
 
         assert(pindexPrev);
         if (fCheckpointsEnabled && !CheckIndexAgainstCheckpoint(pindexPrev, state, chainparams, hash))
@@ -3557,14 +3560,14 @@ static bool AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CValidation
         if (fTooFarAhead) return true;      // Block height is too high
     }
     if (fNewBlock) *fNewBlock = true;
-
-    if (!CheckBlock(block, state, chainparams.GetConsensus()) ||
-        !ContextualCheckBlock(block, state, chainparams.GetConsensus(), pindex->pprev)) {
-        if (state.IsInvalid() && !state.CorruptionPossible()) {
-            pindex->nStatus |= BLOCK_FAILED_VALID;
-            setDirtyBlockIndex.insert(pindex);
-        }
-        return error("%s: %s", __func__, FormatStateMessage(state));
+	// R ANDREWS: BiblePay needs to pass in these 4 additional fields into CheckBlock:
+    if  (!CheckBlock(block, state, chainparams.GetConsensus(), true, true, block.GetBlockTime(), pindex->pprev ? pindex->pprev->nTime : 0, pindex->pprev ? pindex->pprev->nHeight : 0, pindex->pprev) || 
+		 !ContextualCheckBlock(block, state, chainparams.GetConsensus(), pindex->pprev)) {
+		if (state.IsInvalid() && !state.CorruptionPossible()) {
+			pindex->nStatus |= BLOCK_FAILED_VALID;
+			setDirtyBlockIndex.insert(pindex);
+		}
+		return error("%s: %s", __func__, FormatStateMessage(state));
     }
 
     // Header is valid/has work, merkle tree is good...RELAY NOW

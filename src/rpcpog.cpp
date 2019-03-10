@@ -67,6 +67,21 @@ double Round(double d, int place)
 	return r;
 }
 
+std::vector<std::string> Split(std::string s, std::string delim)
+{
+	size_t pos = 0;
+	std::string token;
+	std::vector<std::string> elems;
+	while ((pos = s.find(delim)) != std::string::npos)
+	{
+		token = s.substr(0, pos);
+		elems.push_back(token);
+		s.erase(0, pos + delim.length());
+	}
+	elems.push_back(s);
+	return elems;
+}
+
 double cdbl(std::string s, int place)
 {
 	if (s=="") s = "0";
@@ -94,6 +109,17 @@ bool Contains(std::string data, std::string instring)
 	found = data.find(instring);
 	if (found != std::string::npos) return true;
 	return false;
+}
+
+std::string GetElement(std::string sIn, std::string sDelimiter, int iPos)
+{
+	if (sIn.empty()) return "";
+	std::vector<std::string> vInput = Split(sIn.c_str(), sDelimiter);
+	if (iPos < (int)vInput.size())
+	{
+		return vInput[iPos];
+	}
+	return "";
 }
 
 std::string GetSporkValue(std::string sKey)
@@ -228,21 +254,6 @@ CBlockIndex* FindBlockByHeight(int nHeight)
 		pblockindex = chainActive.Next(pblockindex);
     pblockindexFBBHLast = pblockindex;
     return pblockindex;
-}
-
-std::vector<std::string> Split(std::string s, std::string delim)
-{
-	size_t pos = 0;
-	std::string token;
-	std::vector<std::string> elems;
-	while ((pos = s.find(delim)) != std::string::npos)
-	{
-		token = s.substr(0, pos);
-		elems.push_back(token);
-		s.erase(0, pos + delim.length());
-	}
-	elems.push_back(s);
-	return elems;
 }
 
 /*
@@ -1311,32 +1322,6 @@ void PurgeCacheAsOfExpiration(std::string sSection, int64_t nExpiration)
 	}
 }
 
-
-/*
-double GetDifficultyN(const CBlockIndex* blockindex, double N)
-{
-	int nHeight = 0;
-	if (blockindex == NULL)
-	{
-		if (chainActive.Tip() != NULL) nHeight = chainActive.Tip()->nHeight;
-	}
-	else
-	{
-		nHeight = blockindex->nHeight;
-	}
-	
-	// Returns Difficulty * N (Most likely this will be used to display the Diff in the wallet, since the BibleHash is much harder to solve than an ASIC hash)
-	if ((!fProd && nHeight >= 1) || (fProd && nHeight >= 7000))
-	{
-		return GetDifficulty(blockindex)*(N/10); //f7000 feature
-	}
-	else
-	{
-		return GetDifficulty(blockindex)*N;
-	}
-}
-*/
-
 std::string GetArrayElement(std::string s, std::string delim, int iPos)
 {
 	std::vector<std::string> vGE = Split(s.c_str(),delim);
@@ -1346,11 +1331,12 @@ std::string GetArrayElement(std::string s, std::string delim, int iPos)
 
 void GetMiningParams(int nPrevHeight, bool& f7000, bool& f8000, bool& f9000, bool& fTitheBlocksActive)
 {
-	f7000 = ((!fProd && nPrevHeight > 1) || (fProd && nPrevHeight > F7000_CUTOVER_HEIGHT)) ? true : false;
-    f8000 = ((!fProd && nPrevHeight >= F8000_CUTOVER_HEIGHT_TESTNET) || (fProd && nPrevHeight >= F8000_CUTOVER_HEIGHT));
-	f9000 = ((!fProd && nPrevHeight >= F9000_CUTOVER_HEIGHT_TESTNET) || (fProd && nPrevHeight >= F9000_CUTOVER_HEIGHT));
-	int nLastTitheBlock = fProd ? LAST_TITHE_BLOCK : LAST_TITHE_BLOCK_TESTNET;
-    fTitheBlocksActive = ((nPrevHeight+1) < nLastTitheBlock);
+	const Consensus::Params& consensusParams = Params().GetConsensus();
+	f7000 = nPrevHeight > consensusParams.F7000_CUTOVER_HEIGHT;
+    f8000 = nPrevHeight >= consensusParams.F8000_CUTOVER_HEIGHT;
+	f9000 = nPrevHeight >= consensusParams.F9000_CUTOVER_HEIGHT;
+	int nLastTitheBlock = consensusParams.LAST_TITHE_BLOCK;
+    fTitheBlocksActive = (nPrevHeight + 1) < nLastTitheBlock;
 }
 
 /*
@@ -1859,13 +1845,13 @@ bool PODCEnabled(int nHeight)
 	{
 		return GetAdjustedTime() < 1553975345; // 3-30-2019
 	}
-	bool fDC = (fProd && nHeight > F11000_CUTOVER_HEIGHT_PROD && nHeight < PODC_LAST_BLOCK_PROD) || (!fProd && nHeight > F11000_CUTOVER_HEIGHT_PROD && nHeight < PODC_LAST_BLOCK_TESTNET);
+	bool fDC = (fProd && nHeight > F11000_CUTOVER_HEIGHT_PROD && nHeight < _BLOCK_PROD) || (!fProd && nHeight > _CUTOVER_HEIGHT_PROD && nHeight < _BLOCK_TESTNET);
 	return fDC;
 }
 
 bool POGEnabled(int nHeight, int64_t nTime)
 {
-	bool fPOG = ((nHeight > FPOG_CUTOVER_HEIGHT_TESTNET && !fProd) || (fProd && nHeight > FPOG_CUTOVER_HEIGHT_PROD));
+	bool fPOG = ((nHeight > OVER_HEIGHT_TESTNET && !fProd) || (fProd && nHeight > CUTOVER_HEIGHT_PROD));
 	if (nTime > 0)
 	{
 		int64_t nAge = GetAdjustedTime() - nTime;
@@ -1892,4 +1878,290 @@ double GetBlockVersion(std::string sXML)
 	double dBlockVersion = cdbl(sBlockVersion, 0);
 	return dBlockVersion;
 }
+
+struct TxMessage
+{
+  std::string sMessageType;
+  std::string sMessageKey;
+  std::string sMessageValue;
+  std::string sSig;
+  std::string sNonce;
+  std::string sSporkSig;
+  std::string sIPFSHash;
+  std::string sBOSig;
+  std::string sBOSigner;
+  std::string sTimestamp;
+  std::string sIPFSSize;
+  std::string sCPIDSig;
+  std::string sCPID;
+  std::string sPODCTasks;
+  std::string sTxId;
+  std::string sVoteSignal;
+  std::string sVoteHash;
+  double      nNonce;
+  double      dAmount;
+  bool        fNonceValid;
+  bool        fPrayersMustBeSigned;
+  bool        fSporkSigValid;
+  bool        fBOSigValid;
+  bool        fPassedSecurityCheck;
+  int64_t     nAge;
+  int64_t     nTime;
+};
+
+
+bool CheckStakeSignature(std::string sBitcoinAddress, std::string sSignature, std::string strMessage, std::string& strError)
+{
+	CBitcoinAddress addr2(sBitcoinAddress);
+	if (!addr2.IsValid()) 
+	{
+		strError = "Invalid address";
+		return false;
+	}
+	CKeyID keyID2;
+	if (!addr2.GetKeyID(keyID2)) 
+	{
+		strError = "Address does not refer to key";
+		return false;
+	}
+	bool fInvalid = false;
+	std::vector<unsigned char> vchSig2 = DecodeBase64(sSignature.c_str(), &fInvalid);
+	if (fInvalid)
+	{
+		strError = "Malformed base64 encoding";
+		return false;
+	}
+	CHashWriter ss2(SER_GETHASH, 0);
+	ss2 << strMessageMagic;
+	ss2 << strMessage;
+	CPubKey pubkey2;
+    if (!pubkey2.RecoverCompact(ss2.GetHash(), vchSig2)) 
+	{
+		strError = "Unable to recover public key.";
+		return false;
+	}
+	bool fSuccess = (pubkey2.GetID() == keyID2);
+	return fSuccess;
+}
+
+bool CheckSporkSig(TxMessage t)
+{
+	std::string sError = "";
+	const CChainParams& chainparams = Params();
+	bool fSigValid = CheckStakeSignature(chainparams.GetConsensus().FoundationAddress, t.sSporkSig, t.sMessageValue + t.sNonce, sError);
+    bool bValid = (fSigValid && t.fNonceValid);
+	if (!bValid)
+	{
+		LogPrint("net", "CheckSporkSig:SigFailed - Type %s, Nonce %f, Time %f, Bad spork Sig %s on message %s on TXID %s \n", t.sMessageType.c_str(), t.nNonce, t.nTime, 
+			               t.sSporkSig.c_str(), t.sMessageValue.c_str(), t.sTxId.c_str());
+	}
+	return bValid;
+}
+
+bool CheckBusinessObjectSig(TxMessage t)
+{
+	if (!t.sBOSig.empty() && !t.sBOSigner.empty())
+	{	
+		std::string sError = "";
+		bool fBOSigValid = CheckStakeSignature(t.sBOSigner, t.sBOSig, t.sMessageValue + t.sNonce, sError);
+   		if (!fBOSigValid)
+		{
+			LogPrint("net", "MemorizePrayers::BO_SignatureFailed - Type %s, Nonce %f, Time %f, Bad BO Sig %s on message %s on TXID %s \n", 
+				t.sMessageType.c_str(),	t.nNonce, t.nTime, t.sBOSig.c_str(), t.sMessageValue.c_str(), t.sTxId.c_str());
+	   	}
+		return fBOSigValid;
+	}
+	return false;
+}
+
+
+
+TxMessage GetTxMessage(std::string sMessage, int64_t nTime, int iPosition, std::string sTxId, double dAmount, double dFoundationDonation, int nHeight)
+{
+	TxMessage t;
+	t.sMessageType = ExtractXML(sMessage,"<MT>","</MT>");
+	t.sMessageKey  = ExtractXML(sMessage,"<MK>","</MK>");
+	t.sMessageValue= ExtractXML(sMessage,"<MV>","</MV>");
+	t.sSig         = ExtractXML(sMessage,"<MS>","</MS>");
+	t.sNonce       = ExtractXML(sMessage,"<NONCE>","</NONCE>");
+	t.nNonce       = cdbl(t.sNonce, 0);
+	t.sSporkSig    = ExtractXML(sMessage,"<SPORKSIG>","</SPORKSIG>");
+	t.sIPFSHash    = ExtractXML(sMessage,"<IPFSHASH>", "</IPFSHASH>");
+	t.sBOSig       = ExtractXML(sMessage,"<BOSIG>", "</BOSIG>");
+	t.sBOSigner    = ExtractXML(sMessage,"<BOSIGNER>", "</BOSIGNER>");
+	t.sIPFSHash    = ExtractXML(sMessage,"<ipfshash>", "</ipfshash>");
+	t.sIPFSSize    = ExtractXML(sMessage,"<ipfssize>", "</ipfssize>");
+	t.sCPIDSig     = ExtractXML(sMessage,"<cpidsig>","</cpidsig>");
+	t.sCPID        = GetElement(t.sCPIDSig, ";", 0);
+	t.sPODCTasks   = ExtractXML(sMessage, "<PODC_TASKS>", "</PODC_TASKS>");
+	t.sTxId        = sTxId;
+	t.nTime        = nTime;
+	t.dAmount      = dAmount;
+    boost::to_upper(t.sMessageType);
+	boost::to_upper(t.sMessageKey);
+	t.sTimestamp = TimestampToHRDate((double)nTime + iPosition);
+	t.fNonceValid = (!(t.nNonce > (nTime+(60 * 60)) || t.nNonce < (nTime-(60 * 60))));
+	t.nAge = GetAdjustedTime() - nTime;
+	t.fPrayersMustBeSigned = (GetSporkDouble("prayersmustbesigned", 0) == 1);
+
+	if (t.sMessageType == "PRAYER" && (!(Contains(t.sMessageKey, "(") ))) t.sMessageKey += " (" + t.sTimestamp + ")";
+	if (t.sMessageType == "SPORK")
+	{
+		t.fSporkSigValid = CheckSporkSig(t);
+		if (!t.fSporkSigValid) t.sMessageValue  = "";
+		t.fPassedSecurityCheck = t.fSporkSigValid;
+	}
+	else if (t.sMessageType == "PRAYER" && t.fPrayersMustBeSigned)
+	{
+		double dMinimumUnsignedPrayerDonation = GetSporkDouble("minimumunsignedprayerdonationamount", 3000);
+		// If donation is to Foundation and meets minimum amount and is not signed
+		if (dFoundationDonation >= dMinimumUnsignedPrayerDonation)
+		{
+			t.fPassedSecurityCheck = true;
+		}
+		else
+		{
+			t.fSporkSigValid = CheckSporkSig(t);
+			if (!t.fSporkSigValid) t.sMessageValue  = "";
+			t.fPassedSecurityCheck = t.fSporkSigValid;
+		}
+	}
+	else if (t.sMessageType == "PRAYER" && !t.fPrayersMustBeSigned)
+	{
+		// We allow unsigned prayers, as long as abusers don't deface the system (if they do, we set the spork requiring signed prayers and we manually remove the offensive prayers using a signed update)
+		t.fPassedSecurityCheck = true; 
+	}
+	else if (t.sMessageType == "ATTACHMENT" || t.sMessageType=="CPIDTASKS")
+	{
+		t.fPassedSecurityCheck = true;
+	}
+	else if (t.sMessageType == "REPENT")
+	{
+		t.fPassedSecurityCheck = true;
+	}
+	else if (t.sMessageType == "MESSAGE")
+	{
+		// these are sent by our users to each other
+		t.fPassedSecurityCheck = true;
+	}
+	else if (t.sMessageType == "DCC")
+	{
+		// These are checked in the memory pool (since we have some unbanked CPIDs who didn't sign the CPID from the wallet)
+		t.fPassedSecurityCheck = true;
+	}
+	else if (t.sMessageType == "EXPENSE" || t.sMessageType == "REVENUE" || t.sMessageType == "ORPHAN")
+	{
+		t.sSporkSig = t.sBOSig;
+		t.fSporkSigValid = CheckSporkSig(t);
+		if (!t.fSporkSigValid) 
+		{
+			t.sMessageValue  = "";
+		}
+		t.fPassedSecurityCheck = t.fSporkSigValid;
+	}
+	else if (t.sMessageType == "VOTE")
+	{
+		t.fBOSigValid = CheckBusinessObjectSig(t);
+		t.fPassedSecurityCheck = t.fBOSigValid;
+	}
+	else
+	{
+		// We assume this is a business object
+		t.fBOSigValid = CheckBusinessObjectSig(t);
+		if (!t.fBOSigValid) 
+			t.sMessageValue = "";
+		t.fPassedSecurityCheck = t.fBOSigValid;
+	}
+	return t;
+}
+
+
+
+void MemorizePrayer(std::string sMessage, int64_t nTime, double dAmount, int iPosition, std::string sTxID, int nHeight, double dFoundationDonation, double dAge, double dMinCoinAge)
+{
+	if (sMessage.empty()) return;
+	TxMessage t = GetTxMessage(sMessage, nTime, iPosition, sTxID, dAmount, dFoundationDonation, nHeight);
+	if (!t.sIPFSHash.empty())
+	{
+		WriteCache("IPFS", t.sIPFSHash, RoundToString(nHeight, 0), nTime, false);
+		WriteCache("IPFSFEE" + RoundToString(nTime, 0), t.sIPFSHash, RoundToString(dFoundationDonation, 0), nTime, true);
+		WriteCache("IPFSSIZE" + RoundToString(nTime, 0), t.sIPFSHash, t.sIPFSSize, nTime, true);
+	}
+	if (t.fPassedSecurityCheck && !t.sMessageType.empty() && !t.sMessageKey.empty() && !t.sMessageValue.empty())
+	{
+		WriteCache(t.sMessageType, t.sMessageKey, t.sMessageValue, nTime, true);
+	}
+}
+
+void MemorizeBlockChainPrayers(bool fDuringConnectBlock, bool fSubThread, bool fColdBoot, bool fDuringSanctuaryQuorum)
+{
+	int nDeserializedHeight = 0;
+	if (fColdBoot)
+	{
+		nDeserializedHeight = DeserializePrayersFromFile();
+		if (chainActive.Tip()->nHeight < nDeserializedHeight && nDeserializedHeight > 0) nDeserializedHeight=0;
+	}
+	int nMaxDepth = chainActive.Tip()->nHeight;
+	int nMinDepth = fDuringConnectBlock ? nMaxDepth - 2 : nMaxDepth - (BLOCKS_PER_DAY * 30 * 12);  // One year
+	if (fDuringSanctuaryQuorum) nMinDepth = nMaxDepth - (BLOCKS_PER_DAY * 14); // Two Weeks
+	if (nDeserializedHeight > 0 && nDeserializedHeight < nMaxDepth) nMinDepth = nDeserializedHeight;
+	if (nMinDepth < 0) nMinDepth = 0;
+	CBlockIndex* pindex = FindBlockByHeight(nMinDepth);
+	const Consensus::Params& consensusParams = Params().GetConsensus();
+	while (pindex && pindex->nHeight < nMaxDepth)
+	{
+		if (pindex) if (pindex->nHeight < chainActive.Tip()->nHeight) pindex = chainActive.Next(pindex);
+		if (!pindex) break;
+		CBlock block;
+		if (ReadBlockFromDisk(block, pindex, consensusParams)) 
+		{
+			for (unsigned int n = 0; n < block.vtx.size(); n++)
+    		{
+				double dTotalSent = 0;
+				std::string sPrayer = "";
+				double dFoundationDonation = 0;
+				for (unsigned int i = 0; i < block.vtx[n]->vout.size(); i++)
+				{
+					sPrayer += block.vtx[n]->vout[i].sTxOutMessage;
+					double dAmount = block.vtx[n]->vout[i].nValue / COIN;
+					dTotalSent += dAmount;
+					// The following 3 lines are used for PODS (Proof of document storage); allowing persistence of paid documents in IPFS
+					std::string sPK = PubKeyToAddress(block.vtx[n]->vout[i].scriptPubKey);
+					if (sPK == consensusParams.FoundationAddress || sPK == consensusParams.FoundationPODSAddress)
+					{
+						dFoundationDonation += dAmount;
+					}
+				}
+				double dAge = GetAdjustedTime() - block.GetBlockTime();
+				MemorizePrayer(sPrayer, block.GetBlockTime(), dTotalSent, 0, block.vtx[n]->GetHash().GetHex(), pindex->nHeight, dFoundationDonation, dAge, 0);
+			}
+	 	}
+	}
+	if (fColdBoot) 
+	{
+		if (nMaxDepth > (nDeserializedHeight-1000))
+		{
+			SerializePrayersToFile(nMaxDepth-1);
+		}
+	}
+	LogPrint("net", "Finished MemorizeBlockChainPrayers @ %f ", GetAdjustedTime());
+}
+
+
+std::string SignMessage(std::string sMsg, std::string sPrivateKey)
+{
+     CKey key;
+     std::vector<unsigned char> vchMsg = std::vector<unsigned char>(sMsg.begin(), sMsg.end());
+     std::vector<unsigned char> vchPrivKey = ParseHex(sPrivateKey);
+     std::vector<unsigned char> vchSig;
+     key.SetPrivKey(CPrivKey(vchPrivKey.begin(), vchPrivKey.end()), false);
+     if (!key.Sign(Hash(vchMsg.begin(), vchMsg.end()), vchSig))  
+     {
+          return "Unable to sign message, check private key.";
+     }
+     const std::string sig(vchSig.begin(), vchSig.end());     
+     std::string SignedMessage = EncodeBase64(sig);
+     return SignedMessage;
+}
+
 

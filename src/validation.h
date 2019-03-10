@@ -127,50 +127,22 @@ static const int64_t BLOCK_DOWNLOAD_TIMEOUT_PER_PEER = 500000;
 
 static const unsigned int DEFAULT_LIMITFREERELAY = 0;
 static const bool DEFAULT_RELAYPRIORITY = true;
-static const int64_t DEFAULT_MAX_TIP_AGE = 6 * 60 * 60; // ~144 blocks behind -> 2 x fork detection time, was 24 * 60 * 60 in bitcoin
+static const int64_t DEFAULT_MAX_TIP_AGE = 24 * 60 * 60; // ~144 blocks behind -> 2 x fork detection time, was 24 * 60 * 60 in bitcoin
 /** Maximum age of our tip in seconds for us to be considered current for fee estimation */
 static const int64_t MAX_FEE_ESTIMATION_TIP_AGE = 3 * 60 * 60;
 
 
 /** Biblepay-Classic Settings **/
-
 static const std::string BUSINESS_OBJECTS = "BUSINESS_OBJECTS";
-static const int F8000_CUTOVER_HEIGHT = 21350;
-static const int F1000_END_HEIGHT_TESTNET = 1199;
-static const int F8000_CUTOVER_HEIGHT_TESTNET = 12200;
-static const int F7000_CUTOVER_HEIGHT = 7000;
-static const int F7000_CUTOVER_HEIGHT_DIFF_END = 7500;
-static const int F9000_CUTOVER_HEIGHT = 21550;
-static const int F9000_CUTOVER_HEIGHT_TESTNET = 100;
-static const int SPORK8_HEIGHT = 23000;
-static const int SPORK8_HEIGHT_TESTNET = 23000;
-static const int LAST_TITHE_BLOCK = 21565;
-static const int LAST_TITHE_BLOCK_TESTNET = 1000;
-static const int F10000_CUTOVER_HEIGHT = 25910;
-static const int F11000_CUTOVER_HEIGHT_PROD = 33440;
-static const int F11000_CUTOVER_HEIGHT_TESTNET = 1;
-static const int F12000_CUTOVER_HEIGHT_PROD = 35110;
-static const int F13000_CUTOVER_HEIGHT_PROD = 57700; // July 11th, 2018
-static const int F13000_CUTOVER_HEIGHT_TESTNET = 16600;
-static const int F14000_CUTOVER_HEIGHT_PROD = 77000; // October 14th, 2018
-static const int F14000_CUTOVER_HEIGHT_TESTNET = 54300; // Sep. 1, 2018
-static const int FPOG_CUTOVER_HEIGHT_TESTNET = 95945;  // Dec. 23rd, 2018
-static const int FPOG_CUTOVER_HEIGHT_PROD = 100001;   // Feb 7th, 2019 (100,001)
-static const int PODC_LAST_BLOCK_PROD = 107000; // March 13th, 2019
-static const int EVOLUTION_CUTOVER_HEIGHT = 125000;
-static const int PODC_LAST_BLOCK_TESTNET = 126150; 
-static const int POG_V2_CUTOVER_HEIGHT_PROD = 102025;
-static const int POG_V3_CUTOVER_HEIGHT_PROD = 103175;
-static const int LOW_POG_DIFF = 5000;
-static const int TITHE_OVERFLOW = 75;
-static const int MAX_TITHE_AMOUNT = 10;
-static const double MIN_TITHE_AMOUNT = .50;
-static const int MIN_MEMPOOL_TITHE_THRESHHOLD = 2;
-static const int MINIMUM_EMAIL_LENGTH = 5; // 3 character domain + . + 1 character name
-static const unsigned int TITHE_MODULUS = 10; // Number of blocks that pass between charitable tithe contributions
+static const int MINIMUM_EMAIL_LENGTH = 5; 
 static const int BLOCKS_PER_DAY = 205;
 static const int SANCTUARY_COLLATERAL = 1550001;
 static int64_t MAX_BLOCK_SUBSIDY = 20000;
+static const int SPORK8_HEIGHT = 23000;
+static const int F10000_CUTOVER_HEIGHT = 25910;
+static const int F11000_CUTOVER_HEIGHT = 33440;
+static const int TITHE_MODULUS = 10;
+static const int POBH_FACTOR = 10;
 // End of BiblePay Classic Settings
 
 
@@ -217,6 +189,7 @@ extern unsigned int nBytesPerSigOp;
 extern bool fCheckBlockIndex;
 extern bool fCheckpointsEnabled;
 extern bool fProd;
+extern bool fLoadingIndex;
 
 extern size_t nCoinCacheUsage;
 /** A fee rate smaller than this is considered zero fee (for relaying, mining and transaction creation) */
@@ -537,8 +510,11 @@ bool DisconnectBlocks(int blocks);
 void ReprocessBlocks(int nBlocks);
 
 /** Context-independent validity checks */
-bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, const Consensus::Params& consensusParams, bool fCheckPOW = true);
-bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::Params& consensusParams, bool fCheckPOW = true, bool fCheckMerkleRoot = true);
+
+bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, const Consensus::Params& consensusParams, bool fCheckPOW = true, int64_t nBlockTime = 0, int64_t nPrevBlockTime = 0, int nPrevHeight = 0, const CBlockIndex* pindexPrev = NULL);
+
+bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::Params& consensusParams, bool fCheckPOW = true, bool fCheckMerkleRoot = true, int64_t nBlockTime = 0, int64_t nPrevBlockTime = 0, int nPrevHeight = 0, CBlockIndex* pindexPrev = NULL);
+
 
 /** Context-dependent validity checks.
  *  By "context", we mean only the previous block headers, but not the UTXO

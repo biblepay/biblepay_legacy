@@ -257,7 +257,7 @@ std::vector<CSuperblock_sptr> CGovernanceTriggerManager::GetActiveTriggers()
 bool CSuperblockManager::IsSuperblockTriggered(int nBlockHeight)
 {
     LogPrint("gobject", "CSuperblockManager::IsSuperblockTriggered -- Start nBlockHeight = %d\n", nBlockHeight);
-    if (!CSuperblock::IsValidBlockHeight(nBlockHeight)) {
+    if (!CSuperblock::IsValidBlockHeight(nBlockHeight) && !CSuperblock::IsSmartContract(nBlockHeight)) {
         return false;
     }
 
@@ -319,7 +319,7 @@ bool CSuperblockManager::IsSuperblockTriggered(int nBlockHeight)
 
 bool CSuperblockManager::GetBestSuperblock(CSuperblock_sptr& pSuperblockRet, int nBlockHeight)
 {
-    if (!CSuperblock::IsValidBlockHeight(nBlockHeight)) {
+    if (!CSuperblock::IsValidBlockHeight(nBlockHeight) && !CSuperblock::IsSmartContract(nBlockHeight)) {
         return false;
     }
 
@@ -531,13 +531,32 @@ void CSuperblock::GetNearestSuperblocksHeights(int nBlockHeight, int& nLastSuper
     }
 }
 
+bool CSuperblock::IsSmartContract(int nHeight)
+{
+    const Consensus::Params& consensusParams = Params().GetConsensus();
+	if (nHeight > consensusParams.FPOG_CUTOVER_HEIGHT)
+	{
+		return nHeight >= Params().GetConsensus().nDCCSuperblockStartBlock && ((nHeight % Params().GetConsensus().nDCCSuperblockCycle) == 20);
+	}
+	else
+	{
+		return false;
+	}
+}
 
 bool CSuperblock::IsDCCSuperblock(int nHeight)
 {
-	if ((nHeight > F13000_CUTOVER_HEIGHT_PROD && fProd) || (nHeight > F13000_CUTOVER_HEIGHT_TESTNET && !fProd))
+    const Consensus::Params& consensusParams = Params().GetConsensus();
+	if (nHeight > consensusParams.PODC_LAST_BLOCK) return false;
+	if (nHeight > consensusParams.F13000_CUTOVER_HEIGHT)
 	{
 		return nHeight >= Params().GetConsensus().nDCCSuperblockStartBlock &&
             ((nHeight % Params().GetConsensus().nDCCSuperblockCycle) == 10);
+	}
+	else
+	{
+		return nHeight >= Params().GetConsensus().nDCCSuperblockStartBlock &&
+            ((nHeight % Params().GetConsensus().nDCCSuperblockCycle) == 0);
 	}
 }
 
@@ -547,36 +566,35 @@ CAmount CSuperblock::GetPaymentsLimit(int nBlockHeight)
 
     const Consensus::Params& consensusParams = Params().GetConsensus();
 
-    if (!IsValidBlockHeight(nBlockHeight)) {
+    if (!IsValidBlockHeight(nBlockHeight) && !IsDCCSuperblock(nBlockHeight) && !IsSmartContract(nBlockHeight)) 
         return 0;
-    }
-
-	if (!IsDCCSuperblock(nBlockHeight)) return 0;
-
-
+    
     // min subsidy for high diff networks and vice versa
-    int nBits = consensusParams.fPowAllowMinDifficultyBlocks ? UintToArith256(consensusParams.powLimit).GetCompact() : 1;
-	//bool fDCLive = (fProd && fDistributedComputingEnabled && nBlockHeight > F11000_CUTOVER_HEIGHT_PROD && nBlockHeight < PODC_LAST_BLOCK_PROD) || (!fProd && fDistributedComputingEnabled);
-	bool fDCLive = true;
-	// CRITICAL- Clean Up for V1.0 Testnet RC
-    // some part of all blocks issued during the cycle goes to superblock, see GetBlockSubsidy
-	if (fDCLive) 
-	{
-		nBits = 486585255;  // Set diff at about 1.42 for Superblocks
-	}
+    int nBits = 486585255;  // Set diff at about 1.42 for Superblocks
+	
+    // Some part of all blocks issued during the cycle goes to superblock, see GetBlockSubsidy
+	// We have a 29%/20% escrow being held back from each block, 29% for the daily generic smart contract superblock, 20% for the monthly governance budget (This equals a 70%/30% allocation below)
+	
 	int nSuperblockCycle = 0;
 	double nBudgetFactor = 0;
 	if (IsValidBlockHeight(nBlockHeight))
 	{
-		// Monthly
+		// Active - Monthly
 		nSuperblockCycle = consensusParams.nSuperblockCycle;
-		nBudgetFactor = .814;
+		nBudgetFactor = .30;
 	}
 	else if (IsDCCSuperblock(nBlockHeight))
 	{
-		// Daily
+		// RETIRED - Daily
 		nSuperblockCycle = consensusParams.nDCCSuperblockCycle;
- 		nBudgetFactor = .45;
+ 		nBudgetFactor = .70;
+		if (nBlockHeight > 33600 && consensusParams.PODC_LAST_BLOCK) nBudgetFactor = 1.0; // Early DC Superblocks paid the entire budget.
+	}
+	else if (IsSmartContract(nBlockHeight))
+	{
+		// Active - Daily
+		nSuperblockCycle = consensusParams.nDCCSuperblockCycle;
+ 		nBudgetFactor = .70;
 	}
 	else
 	{
@@ -589,7 +607,10 @@ CAmount CSuperblock::GetPaymentsLimit(int nBlockHeight)
     CAmount nPaymentsLimit = nSuperblockPartOfSubsidy * nSuperblockCycle * nBudgetFactor;
 	CAmount nAbsoluteMaxMonthlyBudget = MAX_BLOCK_SUBSIDY * BLOCKS_PER_DAY * 30 * .20 * COIN; // Ensure monthly budget is never > 20% of avg monthly total block emission regardless of low difficulty in PODC
 	if (nPaymentsLimit > nAbsoluteMaxMonthlyBudget) nPaymentsLimit = nAbsoluteMaxMonthlyBudget;
-    LogPrint("gobject", "CSuperblock::GetPaymentsLimit -- Valid superblock height %f, payments max %f \n",(double)nBlockHeight, (double)nPaymentsLimit/COIN);
+    LogPrint("net", "CSuperblock::GetPaymentsLimit -- Valid superblock height %d, payments max %d \n", (double)nBlockHeight, (double)nPaymentsLimit/COIN);
+	LogPrint("gobject", "CSuperblock::GetPaymentsLimit -- Valid superblock height %d, payments max %d \n", (double)nBlockHeight, (double)nPaymentsLimit/COIN);
+	LogPrintf("CSuperblock::GetPaymentsLimit -- Valid superblock height %d, payments max %d \n", (double)nBlockHeight, (double)nPaymentsLimit/COIN);
+
     return nPaymentsLimit;
 }
 
@@ -707,7 +728,7 @@ bool CSuperblock::IsValid(const CTransaction& txNew, int nBlockHeight, CAmount b
     // internal to *this and since CSuperblock's are accessed only through
     // shared pointers there's no way our object can get deleted while this
     // code is running.
-    if (!IsValidBlockHeight(nBlockHeight)) {
+    if (!IsValidBlockHeight(nBlockHeight) && !IsSmartContract(nBlockHeight)) {
         LogPrintf("CSuperblock::IsValid -- ERROR: Block invalid, incorrect block height\n");
         return false;
     }

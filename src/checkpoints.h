@@ -21,6 +21,7 @@ namespace Checkpoints
 
 //! Returns last CBlockIndex* in mapBlockIndex that is a checkpoint
 CBlockIndex* GetLastCheckpoint(const CCheckpointData& data);
+int GetTotalBlocksEstimate(const CCheckpointData& data);
 
 } //namespace Checkpoints
 

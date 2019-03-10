@@ -14,6 +14,7 @@
 #include "amount.h"
 #include "base58.h"
 #include "chain.h"
+#include "rpcpog.h"
 #include "chainparams.h"
 #include "checkpoints.h"
 #include "compat/sanity.h"
@@ -1159,6 +1160,8 @@ bool AppInitParameterInteraction()
 	
 	LogPrintf("***************************************** BIBLEPAY  *************************************************** \n");
 	LogPrintf("ProdMode: Prod %f",(double)fProd);
+	LogPrintf("BiblePayVersion %s (%s)\n", FormatFullVersion().c_str(), CLIENT_NAME.c_str());
+    LogPrintf("Using OpenSSL version %s\n", SSLeay_version(SSLEAY_VERSION));
 
     // ********************************************************* Step 3: parameter-to-internal-flags
 
@@ -2139,6 +2142,10 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
     LogPrintf("chainActive.Height() = %d\n",   chainActive.Height());
     if (GetBoolArg("-listenonion", DEFAULT_LISTEN_ONION))
         StartTorControl(threadGroup, scheduler);
+
+	// Memorize Prayers
+	uiInterface.InitMessage(_("Memorizing Prayers..."));
+    MemorizeBlockChainPrayers(false, false, true, false);
 
     Discover(threadGroup);
 

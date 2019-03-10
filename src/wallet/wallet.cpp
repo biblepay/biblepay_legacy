@@ -3407,7 +3407,8 @@ bool CWallet::ConvertList(std::vector<CTxIn> vecTxIn, std::vector<CAmount>& vecA
 }
 
 bool CWallet::CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletTx& wtxNew, CReserveKey& reservekey, CAmount& nFeeRet,
-                                int& nChangePosInOut, std::string& strFailReason, const CCoinControl* coinControl, bool sign, AvailableCoinsType nCoinType, bool fUseInstantSend, int nExtraPayloadSize)
+                                int& nChangePosInOut, std::string& strFailReason, const CCoinControl* coinControl, bool sign, AvailableCoinsType nCoinType,
+								bool fUseInstantSend, int nExtraPayloadSize, std::string sOptPrayerData)
 {
     CAmount nFeePay = fUseInstantSend ? CTxLockRequest().GetMinFee(true) : 0;
 
@@ -3631,6 +3632,10 @@ bool CWallet::CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletT
                             }
                         }
 
+						if (!sOptPrayerData.empty() && txNew.vout.size() > 0)
+						{
+							txNew.vout[0].sTxOutMessage = sOptPrayerData;
+						}
                         // Never create dust outputs; if we would, just
                         // add the dust to the fee.
                         if (newTxOut.IsDust(dustRelayFee))
@@ -4866,7 +4871,7 @@ CWallet* CWallet::CreateWalletFromFile(const std::string walletFile)
         else if (nLoadWalletRet == DB_NONCRITICAL_ERROR)
         {
             InitWarning(strprintf(_("Error reading %s! All keys read correctly, but transaction data"
-                                         " or address book entries might be missing or incorrect."),
+                                         " or address book entries might be missing or incorrect.  Please rerun once with -upgradewallet if you are migrating from BiblePay Classic. "),
                 walletFile));
         }
         else if (nLoadWalletRet == DB_TOO_NEW) {

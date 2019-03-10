@@ -179,7 +179,17 @@ public:
     CMainParams() {
         strNetworkID = "main";
 
+		consensus.FPOG_CUTOVER_HEIGHT = 100001;   // Feb 7th, 2019 (100,001)
+		consensus.PODC_LAST_BLOCK = 107000; // March 13th, 2019
+		consensus.EVOLUTION_CUTOVER_HEIGHT = 125000;
+		consensus.F7000_CUTOVER_HEIGHT = 7000;
+		consensus.F8000_CUTOVER_HEIGHT = 21350;
+		consensus.F9000_CUTOVER_HEIGHT = 21550;
+		consensus.F11000_CUTOVER_HEIGHT = 33440;
+		consensus.F12000_CUTOVER_HEIGHT = 35110;
+		consensus.F13000_CUTOVER_HEIGHT = 57700; 
 	
+		consensus.LAST_TITHE_BLOCK = 21565;
 
 		consensus.nSubsidyHalvingInterval = BLOCKS_PER_DAY * 365; // We produce approx 74,825 blocks per year (205 per day)
 		consensus.nInstantSendKeepLock = 7;
@@ -206,13 +216,13 @@ public:
 		consensus.nSuperblockStartHash = uint256(); 
 		consensus.nMasternodeMinimumConfirmations = 7;
 
-		consensus.BIP34Height = 1;
-        consensus.BIP34Hash = uint256S("0x0000039f2a2d9bc85cb7b5e34b5221bf3e840d142a400cb9f3cf1850dcc7a9cc");
-        consensus.BIP65Height = 120000; // 00000000000076d8fcea02ec0963de4abfd01e771fec0863f960c2c64fe6f357
+		consensus.BIP34Height = 120000;
+        consensus.BIP34Hash = uint256();
+	    consensus.BIP65Height = 120000; // 00000000000076d8fcea02ec0963de4abfd01e771fec0863f960c2c64fe6f357
         consensus.BIP66Height = 120000; // 00000000000b1fa2dfa312863570e13fae9ca7b5566cb27e55422620b469aefa
         consensus.DIP0001Height = 120000;
 
-        consensus.powLimit = uint256S("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"); 
+        consensus.powLimit = uint256S("0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"); 
 
 		consensus.FoundationAddress = "BB2BwSbDCqCqNsfc7FgWFJn4sRgnUt4tsM";
 		consensus.FoundationPODSAddress = "BScSypUZVEEY4TMz1ehyyPcS5wrnMM7WPB";
@@ -243,23 +253,23 @@ public:
 
         // Deployment of BIP147
         consensus.vDeployments[Consensus::DEPLOYMENT_BIP147].bit = 2;
-        consensus.vDeployments[Consensus::DEPLOYMENT_BIP147].nStartTime = 1524477600; // Apr 23th, 2018
-        consensus.vDeployments[Consensus::DEPLOYMENT_BIP147].nTimeout = 1556013600; // Apr 23th, 2019
+        consensus.vDeployments[Consensus::DEPLOYMENT_BIP147].nStartTime = 1560023274; // June 3rd, 2019
+        consensus.vDeployments[Consensus::DEPLOYMENT_BIP147].nTimeout = 1577836800; // June 2020
         consensus.vDeployments[Consensus::DEPLOYMENT_BIP147].nWindowSize = 4032;
         consensus.vDeployments[Consensus::DEPLOYMENT_BIP147].nThreshold = 3226; // 80% of 4032
 
-        // Deployment of DIP0003
+        // Deployment of DIP0003 (Deterministic Sancs) - Not Activated Yet - Once we activate, then we enable SPORK_15 
         consensus.vDeployments[Consensus::DEPLOYMENT_DIP0003].bit = 3;
-        consensus.vDeployments[Consensus::DEPLOYMENT_DIP0003].nStartTime = 1546300800; // Jan 1st, 2019
-        consensus.vDeployments[Consensus::DEPLOYMENT_DIP0003].nTimeout = 1577836800; // Jan 1st, 2020
+        consensus.vDeployments[Consensus::DEPLOYMENT_DIP0003].nStartTime = 1560023274; // June 3rd, 2019
+        consensus.vDeployments[Consensus::DEPLOYMENT_DIP0003].nTimeout = 1577836800; // June 1st, 2020
         consensus.vDeployments[Consensus::DEPLOYMENT_DIP0003].nWindowSize = 4032;
         consensus.vDeployments[Consensus::DEPLOYMENT_DIP0003].nThreshold = 3226; // 80% of 4032
 
         // The best chain should have at least this much work.
-        consensus.nMinimumChainWork = uint256S("0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"); 
+        consensus.nMinimumChainWork = uint256S("0x0000000000000000000000000000000000000000000000000000806e93acd1bb"); 
 
         // By default assume that the signatures in ancestors of this block are valid.
-        consensus.defaultAssumeValid = uint256S("0x0000000000000024e26c7df7e46d673724d223cf4ca2b2adc21297cc095600f4"); 
+        consensus.defaultAssumeValid = uint256S("0x3b4431310395638c0ed65b40ede4b110d8da70fcc0c2ed4a729fb8e4d78b4452"); 
 
         /**
          * The message start string is designed to be unlikely to occur in normal data.
@@ -284,7 +294,7 @@ public:
 		vSeeds.push_back(CDNSSeedData("biblepay.org", "node.biblepay.org"));
 		vSeeds.push_back(CDNSSeedData("biblepay.org", "dnsseed.biblepay-explorer.org"));
 
-        // Biblepay addresses start with 'X'
+        // Biblepay addresses start with 'B'
         base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,25);
         // Biblepay script addresses start with '7'
         base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1,16);
@@ -296,7 +306,7 @@ public:
         base58Prefixes[EXT_SECRET_KEY] = boost::assign::list_of(0x04)(0x88)(0xAD)(0xE4).convert_to_container<std::vector<unsigned char> >();
 
         // Biblepay BIP44 coin type is '5'
-        nExtCoinType = 5;
+        nExtCoinType = 10;
 
         vFixedSeeds = std::vector<SeedSpec6>(pnSeed6_main, pnSeed6_main + ARRAYLEN(pnSeed6_main));
 
@@ -322,8 +332,6 @@ public:
         consensus.fLLMQAllowDummyCommitments = false;
 
 
-
-
 		checkpointData = (CCheckpointData){
 			boost::assign::map_list_of
 				(7, uint256S("0x00022b1be28b1deb9a51d4d69f3fa393f4ea36621039b6313a6c0796546621de"))
@@ -336,13 +344,14 @@ public:
 				(32500, uint256S("0xacb4534f70da9624fee2b9032d2fe47fe6d7d3e8cffdbfbca4d0a3a63394045a"))
 				(33460, uint256S("0xe64ff92ae97c2978c14d97ae45c618c1f2140339ce9ccb770945d3efb7d5e0f5"))
 				(63000, uint256S("0x1ef6f6e5d803cf04f84a4377365db6cefe82a775a9a596029db7d23fa3652f57"))
+				(105028, uint256S("0x2d38a145444c5e880209fe6a1ee1b09542f5438f50ca8736b20bafc5c552d79b"))
 		};
 
         chainTxData = ChainTxData{
-            1541738255, // * UNIX timestamp of last known number of transactions
-            446177,    // * total number of transactions between genesis and that timestamp
+            1551671253, // * UNIX timestamp of last known number of transactions
+            879614,    // * total number of transactions between genesis and that timestamp
                         //   (the tx=... number in the SetBestChain debug.log lines)
-            0.1         // * estimated number of transactions per second after that timestamp
+            0.01         // * estimated number of transactions per second after that timestamp
         };
     }
 };
@@ -357,6 +366,15 @@ public:
         strNetworkID = "test";
 		int BLOCKS_PER_DAY = 205;
 
+		consensus.F9000_CUTOVER_HEIGHT= 100;
+		consensus.F11000_CUTOVER_HEIGHT= 1;
+		consensus.F8000_CUTOVER_HEIGHT = 1;
+		consensus.F13000_CUTOVER_HEIGHT = 1;
+		consensus.FPOG_CUTOVER_HEIGHT = 1;  // Dec. 23rd, 2018
+		consensus.F14000_CUTOVER_HEIGHT = 1; 
+		consensus.LAST_TITHE_BLOCK = 1;
+		consensus.EVOLUTION_CUTOVER_HEIGHT = 1;
+	
 		consensus.nSubsidyHalvingInterval = 365 * BLOCKS_PER_DAY;
 		consensus.nMasternodePaymentsStartBlock = 201;
         consensus.nMasternodePaymentsIncreaseBlock = 201;
@@ -422,7 +440,7 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_DIP0003].nThreshold = 50; // 50% of 100
 
         // The best chain should have at least this much work.
-        consensus.nMinimumChainWork = uint256S("0x00000000000000000000000000000000000000000000000000000003cd72a542"); // 4000
+        consensus.nMinimumChainWork = uint256S("0x000000000000000000000000000000000000000000000000000000000000000"); // 4000
 
         // By default assume that the signatures in ancestors of this block are valid.
         consensus.defaultAssumeValid = uint256S("0x00000ce22113f3eb8636e225d6a1691e132fdd587aed993e1bc9b07a0235eea4"); // 4000

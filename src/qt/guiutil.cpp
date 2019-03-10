@@ -1004,6 +1004,18 @@ QString formatDurationStr(int secs)
     return strList.join(" ");
 }
 
+std::string FROMQS(QString qs)
+{
+	std::string sOut = qs.toUtf8().constData();
+	return sOut;
+}
+
+QString TOQS(std::string s)
+{
+	QString str1 = QString::fromUtf8(s.c_str());
+	return str1;
+}
+
 QString formatServicesStr(quint64 mask)
 {
     QStringList strList;

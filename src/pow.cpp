@@ -8,6 +8,7 @@
 #include "validation.h"
 #include "arith_uint256.h"
 #include "chain.h"
+#include "rpcpog.h"
 #include "chainparams.h"
 #include "primitives/block.h"
 #include "uint256.h"
@@ -91,19 +92,11 @@ unsigned int static DarkGravityWave(const CBlockIndex* pindexLast, const CBlockH
     int64_t CountBlocks = 0;
     arith_uint256 PastDifficultyAverage;
     arith_uint256 PastDifficultyAveragePrev;
+	
 	bool fProdChain = Params().NetworkIDString() == "main" ? true : false;
 
 	// BiblePay - Mandatory Upgrade at block f7000 (As of 08-15-2017 we are @3265 in prod & @1349 in testnet)
 	// This change should prevents blocks from being solved in clumps
-	if (pindexLast)
-	{
-		if ((!fProdChain && pindexLast->nHeight >= 1) || (fProdChain && pindexLast->nHeight >= 7000))
-		{
-			PastBlocksMin = 4;
-			PastBlocksMax = 4;
-		}
-	}
-
     if (BlockLastSolved == NULL || BlockLastSolved->nHeight == 0 || BlockLastSolved->nHeight < PastBlocksMin) 
 	{
         return UintToArith256(params.powLimit).GetCompact();
@@ -142,15 +135,15 @@ unsigned int static DarkGravityWave(const CBlockIndex* pindexLast, const CBlockH
 	// Therefore we must reduce the nPowTargetSpacing by 10% more to compensate for the difference.  Shooting for 7 minute blocks, we now adjust nPowTargetSpacing to 390
 	// In summary we are making the assumption that the gained 30 seconds per block target will equalize the effect our late blocks per day lag the chain.
 	// As of March 9th 2018, we are still emitting blocks 19% too slow, decreasing time interval to 315 
-	if ((fProdChain && pindexLast->nHeight > F11000_CUTOVER_HEIGHT_PROD && pindexLast->nHeight < F12000_CUTOVER_HEIGHT_PROD))
+	if (pindexLast->nHeight >= params.F11000_CUTOVER_HEIGHT && pindexLast->nHeight < params.F12000_CUTOVER_HEIGHT)
 	{
 		_nTargetTimespan = CountBlocks * 390;
 	}
-	else if (fProdChain && pindexLast->nHeight >= F12000_CUTOVER_HEIGHT_PROD && pindexLast->nHeight < F13000_CUTOVER_HEIGHT_PROD)
+	else if (pindexLast->nHeight >= params.F12000_CUTOVER_HEIGHT && pindexLast->nHeight < params.F13000_CUTOVER_HEIGHT)
 	{
 		_nTargetTimespan = CountBlocks * 310;
 	}
-	else if (fProdChain && pindexLast->nHeight >= F13000_CUTOVER_HEIGHT_PROD)
+	else if (pindexLast->nHeight >= params.F13000_CUTOVER_HEIGHT)
 	{
 		// 5-31-2018; For June mandatory upgrade: Tighten block solve time down to 7 mins (we are running 4.5% slow)
 		_nTargetTimespan = CountBlocks * 296;
@@ -273,7 +266,8 @@ unsigned int CalculateNextWorkRequired(const CBlockIndex* pindexLast, int64_t nF
     return bnNew.GetCompact();
 }
 
-bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params& params)
+bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params& params, 
+	int64_t nBlockTime, int64_t nPrevBlockTime, int nPrevHeight, unsigned int nNonce, const CBlockIndex* pindexPrev, bool bLoadingBlockIndex)
 {
     bool fNegative;
     bool fOverflow;
@@ -283,17 +277,29 @@ bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params&
     if (fNegative || bnTarget == 0 || fOverflow || bnTarget > UintToArith256(params.powLimit))
         return false;
 	// CRITICAL:  Move the 80% easier rule for late blocks over to contextual check block
-	int nBlockTime = 0;
-	int nPrevBlockTime = 0;
-	int nPrevHeight = 0;
-	return true;
-
-	uint256 uBibleHash = BibleHash(hash, nBlockTime, nPrevBlockTime, true, nPrevHeight, NULL, false, false, false, false, false, 1);
-
-	if (UintToArith256(hash) > bnTarget) 
+	
+	if (nPrevHeight < params.EVOLUTION_CUTOVER_HEIGHT)
 	{
-		return false;
+		bool f_7000;
+		bool f_8000;
+		bool f_9000; 
+		bool fTitheBlocksActive;
+		GetMiningParams(nPrevHeight, f_7000, f_8000, f_9000, fTitheBlocksActive);
+		uint256 uBibleHashClassic = BibleHashClassic(hash, nBlockTime, nPrevBlockTime, true, nPrevHeight, NULL, false, f_7000, f_8000, f_9000, fTitheBlocksActive, nNonce);
+		if (UintToArith256(uBibleHashClassic) > bnTarget && nPrevBlockTime > 0) 
+		{
+			return false;
+		}
 	}
+	else
+	{
+		uint256 uBibleHash = BibleHashV2(hash, nBlockTime, nPrevBlockTime, true, nPrevHeight);
+		if (UintToArith256(uBibleHash) > bnTarget && nPrevBlockTime > 0) 
+		{
+			return false;
+		}
+	}
+	
 	
     return true;
 }

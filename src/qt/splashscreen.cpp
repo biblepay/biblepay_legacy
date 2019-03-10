@@ -65,7 +65,10 @@ SplashScreen::SplashScreen(Qt::WindowFlags f, const NetworkStyle *networkStyle) 
     pixmap = QPixmap(splashScreenPath);
 
     QPainter pixPaint(&pixmap);
+	// gold: 255,215,0 (Bezaleel)
     pixPaint.setPen(QColor(100,100,100));
+	pixPaint.setPen(QColor(255,0,0)); // Red (Version)
+	pixPaint.setPen(QColor(192,192,192)); // Silver
 
     // check font size and drawing with
     pixPaint.setFont(QFont(font, 28*fontFactor));
@@ -147,7 +150,7 @@ static void InitMessage(SplashScreen *splash, const std::string &message)
         Qt::QueuedConnection,
         Q_ARG(QString, QString::fromStdString(message)),
         Q_ARG(int, Qt::AlignBottom|Qt::AlignHCenter),
-        Q_ARG(QColor, QColor(55,55,55)));
+        Q_ARG(QColor, QColor(255,215,0))); //BiblePay - Gold / Bezaleel
 }
 
 static void ShowProgress(SplashScreen *splash, const std::string &title, int nProgress)

@@ -58,7 +58,6 @@ double GetPBase();
 std::string VerifyManyWorkUnits(std::string sProjectId, std::string sTaskIds);
 int VerifySanctuarySignatures(std::string sSignatureData);
 bool IsStakeSigned(std::string sXML);
-bool CheckStakeSignature(std::string sBitcoinAddress, std::string sSignature, std::string strMessage, std::string& strError);
 std::string GetDCCElement(std::string sData, int iElement, bool fCheckSignature);
 bool SubmitDistributedComputingTrigger(std::string sHex, std::string& gobjecthash, std::string& sError);
 double GetStakeWeight(CTransaction tx, int64_t nTipTime, std::string sXML, bool bVerifySignature, std::string& sMetrics, std::string& sError);

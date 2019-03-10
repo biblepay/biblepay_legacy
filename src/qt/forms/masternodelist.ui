@@ -51,7 +51,7 @@
        </property>
        <widget class="QWidget" name="tabMyMasternodes">
         <attribute name="title">
-         <string>My Masternodes</string>
+         <string>My Sanctuaries</string>
         </attribute>
         <layout class="QGridLayout" name="gridLayout_2">
          <item row="0" column="0">
@@ -67,7 +67,7 @@
              <item>
               <widget class="QLabel" name="updateNote">
                <property name="text">
-                <string>Note: Status of your masternodes in local wallet can potentially be slightly incorrect.&lt;br /&gt;Always wait for wallet to sync additional data and then double check from another node&lt;br /&gt;if your masternode should be running but you still do not see &quot;ENABLED&quot; in &quot;Status&quot; field.</string>
+                <string>Note: Status of your Sanctuaries in local wallet can potentially be slightly incorrect.&lt;br /&gt;Always wait for wallet to sync additional data and then double check from another node&lt;br /&gt;if your Sanctuary should be running but you still do not see &quot;ENABLED&quot; in &quot;Status&quot; field.</string>
                </property>
               </widget>
              </item>
@@ -172,7 +172,7 @@
              <item>
               <widget class="QPushButton" name="QRButton">
                <property name="toolTip">
-                <string>Show additional Masternode information</string>
+                <string>Show additional Sanctuary information</string>
                </property>
                <property name="text">
                 <string>Show &amp;Info...</string>
@@ -214,7 +214,7 @@
        </widget>
        <widget class="QWidget" name="tabAllMasternodes">
         <attribute name="title">
-         <string>All Masternodes</string>
+         <string>All Sanctuaries</string>
         </attribute>
         <layout class="QGridLayout" name="gridLayout">
          <item row="1" column="0" rowspan="2" colspan="2">
@@ -232,7 +232,7 @@
            <item>
             <widget class="QLineEdit" name="filterLineEdit">
              <property name="toolTip">
-              <string>Filter masternode list</string>
+              <string>Filter Sanctuary list</string>
              </property>
             </widget>
            </item>
@@ -320,7 +320,7 @@
          <item row="0" column="0">
           <widget class="QLabel" name="legacyListNote">
            <property name="text">
-            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Note: This list represents the legacy and non-deterministic masternode list. It is only active as long as DIP3 has not been fully activated. After SPORK15 activation, this list will be empty.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Note: This list represents the legacy and non-deterministic sanctuary list. It is only active as long as DIP3 has not been fully activated. After SPORK15 activation, this list will be empty.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
            </property>
            <property name="textFormat">
             <enum>Qt::AutoText</enum>
@@ -334,7 +334,7 @@
        </widget>
        <widget class="QWidget" name="tabDIP3Masternodes">
         <attribute name="title">
-         <string>DIP3 Masternodes</string>
+         <string>DIP3 Sanctuaries</string>
         </attribute>
         <layout class="QGridLayout" name="gridLayout_3">
          <item row="1" column="0">
@@ -352,17 +352,17 @@
            <item>
             <widget class="QLineEdit" name="filterLineEditDIP3">
              <property name="toolTip">
-              <string>Filter masternode list</string>
+              <string>Filter Sanctuary list</string>
              </property>
             </widget>
            </item>
            <item>
             <widget class="QCheckBox" name="checkBoxMyMasternodesOnly">
              <property name="toolTip">
-              <string>Show only masternodes this wallet has keys for.</string>
+              <string>Show only Sanctuaries this wallet has keys for.</string>
              </property>
              <property name="text">
-              <string>My masternodes only</string>
+              <string>My Sanctuaries only</string>
              </property>
             </widget>
            </item>
@@ -460,7 +460,7 @@
          <item row="0" column="0">
           <widget class="QLabel" name="dip3NoteLabel">
            <property name="text">
-            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Note: This list is not active yet and only for informational purposes. The network is still running in compatibility mode, which means that the non-deterministic masternode list is still active. Only after SPORK15 activation, this list will become the active one. Also, the values in the payment related fields are not used at the moment, but still updated for every block. Please ignore this until SPORK15 activation.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Note: This list is not active yet and only for informational purposes. The network is still running in compatibility mode, which means that the non-deterministic Sanctuary list is still active. Only after SPORK15 activation, this list will become the active one. Also, the values in the payment related fields are not used at the moment, but still updated for every block. Please ignore this until SPORK15 activation.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
            </property>
            <property name="textFormat">
             <enum>Qt::AutoText</enum>

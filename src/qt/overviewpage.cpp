@@ -172,6 +172,11 @@ OverviewPage::OverviewPage(const PlatformStyle *platformStyle, QWidget *parent) 
         } else {
             ui->togglePrivateSend->setText(tr("Stop Mixing"));
         }
+		// R Andrews - ToDo: move private send button to the menu 
+		ui->togglePrivateSend->setVisible(false);
+		ui->privateSendInfo->setVisible(false);
+		// End of BiblePay
+
         // Disable privateSendClient builtin support for automatic backups while we are in GUI,
         // we'll handle automatic backups and user warnings in privateSendStatus()
         privateSendClient.fCreateAutoBackups = false;
@@ -458,8 +463,11 @@ void OverviewPage::updateAdvancedPSUI(bool fShowAdvancedPSUI) {
     ui->labelSubmittedDenom->setVisible(fShowAdvancedPSUI);
     ui->privateSendAuto->setVisible(fShowAdvancedPSUI);
     ui->privateSendReset->setVisible(fShowAdvancedPSUI);
-    ui->privateSendInfo->setVisible(true);
-    ui->labelPrivateSendLastMessage->setVisible(fShowAdvancedPSUI);
+	
+	// ToDo: If BiblePay decides to use private send, set this information box to true:
+    ui->privateSendInfo->setVisible(false);
+    
+	ui->labelPrivateSendLastMessage->setVisible(fShowAdvancedPSUI);
 }
 
 void OverviewPage::privateSendStatus()

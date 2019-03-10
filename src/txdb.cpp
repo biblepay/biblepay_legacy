@@ -4,7 +4,8 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "txdb.h"
-
+#include "checkpoints.h"
+#include "validation.h"
 #include "chainparams.h"
 #include "hash.h"
 #include "pow.h"
@@ -350,7 +351,13 @@ bool CBlockTreeDB::LoadBlockIndexGuts(boost::function<CBlockIndex*(const uint256
 
     pcursor->Seek(std::make_pair(DB_BLOCK_INDEX, uint256()));
 
+	const CChainParams& chainparams = Params();
+	int nCheckpointHeight = Checkpoints::GetTotalBlocksEstimate(chainparams.Checkpoints());
+    LogPrintf(" Last Checkpoint Height %f ",nCheckpointHeight);
+  
     // Load mapBlockIndex
+	fLoadingIndex = true;
+
     while (pcursor->Valid()) {
         boost::this_thread::interruption_point();
         std::pair<char, uint256> key;
@@ -371,12 +378,20 @@ bool CBlockTreeDB::LoadBlockIndexGuts(boost::function<CBlockIndex*(const uint256
                 pindexNew->nNonce         = diskindex.nNonce;
                 pindexNew->nStatus        = diskindex.nStatus;
                 pindexNew->nTx            = diskindex.nTx;
-
-                if (!CheckProofOfWork(pindexNew->GetBlockHash(), pindexNew->nBits, Params().GetConsensus()))
-                    return error("%s: CheckProofOfWork failed: %s", __func__, pindexNew->ToString());
-
+				pindexNew->hashBibleHash  = diskindex.hashBibleHash;
+				if (diskindex.nHeight > nCheckpointHeight || diskindex.nHeight % 10 == 0)
+				{
+					if (!CheckProofOfWork(pindexNew->GetBlockHash(), pindexNew->nBits, Params().GetConsensus(), 
+						pindexNew->nTime,
+						(pindexNew->pprev) ? pindexNew->pprev->nTime : 0,
+						(pindexNew->pprev) ? pindexNew->pprev->nHeight : 0, pindexNew->nNonce, 
+						pindexNew->pprev, true))
+						return error("LoadBlockIndex(): CheckProofOfWork failed: %s", pindexNew->ToString());
+				}
                 pcursor->Next();
-            } else {
+            } else 
+			{
+				fLoadingIndex = false;
                 return error("%s: failed to read value", __func__);
             }
         } else {
@@ -384,6 +399,7 @@ bool CBlockTreeDB::LoadBlockIndexGuts(boost::function<CBlockIndex*(const uint256
         }
     }
 
+	fLoadingIndex = false;
     return true;
 }
 

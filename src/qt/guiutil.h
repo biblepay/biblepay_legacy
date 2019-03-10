@@ -34,6 +34,9 @@ QT_END_NAMESPACE
  */
 namespace GUIUtil
 {
+	QString TOQS(std::string s);
+	std::string FROMQS(QString qs);
+
     // Create human-readable string from date
     QString dateTimeStr(const QDateTime &datetime);
     QString dateTimeStr(qint64 nTime);
