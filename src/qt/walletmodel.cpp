@@ -12,6 +12,7 @@
 #include "paymentserver.h"
 #include "recentrequeststablemodel.h"
 #include "transactiontablemodel.h"
+#include "rpcpog.h"
 
 #include "base58.h"
 #include "keystore.h"
@@ -50,7 +51,7 @@ WalletModel::WalletModel(const PlatformStyle *platformStyle, CWallet *_wallet, O
     cachedNumBlocks(0),
     cachedTxLocks(0),
     cachedPrivateSendRounds(0)
-{
+{	
     fHaveWatchOnly = wallet->HaveWatchOnly();
     fForceCheckBalanceChanged = false;
 
@@ -235,7 +236,9 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
 
     QSet<QString> setAddress; // Used to detect duplicates
     int nAddresses = 0;
-
+	std::string sOptPrayer = "";
+    const Consensus::Params& consensusParams = Params().GetConsensus();
+	CAmount nSundries = 0;
     // Pre-check input data for validity
     Q_FOREACH(const SendCoinsRecipient &rcp, recipients)
     {
@@ -278,7 +281,30 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
 
             CScript scriptPubKey = GetScriptForDestination(CBitcoinAddress(rcp.address.toStdString()).Get());
             CRecipient recipient = {scriptPubKey, rcp.amount, rcp.fSubtractFeeFromAmount};
-            vecSend.push_back(recipient);
+			recipient.txtMessage = GUIUtil::FROMQS(rcp.txtMessage);
+            if (rcp.fPrayer)
+			{
+				sOptPrayer += "<MT>PRAYER</MT><MK>OUT_TX</MK><MV>" + GUIUtil::FROMQS(rcp.txtMessage) + "</MV>";
+			}
+			else if (!rcp.txtMessage.isEmpty())
+			{
+				sOptPrayer += "<MT>MESSAGE</MT><MK>OUT_TX</MK><MV>" + GUIUtil::FROMQS(rcp.txtMessage) + "</MV>";
+			}
+			vecSend.push_back(recipient);
+			// If the user wants to add 10% Tithe -> Foundation
+			if (rcp.fTithe)
+			{
+				CAmount aTitheAmount = rcp.amount * .10;
+				CScript spkFoundation = GetScriptForDestination(CBitcoinAddress(consensusParams.FoundationAddress).Get());
+				CRecipient recFoundation = {spkFoundation, aTitheAmount, rcp.fSubtractFeeFromAmount};
+				recFoundation.txtMessage = GUIUtil::FROMQS(rcp.txtMessage);
+				std::string sAddrF = PubKeyToAddress(spkFoundation);
+				setAddress.insert(GUIUtil::TOQS(sAddrF));
+           		++nAddresses;
+				LogPrint("net", "\nAdded 10percent Tithe to the transaction for %f to address %s ",(double)aTitheAmount/COIN, sAddrF);
+				nSundries += aTitheAmount;
+				vecSend.push_back(recFoundation);
+			}
 
             total += rcp.amount;
         }
@@ -315,16 +341,11 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
 
         CWalletTx* newTx = transaction.getTransaction();
         CReserveKey *keyChange = transaction.getPossibleKeyChange();
-		std::string sOptPrayer = "<PRAYER>prayer</PRAYER>";
-        fCreated = wallet->CreateTransaction(vecSend, *newTx, *keyChange, nFeeRequired, nChangePosRet, strFailReason, coinControl, true, recipients[0].inputType, recipients[0].fUseInstantSend, 0, sOptPrayer);
+		fCreated = wallet->CreateTransaction(vecSend, *newTx, *keyChange, nFeeRequired, nChangePosRet, strFailReason, coinControl, true, recipients[0].inputType, recipients[0].fUseInstantSend, 0, sOptPrayer);
         transaction.setTransactionFee(nFeeRequired);
         if (fSubtractFeeFromAmount && fCreated)
             transaction.reassignAmounts();
-		// Prayer
-		if (fSubtractFeeFromAmount)
-		{
-		}
-        nValueOut = newTx->tx->GetValueOut();
+	    nValueOut = newTx->tx->GetValueOut();
         nVinSize = newTx->tx->vin.size();
     }
 

@@ -18,7 +18,7 @@
 #include "util.h"
 #include "wallet/db.h"
 #include "wallet/wallet.h"
-
+#include "rpcpog.h"
 #include "instantx.h"
 
 #include <stdint.h>
@@ -298,6 +298,8 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionReco
     // Debug view
     //
 	bool fEvolutionView = true;
+	std::string sStripped;
+	std::string sObjType;
     if (fDebug || fEvolutionView)
     {
 		// In Network Messages or Prayers
@@ -307,6 +309,8 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionReco
 		{
 			sNetworkMessage += wtx.tx->vout[i1].sTxOutMessage;
 		}
+		sStripped = ExtractXML(sNetworkMessage, "<MV>", "</MV>");
+		sObjType = ExtractXML(sNetworkMessage, "<MT>", "</MT>");
 
         strHTML += "<hr><br>" + tr("Debug information") + "<br><br>";
         BOOST_FOREACH(const CTxIn& txin, wtx.tx->vin)
@@ -321,8 +325,6 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionReco
 
         strHTML += "<br><b>" + tr("Inputs") + ":</b>";
         strHTML += "<ul>";
-
-		strHTML += "<br><b>"+ tr("Messages") + ":</b> " + GUIUtil::TOQS(sNetworkMessage);
 
         BOOST_FOREACH(const CTxIn& txin, wtx.tx->vin)
         {
@@ -349,8 +351,10 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionReco
         }
 
         strHTML += "</ul>";
+		if (!sStripped.empty()) 
+			strHTML += "<br><br><b>"+ GUIUtil::TOQS(sObjType) + ":</b> " + GUIUtil::TOQS(sStripped);
     }
-
+	
     strHTML += "</font></html>";
     return strHTML;
 }

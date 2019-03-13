@@ -33,6 +33,7 @@
 
 #include <boost/unordered_map.hpp>
 #include <boost/filesystem/path.hpp>
+#include "support/allocators/secure.h" //For SecureString
 
 class CBlockIndex;
 class CBlockTreeDB;
@@ -56,7 +57,7 @@ static const bool DEFAULT_WHITELISTRELAY = true;
 /** Default for DEFAULT_WHITELISTFORCERELAY. */
 static const bool DEFAULT_WHITELISTFORCERELAY = true;
 /** Default for -minrelaytxfee, minimum relay fee for transactions */
-static const unsigned int DEFAULT_MIN_RELAY_TX_FEE = 1000000;
+static const unsigned int DEFAULT_MIN_RELAY_TX_FEE = 1000000; // OK
 //! -maxtxfee default
 static const CAmount DEFAULT_TRANSACTION_MAXFEE = 0.1 * COIN;
 //! Discourage users to set fees higher than this amount (in duffs) per kB
@@ -131,6 +132,8 @@ static const int64_t DEFAULT_MAX_TIP_AGE = 24 * 60 * 60; // ~144 blocks behind -
 /** Maximum age of our tip in seconds for us to be considered current for fee estimation */
 static const int64_t MAX_FEE_ESTIMATION_TIP_AGE = 3 * 60 * 60;
 
+/** BiblePay extern functions **/
+void SetOverviewStatus();
 
 /** Biblepay-Classic Settings **/
 static const std::string BUSINESS_OBJECTS = "BUSINESS_OBJECTS";
@@ -139,10 +142,33 @@ static const int BLOCKS_PER_DAY = 205;
 static const int SANCTUARY_COLLATERAL = 1550001;
 static int64_t MAX_BLOCK_SUBSIDY = 20000;
 static const int SPORK8_HEIGHT = 23000;
+static const int DEFAULT_GENERATE_THREADS = 1;
+static const int DEFAULT_GENERATE = 1;
 static const int F10000_CUTOVER_HEIGHT = 25910;
 static const int F11000_CUTOVER_HEIGHT = 33440;
 static const int TITHE_MODULUS = 10;
 static const int POBH_FACTOR = 10;
+static const int BIBLE_CHAPTER_COUNT = 66;
+static const int BIBLE_VERSE_COUNT = 99;
+extern int PRAYER_MODULUS;
+extern int miGlobalPrayerIndex;
+extern SecureString msEncryptedString;
+extern std::string sOS;
+extern std::string msGithubVersion;
+extern std::string msGlobalStatus;
+extern std::string msGlobalStatus2;
+extern std::string msGlobalStatus3;
+extern std::string sGlobalPoolURL;
+extern int64_t nBibleMinerPulse;
+extern int iMinerThreadCount;
+extern bool fPoolMiningMode;
+extern bool fPoolMiningUseSSL;
+extern bool fCommunicatingWithPool;
+extern int64_t nLastDCContractSubmitted;
+extern int64_t nHPSTimerStart;
+extern int nHashCounter;
+extern double dHashesPerSec;
+
 // End of BiblePay Classic Settings
 
 

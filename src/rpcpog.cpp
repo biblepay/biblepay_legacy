@@ -27,8 +27,19 @@
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
 #include <openssl/md5.h>
-
-// CRITICAL TODO:  Add extern CWallet* pwalletMain; reference for v1.0
+// For HTTPS (for the pool communication)
+#include <openssl/ssl.h>
+#include <openssl/err.h>
+#include <openssl/bio.h>
+#include <boost/asio.hpp>
+#include "net.h" // for CService
+#include "netaddress.h"
+#include "netbase.h" // for LookupHost
+#include "wallet/wallet.h"
+#ifdef ENABLE_WALLET
+extern CWallet* pwalletMain;
+#endif // ENABLE_WALLET
+// End of HTTPS
 
 /*
 std::string GenerateNewAddress(std::string& sError, std::string sName)
@@ -137,9 +148,7 @@ double GetSporkDouble(std::string sName, double nDefault)
 	return dSetting;
 }
 
-/*
-
-CAmount AmountFromValue(const UniValue& value)
+CAmount CAmountFromValue(const UniValue& value)
 {
     if (!value.isNum() && !value.isStr()) return 0;
     CAmount amount;
@@ -147,8 +156,6 @@ CAmount AmountFromValue(const UniValue& value)
     if (!MoneyRange(amount)) return 0;
     return amount;
 }
-
-*/
 
 /*
 UniValue GetBusinessObject(std::string sType, std::string sPrimaryKey, std::string& sError)
@@ -460,10 +467,7 @@ double GetTitheAgeAndSpentAmount(CTransaction ctx, CBlockIndex* pindex, CAmount&
 	return nTitheAge;
 }
 */
-
-/*
-bool RPCSendMoney(std::string& sError, const CTxDestination &address, CAmount nValue, bool fSubtractFeeFromAmount, CWalletTx& wtxNew, 
-	bool fUseInstantSend=false, bool fUsePrivateSend=false, bool fUseSanctuaryFunds=false, double nMinCoinAge = 0, CAmount nMinCoinAmount = 0, std::string sSpecificTxId = "", int nSpecificOutput = 0)
+bool RPCSendMoney(std::string& sError, const CTxDestination &address, CAmount nValue, bool fSubtractFeeFromAmount, CWalletTx& wtxNew, bool fUseInstantSend=false, std::string sOptionalData="")
 {
     CAmount curBalance = pwalletMain->GetBalance();
 
@@ -473,8 +477,14 @@ bool RPCSendMoney(std::string& sError, const CTxDestination &address, CAmount nV
         sError = "Invalid amount";
 		return false;
 	}
+	
+	if (pwalletMain->IsLocked())
+	{
+		sError = "Wallet unlock required";
+		return false;
+	}
 
-    if (nValue > curBalance)
+	if (nValue > curBalance)
 	{
 		sError = "Insufficient funds";
 		return false;
@@ -485,57 +495,33 @@ bool RPCSendMoney(std::string& sError, const CTxDestination &address, CAmount nV
     // Create and send the transaction
     CReserveKey reservekey(pwalletMain);
     CAmount nFeeRequired;
-    std::string strError = "";
+    std::string strError;
     std::vector<CRecipient> vecSend;
     int nChangePosRet = -1;
 	bool fForce = false;
-    CRecipient recipient = {scriptPubKey, nValue, fForce, fSubtractFeeFromAmount, false, false, false, "", "", "", ""};
+    CRecipient recipient = {scriptPubKey, nValue, fForce, fSubtractFeeFromAmount};
 	vecSend.push_back(recipient);
 	
     int nMinConfirms = 0;
-	CAmount nBankrollMask = 0;
-    if (!pwalletMain->CreateTransaction(vecSend, wtxNew, reservekey, nFeeRequired, nChangePosRet, strError, NULL, true, 
-		fUsePrivateSend ? ONLY_DENOMINATED : (fUseSanctuaryFunds ? ALL_COINS : ONLY_NOT1000IFMN), fUseInstantSend, nMinConfirms, nMinCoinAge, nMinCoinAmount, nBankrollMask, sSpecificTxId, nSpecificOutput)) 
+    if (!pwalletMain->CreateTransaction(vecSend, wtxNew, reservekey, nFeeRequired, nChangePosRet, strError, NULL, true, ONLY_NONDENOMINATED, fUseInstantSend, 0, sOptionalData)) 
 	{
         if (!fSubtractFeeFromAmount && nValue + nFeeRequired > pwalletMain->GetBalance())
 		{
             sError = strprintf("Error: This transaction requires a transaction fee of at least %s because of its amount, complexity, or use of recently received funds!", FormatMoney(nFeeRequired));
-			// The Snat - Reported this can crash POG on 12-30-2018 (resolved by handling this)
 			return false;
 		}
 		sError = "Unable to Create Transaction: " + strError;
 		return false;
     }
-    if (!pwalletMain->CommitTransaction(wtxNew, reservekey, fUseInstantSend ? NetMsgType::TXLOCKREQUEST : NetMsgType::TX))
+    CValidationState state;
+        
+    if (!pwalletMain->CommitTransaction(wtxNew, reservekey, g_connman.get(), state,  fUseInstantSend ? NetMsgType::TXLOCKREQUEST : NetMsgType::TX))
 	{
         sError = "Error: The transaction was rejected! This might happen if some of the coins in your wallet were already spent, such as if you used a copy of wallet.dat and coins were spent in the copy but not marked as spent here.";
 		return false;
 	}
 	return true;
 }
-*/
-
-
-/*
-
-void RPCSendMoneyToDestinationWithMinimumBalance(const CTxDestination& address, CAmount nValue, CAmount nMinimumBalanceRequired, 
-	double dMinCoinAge, CAmount caMinCoinValue, std::string sSpecificTxId, int nSpecificOutput,	CWalletTx& wtxNew, std::string& sError)
-{
-	if (pwalletMain->IsLocked())
-	{
-		sError = "Wallet Unlock Required";
-		return;
-	}
-   
-    if (pwalletMain->GetBalance() < nMinimumBalanceRequired || nValue > pwalletMain->GetBalance()) 
-	{
-		sError = "Insufficient funds";
-		return;
-	}
-    RPCSendMoney(sError, address, nValue, false, wtxNew, false, false, false, dMinCoinAge, caMinCoinValue, sSpecificTxId, nSpecificOutput);
-}
-
-*/
 
 
 /*
@@ -588,7 +574,7 @@ std::string SendTithe(CAmount caTitheAmount, double dMinCoinAge, CAmount caMinCo
 	if (caTitheAmount <= (10*COIN) && !fProd) dMinCoinAge = 0;
 	// End of TestNet Rule
 
-    RPCSendMoneyToDestinationWithMinimumBalance(address.Get(), caTitheAmount, caTitheAmount, dMinCoinAge, caMinCoinAmount, sSpecificTxId, nSpecificOutput, wtx, sError);
+    RPCSendMoney(address.Get(), caTitheAmount, caTitheAmount, dMinCoinAge, caMinCoinAmount, sSpecificTxId, nSpecificOutput, wtx, sError);
 	
 	if (bTriedToUnlock) pwalletMain->Lock();
 	if (!sError.empty()) return "";
@@ -605,7 +591,6 @@ CAmount GetTitheCap(const CBlockIndex* pindexLast)
 	// The first call to GetBlockSubsidy calculates the future reward (and this has our standard deflation of 19% per year in it)
 	if (pindexLast == NULL || pindexLast->nHeight < 2) return 0;
     CAmount nSuperblockPartOfSubsidy = GetBlockSubsidy(pindexLast, nBits, pindexLast->nHeight, consensusParams, true);
-	// R ANDREWS - POG - 12/6/2018 - CRITICAL - If we go with POG + PODC, the Tithe Cap must be lower to ensure miner profitability
 	// TestNet : POG+POBH with PODC enabled  = (100.5K miner payments, 50K daily pogpool tithe cap, deflating) = 0.003125 (4* the blocks per day in testnet)
 	// Prod    : POG+POBH with PODC enabled  = (100.5K miner payments, 50K daily pogpool tithe cap, deflating) = 0.00075
     CAmount nPaymentsLimit = 0;
@@ -1267,6 +1252,22 @@ std::string AddBlockchainMessages(std::string sAddress, std::string sType, std::
 }
 */
 
+bool CheckNonce(bool f9000, unsigned int nNonce, int nPrevHeight, int64_t nPrevBlockTime, int64_t nBlockTime)
+{
+	if (f9000)
+	{
+		int64_t nElapsed = nBlockTime - nPrevBlockTime;
+		if (nElapsed > (30 * 60)) return true;
+		int64_t nMaxNonce = nElapsed * 256;
+		if (nMaxNonce < 512) nMaxNonce = 512;
+		return (nNonce > nMaxNonce) ? false : true;
+	}
+	else
+	{
+		return true;
+	}
+}
+
 void ClearCache(std::string sSection)
 {
 	boost::to_upper(sSection);
@@ -1520,7 +1521,7 @@ std::string SendBusinessObject(std::string sType, std::string sPrimaryKey, std::
 		}
 	}
 	std::string s1 = sMessageType + sMessageKey + sMessageValue + sNonce + sBOSignKey + sMessageSig;
-	RPCSendMoneyToDestinationWithMinimumBalance(address.Get(), nAmount, nMinimumBalance, 0, 0, "", 0, wtx, sError);
+	RPCSendMoney(address.Get(), nAmount, nMinimumBalance, 0, 0, "", 0, wtx, sError);
 	if (!sError.empty()) return "";
     return wtx.GetHash().GetHex().c_str();
 }
@@ -2162,6 +2163,274 @@ std::string SignMessage(std::string sMsg, std::string sPrivateKey)
      const std::string sig(vchSig.begin(), vchSig.end());     
      std::string SignedMessage = EncodeBase64(sig);
      return SignedMessage;
+}
+
+std::string FormatHTML(std::string sInput, int iInsertCount, std::string sStringToInsert)
+{
+	std::vector<std::string> vInput = Split(sInput.c_str()," ");
+	std::string sOut = "";
+	int iCt = 0;
+	for (int i=0; i < (int)vInput.size(); i++)
+	{
+		sOut += vInput[i] + " ";
+		iCt++;
+		if (iCt >= iInsertCount)
+		{
+			iCt=0;
+			sOut += sStringToInsert;
+		}
+	}
+	return sOut;
+}
+
+std::string GetDomainFromURL(std::string sURL)
+{
+	std::string sDomain;
+	int HTTPS_LEN = 8;
+	int HTTP_LEN = 7;
+	if (sURL.find("https://") != std::string::npos)
+	{
+		sDomain = sURL.substr(HTTPS_LEN, sURL.length() - HTTPS_LEN);
+	}
+	else if(sURL.find("http://") != std::string::npos)
+	{
+		sDomain = sURL.substr(HTTP_LEN, sURL.length() - HTTP_LEN);
+	}
+	else
+	{
+		sDomain = sURL;
+	}
+	return sDomain;
+}
+
+bool TermPeekFound(std::string sData, int iBOEType)
+{
+	std::string sVerbs = "</html>|</HTML>|<EOF>|<END>|</account_out>|</am_set_info_reply>|</am_get_info_reply>";
+	std::vector<std::string> verbs = Split(sVerbs, "|");
+	bool bFound = false;
+	for (int i = 0; i < verbs.size(); i++)
+	{
+		if (sData.find(verbs[i]) != std::string::npos)
+			bFound = true;
+	}
+	if (iBOEType==1)
+	{
+		if (sData.find("</user>") != std::string::npos) bFound = true;
+		if (sData.find("</error>") != std::string::npos) bFound = true;
+		if (sData.find("</error_msg>") != std::string::npos) bFound = true;
+	}
+	else if (iBOEType == 2)
+	{
+		if (sData.find("</results>") != std::string::npos) bFound = true;
+		if (sData.find("}}") != std::string::npos) bFound = true;
+	}
+	return bFound;
+}
+
+std::string PrepareHTTPPost(bool bPost, std::string sPage, std::string sHostHeader, const std::string& sMsg, const std::map<std::string,std::string>& mapRequestHeaders)
+{
+	std::ostringstream s;
+	std::string sUserAgent = "Mozilla/5.0";
+	std::string sMethod = bPost ? "POST" : "GET";
+
+	s << sMethod + " /" + sPage + " HTTP/1.1\r\n"
+		<< "User-Agent: " + sUserAgent + "/" << FormatFullVersion() << "\r\n"
+		<< "Host: " + sHostHeader + "" << "\r\n"
+		<< "Content-Length: " << sMsg.size() << "\r\n";
+
+	for (auto item : mapRequestHeaders) 
+	{
+        s << item.first << ": " << item.second << "\r\n";
+	}
+    s << "\r\n" << sMsg;
+    return s.str();
+}
+
+std::string BiblepayHTTPSPost(bool bPost, int iThreadID, std::string sActionName, std::string sDistinctUser, std::string sPayload, std::string sBaseURL, std::string sPage, int iPort, 
+	std::string sSolution, int iTimeoutSecs, int iMaxSize, int iBOE)
+{
+	// The OpenSSL version of BiblepayHTTPSPost *only* works with SSL websites, hence the need for BiblePayHTTPPost(2) (using BOOST).  The dev team is working on cleaning this up before the end of 2019 to have one standard version with cleaner code and less internal parts. //
+	try
+	{
+		std::map<std::string, std::string> mapRequestHeaders;
+		mapRequestHeaders["Miner"] = sDistinctUser;
+		mapRequestHeaders["Action"] = sPayload;
+		mapRequestHeaders["Solution"] = sSolution;
+		mapRequestHeaders["Agent"] = FormatFullVersion();
+		// BiblePay supported pool Network Chain modes: main, test, regtest
+		const CChainParams& chainparams = Params();
+		mapRequestHeaders["NetworkID"] = chainparams.NetworkIDString();
+		mapRequestHeaders["ThreadID"] = RoundToString(iThreadID, 0);
+		mapRequestHeaders["OS"] = sOS;
+
+		BIO* bio;
+		SSL_CTX* ctx;
+		//   Registers the SSL/TLS ciphers and digests and starts the security layer.
+		SSL_library_init();
+		ctx = SSL_CTX_new(SSLv23_client_method());
+		if (ctx == NULL)
+		{
+			return "<ERROR>CTX_IS_NULL</ERROR>";
+		}
+		bio = BIO_new_ssl_connect(ctx);
+		std::string sDomain = GetDomainFromURL(sBaseURL);
+		std::string sDomainWithPort = sDomain + ":" + "443";
+		BIO_set_conn_hostname(bio, sDomainWithPort.c_str());
+		if(BIO_do_connect(bio) <= 0)
+		{
+			return "<ERROR>Failed connection to " + sDomainWithPort + "</ERROR>";
+		}
+
+		if (sDomain.empty()) return "<ERROR>DOMAIN_MISSING</ERROR>";
+		// Evo requires 2 args instead of 3, the last used to be true for DNS resolution=true
+
+		CNetAddr cnaMyHost;
+		LookupHost(sDomain.c_str(), cnaMyHost, true);
+ 	    CService addrConnect = CService(cnaMyHost, 443);
+
+		if (!addrConnect.IsValid())
+		{
+  			return "<ERROR>DNS_ERROR</ERROR>"; 
+		}
+		std::string sPost = PrepareHTTPPost(bPost, sPage, sDomain, sPayload, mapRequestHeaders);
+		const char* write_buf = sPost.c_str();
+		if(BIO_write(bio, write_buf, strlen(write_buf)) <= 0)
+		{
+			return "<ERROR>FAILED_HTTPS_POST</ERROR>";
+		}
+		//  Variables used to read the response from the server
+		int size;
+		char buf[1024];
+		clock_t begin = clock();
+		std::string sData = "";
+		for(;;)
+		{
+			//  Get chunks of the response 1023 at the time.
+			size = BIO_read(bio, buf, 1023);
+			if(size <= 0)
+			{
+				break;
+			}
+			buf[size] = 0;
+			std::string MyData(buf);
+			sData += MyData;
+			clock_t end = clock();
+			double elapsed_secs = double(end - begin) / (CLOCKS_PER_SEC + .01);
+			if (elapsed_secs > iTimeoutSecs) break;
+			if (TermPeekFound(sData, iBOE)) break;
+
+			if (sData.find("Content-Length:") != std::string::npos)
+			{
+				double dMaxSize = cdbl(ExtractXML(sData,"Content-Length: ","\n"),0);
+				std::size_t foundPos = sData.find("Content-Length:");
+				if (dMaxSize > 0)
+				{
+					iMaxSize = dMaxSize + (int)foundPos + 16;
+				}
+			}
+			if ((int)sData.size() >= (iMaxSize-1)) break;
+		}
+		// R ANDREW - JAN 4 2018: Free bio resources
+		BIO_free_all(bio);
+		return sData;
+	}
+	catch (std::exception &e)
+	{
+        return "<ERROR>WEB_EXCEPTION</ERROR>";
+    }
+	catch (...)
+	{
+		return "<ERROR>GENERAL_WEB_EXCEPTION</ERROR>";
+	}
+}
+
+std::string BiblePayHTTPSPost2(bool bPost, std::string sProtocol, std::string sDomain, std::string sPage, std::string sPayload, std::string sFileName)
+{
+	std::ostringstream ssOut;
+	try
+	{
+		// This version of BiblePayHTTPSPost has the advantage of working with both HTTP & HTTPS, and works from both QT and the daemon (++).  Our dev team is in the process of testing this across all use cases to ensure it is safe to replace V1.
+		std::map<std::string, std::string> mapRequestHeaders;
+		mapRequestHeaders["Agent"] = FormatFullVersion();
+		mapRequestHeaders["Filename"] = sFileName;
+		std::vector<char> v = ReadBytesAll(sFileName.c_str());
+		std::vector<unsigned char> uData(v.begin(), v.end());
+		std::string s64 = EncodeBase64(&uData[0], uData.size());
+		std::string sPost = PrepareHTTPPost(bPost, sPage, sDomain, s64, mapRequestHeaders);
+		boost::asio::io_service io_service;
+		// Get a list of endpoints corresponding to the server name.
+		boost::asio::ip::tcp::resolver resolver(io_service);
+		boost::asio::ip::tcp::resolver::query query(sDomain, sProtocol);
+		boost::asio::ip::tcp::resolver::iterator endpoint_iterator = resolver.resolve(query);
+		// Try each endpoint until we successfully establish a connection.
+		boost::asio::ip::tcp::socket socket(io_service);
+		boost::asio::connect(socket, endpoint_iterator);
+		boost::asio::streambuf request;
+		std::ostream request_stream(&request);
+		request_stream << sPost;
+		// Send the request.
+		boost::asio::write(socket, request);
+		boost::asio::streambuf response;
+		boost::asio::read_until(socket, response, "\r\n");
+		// Check that response is OK.
+		std::istream response_stream(&response);
+		std::string http_version;
+		response_stream >> http_version;
+		unsigned int status_code;
+		response_stream >> status_code;
+		std::string status_message;
+		std::getline(response_stream, status_message);
+		if (!response_stream || http_version.substr(0, 5) != "HTTP/")
+			return "invalid http response";
+		if (status_code != 200)
+			return "response returned with status code " + RoundToString(status_code, 0);
+		// Read the response headers, which are terminated by a blank line.
+		boost::asio::read_until(socket, response, "\r\n");
+		std::string header;
+		while (std::getline(response_stream, header) && header != "\r")
+		{
+			ssOut << header << "\n";
+		}
+		ssOut << "\n";
+		// Write whatever content we already have to output.
+		if (response.size() > 0)
+			ssOut << &response;
+		// Read until EOF, writing data to output as we go.
+		boost::system::error_code error;
+		while (boost::asio::read(socket, response, boost::asio::transfer_at_least(1), error))
+		{
+			ssOut << &response;
+			std::string s1 = ssOut.str();
+			if (Contains(s1, "</html>") || Contains(s1,"<eof>") || Contains(s1,"<END>"))
+				break;
+		}
+  }
+  catch (std::exception& e)
+  {
+	  std::cout << e.what();
+	  return "HTTPS Post Exception";
+  }
+  std::string  sRead = ssOut.str();
+  return sRead;
+}
+
+std::string GetVersionAlert()
+{
+	if (msGithubVersion.empty()) 
+	{
+		msGithubVersion = GetGithubVersion();
+	}
+	if (msGithubVersion.empty()) return "";
+	std::string sGithubVersion = strReplace(msGithubVersion, ".", "");
+	double dGithubVersion = cdbl(sGithubVersion, 0);
+	std::string sCurrentVersion = FormatFullVersion();
+	sCurrentVersion = strReplace(sCurrentVersion, ".", "");
+	double dCurrentVersion = cdbl(sCurrentVersion, 0);
+	std::string sNarr = "";
+	bool bDevBranch = (Contains(strSubVersion, "Develop") || Contains(strSubVersion, "Test"));
+	if (bDevBranch) return "";
+	if (dCurrentVersion < dGithubVersion && fProd) sNarr = "<br>** Client Out of Date (v=" + sCurrentVersion + "/v=" + sGithubVersion + ") **";
+	return sNarr;
 }
 
 

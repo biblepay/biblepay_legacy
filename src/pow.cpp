@@ -276,8 +276,7 @@ bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params&
     // Check range
     if (fNegative || bnTarget == 0 || fOverflow || bnTarget > UintToArith256(params.powLimit))
         return false;
-	// CRITICAL:  Move the 80% easier rule for late blocks over to contextual check block
-	
+
 	if (nPrevHeight < params.EVOLUTION_CUTOVER_HEIGHT)
 	{
 		bool f_7000;
@@ -285,7 +284,7 @@ bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params&
 		bool f_9000; 
 		bool fTitheBlocksActive;
 		GetMiningParams(nPrevHeight, f_7000, f_8000, f_9000, fTitheBlocksActive);
-		uint256 uBibleHashClassic = BibleHashClassic(hash, nBlockTime, nPrevBlockTime, true, nPrevHeight, NULL, false, f_7000, f_8000, f_9000, fTitheBlocksActive, nNonce);
+		uint256 uBibleHashClassic = BibleHashClassic(hash, nBlockTime, nPrevBlockTime, true, nPrevHeight, NULL, false, f_7000, f_8000, f_9000, fTitheBlocksActive, nNonce, params);
 		if (UintToArith256(uBibleHashClassic) > bnTarget && nPrevBlockTime > 0) 
 		{
 			return false;
@@ -299,7 +298,6 @@ bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params&
 			return false;
 		}
 	}
-	
 	
     return true;
 }

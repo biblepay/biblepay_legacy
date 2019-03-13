@@ -9,6 +9,7 @@
 #include "chainparams.h"
 #include "checkpoints.h"
 #include "rpcpog.h"
+#include "rpcpodc.h"
 #include "kjv.h"
 #include "coins.h"
 #include "core_io.h"
@@ -173,7 +174,7 @@ UniValue blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool tx
 		GetMiningParams(blockindex->pprev->nHeight, f7000, f8000, f9000, fTitheBlocksActive);
 		arith_uint256 hashTarget = arith_uint256().SetCompact(blockindex->nBits);
 		uint256 hashWork = blockindex->GetBlockHash();
-		uint256 bibleHash = BibleHashClassic(hashWork, block.GetBlockTime(), blockindex->pprev->nTime, false, blockindex->pprev->nHeight, blockindex->pprev, false, f7000, f8000, f9000, fTitheBlocksActive, blockindex->nNonce);
+		uint256 bibleHash = BibleHashClassic(hashWork, block.GetBlockTime(), blockindex->pprev->nTime, false, blockindex->pprev->nHeight, blockindex->pprev, false, f7000, f8000, f9000, fTitheBlocksActive, blockindex->nNonce, consensusParams);
 		bool bSatisfiesBibleHash = (UintToArith256(bibleHash) <= hashTarget);
 		// CRITICAL TODO: Remove satisfiesbiblehash in prod (spam)
     	result.push_back(Pair("satisfiesbiblehash", bSatisfiesBibleHash ? "true" : "false"));
@@ -1643,6 +1644,60 @@ uint256 Sha256001(int nType, int nVersion, std::string data)
     return result;
 }
 
+static std::map<std::string, double> mvBlockVersion;
+void ScanBlockChainVersion(int nLookback)
+{
+    mvBlockVersion.clear();
+    int nMaxDepth = chainActive.Tip()->nHeight;
+    int nMinDepth = (nMaxDepth - nLookback);
+    if (nMinDepth < 1) nMinDepth = 1;
+    CBlock block;
+    CBlockIndex* pblockindex = chainActive.Tip();
+ 	const Consensus::Params& consensusParams = Params().GetConsensus();
+    while (pblockindex->nHeight > nMinDepth)
+    {
+         if (!pblockindex || !pblockindex->pprev) return;
+         pblockindex = pblockindex->pprev;
+         if (ReadBlockFromDisk(block, pblockindex, consensusParams)) 
+		 {
+			std::string sVersion = RoundToString(GetBlockVersion(block.vtx[0]->vout[0].sTxOutMessage), 0);
+			mvBlockVersion[sVersion]++;
+		 }
+    }
+}
+
+UniValue GetVersionReport()
+{
+	UniValue ret(UniValue::VOBJ);
+    //Returns a report of the BiblePay version that has been solving blocks over the last N blocks
+	ScanBlockChainVersion(BLOCKS_PER_DAY);
+    std::string sBlockVersion;
+    std::string sReport = "Version, Popularity\r\n";
+    std::string sRow;
+    double dPct = 0;
+    ret.push_back(Pair("Version","Popularity,Percent %"));
+    double Votes = 0;
+	for (auto ii : mvBlockVersion) 
+    {
+		double Popularity = mvBlockVersion[ii.first];
+		Votes += Popularity;
+    }
+    for (auto ii : mvBlockVersion)
+	{
+		double Popularity = mvBlockVersion[ii.first];
+		sBlockVersion = ii.first;
+        if (Popularity > 0)
+        {
+			sRow = sBlockVersion + "," + RoundToString(Popularity, 0);
+            sReport += sRow + "\r\n";
+            dPct = Popularity / (Votes+.01) * 100;
+            ret.push_back(Pair(sBlockVersion,RoundToString(Popularity, 0) + "; " + RoundToString(dPct, 2) + "%"));
+        }
+    }
+	return ret;
+}
+
+
 UniValue exec(const JSONRPCRequest& request)
 {
     if (request.fHelp || (request.params.size() != 1 && request.params.size() != 2  && request.params.size() != 3 && request.params.size() != 4 
@@ -1658,16 +1713,7 @@ UniValue exec(const JSONRPCRequest& request)
 
     UniValue results(UniValue::VOBJ);
 	results.push_back(Pair("Command",sItem));
-	if (sItem == "contributions")
-	{
-		//UniValue aContributionReport = ContributionReport();
-		//return aContributionReport;
-	}
-	else if (sItem == "testhash")
-	{
-		results.push_back(Pair("hash","1"));
-	}
-	else if (sItem == "biblehash")
+	if (sItem == "biblehash")
 	{
 		if (request.params.size() != 6)
 			throw std::runtime_error("You must specify blockhash, blocktime, prevblocktime, prevheight, and nonce IE: run biblehash blockhash 12345 12234 100 256.");
@@ -1687,12 +1733,112 @@ UniValue exec(const JSONRPCRequest& request)
 			bool f8000;
 			bool f9000;
 			bool fTitheBlocksActive;
+			const Consensus::Params& consensusParams = Params().GetConsensus();
+
 			GetMiningParams(nHeight, f7000, f8000, f9000, fTitheBlocksActive);
-			uint256 hash = BibleHashClassic(blockHash, nBlockTime, nPrevBlockTime, true, nHeight, NULL, false, f7000, f8000, f9000, fTitheBlocksActive, nNonce);
+			uint256 hash = BibleHashClassic(blockHash, nBlockTime, nPrevBlockTime, true, nHeight, NULL, false, f7000, f8000, f9000, fTitheBlocksActive, nNonce, consensusParams);
 			results.push_back(Pair("BibleHash",hash.GetHex()));
 			uint256 hash2 = BibleHashV2(blockHash, nBlockTime, nPrevBlockTime, true, nHeight);
 			results.push_back(Pair("BibleHashV2", hash2.GetHex()));
 		}
+	}
+	else if (sItem == "setautounlockpassword")
+	{
+		if (request.params.size() != 2) 
+			throw std::runtime_error("You must specify headless podc wallet password.");
+		msEncryptedString.reserve(400);
+		msEncryptedString = request.params[1].get_str().c_str();
+		results.push_back(Pair("Length", (double)msEncryptedString.size()));
+	}
+	else if (sItem == "versioncheck")
+	{
+		std::string sNarr = GetVersionAlert();
+		std::string sGithubVersion = GetGithubVersion();
+		std::string sCurrentVersion = FormatFullVersion();
+		results.push_back(Pair("Github_version", sGithubVersion));
+		results.push_back(Pair("Current_version", sCurrentVersion));
+		if (!sNarr.empty()) results.push_back(Pair("Alert", sNarr));
+	}
+	else if (sItem == "sins")
+	{
+		std::string sEntry = "";
+		int iSpecificEntry = 0;
+		UniValue aDataList = GetDataList("SIN", 7, iSpecificEntry, "", sEntry);
+		return aDataList;
+	}
+	else if (sItem == "readverse")
+	{
+		if (request.params.size() != 3 && request.params.size() != 4)
+			throw std::runtime_error("You must specify Book and Chapter: IE 'readverse CO2 10'.  Optionally you may enter the VERSE #, IE: 'readverse CO2 10 2'.  To see a list of books: run getbooks.");
+		std::string sBook = request.params[1].get_str();
+		int iChapter = cdbl(request.params[2].get_str(),0);
+		int iVerse = 0;
+		if (request.params.size() == 4) iVerse = cdbl(request.params[3].get_str(), 0);
+		results.push_back(Pair("Book", sBook));
+		results.push_back(Pair("Chapter", iChapter));
+		if (iVerse > 0) results.push_back(Pair("Verse", iVerse));
+		int iStart=0;
+		int iEnd=0;
+		GetBookStartEnd(sBook, iStart, iEnd);
+		for (int i = iVerse; i < BIBLE_VERSE_COUNT; i++)
+		{
+			std::string sVerse = GetVerse(sBook, iChapter, i, iStart - 1, iEnd);
+			if (iVerse > 0 && i > iVerse) break;
+			if (!sVerse.empty())
+			{
+				std::string sKey = sBook + " " + RoundToString(iChapter, 0) + ":" + RoundToString(i, 0);
+			    results.push_back(Pair(sKey, sVerse));
+			}
+		}
+	}
+	else if (sItem == "bookname")
+	{
+		std::string sBookName = request.params[1].get_str();
+		std::string sReversed = GetBookByName(sBookName);
+		results.push_back(Pair(sBookName, sReversed));
+	}
+	else if (sItem == "books")
+	{
+		for (int i = 0; i < BIBLE_CHAPTER_COUNT; i++)
+		{
+			std::string sBookName = GetBook(i);
+			std::string sReversed = GetBookByName(sBookName);
+			results.push_back(Pair(sBookName, sReversed));
+		}
+	}
+	else if (sItem == "hexblocktocoinbase")
+	{
+		// This call is used by pools (pool.biblepay.org and purepool) to verify a serialized solution
+		std::string sBlockHex = request.params[1].get_str();
+		CBlock block;
+        if (!DecodeHexBlk(block, sBlockHex))
+                throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "Block decode failed");
+		if (block.vtx.size() < 1)
+		    throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "Deserialization Error");
+    	results.push_back(Pair("txid", block.vtx[0]->GetHash().GetHex()));
+		results.push_back(Pair("recipient", PubKeyToAddress(block.vtx[0]->vout[0].scriptPubKey)));
+		CBlockIndex* pindexPrev = chainActive.Tip();
+		bool f7000;
+		bool f8000;
+		bool f9000;
+		bool fTitheBlocksActive;
+		GetMiningParams(pindexPrev->nHeight, f7000, f8000, f9000, fTitheBlocksActive);
+		const Consensus::Params& consensusParams = Params().GetConsensus();
+
+		uint256 hash = BibleHashClassic(block.GetHash(), block.GetBlockTime(), pindexPrev->nTime, true, pindexPrev->nHeight, NULL, false, f7000, f8000, f9000, fTitheBlocksActive, block.nNonce, consensusParams);
+		results.push_back(Pair("biblehash", hash.GetHex()));
+		results.push_back(Pair("subsidy", block.vtx[0]->vout[0].nValue/COIN));
+		results.push_back(Pair("blockversion", GetBlockVersion(block.vtx[0]->vout[0].sTxOutMessage)));
+		std::string sMsg;
+		for (unsigned int i = 0; i < block.vtx[0]->vout.size(); i++)
+		{
+			sMsg += block.vtx[0]->vout[i].sTxOutMessage;
+		}
+		bool fLegality = true;
+		std::string sLegalityNarr;
+		int64_t nHeaderAge = GetAdjustedTime() - block.GetBlockTime();
+		bool bActiveRACCheck = nHeaderAge < (60 * 15) ? true : false;
+		results.push_back(Pair("blockmessage", sMsg));
 	}
 	else if (sItem == "search")
 	{
@@ -1714,6 +1860,22 @@ UniValue exec(const JSONRPCRequest& request)
 		double dValue = GetSporkDouble(sType, 0);
 		results.push_back(Pair(sType, dValue));
 	}
+	else if (sItem == "persistsporkmessage")
+	{
+		std::string sError = "You must specify type, key, value: IE 'exec persistsporkmessage dcccomputingprojectname rosetta'";
+		if (request.params.size() != 4)
+			 throw std::runtime_error(sError);
+		std::string sType = request.params[1].get_str();
+		std::string sPrimaryKey = request.params[2].get_str();
+		std::string sValue = request.params[3].get_str();
+		if (sType.empty() || sPrimaryKey.empty() || sValue.empty())
+			throw std::runtime_error(sError);
+		sError;
+    	std::string sResult = SendBlockchainMessage(sType, sPrimaryKey, sValue, .24, true, sError);
+		results.push_back(Pair("Sent", sValue));
+		results.push_back(Pair("TXID", sResult));
+		if (!sError.empty()) results.push_back(Pair("Error", sError));
+	}
 	else if (sItem == "datalist")
 	{
 		if (request.params.size() != 2 && request.params.size() != 3)
@@ -1727,7 +1889,29 @@ UniValue exec(const JSONRPCRequest& request)
 		UniValue aDataList = GetDataList(sType, (int)dDays, iSpecificEntry, "", sEntry);
 		return aDataList;
 	}
+	else if (sItem == "testhttps")
+	{
+		std::string sURL = "https://" + GetSporkValue("pool");
+		std::string sRestfulURL = "SAN/LastMandatoryVersion.htm";
+		std::string sResponse = BiblepayHTTPSPost(false, 0, "", "", "", sURL, sRestfulURL, 443, "", 25, 10000, 1);
+		results.push_back(Pair(sRestfulURL, sResponse));
+	}
+	else if (sItem == "sendmessage")
+	{
+		std::string sError = "You must specify type, key, value: IE 'exec sendmessage PRAYER mother Please_pray_for_my_mother._She_has_this_disease.'";
+		if (request.params.size() != 4)
+			 throw std::runtime_error(sError);
 
+		std::string sType = request.params[1].get_str();
+		std::string sPrimaryKey = request.params[2].get_str();
+		std::string sValue = request.params[3].get_str();
+		if (sType.empty() || sPrimaryKey.empty() || sValue.empty())
+			throw std::runtime_error(sError);
+		std::string sResult = SendBlockchainMessage(sType, sPrimaryKey, sValue, 1, false, sError);
+		results.push_back(Pair("Sent", sValue));
+		results.push_back(Pair("TXID", sResult));
+		results.push_back(Pair("Error", sError));
+	}
 	else if (sItem == "getgovlimit")
 	{
 		const Consensus::Params& consensusParams = Params().GetConsensus();
@@ -1762,10 +1946,14 @@ UniValue exec(const JSONRPCRequest& request)
         TxToJSON(tx, uint256(), objTx);
         results.push_back(objTx);
 	}
+	else if (sItem == "versionreport")
+	{
+		UniValue uVersionReport = GetVersionReport();
+		return uVersionReport;
+	}
 	else if (sItem == "hextxtojson2")
 	{
 		std::string sHex = request.params[1].get_str();
-		
 		CMutableTransaction tx;
         DecodeHexTx(tx, request.params[0].get_str());
         UniValue objTx(UniValue::VOBJ);
@@ -1837,7 +2025,9 @@ UniValue exec(const JSONRPCRequest& request)
 		int64_t nNonce = 10;
 		uint256 inHash = uint256S("0x1234");
 		bool bMining = true;
-		uint256 uBibleHash = BibleHashClassic(inHash, nTime, nPrevTime, bMining, nPrevHeight, NULL, false, f7000, f8000, f9000, fTitheBlocksActive, nNonce);
+		const Consensus::Params& consensusParams = Params().GetConsensus();
+
+		uint256 uBibleHash = BibleHashClassic(inHash, nTime, nPrevTime, bMining, nPrevHeight, NULL, false, f7000, f8000, f9000, fTitheBlocksActive, nNonce, consensusParams);
 		std::vector<unsigned char> vchPlaintext = std::vector<unsigned char>(inHash.begin(), inHash.end());
 		std::vector<unsigned char> vchCiphertext;
 		BibleEncryptE(vchPlaintext, vchCiphertext);

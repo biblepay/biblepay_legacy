@@ -3115,7 +3115,14 @@ bool ProcessMessages(CNode* pfrom, CConnman& connman, const std::atomic<bool>& i
             else if (strstr(e.what(), "size too large"))
             {
                 // Allow exceptions from over-long size
-                LogPrintf("%s(%s, %u bytes): Exception '%s' caught\n", __func__, SanitizeString(strCommand), nMessageSize, e.what());
+				if (strCommand == "mnw")
+				{
+					// CRITICAL TODO:  ENSURE Classic mnw message is fixed
+				}
+				else
+				{
+					LogPrintf("%s(%s, %u bytes): Exception '%s' caught\n", __func__, SanitizeString(strCommand), nMessageSize, e.what());
+				}
             }
             else if (strstr(e.what(), "non-canonical ReadCompactSize()"))
             {
@@ -3133,8 +3140,12 @@ bool ProcessMessages(CNode* pfrom, CConnman& connman, const std::atomic<bool>& i
             PrintExceptionContinue(NULL, "ProcessMessages()");
         }
 
-        if (!fRet) {
-            LogPrintf("%s(%s, %u bytes) FAILED peer=%d\n", __func__, SanitizeString(strCommand), nMessageSize, pfrom->id);
+        if (!fRet) 
+		{
+			if (strCommand != "mnw")
+			{				
+				LogPrintf("%s(%s, %u bytes) FAILED peer=%d\n", __func__, SanitizeString(strCommand), nMessageSize, pfrom->id);
+			}
         }
 
         LOCK(cs_main);

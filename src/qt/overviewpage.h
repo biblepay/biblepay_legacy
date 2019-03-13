@@ -36,6 +36,7 @@ public:
     void setClientModel(ClientModel *clientModel);
     void setWalletModel(WalletModel *walletModel);
     void showOutOfSyncWarning(bool fShow);
+	void updatePrayers();
 
 public Q_SLOTS:
     void privateSendStatus();

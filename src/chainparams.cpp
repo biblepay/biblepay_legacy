@@ -202,7 +202,7 @@ public:
 
 		consensus.nBudgetPaymentsCycleBlocks = BLOCKS_PER_DAY * 30; // Monthly
 		consensus.nBudgetPaymentsWindowBlocks = 100;
-		//  RANDREWS:  This is removed in evolution - consensus.nBudgetProposalEstablishingTime = 60 * 60 * 24;  // One Day
+		//  RANDREWS:  This is removed in Evo - consensus.nBudgetProposalEstablishingTime = 60 * 60 * 24;  // One Day
 
         consensus.nInstantSendConfirmationsRequired = 6;
 		consensus.nSuperblockStartBlock = 21710; // The first superblock
@@ -212,7 +212,6 @@ public:
 		consensus.nGovernanceMinQuorum = 10;
 		consensus.nGovernanceFilterElements = 20000;
 
-		// TODO CRITICAL : Change nSuperblockStartHash:
 		consensus.nSuperblockStartHash = uint256(); 
 		consensus.nMasternodeMinimumConfirmations = 7;
 
@@ -325,7 +324,6 @@ public:
 
         nPoolMaxTransactions = 3;
         nFulfilledRequestExpireTime = 60*60; // fulfilled requests expire in 1 hour
-		// spork pub key needs updated (CRITICAL)
         vSporkAddresses = {"BB2BwSbDCqCqNsfc7FgWFJn4sRgnUt4tsM"};
         nMinSporkKeys = 1;
         fBIP9CheckMasternodesUpgraded = true;

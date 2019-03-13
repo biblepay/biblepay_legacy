@@ -52,14 +52,14 @@ SendCoinsEntry::SendCoinsEntry(const PlatformStyle *_platformStyle, QWidget *par
     connect(ui->deleteButton, SIGNAL(clicked()), this, SLOT(deleteClicked()));
     connect(ui->deleteButton_is, SIGNAL(clicked()), this, SLOT(deleteClicked()));
     connect(ui->deleteButton_s, SIGNAL(clicked()), this, SLOT(deleteClicked()));
-	connect(ui->chkForceTithe, SIGNAL(toggled(bool)), this, SLOT(updateFoundationAddress()));
+	connect(ui->chkDonate, SIGNAL(toggled(bool)), this, SLOT(updateFoundationAddress()));
 
 }
 
 void SendCoinsEntry::updateFoundationAddress()
 {
 	const CChainParams& chainparams = Params();
-	bool bCheckedF = (ui->chkForceTithe->checkState() == Qt::Checked);
+	bool bCheckedF = (ui->chkDonate->checkState() == Qt::Checked);
 
 	if (bCheckedF)
 	{
@@ -186,7 +186,12 @@ SendCoinsRecipient SendCoinsEntry::getValue()
     recipient.amount = ui->payAmount->value();
     recipient.message = ui->messageTextLabel->text();
     recipient.fSubtractFeeFromAmount = (ui->checkboxSubtractFeeFromAmount->checkState() == Qt::Checked);
-
+	// BiblePay - Messages and Prayers:
+	recipient.txtMessage = ui->txtMessage->text();
+	recipient.fDonate = (ui->chkDonate->checkState() == Qt::Checked);
+	recipient.fTithe = (ui->chkTithe->checkState() == Qt::Checked);
+	recipient.fPrayer = (ui->chkPrayer->checkState() == Qt::Checked);
+	// End of BiblePay
     return recipient;
 }
 

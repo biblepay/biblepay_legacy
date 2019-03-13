@@ -17,6 +17,7 @@
 #include "consensus/validation.h"
 #include "hash.h"
 #include "rpcpog.h"
+#include "rpcpodc.h"
 #include "init.h"
 #include "policy/policy.h"
 #include "pow.h"
@@ -107,9 +108,30 @@ CAmount maxTxFee = DEFAULT_TRANSACTION_MAXFEE;
 CTxMemPool mempool(::minRelayTxFee);
 std::map<uint256, int64_t> mapRejectedBlocks GUARDED_BY(cs_main);
 
+// BIBLEPAY
 std::map<std::string, std::string> mvApplicationCache;
 std::map<std::string, int64_t> mvApplicationCacheTimestamp;
+std::string msGithubVersion;
+std::string sOS;
+int PRAYER_MODULUS = 0;
+int miGlobalPrayerIndex = 0;
+int iMinerThreadCount = 0;
+bool fPoolMiningMode = false;
+bool fPoolMiningUseSSL = false;
+bool fCommunicatingWithPool = false;
+int64_t nLastDCContractSubmitted = 0;
+int64_t nHPSTimerStart = 0;
+int nHashCounter = 0;
+double dHashesPerSec = 0;
+int64_t nBibleMinerPulse = 0;
 
+std::string sGlobalPoolURL;
+
+std::string msGlobalStatus;
+std::string msGlobalStatus2;
+std::string msGlobalStatus3;
+SecureString msEncryptedString;
+// END OF BIBLEPAY
 
 static void CheckBlockIndex(const Consensus::Params& consensusParams);
 
@@ -2238,7 +2260,7 @@ static bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockInd
     // to recognize that block is actually invalid.
     // TODO: resync data (both ways?) and try to reprocess this block later.
     CAmount blockReward = nFees + GetBlockSubsidy(pindex->pprev->nBits, pindex->pprev->nHeight, chainparams.GetConsensus(), false);
-    std::string strError = "";
+    std::string strError;
     if (!IsBlockValueValid(block, pindex->nHeight, blockReward, strError)) {
         return state.DoS(0, error("ConnectBlock(BIBLEPAY): %s", strError), REJECT_INVALID, "bad-cb-amount");
     }
@@ -4632,6 +4654,30 @@ void DumpMempool(void)
         LogPrintf("Failed to dump mempool: %s. Continuing anyway.\n", e.what());
     }
 }
+// BIBLEPAY
+void SetOverviewStatus()
+{
+	double dDiff = GetDifficulty(chainActive.Tip());
+	// QuantitativeTightening - QT - RANDREWS - BIBLEPAY
+	// double dPriorPrice = 0;
+	// double dPriorPhase = 0;
+	// GetQTPhase(-1, chainActive.Tip()->nHeight-1, dPriorPrice, dPriorPhase);
+	// std::string sQT = "QT: " + RoundToString(dPriorPhase, 0) + "%";
+	// std::string sQTColor = (dPriorPhase == 0) ? "<font color=blue>" : "<font color=green>";
+	// End of QT
+	std::string sPrayer = "N/A";
+	GetDataList("PRAYER", 30, miGlobalPrayerIndex, "", sPrayer);
+	msGlobalStatus = "Blocks: " + RoundToString((double)chainActive.Tip()->nHeight, 0);
+	msGlobalStatus += "<br>Difficulty: " + RoundToString(GetDifficulty(chainActive.Tip()), 2);
+    
+	std::string sVersionAlert = GetVersionAlert();
+	if (!sVersionAlert.empty()) msGlobalStatus += " <font color=purple>" + sVersionAlert + "</font> ;";
+	// if (false) msGlobalStatus += " " + sQTColor + sQT + "</font>;<font color=green> Price: " + RoundToString(dPriorPrice, 8) + "</font>;";
+	std::string sPrayers = FormatHTML(sPrayer, 12, "<br>");
+	msGlobalStatus2 = "<font color=maroon><b>" + sPrayer + "</font></b><br>&nbsp;";
+}
+
+// END OF BIBLEPAY
 
 //! Guess how far we are in the verification process at the given block index
 double GuessVerificationProgress(const ChainTxData& data, CBlockIndex *pindex) {

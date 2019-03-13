@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>729</width>
+    <width>886</width>
     <height>274</height>
    </rect>
   </property>
@@ -151,9 +151,16 @@
      </widget>
     </item>
     <item row="2" column="1">
-     <layout class="QHBoxLayout" name="horizontalLayoutAmount" stretch="0,0,0,0,1,0,0">
+     <layout class="QHBoxLayout" name="horizontalLayoutAmount" stretch="0,0,0,0,1,0,0,0,0">
       <item>
-       <widget class="BitcoinAmountField" name="payAmount"/>
+       <widget class="BitcoinAmountField" name="payAmount">
+        <property name="minimumSize">
+         <size>
+          <width>135</width>
+          <height>0</height>
+         </size>
+        </property>
+       </widget>
       </item>
       <item>
        <spacer name="horizontalSpacer">
@@ -169,7 +176,7 @@
        </spacer>
       </item>
       <item>
-       <widget class="QCheckBox" name="chkForceTithe">
+       <widget class="QCheckBox" name="chkDonate">
         <property name="toolTip">
          <string>Send Coins to Orphan Foundation to Support Orphans?</string>
         </property>
@@ -178,6 +185,32 @@
         </property>
         <property name="text">
          <string>Donate to Foundation?</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <spacer name="horizontalSpacer_77">
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>40</width>
+          <height>20</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+      <item>
+       <widget class="QCheckBox" name="chkTithe">
+        <property name="toolTip">
+         <string>Add an additional 10% to the transaction to be sent to Support Orphans?</string>
+        </property>
+        <property name="layoutDirection">
+         <enum>Qt::LeftToRight</enum>
+        </property>
+        <property name="text">
+         <string>Add Tithe for Foundation?</string>
         </property>
        </widget>
       </item>
@@ -195,7 +228,7 @@
        </spacer>
       </item>
       <item>
-       <widget class="QCheckBox" name="checkboxPrayer">
+       <widget class="QCheckBox" name="chkPrayer">
         <property name="toolTip">
          <string>Prayer Request</string>
         </property>
@@ -223,7 +256,7 @@
          <string>The fee will be deducted from the amount being sent. The recipient will receive a lower amount of Biblepay than you enter in the amount field. If multiple recipients are selected, the fee is split equally.</string>
         </property>
         <property name="text">
-         <string>S&amp;ubtract fee from amount</string>
+         <string>S&amp;ubtract fee?</string>
         </property>
        </widget>
       </item>

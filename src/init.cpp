@@ -12,6 +12,7 @@
 #include "kjv.h"
 #include "addrman.h"
 #include "amount.h"
+#include "miner.h"
 #include "base58.h"
 #include "chain.h"
 #include "rpcpog.h"
@@ -1138,7 +1139,6 @@ bool AppInitParameterInteraction()
 	if (chainparams.NetworkIDString() == "main")
 	{
 		fProd = true;
-		// CRITICAL TODO: Add global sOS value (WIN/LIN/MAC)
 	}
 	else if (chainparams.NetworkIDString() == "test")
 	{
@@ -1157,6 +1157,20 @@ bool AppInitParameterInteraction()
         LogPrintf(" \n Invalid Network Chain Parameter \n");
         throw std::runtime_error("Invalid Network Chain Parameter");
   	}
+
+	// Set flag for platform
+	sOS="LIN";
+
+	#ifdef MAC_OSX
+		sOS="MAC";
+	#endif
+    
+	#ifdef WIN32
+		sOS="WIN";
+	#endif
+
+
+
 	
 	LogPrintf("***************************************** BIBLEPAY  *************************************************** \n");
 	LogPrintf("ProdMode: Prod %f",(double)fProd);
@@ -2172,6 +2186,9 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
         return InitError(strNodeError);
 
     // ********************************************************* Step 13: finished
+
+	// Generate coins - Proof-of-Bible-Hash (POBH) - in the background
+	GenerateBiblecoins(GetBoolArg("-gen", true), GetArg("-genproclimit", 1), chainparams);
 
     SetRPCWarmupFinished();
     uiInterface.InitMessage(_("Done loading"));

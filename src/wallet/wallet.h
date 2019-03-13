@@ -176,7 +176,13 @@ struct CRecipient
 {
     CScript scriptPubKey;
     CAmount nAmount;
-    bool fSubtractFeeFromAmount;
+	bool fSubtractFeeFromAmount;
+	// BIBLEPAY:
+	bool fTithe;
+	bool fDonate;
+	bool fPrayer;
+	std::string txtMessage;
+	// END OF BIBLEPAY
 };
 
 typedef std::map<std::string, std::string> mapValue_t;

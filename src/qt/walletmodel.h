@@ -58,7 +58,12 @@ public:
     CAmount amount;
     // If from a payment request, this is used for storing the memo
     QString message;
-
+	// BiblePay message or prayer
+	QString txtMessage;
+	bool fDonate;
+	bool fPrayer;
+	bool fTithe;
+	// End of BiblePay
     // If from a payment request, paymentRequest.IsInitialized() will be true
     PaymentRequestPlus paymentRequest;
     // Empty if no authentication or invalid signature/cert/etc.

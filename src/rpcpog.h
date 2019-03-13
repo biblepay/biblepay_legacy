@@ -11,6 +11,9 @@
 #include "utilstrencodings.h"
 #include <univalue.h>
 
+class CWallet;
+
+
 std::string RetrieveMd5(std::string s1);
 
 struct UserVote
@@ -23,7 +26,8 @@ struct UserVote
 	int nTotalAbstainWeight;
 };
 
-
+CAmount CAmountFromValue(const UniValue& value);
+std::string RoundToString(double d, int place);
 std::string QueryBibleHashVerses(uint256 hash, uint64_t nBlockTime, uint64_t nPrevBlockTime, int nPrevHeight, CBlockIndex* pindexPrev);
 CAmount GetDailyMinerEmissions(int nHeight);
 std::string CreateBankrollDenominations(double nQuantity, CAmount denominationAmount, std::string& sError);
@@ -78,8 +82,6 @@ std::string SendBusinessObject(std::string sType, std::string sPrimaryKey, std::
 UniValue GetDataList(std::string sType, int iMaxAgeInDays, int& iSpecificEntry, std::string sSearch, std::string& outEntry);
 UserVote GetSumOfSignal(std::string sType, std::string sIPFSHash);
 int GetSignalInt(std::string sLocalSignal);
-void RPCSendMoneyToDestinationWithMinimumBalance(const CTxDestination& address, CAmount nValue, CAmount nMinimumBalanceRequired, double dMinCoinAge, CAmount caMinCoinValue, std::string sSpecificTxid, int nSpecificOutput,  
-	CWalletTx& wtxNew, std::string& sError);
 double GetDifficulty(const CBlockIndex* blockindex);
 bool LogLimiter(int iMax1000);
 std::string PubKeyToAddress(const CScript& scriptPubKey);
@@ -103,7 +105,9 @@ double cdbl(std::string s, int place);
 std::string AmountToString(const CAmount& amount);
 std::string ExtractXML(std::string XMLdata, std::string key, std::string key_end);
 bool Contains(std::string data, std::string instring);
-
+std::string GetVersionAlert();
+bool CheckNonce(bool f9000, unsigned int nNonce, int nPrevHeight, int64_t nPrevBlockTime, int64_t nBlockTime);
+bool RPCSendMoney(std::string& sError, const CTxDestination &address, CAmount nValue, bool fSubtractFeeFromAmount, CWalletTx& wtxNew, bool fUseInstantSend=false, std::string sOptionalData = "");
 struct TitheDifficultyParams
 {
   double min_coin_age;
@@ -129,5 +133,8 @@ std::vector<std::string> Split(std::string s, std::string delim);
 void MemorizeBlockChainPrayers(bool fDuringConnectBlock, bool fSubThread, bool fColdBoot, bool fDuringSanctuaryQuorum);
 double GetBlockVersion(std::string sXML);
 bool CheckStakeSignature(std::string sBitcoinAddress, std::string sSignature, std::string strMessage, std::string& strError);
-
+std::string BiblepayHTTPSPost(bool bPost, int iThreadID, std::string sActionName, std::string sDistinctUser, std::string sPayload, std::string sBaseURL, std::string sPage, int iPort, 
+	std::string sSolution, int iTimeoutSecs, int iMaxSize, int iBreakOnError);
+std::string BiblePayHTTPSPost2(bool bPost, std::string sProtocol, std::string sDomain, std::string sPage, std::string sPayload, std::string sFileName);
+std::string FormatHTML(std::string sInput, int iInsertCount, std::string sStringToInsert);
 #endif

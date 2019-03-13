@@ -588,7 +588,7 @@ CAmount CSuperblock::GetPaymentsLimit(int nBlockHeight)
 		// RETIRED - Daily
 		nSuperblockCycle = consensusParams.nDCCSuperblockCycle;
  		nBudgetFactor = .70;
-		if (nBlockHeight > 33600 && consensusParams.PODC_LAST_BLOCK) nBudgetFactor = 1.0; // Early DC Superblocks paid the entire budget.
+		if (nBlockHeight > 33600 && nBlockHeight < consensusParams.PODC_LAST_BLOCK) nBudgetFactor = 1.0; // Early DC Superblocks paid the entire budget.
 	}
 	else if (IsSmartContract(nBlockHeight))
 	{

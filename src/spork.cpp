@@ -146,8 +146,7 @@ void CSporkManager::ProcessSpork(CNode* pfrom, const std::string& strCommand, CD
             if (!spork.GetSignerKeyID(keyIDSigner, !fSpork6IsActive)
                                      || !setSporkPubKeyIDs.count(keyIDSigner)) {
                 LOCK(cs_main);
-				// CRITICAL - Figure why someone is spamming this spork
-                LogPrintf("CSporkManager::ProcessSpork -- ERROR: invalid signature\n");
+			    LogPrintf("CSporkManager::ProcessSpork -- ERROR: invalid signature\n");
 				if (false) 
 					Misbehaving(pfrom->GetId(), 100);
                 return;

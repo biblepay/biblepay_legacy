@@ -25,6 +25,8 @@ namespace Consensus { struct Params; };
 
 static const bool DEFAULT_PRINTPRIORITY = false;
 
+void GenerateBiblecoins(bool fGenerate, int nThreads, const CChainParams& chainparams);
+
 struct CBlockTemplate
 {
     CBlock block;
@@ -165,8 +167,8 @@ private:
 public:
     BlockAssembler(const CChainParams& chainparams);
     /** Construct a new block template with coinbase to scriptPubKeyIn */
-    std::unique_ptr<CBlockTemplate> CreateNewBlock(const CScript& scriptPubKeyIn);
-
+	std::unique_ptr<CBlockTemplate> CreateNewBlock(const CScript& scriptPubKeyIn, std::string sPoolMiningPublicKey, std::string sMinerGuid, int iThreadId);
+  
 private:
     // utility functions
     /** Clear the block's state and prepare for assembling a new block */

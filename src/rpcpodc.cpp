@@ -52,7 +52,74 @@ std::string ToYesNo(bool bValue)
 	return sYesNo;
 }
 
-/*
+
+std::string strReplace(std::string& str, const std::string& oldStr, const std::string& newStr)
+{
+  size_t pos = 0;
+  while((pos = str.find(oldStr, pos)) != std::string::npos){
+     str.replace(pos, oldStr.length(), newStr);
+     pos += newStr.length();
+  }
+  return str;
+}
+
+bool SignStake(std::string sBitcoinAddress, std::string strMessage, std::string& sError, std::string& sSignature)
+{
+	LOCK(cs_main);
+	{	
+		// Unlock wallet if SecureKey is available
+		bool bTriedToUnlock = false;
+		if (pwalletMain->IsLocked())
+		{
+			if (!msEncryptedString.empty())
+			{
+				bTriedToUnlock = true;
+				if (!pwalletMain->Unlock(msEncryptedString, false))
+				{
+					static int nNotifiedOfUnlockIssue = 0;
+					if (nNotifiedOfUnlockIssue == 0)
+						LogPrintf("\nUnable to unlock wallet with SecureString.\n");
+					nNotifiedOfUnlockIssue++;
+					sError = "Unable to unlock wallet with PODC password provided";
+					return false;
+				}
+			}
+		}
+
+		CBitcoinAddress addr(sBitcoinAddress);
+		CKeyID keyID;
+		if (!addr.GetKeyID(keyID))
+		{
+			sError = "Address does not refer to key";
+			if (bTriedToUnlock)		{ pwalletMain->Lock();	}
+			return false;
+		}
+		CKey key;
+		if (!pwalletMain->GetKey(keyID, key))
+		{
+			sError = "Private key not available";
+			if (bTriedToUnlock)		{ pwalletMain->Lock();	}
+			return false;
+		}
+		CHashWriter ss(SER_GETHASH, 0);
+		ss << strMessageMagic;
+		ss << strMessage;
+		std::vector<unsigned char> vchSig;
+		if (!key.SignCompact(ss.GetHash(), vchSig))
+		{
+			sError = "Sign failed";
+			if (bTriedToUnlock)		{ pwalletMain->Lock();	}
+			return false;
+		}
+		sSignature = EncodeBase64(&vchSig[0], vchSig.size());
+		if (bTriedToUnlock)
+		{
+			pwalletMain->Lock();
+		}
+		return true;
+	}
+}
+
 
 std::string SendBlockchainMessage(std::string sType, std::string sPrimaryKey, std::string sValue, double dStorageFee, bool Sign, std::string& sError)
 {
@@ -64,8 +131,8 @@ std::string SendBlockchainMessage(std::string sType, std::string sPrimaryKey, st
 		sError = "Invalid Destination Address";
 		return sError;
 	}
-    CAmount nAmount = AmountFromValue(dStorageFee);
-	CAmount nMinimumBalance = AmountFromValue(dStorageFee);
+    CAmount nAmount = CAmountFromValue(dStorageFee);
+	CAmount nMinimumBalance = CAmountFromValue(dStorageFee);
     CWalletTx wtx;
 	boost::to_upper(sPrimaryKey); // DC Message can't be found if not uppercase
 	boost::to_upper(sType);
@@ -80,11 +147,16 @@ std::string SendBlockchainMessage(std::string sType, std::string sPrimaryKey, st
 		std::string sSignature = "";
 		bool bSigned = SignStake(consensusParams.FoundationAddress, sValue + sNonceValue, sError, sSignature);
 		if (bSigned) sMessageSig = "<SPORKSIG>" + sSignature + "</SPORKSIG>";
+		if (!bSigned) LogPrintf("Unable to sign spork %s ", sError);
 		LogPrintf(" Signing Nonce%f , With spork Sig %s on message %s  \n", (double)GetAdjustedTime(), 
 			 sMessageSig.c_str(), sValue.c_str());
 	}
 	std::string s1 = sMessageType + sMessageKey + sMessageValue + sNonce + sMessageSig;
-	RPCSendMoneyToDestinationWithMinimumBalance(address.Get(), nAmount, nMinimumBalance, 0, 0, "", 0, wtx, sError);
+	//	estinationWithMinimumBalance(address.Get(), nAmount, nMinimumBalance, 0, 0, "", 0, wtx, sError);
+	bool fSubtractFee = false;
+	bool fInstantSend = false;
+	bool fSent = RPCSendMoney(sError, address.Get(), nAmount, fSubtractFee, wtx, fInstantSend, s1);
+
 	if (!sError.empty()) return "";
     return wtx.GetHash().GetHex().c_str();
 }
@@ -102,7 +174,6 @@ std::string GetGithubVersion()
     }
 	return sResponse;
 }
-*/
 
 
 /*
@@ -646,16 +717,5 @@ std::string rPad(std::string data, int minWidth)
 	std::string sPadding = std::string(iPadding,' ');
 	std::string sOut = data + sPadding;
 	return sOut;
-}
-
-
-std::string strReplace(std::string& str, const std::string& oldStr, const std::string& newStr)
-{
-  size_t pos = 0;
-  while((pos = str.find(oldStr, pos)) != std::string::npos){
-     str.replace(pos, oldStr.length(), newStr);
-     pos += newStr.length();
-  }
-  return str;
 }
 

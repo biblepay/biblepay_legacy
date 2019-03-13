@@ -449,6 +449,16 @@ void OverviewPage::updatePrivateSendProgress()
     ui->privateSendProgress->setToolTip(strToolPip);
 }
 
+void OverviewPage::updatePrayers()
+{
+	 QString qsStatus = QString::fromUtf8(msGlobalStatus.c_str());
+	 ui->txtDisplay->setText(qsStatus);
+	 QString qsStatus2 = QString::fromUtf8(msGlobalStatus2.c_str());
+	 ui->txtDisplay2->setText(qsStatus2);
+	 QString qsStatus3 = QString::fromUtf8(msGlobalStatus3.c_str());
+	 ui->txtDisplay3->setText(qsStatus3);
+}
+
 void OverviewPage::updateAdvancedPSUI(bool fShowAdvancedPSUI) {
     this->fShowAdvancedPSUI = fShowAdvancedPSUI;
     int nNumItems = (fLiteMode || !fShowAdvancedPSUI) ? NUM_ITEMS : NUM_ITEMS_ADV;
@@ -472,6 +482,17 @@ void OverviewPage::updateAdvancedPSUI(bool fShowAdvancedPSUI) {
 
 void OverviewPage::privateSendStatus()
 {
+
+	// BIBLEPAY: Update Prayers on Overview Page
+	PRAYER_MODULUS++;
+	if ((PRAYER_MODULUS % 60) == 0)
+	{
+		PRAYER_MODULUS=0;
+		SetOverviewStatus();
+		updatePrayers();
+	}
+	// END OF BIBLEPAY
+
     if(!masternodeSync.IsBlockchainSynced() || ShutdownRequested()) return;
 
     static int64_t nLastDSProgressBlockTime = 0;
