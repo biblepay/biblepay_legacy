@@ -1381,15 +1381,6 @@ std::string GetSporkValue(std::string sKey)
 
 double GetDifficultyN(const CBlockIndex* blockindex, double N)
 {
-	int nHeight = 0;
-	if (blockindex == NULL)
-	{
-		if (chainActive.Tip() != NULL) nHeight = chainActive.Tip()->nHeight;
-	}
-	else
-	{
-		nHeight = blockindex->nHeight;
-	}
 	return GetDifficulty(blockindex)*N;
 }
 

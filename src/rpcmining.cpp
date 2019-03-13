@@ -484,17 +484,12 @@ UniValue getmininginfo(const UniValue& params, bool fHelp)
 		
     UniValue obj(UniValue::VOBJ);
     obj.push_back(Pair("blocks",           (int)chainActive.Height()));
-	obj.push_back(Pair("blocks_tip",           (int)chainActive.Tip()->nHeight));
-
-
     obj.push_back(Pair("currentblocksize", (uint64_t)nLastBlockSize));
     obj.push_back(Pair("currentblocktx",   (uint64_t)nLastBlockTx));
 	obj.push_back(Pair("difficulty", (double)GetDifficultyN(chainActive.Tip(),10)));
-	
     obj.push_back(Pair("errors",           GetWarnings("statusbar")));
     obj.push_back(Pair("genproclimit",     (int)GetArg("-genproclimit", DEFAULT_GENERATE_THREADS)));
     obj.push_back(Pair("networkhashps",  GetNetworkHashPS((BLOCKS_PER_DAY/12), -1))); // Network KHPS over last hour
-	// BiblePay: Add users HashPS
 	obj.push_back(Pair("hashps",           dHashesPerSec));
 	obj.push_back(Pair("minerstarttime",   TimestampToHRDate(nHPSTimerStart/1000)));
 	obj.push_back(Pair("hashcounter", nHashCounter));
@@ -505,14 +500,6 @@ UniValue getmininginfo(const UniValue& params, bool fHelp)
 	obj.push_back(Pair("poolinfo1",        ConcatenatePoolHealth("poolinfo1")));
     obj.push_back(Pair("poolinfo2",        ConcatenatePoolHealth("poolinfo2")));
     obj.push_back(Pair("poolinfo3",        ConcatenatePoolHealth("poolinfo3")));
-	obj.push_back(Pair("podc_tried", (double)mnPODCTried));
-	obj.push_back(Pair("podc_sent", (double)mnPODCSent));
-	obj.push_back(Pair("podc_sent_amount", (double)mnPODCAmountSent));
-	obj.push_back(Pair("podc_average_amount_sent", (double)mnPODCAmountSent/(double)(mnPODCSent+.01)));
-	if (!fPrayersMemorized)
-	{
-		obj.push_back(Pair("prayers_memorized", fPrayersMemorized));
-	}
 	obj.push_back(Pair("miningpulse",      nBibleMinerPulse));
 	obj.push_back(Pair("poolmining",       fPoolMiningMode));
 	obj.push_back(Pair("pool_url",         sGlobalPoolURL));
