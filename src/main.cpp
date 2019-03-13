@@ -7552,15 +7552,12 @@ void SetOverviewStatus()
 	// std::string sQTColor = (dPriorPhase == 0) ? "<font color=blue>" : "<font color=green>";
 	// End of QT
 	bool fDCEnabled = PODCEnabled(chainActive.Tip()->nHeight);
-
 	if (fDCEnabled) UpdateMagnitude();
 	std::string sPrayer = "NA";
 	GetDataList("PRAYER", 7, iPrayerIndex, "", sPrayer);
 	msGlobalStatus = "<font color=blue>Blocks: " + RoundToString((double)chainActive.Tip()->nHeight, 0);
-	if (fDCEnabled) msGlobalStatus += "; PODC Difficulty: " + RoundToString(dDiff, 2);
-	msGlobalStatus += "; <br>POW Difficulty: " + RoundToString(dPOWDifficulty, 2) + ";";
+	msGlobalStatus += "<br>POW Difficulty: " + RoundToString(dPOWDifficulty, 2) + ";";
     if (fDCEnabled) msGlobalStatus += " Magnitude: " + RoundToString(mnMagnitude, 2) + "; ";
-	if (fPOGEnabled) msGlobalStatus += " POG Difficulty: " + RoundToString(GetPOGDifficulty(chainActive.Tip()), 2) + "; ";
 	msGlobalStatus += "</font>";
 	std::string sVersionAlert = GetVersionAlert();
 	if (!sVersionAlert.empty()) msGlobalStatus += " <font color=purple>" + sVersionAlert + "</font> ;";

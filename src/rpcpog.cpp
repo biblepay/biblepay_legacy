@@ -1390,22 +1390,7 @@ double GetDifficultyN(const CBlockIndex* blockindex, double N)
 	{
 		nHeight = blockindex->nHeight;
 	}
-
-	if (PODCEnabled(nHeight))
-	{
-		double nBlockMagnitude = GetBlockMagnitude(nHeight);
-		return nBlockMagnitude;
-	}
-	
-	// Returns Difficulty * N (Most likely this will be used to display the Diff in the wallet, since the BibleHash is much harder to solve than an ASIC hash)
-	if ((!fProd && nHeight >= 1) || (fProd && nHeight >= 7000))
-	{
-		return GetDifficulty(blockindex)*(N/10); //f7000 feature
-	}
-	else
-	{
-		return GetDifficulty(blockindex)*N;
-	}
+	return GetDifficulty(blockindex)*N;
 }
 
 std::string TimestampToHRDate(double dtm)
