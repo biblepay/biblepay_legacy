@@ -676,15 +676,14 @@ CAmount CSuperblock::GetPaymentsLimit(int nBlockHeight)
 	int nBits = 486585255;  // Set diff at about 1.42 for Superblocks
 	int nSuperblockCycle = IsValidBlockHeight(nBlockHeight) ? consensusParams.nSuperblockCycle : consensusParams.nDCCSuperblockCycle;
 	// At block 98400, our budget = 13,518,421 (.814 budget factor)
-	
 	double nBudgetFactor = 1;
 	// The first call to GetBlockSubsidy calculates the future reward (and this has our standard deflation of 19% per year in it)
     CAmount nSuperblockPartOfSubsidy = GetBlockSubsidy(pindexBestHeader->pprev, nBits, nBlockHeight, consensusParams, true);
     
 	// If this is a DC Superblock, and we exceed F12000 Cutover Height, due to cascading superblocks, the DC superblock budget should be 70% of the budget:
-
+	if (nBlockHeight > 106150 && nBlockHeight < 107001 && IsDCCSuperblock(nBlockHeight)) nBudgetFactor = 1.75;
 	CAmount nPaymentsLimit = nSuperblockPartOfSubsidy * nSuperblockCycle * nBudgetFactor;
-
+	
 	if (nBlockHeight > 107000 && nPaymentsLimit > (13500000*COIN)) nPaymentsLimit = 13500000 * COIN;
     LogPrint("gobject", "CSuperblock::GetPaymentsLimit -- Valid superblock height %f, payments max %f \n",(double)nBlockHeight, (double)nPaymentsLimit/COIN);
 

@@ -51,7 +51,7 @@ bool IsBlockValueValid(const CBlock& block, int nBlockHeight, CAmount blockRewar
 {
 
 	if (!fProd && nBlockHeight < 79999) return true;  // Special case for Testnet superblocks up to block 999 - 1/23/2019
-	if (fProd  && nBlockHeight < 100000) return true; 
+	if (fProd  && nBlockHeight < 106999) return true; 
     strErrorRet = "";
     bool isBlockRewardValueMet = (block.vtx[0].GetValueOut() <= blockReward);
     if(!isBlockRewardValueMet && fDebugMaster) 

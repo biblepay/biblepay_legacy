@@ -4575,9 +4575,9 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIn
         }
     }
 
-	// Rob A., Biblepay, 3/7/2018, Kick Off BotNet Rules
+	// Rob A., Biblepay, 3/7/2018, Kick Off BotNet Rules (The following POG check should be disabled until Evolution)
 	double dBlockVersion = GetBlockVersion(block.vtx[0]);
-	if (fProd && nHeight > POG_V3_CUTOVER_HEIGHT_PROD && dBlockVersion < 1199)
+	if (false && fProd && nHeight > POG_V3_CUTOVER_HEIGHT_PROD && dBlockVersion < 1199)
 	{
 		return state.DoS(10, error("%s: Rejecting pog block version < 1189", __func__), REJECT_INVALID, "bad-block-version");
  	}
@@ -6254,6 +6254,9 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
 		std::string sVersion = pfrom->cleanSubVer;
 		sVersion = strReplace(sVersion, "Biblepay Core:", "");
 		sVersion = strReplace(sVersion, "Praise Jesus", "");
+		sVersion = strReplace(sVersion, "Develop", "");
+		sVersion = strReplace(sVersion, "Main", "");
+		sVersion = strReplace(sVersion, "Test", "");
 		sVersion = strReplace(sVersion, ":", "");
 		sVersion = strReplace(sVersion, "-", "");
 		sVersion = strReplace(sVersion, "/", "");

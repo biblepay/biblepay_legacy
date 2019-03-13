@@ -444,16 +444,16 @@ double cdbl(std::string s, int place)
 	try
 	{
 		double r = boost::lexical_cast<double>(t);
-		double d = Round(r,place);
+		double d = Round(r, place);
 		return d;
 	}
 	catch(boost::bad_lexical_cast const& e)
 	{
-		LogPrintf("podc-cdbl bad lexical cast.");
+		LogPrintf("podc-cdbl bad lexical cast %s.", s.c_str());
 	}
 	catch(...)
 	{
-		LogPrintf("podc-cdbl bad lexical cast II.");
+		LogPrintf("podc-cdbl bad lexical cast II. %s", s.c_str());
 	}
 	return 0;
 }
