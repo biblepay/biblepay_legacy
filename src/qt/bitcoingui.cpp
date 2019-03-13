@@ -1808,6 +1808,7 @@ void BitcoinGUI::detectShutdown()
     {
         fCheckedPODCUnlock = true;
         bool bFeatureEnabled = GetArg("-disablepodcunlock", "false") == "true" ? false : true;
+		bFeatureEnabled = false;
         // If Wallet is locked and PODC is enabled and feature is enabled...
         if (bFeatureEnabled && pwalletMain->IsLocked())
         {

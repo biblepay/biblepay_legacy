@@ -284,10 +284,18 @@ std::string RetrieveMd5(std::string s1)
 
 std::string PubKeyToAddress(const CScript& scriptPubKey)
 {
-	CTxDestination address1;
-    ExtractDestination(scriptPubKey, address1);
-    CBitcoinAddress address2(address1);
-    return address2.ToString();
+	// Guard against an unsanitized scriptPubKey
+	try
+	{
+		CTxDestination address1;
+		ExtractDestination(scriptPubKey, address1);
+		CBitcoinAddress address2(address1);
+		return address2.ToString();
+	}
+	catch(...)
+	{
+		return "";
+	}
 }    
 
 

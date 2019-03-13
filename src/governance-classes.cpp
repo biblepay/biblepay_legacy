@@ -635,9 +635,7 @@ bool CSuperblock::IsValidBlockHeight(int nBlockHeight)
 
 bool CSuperblock::IsPOGSuperblock(int nHeight)
 {
-	if (!fPOGEnabled) return false;
-
-	if ((nHeight > FPOG_CUTOVER_HEIGHT_PROD && fProd) || (nHeight > FPOG_CUTOVER_HEIGHT_TESTNET && !fProd))
+	if ((nHeight > FPOG_CUTOVER_HEIGHT_PROD && nHeight < LAST_POG_BLOCK_PROD && fProd) || (nHeight > FPOG_CUTOVER_HEIGHT_TESTNET && nHeight < LAST_POG_BLOCK_TESTNET && !fProd))
 	{
 		return nHeight >= Params().GetConsensus().nDCCSuperblockStartBlock && ((nHeight % Params().GetConsensus().nDCCSuperblockCycle) == 20);
 	}
@@ -674,42 +672,20 @@ CAmount CSuperblock::GetPaymentsLimit(int nBlockHeight)
         return 0;
     }
 
-    // min subsidy for high diff networks and vice versa
-    int nBits = consensusParams.fPowAllowMinDifficultyBlocks ? UintToArith256(consensusParams.powLimit).GetCompact() : 1;
-	//bool fDCLive = (fProd && fDistributedComputingEnabled && nBlockHeight > F11000_CUTOVER_HEIGHT_PROD && nBlockHeight < PODC_LAST_BLOCK_PROD) || (!fProd && fDistributedComputingEnabled);
-	bool fDCLive = PODCEnabled(nBlockHeight);
-
-    // some part of all blocks issued during the cycle goes to superblock, see GetBlockSubsidy
-	if (fDCLive) 
-	{
-		nBits = 486585255;  // Set diff at about 1.42 for Superblocks
-	}
+    // Some part of all blocks issued during the cycle goes to superblock, see GetBlockSubsidy
+	int nBits = 486585255;  // Set diff at about 1.42 for Superblocks
 	int nSuperblockCycle = IsValidBlockHeight(nBlockHeight) ? consensusParams.nSuperblockCycle : consensusParams.nDCCSuperblockCycle;
-	// Note at block 98400, our budget is 13518421, ensure governor below is capped at this figure
-	// Note 2: We must change this '1' multiplier to .814 to maintain the current defating monthly budget
-	// Why did this happen?  Because when we moved to PODC rewards, we switched our '1' multiplier to .20, and emitted 12 monthly governance superblocks with a deflating emission down to 13.5MM bbp
-	// If we switch back to 1, the next governance budget would start higher (IE 15MM) and that is not good for all intents and purposes, it is better to continue where we are (at the lower value)
-	// Therefore we can do this by continuing from .814 at a certain cutover height (to be added asap).
+	// At block 98400, our budget = 13,518,421 (.814 budget factor)
 	
-	double nBudgetFactor = (fDCLive && IsValidBlockHeight(nBlockHeight) && !IsDCCSuperblock(nBlockHeight)) ? .20 : 1;
-	if (fProd && nBlockHeight >= PODC_LAST_BLOCK_PROD) nBudgetFactor = .814;
-
+	double nBudgetFactor = 1;
 	// The first call to GetBlockSubsidy calculates the future reward (and this has our standard deflation of 19% per year in it)
     CAmount nSuperblockPartOfSubsidy = GetBlockSubsidy(pindexBestHeader->pprev, nBits, nBlockHeight, consensusParams, true);
-	
-    CAmount nPaymentsLimit = 0;
-	nPaymentsLimit = nSuperblockPartOfSubsidy * nSuperblockCycle * nBudgetFactor;
-
-	CAmount nAbsoluteMaxMonthlyBudget = 12500 * BLOCKS_PER_DAY * 30 * .20 * COIN; // Ensure monthly budget is never > 20% of avg monthly total block emission regardless of low difficulty in PODC
+    
 	// If this is a DC Superblock, and we exceed F12000 Cutover Height, due to cascading superblocks, the DC superblock budget should be 70% of the budget:
-	if (IsDCCSuperblock(nBlockHeight) && nBlockHeight > F12000_CUTOVER_HEIGHT_PROD)
-	{
-		double nDCSuperblockBudget = .45;
-		nPaymentsLimit = nPaymentsLimit * nDCSuperblockBudget;
-	}
 
-	if (nPaymentsLimit > nAbsoluteMaxMonthlyBudget) nPaymentsLimit = nAbsoluteMaxMonthlyBudget;
+	CAmount nPaymentsLimit = nSuperblockPartOfSubsidy * nSuperblockCycle * nBudgetFactor;
 
+	if (nBlockHeight > 107000 && nPaymentsLimit > (13500000*COIN)) nPaymentsLimit = 13500000 * COIN;
     LogPrint("gobject", "CSuperblock::GetPaymentsLimit -- Valid superblock height %f, payments max %f \n",(double)nBlockHeight, (double)nPaymentsLimit/COIN);
 
     return nPaymentsLimit;

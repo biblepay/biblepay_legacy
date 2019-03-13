@@ -13,13 +13,13 @@
  * for both biblepayd and biblepay-qt, to make it harder for attackers to
  * target servers or GUI users specifically.
  */
-const std::string CLIENT_NAME("Biblepay Main - Praise Jesus");
+const std::string CLIENT_NAME("Biblepay Core");
 
 
 const int BIBLEPAY_VERSION_MAJOR = 1;
 const int BIBLEPAY_VERSION_MINOR = 1;
 const int BIBLEPAY_VERSION_REVISION = 9;
-const int BIBLEPAY_VERSION_BUILD = 8;
+const int BIBLEPAY_VERSION_BUILD = 9;
 
 
 const int BIBLE_VERSION =  1000000 * BIBLEPAY_VERSION_MAJOR

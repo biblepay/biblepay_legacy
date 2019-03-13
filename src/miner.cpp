@@ -811,7 +811,7 @@ recover:
 
 			// POG - R ANDREWS - 12/6/2018 - Once every 4 hours, tithe if profitable and possible
 			int64_t nPOGTitheAge = GetAdjustedTime() - nLastPOGTithe;
-			if (fPOGEnabled && nPOGTitheFrequency > 119 && iThreadID == 0 && (nPOGTitheAge > nPOGTitheFrequency))
+			if (false && fPOGEnabled && nPOGTitheFrequency > 119 && iThreadID == 0 && (nPOGTitheAge > nPOGTitheFrequency))
 			{
 				nLastPOGTithe = GetAdjustedTime();
 				// Ensure POG Pool is completely up to date
@@ -857,7 +857,7 @@ recover:
 			// Proof-Of-Distributed-Computing - Once every 8 hours, Prove tasks being worked by all CPIDs - Robert A. - Biblepay - 2-20-2018
 			int64_t nPODCUpdateAge = GetAdjustedTime() - nLastPODCUpdate;
 
-			if (PODCEnabled(chainActive.Tip()->nHeight) && iThreadID == 0 && (nPODCUpdateAge > (nPODCUpdateFrequency)) && !msGlobalCPID.empty())
+			if (false && PODCEnabled(chainActive.Tip()->nHeight) && iThreadID == 0 && (nPODCUpdateAge > (nPODCUpdateFrequency)) && !msGlobalCPID.empty())
 			{
 				nLastPODCUpdate = GetAdjustedTime();
 				std::string sError = "";

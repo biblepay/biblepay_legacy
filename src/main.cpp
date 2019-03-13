@@ -2243,7 +2243,7 @@ CAmount GetBlockSubsidy(const CBlockIndex* pindexPrev, int nPrevBits, int nPrevH
 	double dDiff = 0;
     CAmount nSubsidyBase;
     bool fIsPogSuperblock = CSuperblock::IsPOGSuperblock(nPrevHeight + 1);
-	bool fPogActive = ((nPrevHeight > FPOG_CUTOVER_HEIGHT_PROD && fProd) || (nPrevHeight > FPOG_CUTOVER_HEIGHT_TESTNET && !fProd));
+	bool fPogActive = ((nPrevHeight > FPOG_CUTOVER_HEIGHT_PROD && nPrevHeight < LAST_POG_BLOCK_PROD && fProd) || (nPrevHeight > FPOG_CUTOVER_HEIGHT_TESTNET && nPrevHeight < LAST_POG_BLOCK_TESTNET && !fProd));
 	if (fPogActive && fIsPogSuperblock)
 	{
 		nPrevBits = Get24HourAvgBits(pindexPrev, nPrevBits);
@@ -2295,96 +2295,33 @@ CAmount GetBlockSubsidy(const CBlockIndex* pindexPrev, int nPrevBits, int nPrevH
         nSubsidy -= (nSubsidy * iDeflationRate);
     }
 		
-    // When sanctuaries go live: The Tithe block is disabled, budgeting/superblocks are enabled, and the budget contains a max of : 
-	// 10% to Charity budget, 5% for the IT budget, 2.5% PR, 2.5% P2P.  The 80% remaining is split between the miner, PODC rewards and the sanctuary.
+    // 10% to Charity budget, 5% for the IT budget, 2.5% PR, 2.5% P2P.  (20% is escrowed for governance).
 	// https://wiki.biblepay.org/Economics
-
-	// Distributed Computing - Give 10% to charity, 5% to IT, 5% to P2P+PR, 50% to Distributed-Computing
-	double dSuperblockMultiplier = fSuperblocksEnabled ? (!fProd ? .15 : .20) : .10;
-	// Superblock Multiplier reverts back to .20 when POG is active and PODC is retired (this affects the monthly budget superblock)
-	//bool fDCLive = (fProd && fDistributedComputingEnabled && pindexPrev->nHeight > F11000_CUTOVER_HEIGHT_PROD && pindexPrev->nHeight < PODC_LAST_BLOCK_PROD) || (!fProd && fDistributedComputingEnabled);
-	bool fDCLive = PODCEnabled(pindexPrev->nHeight);
-
-	// POW Payment + Sanctuary Payment / .30 = Gross reward minus (Sanctuary payment - POW Payment) = Gross Total Coinbase reward - This equals the .70 escrow:
-	
-	if (fDCLive) dSuperblockMultiplier = .70;
-    CAmount nSuperblockPart = (nPrevHeight > consensusParams.nBudgetPaymentsStartBlock) ? nSubsidy * dSuperblockMultiplier : 0;
-	CAmount nMainSubsidy = nSubsidy - nSuperblockPart;
-	// POG - BIBLEPAY - R ANDREWS
-	if (fPogActive)
+	double dSuperblockMultiplier = 0;
+	if (fProd && pindexPrev->nHeight < 107000)
 	{
-		if (fDCLive)
-		{
-			// Example Subsidy as of 1-21-2019 (with POG Enabled and PODC Enabled) - NOTE:  We never veer from our original emission schedule
-			// nMainSubsidy (15000) - nSuperblockPart (10500) =               // Main Subsidy: 4500                                          
-			CAmount caMasternodePortion = nMainSubsidy * .975;                // Sanctuary Portion: 4387                                    
-			CAmount nNetSubsidy = nMainSubsidy - caMasternodePortion;         // Main - Sanctuary = 4500 - 4387 = 113                       
-			CAmount nReaperReward = nNetSubsidy * .20;                        // PartA = 23                                        
-			CAmount nPOGPoolReward = nNetSubsidy * 4;                         // Pool = 452                                         
-			CAmount nGrossReaperReward = nReaperReward + caMasternodePortion; // PartA (23) + Sanc (4387) = 4410
-			CAmount nGrossPOGPoolReward = (nPOGPoolReward * BLOCKS_PER_DAY) + caMasternodePortion; // Sanctuary (4387) + (Pool (452) * Blocks per day (205))
-			nMainSubsidy = (fIsPogSuperblock ? nGrossPOGPoolReward : nGrossReaperReward); // 452 * 205 (pool) or (4410 - (4410*.975=4299) = 113) (Actual Reaper Reward)
-		}
-		else
-		{
-			// Example POG Subsidy Breakdown with PODC Retired - as of 1/21/2019 - NOTE:  We never veer from our original emission schedule
-			// nMainSubsidy (15000) - nSuperblockPart (3,000) =               // Main Subsidy (Without PODC): 12,000
-			CAmount caMasternodePortion = nMainSubsidy * .40;                 // Sanctuary Portion: 12,000 * .40 = 4,800
-			CAmount nNetSubsidy = nMainSubsidy - caMasternodePortion;         // Main - Sanctuary: 7,200
-			CAmount nReaperReward = nNetSubsidy * .20;                        // Reaper Reward: 1,440
-			CAmount nPOGPoolReward = nNetSubsidy * .80;                       // Pool: 5,760
-			CAmount nGrossReaperReward = nReaperReward + caMasternodePortion; // PartA (1,440) + Sanctuary (4,800) = 6,240
-			CAmount nGrossPOGPoolReward = (nPOGPoolReward * BLOCKS_PER_DAY) + caMasternodePortion; // Sanc (4,800) + (Pool (5,760) * Blocks per day (205))
-			nMainSubsidy = (fIsPogSuperblock ? nGrossPOGPoolReward : nGrossReaperReward); // 5,760 * 205 (pool) or (6,240 - sanc reward in block (4800) = 1,440 (Actual Reaper Reward))
-		}
+		nSubsidy += 5000 * COIN; // Remove complicated business logic over the last year (as blocks were already checked up to 106,650)
+		dSuperblockMultiplier = .70;  // 20% for governance + 50% for PODC/POG
 	}
-	// END OF POG
-
+	else
+	{
+		dSuperblockMultiplier = .20;
+	}
+	
+	CAmount nSuperblockPart = (nPrevHeight > consensusParams.nBudgetPaymentsStartBlock) ? nSubsidy * dSuperblockMultiplier : 0;
+	CAmount nMainSubsidy = nSubsidy - nSuperblockPart;
+	
     return fSuperblockPartOnly ? nSuperblockPart : nMainSubsidy;
 }
 
 CAmount GetMasternodePayment(int nHeight, CAmount blockValue)
 {
 	// https://wiki.biblepay.org/Economics
-	const Consensus::Params& consensusParams = Params().GetConsensus();
-    bool fSuperblocksEnabled = (nHeight >= consensusParams.nSuperblockStartBlock) && fMasternodesEnabled;
+	// const Consensus::Params& consensusParams = Params().GetConsensus();
 	// http://forum.biblepay.org/index.php?topic=33.0
 	// Final Distribution: 10% Charity, 2.5% PR, 2.5% P2P, 5% for IT
-	CAmount ret = 0;
-	bool fPogActive = ((nHeight > FPOG_CUTOVER_HEIGHT_PROD && fProd) || (nHeight > FPOG_CUTOVER_HEIGHT_TESTNET && !fProd));
-	bool fIsPogSuperblock = CSuperblock::IsPOGSuperblock(nHeight);
-	
-	int nSpork8Height = fProd ? SPORK8_HEIGHT : SPORK8_HEIGHT_TESTNET;
-	if (fProd && nHeight > nSpork8Height)
-	{
-		ret = blockValue * .50; // Tithe blocks have ended, masternodes are live, budgets live, split masternode payment with miner.
-    }
-	else
-	{
-		ret = fSuperblocksEnabled ? blockValue * (!fProd ? .50 : .40) : blockValue * .10;
-    }
-
-//	bool fDCLive = (fProd && fDistributedComputingEnabled && nHeight > F11000_CUTOVER_HEIGHT_PROD && nHeight < PODC_LAST_BLOCK_PROD) || (!fProd && fDistributedComputingEnabled);
-	bool fDCLive = PODCEnabled(nHeight);
-	if (fDCLive)
-	{
-		double dRevertedToDCMiners = .50;
-		double dMasternodePortion = .40;
-		double dTotalPercent = dRevertedToDCMiners + dMasternodePortion;
-		ret = blockValue * dTotalPercent;
-	}
-	if (fPogActive)
-	{
-		if (fDCLive)
-		{
-			ret = fIsPogSuperblock ? blockValue * .01 : blockValue * .975;
-		}
-		else
-		{
-			ret = fIsPogSuperblock ? blockValue * .01 : blockValue * .765;
-		}
-	}
-    return ret;
+	CAmount ret = .50 * blockValue;
+	return ret;
 }
 
 bool IsInitialBlockDownload()
@@ -3491,11 +3428,14 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
 	{
 		MemorizeBlockChainPrayers(true, false, false, false);
 	}
+
+	/*
 	static int nLastPogHeight = 0;
 	int nPogSize = (pindex->nHeight % 10) == 0 ? BLOCKS_PER_DAY : 1;
 	if ((nLastPogHeight + 1) != pindex->nHeight) nPogSize = BLOCKS_PER_DAY;
 	InitializePogPool(pindex, nPogSize, block);
 	nLastPogHeight = pindex->nHeight;
+	*/
 
     return true;
 }
@@ -4637,37 +4577,17 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIn
 
 	// Rob A., Biblepay, 3/7/2018, Kick Off BotNet Rules
 	double dBlockVersion = GetBlockVersion(block.vtx[0]);
-	if (fProd && nHeight > POG_V3_CUTOVER_HEIGHT_PROD && dBlockVersion < 1189)
+	if (fProd && nHeight > POG_V3_CUTOVER_HEIGHT_PROD && dBlockVersion < 1199)
 	{
 		return state.DoS(10, error("%s: Rejecting pog block version < 1189", __func__), REJECT_INVALID, "bad-block-version");
  	}
 
-	if (!fProd && nHeight > FPOG_CUTOVER_HEIGHT_TESTNET && dBlockVersion < 1179)
+	if (!fProd && nHeight > FPOG_CUTOVER_HEIGHT_TESTNET && dBlockVersion < 1199)
 	{
 		 if (false) LogPrintf("ContextualCheckBlock::ERROR Rejecting testnet block version %f at height %f \n",(double)dBlockVersion,(double)nHeight);
 	     return state.DoS(10, error("%s: Rejecting testnet block version < 1179", __func__), REJECT_INVALID, "bad-testnet-block-version");
     }
-
-	// Rob A. - BiblePay - 12/3/2018, 2/18/2019
-	/* // We are doing this in IsTitheLegal3 in the induction phase for safety
-	
-	if (nHeight > POG_V3_CUTOVER_HEIGHT_PROD && fProd)
-	{
-		int iTitheCount = 0;
-		BOOST_FOREACH(const CTransaction& tx, block.vtx) 
-		{
-			CAmount nTitheAmount = GetTitheTotal(tx);
-			if (nTitheAmount > 0) iTitheCount++;
-			if (nTitheAmount > (10 * COIN))
-				return state.DoS(10, error("%s: POG amount too high", __func__), REJECT_INVALID, "pog-tithe-too-high");
-		}
-		if (iTitheCount > TITHE_OVERFLOW)
-		{
-			return state.DoS(10, error("%s: POG quantity too high", __func__), REJECT_INVALID, "pog-qty-too-high");
-		}
-    }
-	*/
-
+	/*
 	if (POGEnabled(nHeight, block.GetBlockTime()) && !fReindex)
 	{
 		bool fIsPogSuperblock = CSuperblock::IsPOGSuperblock(nHeight);
@@ -4683,6 +4603,7 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIn
 			}
 		}
 	}
+	
 	else if (!fPOGEnabled && PODCEnabled(nHeight))
 	{
 		bool fGrandfather = ((nHeight < F14000_CUTOVER_HEIGHT_PROD && fProd) || (!fProd && nHeight < F14000_CUTOVER_HEIGHT_TESTNET));
@@ -4709,7 +4630,8 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIn
 			}
 		}
 	}
-	
+	*/
+
     return true;
 }
 
@@ -6331,12 +6253,22 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
 		// User Agent Test 2-13-2018 - R Andrews - Biblepay
 		std::string sVersion = pfrom->cleanSubVer;
 		sVersion = strReplace(sVersion, "Biblepay Core:", "");
+		sVersion = strReplace(sVersion, "Praise Jesus", "");
+		sVersion = strReplace(sVersion, ":", "");
+		sVersion = strReplace(sVersion, "-", "");
 		sVersion = strReplace(sVersion, "/", "");
 		sVersion = strReplace(sVersion, ".", "");
 		double dPeerVersion = cdbl(sVersion, 0);
 		if (dPeerVersion < 1183 && !fProd)
 		{
 		    LogPrint("net","Disconnecting unauthorized peer in TestNet using old version %f\r\n",(double)dPeerVersion);
+			Misbehaving(pfrom->GetId(), 14);
+        	pfrom->fDisconnect = true;
+			return false;
+		}
+		if (dPeerVersion < 1197 && fProd)
+		{
+		    LogPrint("net","Disconnecting unauthorized peer in Prod using old version %f\r\n",(double)dPeerVersion);
 			Misbehaving(pfrom->GetId(), 14);
         	pfrom->fDisconnect = true;
 			return false;
@@ -7770,20 +7702,6 @@ void MemorizeBlockChainPrayers(bool fDuringConnectBlock, bool fSubThread, bool f
 						sPrayer += block.vtx[n].vout[i].sTxOutMessage;
 						double dAmount = block.vtx[n].vout[i].nValue / COIN;
 						dTotalSent += dAmount;
-
-						/*
-						// As of F14000, we no longer need to tally cancer payments by public key, remove this to respect anonymity
-						if (!(fDistributedComputingEnabled && ((pindex->nHeight > F14000_CUTOVER_HEIGHT_PROD && fProd)  ||  (pindex->nHeight > F14000_CUTOVER_HEIGHT_TESTNET && !fProd))))
-						{
-							if (n==0 && i > 0 && block.vtx[n].vout.size() > 4)
-							{
-								std::string sRecipient = PubKeyToAddress(block.vtx[n].vout[i].scriptPubKey);
-								double dTally = cdbl(ReadCacheWithMaxAge("AddressPayment", sRecipient, nMaxPaymentAge), 0) + dAmount;
-								WriteCache("AddressPayment", sRecipient, RoundToString(dTally, 0), block.GetBlockTime());
-							}
-						}
-						*/
-						// The following 3 lines are used for PODS (Proof of document storage); allowing persistence of paid documents in IPFS
 						std::string sPK = PubKeyToAddress(block.vtx[n].vout[i].scriptPubKey);
 						if (sPK == consensusParams.FoundationAddress || sPK == consensusParams.FoundationPODSAddress)
 						{
@@ -7801,8 +7719,7 @@ void MemorizeBlockChainPrayers(bool fDuringConnectBlock, bool fSubThread, bool f
 			std::string out_address = "";
 			double nMagnitude = 0;
 			std::string sAddress = "";
-			// Race Condition - Reported by Snat21 & Dave_BBP - Rob Andrews - 6/13/2018
-			FindResearcherCPIDByAddress(sAddress, out_address, nMagnitude);
+			// FindResearcherCPIDByAddress(sAddress, out_address, nMagnitude);
 			mnMagnitude=nMagnitude;
 			// ** End of Initializing distributed-computing CPID
 			fPrayersMemorized = true;
@@ -8021,13 +7938,6 @@ void MemorizePrayer(std::string sMessage, int64_t nTime, double dAmount, int iPo
 {
 	if (sMessage.empty()) return;
 	TxMessage t = GetTxMessage(sMessage, nTime, iPosition, sTxID, dAmount, dFoundationDonation, nHeight);
-	if (!t.sIPFSHash.empty())
-	{
-		WriteCache("IPFS", t.sIPFSHash, RoundToString(nHeight, 0), nTime, false);
-		WriteCache("IPFSFEE" + RoundToString(nTime, 0), t.sIPFSHash, RoundToString(dFoundationDonation, 0), nTime);
-		WriteCache("IPFSSIZE" + RoundToString(nTime, 0), t.sIPFSHash, t.sIPFSSize, nTime);
-	}
-	MemorizeUTXOWeight(t, dAmount, dAge, dMinCoinAge);
 	if (t.fPassedSecurityCheck && !t.sMessageType.empty() && !t.sMessageKey.empty() && !t.sMessageValue.empty())
 	{
 		WriteCache(t.sMessageType, t.sMessageKey, t.sMessageValue, nTime);

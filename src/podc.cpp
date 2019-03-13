@@ -396,7 +396,22 @@ double Round(double d, int place)
 {
     std::ostringstream ss;
     ss << std::fixed << std::setprecision(place) << d ;
-	double r = boost::lexical_cast<double>(ss.str());
+	double r = 0;
+	try
+	{
+		r = boost::lexical_cast<double>(ss.str());
+		return r;
+	}
+	catch(boost::bad_lexical_cast const& e)
+	{
+		LogPrintf("caught bad lexical cast I");
+		return 0;
+	}
+	catch(...)
+	{
+		LogPrintf("caught bad lexical cast II");
+		return 0;
+	}
 	return r;
 }
 
@@ -426,10 +441,21 @@ double cdbl(std::string s, int place)
 			t += u;
 		}
 	}
-
-    double r = boost::lexical_cast<double>(t);
-	double d = Round(r,place);
-	return d;
+	try
+	{
+		double r = boost::lexical_cast<double>(t);
+		double d = Round(r,place);
+		return d;
+	}
+	catch(boost::bad_lexical_cast const& e)
+	{
+		LogPrintf("podc-cdbl bad lexical cast.");
+	}
+	catch(...)
+	{
+		LogPrintf("podc-cdbl bad lexical cast II.");
+	}
+	return 0;
 }
 
 

@@ -51,7 +51,7 @@ bool IsBlockValueValid(const CBlock& block, int nBlockHeight, CAmount blockRewar
 {
 
 	if (!fProd && nBlockHeight < 79999) return true;  // Special case for Testnet superblocks up to block 999 - 1/23/2019
-
+	if (fProd  && nBlockHeight < 100000) return true; 
     strErrorRet = "";
     bool isBlockRewardValueMet = (block.vtx[0].GetValueOut() <= blockReward);
     if(!isBlockRewardValueMet && fDebugMaster) 
@@ -336,6 +336,8 @@ bool CMasternodePayments::CanVote(COutPoint outMasternode, int nBlockHeight)
 
 void CMasternodePayments::PayPOGRecipients(CBlockIndex* pindexPrev, CMutableTransaction& txNew, int nBlockHeight, CAmount blockRewardWithoutFees)
 {
+	return;
+
 	// POG POOL PAYMENTS - 1/23/2018 - PAY POOL After Reaper and after Sanctuary
 	CBlock cblock;
 	const Consensus::Params& consensusParams = Params().GetConsensus();

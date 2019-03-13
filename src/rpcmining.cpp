@@ -489,32 +489,14 @@ UniValue getmininginfo(const UniValue& params, bool fHelp)
 
     obj.push_back(Pair("currentblocksize", (uint64_t)nLastBlockSize));
     obj.push_back(Pair("currentblocktx",   (uint64_t)nLastBlockTx));
-	if (PODCEnabled(chainActive.Tip()->nHeight))
-	{
-		double dPODCDifficulty = GetBlockMagnitude(chainActive.Tip()->nHeight);
-		double dPOWDifficulty = GetDifficulty(chainActive.Tip())*10;
-		double dDifficulty =  GetDifficultyN(chainActive.Tip(),10);
-		obj.push_back(Pair("difficulty_podc", dPODCDifficulty));
-		obj.push_back(Pair("difficulty_pow", dPOWDifficulty));
-		obj.push_back(Pair("difficulty", dDifficulty));
-	}
-	else
-	{
-		obj.push_back(Pair("difficulty", (double)GetDifficultyN(chainActive.Tip(),10)));
-	}
-
+	obj.push_back(Pair("difficulty", (double)GetDifficultyN(chainActive.Tip(),10)));
+	
     obj.push_back(Pair("errors",           GetWarnings("statusbar")));
     obj.push_back(Pair("genproclimit",     (int)GetArg("-genproclimit", DEFAULT_GENERATE_THREADS)));
     obj.push_back(Pair("networkhashps",  GetNetworkHashPS((BLOCKS_PER_DAY/12), -1))); // Network KHPS over last hour
 	// BiblePay: Add users HashPS
 	obj.push_back(Pair("hashps",           dHashesPerSec));
 	obj.push_back(Pair("minerstarttime",   TimestampToHRDate(nHPSTimerStart/1000)));
-	if (chainparams.NetworkIDString()=="test")
-	{
-		/*
-		obj.push_back(Pair("hc1", nHashCounter));
-		*/
-	}
 	obj.push_back(Pair("hashcounter", nHashCounter));
 	obj.push_back(Pair("pooledtx",         (uint64_t)mempool.size()));
     obj.push_back(Pair("testnet",          Params().TestnetToBeDeprecatedFieldRPC()));
@@ -535,27 +517,7 @@ UniValue getmininginfo(const UniValue& params, bool fHelp)
 	obj.push_back(Pair("poolmining",       fPoolMiningMode));
 	obj.push_back(Pair("pool_url",         sGlobalPoolURL));
 	obj.push_back(Pair("poolmining_use_ssl", fPoolMiningUseSSL));
-	if (fProofOfLoyaltyEnabled)
-	{
-		double dProofOfLoyaltyPercentage = cdbl(GetArg("-polpercentage", "10"),2) / 100;
-		obj.push_back(Pair("proof_of_loyalty_target_percentage", dProofOfLoyaltyPercentage));
-		obj.push_back(Pair("proof_of_loyalty_weight", nGlobalPOLWeight));
-		obj.push_back(Pair("proof_of_loyalty_influence_percentage", nGlobalInfluencePercentage));
-		obj.push_back(Pair("proof_of_loyalty_errors", sGlobalPOLError));
-	}
-	if (fPOGEnabled)
-	{
-		CPoolObject c = GetPoolVector(chainActive.Tip(), 0);
-		obj.push_back(Pair("pool_high_tithe", (double)c.nHighTithe/COIN));
-		obj.push_back(Pair("pool_my_total_tithes", (double)c.UserTithes/COIN));
-		obj.push_back(Pair("pool_total_tithes", (double)c.TotalTithes/COIN));
-		obj.push_back(Pair("pog_difficulty", GetPOGDifficulty(chainActive.Tip()))); 
-		TitheDifficultyParams tdp = GetTitheParams(chainActive.Tip());
-		obj.push_back(Pair("pog_min_coin_age", tdp.min_coin_age));
-		obj.push_back(Pair("pog_min_coin_amount", (double)tdp.min_coin_amount / COIN));
-		obj.push_back(Pair("pog_max_tithe_amount", (double)tdp.max_tithe_amount / COIN));
-	}
-    return obj;
+	return obj;
 }
 
 

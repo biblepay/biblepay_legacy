@@ -2201,10 +2201,13 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
 	if (fPOGEnabled) uiInterface.InitMessage(_("Initializing POG Pool..."));
 	CBlock block;
 	const Consensus::Params& consensusParams = Params().GetConsensus();
+	/*
 	if (ReadBlockFromDisk(block, chainActive.Tip(), consensusParams, "InitializePogPool"))
 	{
 		InitializePogPool(chainActive.Tip(), 1000, block);
 	}
+	*/
+
 
     //// debug print
     LogPrintf("mapBlockIndex.size() = %u\n",   mapBlockIndex.size());

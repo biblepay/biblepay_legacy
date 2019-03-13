@@ -191,12 +191,20 @@ vote_signal_enum_t CGovernanceVoting::ConvertVoteSignal(std::string strVoteSigna
             eSignal = vote_signal_enum_t(i);
         }
     }
+	catch(boost::bad_lexical_cast const& e)
+	{
+		LogPrintf("gov-votesignal bad lexical cast.");
+	}
     catch(std::exception const & e)
     {
         std::ostringstream ostr;
         ostr << "CGovernanceVote::ConvertVoteSignal: error : " << e.what() << std::endl;
         LogPrintf(ostr.str().c_str());
     }
+	catch(...)
+	{
+		LogPrintf("gov-votesignal bad lexical cast II.");
+	}
 
     return eSignal;
 }
