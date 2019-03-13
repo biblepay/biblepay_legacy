@@ -4,7 +4,7 @@
     </qresource>
     <qresource prefix="/icons/drkblue">
         <file alias="address-book">res/icons/drkblue/address-book.png</file>
-        <file alias="chat">res/icons/drkblue/chat1616.png</file>
+        <file alias="chat">res/icons/drkblue/quit.png</file>
         <file alias="quit">res/icons/drkblue/quit.png</file>
         <file alias="send">res/icons/drkblue/send.png</file>
         <file alias="connect_0">res/icons/drkblue/connect0_16.png</file>
@@ -54,11 +54,11 @@
         <file alias="about">res/icons/drkblue/about.png</file>
         <file alias="about_qt">res/icons/drkblue/about_qt.png</file>
         <file alias="verify">res/icons/drkblue/verify.png</file>
-        <file alias="gear">res/icons/drkblue/gear.png</file>
+        <file alias="gear">res/icons/drkblue/verify.png</file>
     </qresource>
     <qresource prefix="/icons/bezaleel">
         <file alias="address-book">res/icons/bezaleel/address-book.png</file>
-        <file alias="chat">res/icons/bezaleel/chat1616.png</file>
+        <file alias="chat">res/icons/bezaleel/quit.png</file>
         <file alias="quit">res/icons/bezaleel/quit.png</file>
         <file alias="send">res/icons/bezaleel/send.png</file>
         <file alias="connect_0">res/icons/bezaleel/connect0_16.png</file>
@@ -108,11 +108,11 @@
         <file alias="about">res/icons/bezaleel/about.png</file>
         <file alias="about_qt">res/icons/bezaleel/about_qt.png</file>
         <file alias="verify">res/icons/bezaleel/verify.png</file>
-        <file alias="gear">res/icons/bezaleel/gear.png</file>
+        <file alias="gear">res/icons/bezaleel/verify.png</file>
     </qresource>
     <qresource prefix="/icons/gradient">
         <file alias="address-book">res/icons/gradient/address-book.png</file>
-        <file alias="chat">res/icons/gradient/chat1616.png</file>
+        <file alias="chat">res/icons/gradient/quit.png</file>
         <file alias="quit">res/icons/gradient/quit.png</file>
         <file alias="send">res/icons/gradient/send.png</file>
         <file alias="connect_0">res/icons/gradient/connect0_16.png</file>
@@ -162,11 +162,11 @@
         <file alias="about">res/icons/gradient/about.png</file>
         <file alias="about_qt">res/icons/gradient/about_qt.png</file>
         <file alias="verify">res/icons/gradient/verify.png</file>
-        <file alias="gear">res/icons/gradient/gear.png</file>
+        <file alias="gear">res/icons/gradient/verify.png</file>
     </qresource>
     <qresource prefix="/icons/light">
         <file alias="address-book">res/icons/light/address-book.png</file>
-        <file alias="chat">res/icons/light/chat1616.png</file>
+        <file alias="chat">res/icons/light/quit.png</file>
         <file alias="quit">res/icons/light/quit.png</file>
         <file alias="send">res/icons/light/send.png</file>
         <file alias="connect_0">res/icons/light/connect0_16.png</file>
@@ -216,11 +216,11 @@
         <file alias="about">res/icons/light/about.png</file>
         <file alias="about_qt">res/icons/light/about_qt.png</file>
         <file alias="verify">res/icons/light/verify.png</file>
-        <file alias="gear">res/icons/light/gear.png</file>
+        <file alias="gear">res/icons/light/verify.png</file>
     </qresource>
     <qresource prefix="/icons/trad">
         <file alias="address-book">res/icons/trad/address-book.png</file>
-        <file alias="chat">res/icons/trad/chat1616.png</file>
+        <file alias="chat">res/icons/trad/quit.png</file>
         <file alias="quit">res/icons/trad/quit.png</file>
         <file alias="send">res/icons/trad/send.png</file>
         <file alias="connect_0">res/icons/trad/connect0_16.png</file>
@@ -270,7 +270,7 @@
         <file alias="about">res/icons/trad/about.png</file>
         <file alias="about_qt">res/icons/trad/about_qt.png</file>
         <file alias="verify">res/icons/trad/verify.png</file>
-        <file alias="gear">res/icons/trad/gear.png</file>
+        <file alias="gear">res/icons/trad/verify.png</file>
     </qresource>
     <qresource prefix="/css">
         <file alias="drkblue">res/css/drkblue.css</file>

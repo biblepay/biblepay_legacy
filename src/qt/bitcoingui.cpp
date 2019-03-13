@@ -794,12 +794,9 @@ void BitcoinGUI::createToolBars()
         toolbar->addAction(overviewAction);
         toolbar->addAction(sendCoinsAction);
         toolbar->addAction(historyAction);
-        if (PODCEnabled(0))
-        {
-            toolbar->addAction(distributedComputingAction);
-        }
-		toolbar->addAction(pogLeaderboardListMenuAction);
-		toolbar->addAction(pogCoinReportMenuAction);
+		if (false) toolbar->addAction(distributedComputingAction);
+		if (false) toolbar->addAction(pogLeaderboardListMenuAction);
+		if (false) toolbar->addAction(pogCoinReportMenuAction);
 
 		toolbar->addAction(proposalListAction);
         toolbar->addAction(receiveCoinsAction);
