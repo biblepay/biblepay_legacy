@@ -2387,7 +2387,9 @@ void CheckForkWarningConditions()
                 LogPrintf("%s: Warning: Found invalid chain which has higher work (at least ~6 blocks worth of work) than our best chain.\nChain state database corruption likely.\n", __func__);
             fLargeWorkInvalidChainFound = true;
 			LogPrintf("\n ERROR: Found invalid chain with higher work (ChainState database corruption likely) \n");
-			RecoverOrphanedChainNew(1);
+			double dHealthCheckup = cdbl(GetArg("-healthcheckup", "0"), 0);
+			if (dHealthCheckup == 1) 
+				RecoverOrphanedChainNew(1);
         }
     }
     else
@@ -6269,9 +6271,9 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
         	pfrom->fDisconnect = true;
 			return false;
 		}
-		if (dPeerVersion < 1197 && fProd)
+		if (dPeerVersion < 1199 && fProd)
 		{
-		    LogPrint("net","Disconnecting unauthorized peer in Prod using old version %f\r\n",(double)dPeerVersion);
+		    LogPrint("net","Disconnecting unauthorized peer in Prod using old version, Praise Jesus for a synced chain. %f\r\n",(double)dPeerVersion);
 			Misbehaving(pfrom->GetId(), 14);
         	pfrom->fDisconnect = true;
 			return false;
@@ -7947,6 +7949,10 @@ void MemorizePrayer(std::string sMessage, int64_t nTime, double dAmount, int iPo
 
 void HealthCheckup()
 {
+	// You now must make healthcheckup=1 to allow the node to auto-delete and restart if it thinks its on a side-chain (the feature disabled by default)
+	double dHealthCheckup = cdbl(GetArg("-healthcheckup", "0"), 0);
+	if (dHealthCheckup == 0) return;
+	
 	if (nLastHealthCheckup == 0)
 	{
 		nLastHealthCheckup = 1;
