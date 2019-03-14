@@ -122,22 +122,13 @@ UniValue blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool tx
 		result.push_back(Pair("tx", txs));
 	}
     result.push_back(Pair("time", block.GetBlockTime()));
-    if (blockindex) 
+    
+	if (blockindex) 
 	{
 		result.push_back(Pair("height", blockindex->nHeight));
 		result.push_back(Pair("mediantime", (int64_t)blockindex->GetMedianTimePast()));
-		if ((blockindex->nHeight < F11000_CUTOVER_HEIGHT_PROD && fProd) || (blockindex->nHeight < F11000_CUTOVER_HEIGHT_TESTNET && !fProd))
-		{
-			result.push_back(Pair("difficulty", GetDifficultyN(blockindex,10)));
-		}
-		else
-		{
-			double dPOWDifficulty = GetDifficulty(blockindex)*10;
-			result.push_back(Pair("pow_difficulty", dPOWDifficulty));
-			double dPODCDifficulty = GetBlockMagnitude(blockindex->nHeight);
-			result.push_back(Pair("difficulty", dPODCDifficulty));
-		}
-		result.push_back(Pair("chainwork", blockindex->nChainWork.GetHex()));
+		result.push_back(Pair("difficulty", GetDifficultyN(blockindex, 10)));
+    	result.push_back(Pair("chainwork", blockindex->nChainWork.GetHex()));
 	}
 
 	result.push_back(Pair("hrtime",   TimestampToHRDate(block.GetBlockTime())));
@@ -178,56 +169,6 @@ UniValue blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool tx
 
     	result.push_back(Pair("satisfiesbiblehash", bSatisfiesBibleHash ? "true" : "false"));
 		result.push_back(Pair("biblehash", bibleHash.GetHex()));
-		// Rob A. - 02-11-2018 - Proof-of-Distributed-Computing
-		if (PODCEnabled(blockindex->nHeight))
-		{
-			std::string sCPIDSignature = ExtractXML(block.vtx[0].vout[0].sTxOutMessage, "<cpidsig>","</cpidsig>");
-			std::string sCPID = GetElement(sCPIDSignature, ";", 0);
-			result.push_back(Pair("CPID", sCPID));
-			std::string sError = "";
-			bool fCheckCPIDSignature = VerifyCPIDSignature(sCPIDSignature, true, sError);
-			result.push_back(Pair("CPID_Signature", fCheckCPIDSignature));
-		}
-		// POG - 12/3/2018 - Rob A.
-		if (fPOGEnabled)
-		{
-			result.push_back(Pair("block_tithes", (double)blockindex->nBlockTithes / COIN));
-			result.push_back(Pair("24_hour_tithes", (double)blockindex->n24HourTithes / COIN));
-			result.push_back(Pair("pog_difficulty", blockindex->nPOGDifficulty));
-			result.push_back(Pair("min_coin_age", blockindex->nMinCoinAge));
-			result.push_back(Pair("min_coin_amt", (double)blockindex->nMinCoinAmount / COIN));
-			result.push_back(Pair("max_tithe_amount",(double)blockindex->nMaxTitheAmount / COIN));
-		}
-		// Proof-Of-Loyalty - 01-18-2018 - Rob A.
-		if (fProofOfLoyaltyEnabled)
-		{
-			if (block.vtx.size() > 1)
-			{
-				bool bSigned = IsStakeSigned(block.vtx[0].vout[0].sTxOutMessage);
-				if (bSigned)
-				{
-					std::string sError = "";
-					std::string sMetrics = "";
-					double dStakeWeight = GetStakeWeight(block.vtx[1], block.GetBlockTime(), block.vtx[0].vout[0].sTxOutMessage, true, sMetrics, sError);
-					result.push_back(Pair("proof_of_loyalty_weight", dStakeWeight));
-					result.push_back(Pair("proof_of_loyalty_errors", sError));
-					result.push_back(Pair("proof_of_loyalty_xml", block.vtx[0].vout[0].sTxOutMessage));
-					result.push_back(Pair("proof_of_loyalty_metrics", sMetrics));
-					int64_t nPercent = GetStakeTargetModifierPercent(blockindex->pprev->nHeight, dStakeWeight);
-					uint256 uBase = PercentToBigIntBase(nPercent);
-					arith_uint256 bnTarget;
-					bool fNegative;
-					bool fOverflow;
-     				bnTarget.SetCompact(block.nBits, &fNegative, &fOverflow);
-					uint256 hBlockTarget = ArithToUint256(bnTarget);
-					result.push_back(Pair("block_target_hash", hBlockTarget.GetHex()));
-					bnTarget += UintToArith256(uBase);
-					uint256 hPOLBlockTarget = ArithToUint256(bnTarget);
-					result.push_back(Pair("proof_of_loyalty_block_target", hPOLBlockTarget.GetHex()));
-					result.push_back(Pair("proof_of_loyalty_influence_percentage", nPercent));
-				}
-			}
-		}
 	}
 	else
 	{
