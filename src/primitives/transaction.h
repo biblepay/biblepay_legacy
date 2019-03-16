@@ -221,10 +221,14 @@ struct CMutableTransaction;
  */
 class CTransaction
 {
+
+
 public:
     // Default transaction version.
     static const int32_t CURRENT_VERSION=1;
-
+	static const int SUPERBLOCK_PAYMENT_THRESHHOLD = 2000000;
+	static const int SUPERBLOCK_VOUT_MIN = 3;
+    
     // Changing the default transaction version requires a two step process: first
     // adapting relay policy by bumping MAX_STANDARD_VERSION, and then later date
     // bumping the default CURRENT_VERSION at which point both CURRENT_VERSION and
@@ -244,9 +248,8 @@ public:
     const std::vector<uint8_t> vExtraPayload; // only available for special transaction types
 
 private:
-    /** Memory only. */
+	/** Memory only. */
     const uint256 hash;
-
     uint256 ComputeHash() const;
 
 public:
@@ -303,6 +306,42 @@ public:
     {
         return (vin.size() == 1 && vin[0].prevout.IsNull());
     }
+
+	bool IsGSCPayment() const
+	{
+		// Determine if this is a GSC payment
+		bool IsSuperblock = (vin.size() == 1 && vin[0].prevout.IsNull() && vout.size() > SUPERBLOCK_VOUT_MIN);
+		if (IsSuperblock)
+		{
+			CAmount nValueOut = GetValueOut();
+			bool bPODCPayment = nValueOut < (SUPERBLOCK_PAYMENT_THRESHHOLD * COIN);
+			return bPODCPayment;
+		}
+		return false;
+    }
+
+	bool IsSuperblockPayment() const
+	{
+		// Determine if this is a monthly governance superblock payment
+		bool IsSuperblock = (vin.size() == 1 && vin[0].prevout.IsNull() && vout.size() > SUPERBLOCK_VOUT_MIN);
+		if (IsSuperblock)
+		{
+			CAmount nValueOut = GetValueOut();
+			bool bSuperblockPayment = nValueOut > (SUPERBLOCK_PAYMENT_THRESHHOLD * COIN);
+			return bSuperblockPayment;
+		}
+		return false;
+    }
+
+	bool IsCPKAssociation() const
+	{
+		// Is this a Christian Public Keypair association tx?
+		if (vout.size() > 1)
+		{
+			if (!vout[0].sTxOutMessage.find("<MT>CPK</MT>") == std::string::npos) return true;
+		}
+		return false;
+	}
 
     friend bool operator==(const CTransaction& a, const CTransaction& b)
     {

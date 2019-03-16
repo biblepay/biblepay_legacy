@@ -100,7 +100,19 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionReco
     //
     // From
     //
-    if (wtx.IsCoinBase())
+	if (wtx.tx->IsCPKAssociation())
+	{
+	     strHTML += "<b>" + tr("Source") + ":</b> " + tr("Christian-Keypair-Association") + "<br>";
+	}
+	else if (wtx.tx->IsSuperblockPayment())
+	{
+	     strHTML += "<b>" + tr("Source") + ":</b> " + tr("Superblock-Payment") + "<br>";
+	}
+	else if (wtx.tx->IsGSCPayment())
+	{
+	     strHTML += "<b>" + tr("Source") + ":</b> " + tr("Smart-Contract-Payment") + "<br>";
+	}
+	else if (wtx.IsCoinBase())
     {
         strHTML += "<b>" + tr("Source") + ":</b> " + tr("Generated") + "<br>";
     }

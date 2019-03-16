@@ -1062,7 +1062,7 @@ recover:
 					{
 						if (UintToArith256(hash) <= hashTargetPool)
 						{
-							bool fNonce = CheckNonce(f9000, pblock->nNonce, pindexPrev->nHeight, pindexPrev->nTime, pblock->GetBlockTime());
+							bool fNonce = CheckNonce(f9000, pblock->nNonce, pindexPrev->nHeight, pindexPrev->nTime, pblock->GetBlockTime(), consensusParams);
 							if (UintToArith256(hash) <= hashTargetPool && fNonce)
 							{
 								if ((GetAdjustedTime() - nLastShareSubmitted) > (2*60))
@@ -1080,7 +1080,7 @@ recover:
 
 					if (UintToArith256(hash) <= hashTarget)
 					{
-						bool fNonce = CheckNonce(f9000, pblock->nNonce, pindexPrev->nHeight, pindexPrev->nTime, pblock->GetBlockTime());
+						bool fNonce = CheckNonce(f9000, pblock->nNonce, pindexPrev->nHeight, pindexPrev->nTime, pblock->GetBlockTime(), consensusParams);
 						if (fNonce)
 						{
 							// Found a solution
@@ -1112,7 +1112,7 @@ recover:
 							UpdateHashesPerSec(nHashesDone);
 							WriteCache("poolthread" + RoundToString(iThreadID,0), "poolinfo1", "", GetAdjustedTime());
 						}
-						bool fNonce = CheckNonce(f9000, pblock->nNonce, pindexPrev->nHeight, pindexPrev->nTime, pblock->GetBlockTime());
+						bool fNonce = CheckNonce(f9000, pblock->nNonce, pindexPrev->nHeight, pindexPrev->nTime, pblock->GetBlockTime(), consensusParams);
 						if (!fNonce)
 						{
 							pblock->nNonce = 0x9FFF;

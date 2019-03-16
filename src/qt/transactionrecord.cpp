@@ -62,6 +62,9 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                 sub.idx = i; // vout index
                 sub.credit = txout.nValue;
                 sub.involvesWatchAddress = mine & ISMINE_WATCH_ONLY;
+				sub.IsGSCPayment = wtx.tx->IsGSCPayment();
+				sub.IsSuperblockPayment = wtx.tx->IsSuperblockPayment();
+				
                 if (ExtractDestination(txout.scriptPubKey, address) && IsMine(*wallet, address))
                 {
                     // Received by Biblepay Address
@@ -76,10 +79,20 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                 }
                 if (wtx.IsCoinBase())
                 {
-                    // Generated
-                    sub.type = TransactionRecord::Generated;
+                    // BiblePay - RANDREWS - Check if one of our subtypes
+					if (sub.IsGSCPayment && i != 0)
+					{
+						sub.type = TransactionRecord::GSCPayment;
+					}
+					else if (sub.IsSuperblockPayment && i != 0) 
+					{
+                        sub.type = TransactionRecord::SuperBlockPayment;  
+                    }
+                    else
+                    {
+						sub.type = TransactionRecord::Generated;
+                	}
                 }
-
                 parts.append(sub);
             }
         }

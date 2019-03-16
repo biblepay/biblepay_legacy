@@ -105,6 +105,19 @@ private:
     QAction *signMessageAction;
     QAction *verifyMessageAction;
     QAction *aboutAction;
+	// RANDREWS - BIBLEPAY - Add Read Bible
+	QAction *sinnerAction;
+	QAction *TheLordsPrayerAction;
+	QAction *TheApostlesCreedAction;
+	QAction *TheNiceneCreedAction;
+	QAction *ReadBibleAction;
+	QAction *CreateNewsAction;
+	QAction *ReadNewsAction;
+	QAction *OneClickMiningAction;
+	QAction *TheTenCommandmentsAction;
+	QAction *JesusConciseCommandmentsAction;
+	// END OF BIBLEPAY
+
     QAction *receiveCoinsAction;
     QAction *receiveCoinsMenuAction;
     QAction *optionsAction;
@@ -236,6 +249,16 @@ private Q_SLOTS:
     void optionsClicked();
     /** Show about dialog */
     void aboutClicked();
+
+	/** BiblePay - Show built-in prayers or commandments **/
+	void sinnerClicked();
+	void TheLordsPrayerClicked();
+	void TheApostlesCreedClicked();
+	void TheNiceneCreedClicked();
+	void ReadBibleClicked();
+	void TheTenCommandmentsClicked();
+	void JesusConciseCommandmentsClicked();
+
     /** Show debug window */
     void showDebugWindow();
 

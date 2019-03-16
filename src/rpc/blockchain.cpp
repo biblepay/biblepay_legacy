@@ -1799,7 +1799,7 @@ UniValue exec(const JSONRPCRequest& request)
 	}
 	else if (sItem == "books")
 	{
-		for (int i = 0; i < BIBLE_CHAPTER_COUNT; i++)
+		for (int i = 0; i <= BIBLE_BOOKS_COUNT; i++)
 		{
 			std::string sBookName = GetBook(i);
 			std::string sReversed = GetBookByName(sBookName);

@@ -8,20 +8,20 @@
 #endif
 
 #include "utilitydialog.h"
-
 #include "ui_helpmessagedialog.h"
-
+#include "rpcpog.h"
+#include "kjv.h"
+#include "rpcpodc.h"
+#include "validation.h"
 #include "bitcoingui.h"
 #include "clientmodel.h"
 #include "guiconstants.h"
 #include "intro.h"
 #include "paymentrequestplus.h"
 #include "guiutil.h"
-
 #include "clientversion.h"
 #include "init.h"
 #include "util.h"
-
 #include <stdio.h>
 
 #include <QCloseEvent>
@@ -32,7 +32,7 @@
 #include <QVBoxLayout>
 
 /** "Help message" or "About" dialog box */
-HelpMessageDialog::HelpMessageDialog(QWidget *parent, HelpMode helpMode) :
+HelpMessageDialog::HelpMessageDialog(QWidget *parent, HelpMode helpMode, int iPrayer, uint256 txid, std::string sPreview) :
     QDialog(parent),
     ui(new Ui::HelpMessageDialog)
 {
@@ -47,8 +47,70 @@ HelpMessageDialog::HelpMessageDialog(QWidget *parent, HelpMode helpMode) :
 #elif defined(__i386__ )
     version += " " + tr("(%1-bit)").arg(32);
 #endif
+	if (helpMode == prayer)
+	{
+		std::string sTitle;
+		std::string sPrayer = GetPrayer(iPrayer, sTitle);
+	    setWindowTitle(QString::fromStdString(sTitle));
+		ui->btnPublish->setVisible(false);
+		ui->btnPreview->setVisible(false);
+	    QString qsp = QString::fromStdString(sPrayer);
+        // Make URLs clickable
+        QRegExp uri("<(.*)>", Qt::CaseSensitive, QRegExp::RegExp2);
+        uri.setMinimal(true);
+        qsp.replace(uri, "<a href=\"\\1\">\\1</a>");
+        // Replace newlines with HTML breaks
+		qsp.replace("|","<br><br>");
+        qsp.replace("\n\n", "<br><br>");
+        ui->aboutMessage->setTextFormat(Qt::RichText);
+        ui->scrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+        ui->aboutMessage->setText(qsp);
+        ui->aboutMessage->setWordWrap(true);
+        ui->helpMessage->setVisible(false);
+		ui->comboBook->setVisible(false);
+		ui->comboChapter->setVisible(false);
+		ui->lblChapter->setVisible(false);
+		ui->lblBook->setVisible(false);
+	}
+	else if (helpMode == readbible)
+	{
+		// Make the combobox for choosing the Book of the Bible and the Chapter visible:
+		ui->comboBook->setVisible(true);
+		ui->btnPublish->setVisible(false);
+		ui->btnPreview->setVisible(false);
+		ui->comboChapter->setVisible(true);
+		ui->lblChapter->setVisible(true);
+		ui->lblBook->setVisible(true);
+		// Load the books of the bible in
+		for (int i = 0; i <= BIBLE_BOOKS_COUNT; i++)
+		{
+			std::string sBook = GetBook(i);
+			std::string sBookName = GetBookByName(sBook);
+			std::string sBookEntry = sBook + " - " + sBookName;
+			ui->comboBook->addItem(GUIUtil::TOQS(sBook));
+		}
+		ui->comboChapter->addItem(GUIUtil::TOQS("Chapter 1"));
 
-    if (helpMode == about)
+		connect(ui->comboBook, SIGNAL(currentIndexChanged(int)), SLOT(on_comboBookClicked(int)));
+		connect(ui->comboChapter, SIGNAL(currentIndexChanged(int)), SLOT(on_comboChapterClicked(int)));
+		std::string sTitle = "READ THE BIBLE";
+		std::string sPage = "Choose a Bible Book and Chapter below.";
+	    setWindowTitle(QString::fromStdString(sTitle));
+        QString qsp = QString::fromStdString(sPage);
+        QRegExp uri("<(.*)>", Qt::CaseSensitive, QRegExp::RegExp2);
+        uri.setMinimal(true);
+        qsp.replace(uri, "<a href=\"\\1\">\\1</a>");
+        // Replace newlines with HTML breaks
+		qsp.replace("|","<br><br>");
+        qsp.replace("\n\n", "<br><br>");
+        ui->aboutMessage->setTextFormat(Qt::RichText);
+        ui->scrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+        ui->aboutMessage->setText(qsp);
+        ui->aboutMessage->setWordWrap(true);
+        ui->helpMessage->setVisible(false);
+		on_comboBookClicked(1);
+	}
+    else if (helpMode == about)
     {
         setWindowTitle(tr("About %1").arg(tr(PACKAGE_NAME)));
 
@@ -62,7 +124,6 @@ HelpMessageDialog::HelpMessageDialog(QWidget *parent, HelpMode helpMode) :
         licenseInfoHTML.replace(uri, "<a href=\"\\1\">\\1</a>");
         // Replace newlines with HTML breaks
         licenseInfoHTML.replace("\n", "<br>");
-
         ui->aboutMessage->setTextFormat(Qt::RichText);
         ui->scrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
         text = version + "\n" + licenseInfo;
@@ -198,6 +259,77 @@ void HelpMessageDialog::showOrPrint()
 void HelpMessageDialog::on_okButton_accepted()
 {
     close();
+}
+
+std::string ReplaceLineBreaksInUL(std::string sUL)
+{
+	sUL = strReplace(sUL,"</p>","");
+	sUL = strReplace(sUL,"<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">","");
+	sUL = strReplace(sUL,"<br />","");
+	sUL = strReplace(sUL,"<br>","");
+	sUL = strReplace(sUL,"\n","");
+	return sUL;
+}
+
+void HelpMessageDialog::on_comboBookClicked(int iClick)
+{
+	// Based on chosen Book, populate chapters
+	std::string sBook = GUIUtil::FROMQS(ui->comboBook->currentText());
+	int iStart = 0;
+	int iEnd = 0;
+	std::string sReversed = GetBookByName(sBook);
+	GetBookStartEnd(sReversed, iStart, iEnd);
+	ui->comboChapter->clear();
+	for (int iChapter = 1; iChapter < 99; iChapter++)
+	{
+		std::string sVerse = GetVerse(sReversed,iChapter,1,iStart,iEnd);
+		if (!sVerse.empty())
+		{
+			ui->comboChapter->addItem(GUIUtil::TOQS("Chapter " + RoundToString(iChapter,0)));
+		}
+		else
+		{
+			break;
+		}
+	}
+	on_comboChapterClicked(0);
+}
+
+void HelpMessageDialog::on_comboChapterClicked(int iClick)
+{
+	// Based on chosen Chapter, show the Bible Text and based on chosen Book, populate chapters
+	std::string sChapter = GUIUtil::FROMQS(ui->comboChapter->currentText());
+	sChapter = strReplace(sChapter,"Chapter ","");
+	int iChapter = (int)cdbl(sChapter,0);
+	int iStart = 0;
+	int iEnd = 0;
+	std::string sBook = GUIUtil::FROMQS(ui->comboBook->currentText());
+	std::string sReversed = GetBookByName(sBook);
+	GetBookStartEnd(sReversed, iStart, iEnd);
+	std::string sText;
+	for (int iVerse = 1; iVerse < 99; iVerse++)
+	{
+		std::string sVerse = GetVerse(sReversed,iChapter,iVerse,iStart,iEnd);
+		if (!sVerse.empty())
+		{
+			sText += RoundToString(iChapter,0) + ":" + RoundToString(iVerse,0) + "     &nbsp;     " + sVerse + "\n\n";
+		}
+		else
+		{
+			break;
+		}
+	}
+	std::string sTitle = sBook + " - Chapter " + sChapter;
+    setWindowTitle(QString::fromStdString(sTitle));
+    QString qsp = QString::fromStdString(sText);
+	qsp.replace("|","<br><br>");
+	qsp.replace("~","<br><br>");
+    qsp.replace("\n\n", "<br><br>");
+	qsp.replace("\r\n", "<br><br>");
+    ui->aboutMessage->setTextFormat(Qt::RichText);
+    ui->scrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    ui->aboutMessage->setText(qsp);
+    ui->aboutMessage->setWordWrap(true);
 }
 
 

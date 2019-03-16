@@ -632,7 +632,7 @@ int main(int argc, char *argv[])
     // but before showing splash screen.
     if (IsArgSet("-?") || IsArgSet("-h") || IsArgSet("-help") || IsArgSet("-version"))
     {
-        HelpMessageDialog help(NULL, IsArgSet("-version") ? HelpMessageDialog::about : HelpMessageDialog::cmdline);
+        HelpMessageDialog help(NULL, IsArgSet("-version") ? HelpMessageDialog::about : HelpMessageDialog::cmdline, 0, uint256S("0x0"), "");
         help.showOrPrint();
         return EXIT_SUCCESS;
     }

@@ -106,7 +106,7 @@ std::string AmountToString(const CAmount& amount);
 std::string ExtractXML(std::string XMLdata, std::string key, std::string key_end);
 bool Contains(std::string data, std::string instring);
 std::string GetVersionAlert();
-bool CheckNonce(bool f9000, unsigned int nNonce, int nPrevHeight, int64_t nPrevBlockTime, int64_t nBlockTime);
+bool CheckNonce(bool f9000, unsigned int nNonce, int nPrevHeight, int64_t nPrevBlockTime, int64_t nBlockTime, const Consensus::Params& params);
 bool RPCSendMoney(std::string& sError, const CTxDestination &address, CAmount nValue, bool fSubtractFeeFromAmount, CWalletTx& wtxNew, bool fUseInstantSend=false, std::string sOptionalData = "");
 struct TitheDifficultyParams
 {

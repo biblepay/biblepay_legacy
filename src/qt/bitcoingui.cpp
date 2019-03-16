@@ -106,6 +106,13 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *_platformStyle, const NetworkStyle *
     signMessageAction(0),
     verifyMessageAction(0),
     aboutAction(0),
+	sinnerAction(0),
+    TheLordsPrayerAction(0),
+    TheApostlesCreedAction(0),
+    TheNiceneCreedAction(0),
+    ReadBibleAction(0),
+    TheTenCommandmentsAction(0),
+    JesusConciseCommandmentsAction(0),
     receiveCoinsAction(0),
     receiveCoinsMenuAction(0),
     optionsAction(0),
@@ -162,7 +169,7 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *_platformStyle, const NetworkStyle *
 #endif
 
     rpcConsole = new RPCConsole(_platformStyle, 0);
-    helpMessageDialog = new HelpMessageDialog(this, HelpMessageDialog::cmdline);
+    helpMessageDialog = new HelpMessageDialog(this, HelpMessageDialog::cmdline, 0, uint256S("0x0"), "");
 #ifdef ENABLE_WALLET
     if(enableWallet)
     {
@@ -378,6 +385,36 @@ void BitcoinGUI::createActions()
     quitAction->setStatusTip(tr("Quit application"));
     quitAction->setShortcut(QKeySequence(Qt::CTRL + Qt::Key_Q));
     quitAction->setMenuRole(QAction::QuitRole);
+	
+    sinnerAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("The Sinners Prayer"), this);
+    sinnerAction->setStatusTip(tr("Show the Sinners Prayer"));
+    sinnerAction->setMenuRole(QAction::AboutRole);
+    sinnerAction->setEnabled(false);
+
+    TheLordsPrayerAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("The Lords Prayer"), this);
+    TheLordsPrayerAction->setStatusTip(tr("Show the Lords Prayer"));
+    TheLordsPrayerAction->setEnabled(false);
+
+    TheApostlesCreedAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("The Apostles Creed"), this);
+    TheApostlesCreedAction->setStatusTip(tr("Show the Lords Prayer"));
+    TheApostlesCreedAction->setEnabled(false);
+
+    TheNiceneCreedAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("The Nicene Creed"), this);
+    TheNiceneCreedAction->setStatusTip(tr("Show the Nicene Creed"));
+    TheNiceneCreedAction->setEnabled(false);
+
+    TheTenCommandmentsAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("The Ten Commandments"), this);
+    TheTenCommandmentsAction->setStatusTip(tr("Show the Ten Commandments"));
+    TheTenCommandmentsAction->setEnabled(false);
+
+    JesusConciseCommandmentsAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("Jesus Concise Commandments"), this);
+    JesusConciseCommandmentsAction->setStatusTip(tr("Show Jesus Concise Commandments"));
+    JesusConciseCommandmentsAction->setEnabled(false);
+
+    ReadBibleAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("Read Bible"), this);
+    ReadBibleAction->setStatusTip(tr("Read Bible"));
+    ReadBibleAction->setEnabled(false);
+
     aboutAction = new QAction(QIcon(":/icons/" + theme + "/about"), tr("&About %1").arg(tr(PACKAGE_NAME)), this);
     aboutAction->setStatusTip(tr("Show information about BiblePay Core"));
     aboutAction->setMenuRole(QAction::AboutRole);
@@ -453,6 +490,16 @@ void BitcoinGUI::createActions()
     connect(toggleHideAction, SIGNAL(triggered()), this, SLOT(toggleHidden()));
     connect(showHelpMessageAction, SIGNAL(triggered()), this, SLOT(showHelpMessageClicked()));
     connect(showPrivateSendHelpAction, SIGNAL(triggered()), this, SLOT(showPrivateSendHelpClicked()));
+
+	// BIBLEPAY - Read Bible Actions
+	connect(sinnerAction, SIGNAL(triggered()), this, SLOT(sinnerClicked()));
+    connect(TheLordsPrayerAction, SIGNAL(triggered()), this, SLOT(TheLordsPrayerClicked()));
+    connect(TheApostlesCreedAction, SIGNAL(triggered()), this, SLOT(TheApostlesCreedClicked()));
+    connect(TheNiceneCreedAction, SIGNAL(triggered()), this, SLOT(TheNiceneCreedClicked()));
+    connect(ReadBibleAction, SIGNAL(triggered()), this, SLOT(ReadBibleClicked()));
+    connect(OneClickMiningAction, SIGNAL(triggered()), this, SLOT(OneClickMiningClicked()));
+    connect(TheTenCommandmentsAction, SIGNAL(triggered()), this, SLOT(TheTenCommandmentsClicked()));
+    connect(JesusConciseCommandmentsAction, SIGNAL(triggered()), this, SLOT(JesusConciseCommandmentsClicked()));
 
     // Jump directly to tabs in RPC-console
     connect(openInfoAction, SIGNAL(triggered()), this, SLOT(showInfo()));
@@ -544,6 +591,16 @@ void BitcoinGUI::createMenuBar()
         tools->addAction(openMNConfEditorAction);
         tools->addAction(showBackupsAction);
     }
+
+	// BiblePay - Prayers, Jesus' Commandments, and Reading the Bible
+    QMenu *menuBible = appMenuBar->addMenu(tr("&Bible"));
+    menuBible->addAction(sinnerAction);
+    menuBible->addAction(TheLordsPrayerAction);
+    menuBible->addAction(TheApostlesCreedAction);
+    menuBible->addAction(TheNiceneCreedAction);
+    menuBible->addAction(TheTenCommandmentsAction);
+    menuBible->addAction(JesusConciseCommandmentsAction);
+    menuBible->addAction(ReadBibleAction);
 
     QMenu *help = appMenuBar->addMenu(tr("&Help"));
     help->addAction(showHelpMessageAction);
@@ -729,6 +786,15 @@ void BitcoinGUI::setWalletActionsEnabled(bool enabled)
     usedSendingAddressesAction->setEnabled(enabled);
     usedReceivingAddressesAction->setEnabled(enabled);
     openAction->setEnabled(enabled);
+
+	sinnerAction->setEnabled(enabled);
+    TheLordsPrayerAction->setEnabled(enabled);
+    TheApostlesCreedAction->setEnabled(enabled);
+    TheNiceneCreedAction->setEnabled(enabled);
+    TheTenCommandmentsAction->setEnabled(enabled);
+    JesusConciseCommandmentsAction->setEnabled(enabled);
+    ReadBibleAction->setEnabled(enabled);
+   
 }
 
 void BitcoinGUI::createTrayIcon(const NetworkStyle *networkStyle)
@@ -789,12 +855,76 @@ void BitcoinGUI::optionsClicked()
     dlg.exec();
 }
 
+void BitcoinGUI::sinnerClicked()
+{
+    if(!clientModel) return;
+    HelpMessageDialog dlg(this, HelpMessageDialog::prayer, 0, uint256S("0x0"), "");
+    dlg.exec();
+}
+
+void BitcoinGUI::TheLordsPrayerClicked()
+{
+    if(!clientModel) return;
+    HelpMessageDialog dlg(this, HelpMessageDialog::prayer, 1, uint256S("0x0"), "");
+    dlg.exec();
+}
+
+void CenterWidget(QWidget *widget, bool bTile)
+{
+    QRect screenGeometry = QApplication::desktop()->screenGeometry();
+    int x = (screenGeometry.width() - widget->width()) / 2;
+    int y = (screenGeometry.height() - widget->height()) / 2;
+    if (bTile)
+    {
+            double iX = (rand() % 190) / 100;
+            double iY = (rand() % 190) / 100;
+            x = iX * x;
+            y = iY * y;
+    }
+    widget->move(x, y);
+}
+
+void BitcoinGUI::TheApostlesCreedClicked()
+{
+    if(!clientModel) return;
+    HelpMessageDialog dlg(this, HelpMessageDialog::prayer, 2, uint256S("0x0"), "");
+    dlg.exec();
+}
+
+void BitcoinGUI::TheNiceneCreedClicked()
+{
+    if(!clientModel) return;
+    HelpMessageDialog dlg(this, HelpMessageDialog::prayer, 3, uint256S("0x0"), "");
+    dlg.exec();
+}
+
+void BitcoinGUI::ReadBibleClicked()
+{
+    if(!clientModel) return;
+    HelpMessageDialog dlg(this, HelpMessageDialog::readbible, 0, uint256S("0x0"), "");
+    dlg.exec();
+}
+
+void BitcoinGUI::TheTenCommandmentsClicked()
+{
+    if(!clientModel) return;
+    HelpMessageDialog dlg(this, HelpMessageDialog::prayer, 4, uint256S("0x0"), "");
+    dlg.exec();
+}
+
+void BitcoinGUI::JesusConciseCommandmentsClicked()
+{
+    if(!clientModel) return;
+    HelpMessageDialog dlg(this, HelpMessageDialog::prayer, 5, uint256S("0x0"), "");
+    dlg.exec();
+}
+
 void BitcoinGUI::aboutClicked()
 {
     if(!clientModel)
         return;
 
-    HelpMessageDialog dlg(this, HelpMessageDialog::about);
+    HelpMessageDialog dlg(this, HelpMessageDialog::about, 0, uint256S("0x0"), "");
     dlg.exec();
 }
 
@@ -861,7 +991,7 @@ void BitcoinGUI::showPrivateSendHelpClicked()
     if(!clientModel)
         return;
 
-    HelpMessageDialog dlg(this, HelpMessageDialog::pshelp);
+    HelpMessageDialog dlg(this, HelpMessageDialog::pshelp, 0, uint256S("0x0"), "");
     dlg.exec();
 }
 
@@ -1239,6 +1369,13 @@ void BitcoinGUI::showEvent(QShowEvent *event)
     openRepairAction->setEnabled(true);
     aboutAction->setEnabled(true);
     optionsAction->setEnabled(true);
+	sinnerAction->setEnabled(true);
+    TheLordsPrayerAction->setEnabled(true);
+    TheApostlesCreedAction->setEnabled(true);
+    TheNiceneCreedAction->setEnabled(true);
+    TheTenCommandmentsAction->setEnabled(true);
+    JesusConciseCommandmentsAction->setEnabled(true);
+    ReadBibleAction->setEnabled(true);
 }
 
 #ifdef ENABLE_WALLET

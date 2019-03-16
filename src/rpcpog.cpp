@@ -74,7 +74,22 @@ double Round(double d, int place)
 {
     std::ostringstream ss;
     ss << std::fixed << std::setprecision(place) << d ;
-	double r = boost::lexical_cast<double>(ss.str());
+	double r = 0;
+	try
+	{
+		r = boost::lexical_cast<double>(ss.str());
+		return r;
+	}
+	catch(boost::bad_lexical_cast const& e)
+	{
+		LogPrintf("caught bad lexical cast I");
+		return 0;
+	}
+	catch(...)
+	{
+		LogPrintf("caught bad lexical cast II");
+		return 0;
+	}
 	return r;
 }
 
@@ -1252,20 +1267,19 @@ std::string AddBlockchainMessages(std::string sAddress, std::string sType, std::
 }
 */
 
-bool CheckNonce(bool f9000, unsigned int nNonce, int nPrevHeight, int64_t nPrevBlockTime, int64_t nBlockTime)
+bool CheckNonce(bool f9000, unsigned int nNonce, int nPrevHeight, int64_t nPrevBlockTime, int64_t nBlockTime, const Consensus::Params& params)
 {
-	if (f9000)
-	{
-		int64_t nElapsed = nBlockTime - nPrevBlockTime;
-		if (nElapsed > (30 * 60)) return true;
-		int64_t nMaxNonce = nElapsed * 256;
-		if (nMaxNonce < 512) nMaxNonce = 512;
-		return (nNonce > nMaxNonce) ? false : true;
-	}
-	else
-	{
+	if (nPrevHeight >= params.EVOLUTION_CUTOVER_HEIGHT) 
 		return true;
-	}
+	if (!f9000) return true;
+	int64_t MAX_AGE = 30 * 60;
+	int NONCE_FACTOR = 256;
+	int MAX_NONCE = 512;
+	int64_t nElapsed = nBlockTime - nPrevBlockTime;
+	if (nElapsed > MAX_AGE) return true;
+	int64_t nMaxNonce = nElapsed * NONCE_FACTOR;
+	if (nMaxNonce < MAX_NONCE) nMaxNonce = MAX_NONCE;
+	return (nNonce > nMaxNonce) ? false : true;
 }
 
 void ClearCache(std::string sSection)

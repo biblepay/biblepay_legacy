@@ -569,11 +569,13 @@ CAmount CSuperblock::GetPaymentsLimit(int nBlockHeight)
     if (!IsValidBlockHeight(nBlockHeight) && !IsDCCSuperblock(nBlockHeight) && !IsSmartContract(nBlockHeight)) 
         return 0;
     
+	// Should we take an average of last months pindex diff here, to reduce the total expenses?
+
     // min subsidy for high diff networks and vice versa
     int nBits = 486585255;  // Set diff at about 1.42 for Superblocks
 	
     // Some part of all blocks issued during the cycle goes to superblock, see GetBlockSubsidy
-	// We have a 29%/20% escrow being held back from each block, 29% for the daily generic smart contract superblock, 20% for the monthly governance budget (This equals a 70%/30% allocation below)
+	// We have a 28.50%/20% escrow being held back from each block, (or 48.50%).  28.5% is for the daily generic smart contract superblock, 20% for the monthly governance budget (This is split into 65% for Daily rewards and 35% for monthly rewards).
 	
 	int nSuperblockCycle = 0;
 	double nBudgetFactor = 0;
@@ -581,20 +583,21 @@ CAmount CSuperblock::GetPaymentsLimit(int nBlockHeight)
 	{
 		// Active - Monthly
 		nSuperblockCycle = consensusParams.nSuperblockCycle;
-		nBudgetFactor = .30;
+		double nAdjFactor = .05;  // This brings our budget down to the actual seamless budget deflation level as of March 2019 while accounting for all prior budgets
+		nBudgetFactor = .35 - nAdjFactor;
 	}
 	else if (IsDCCSuperblock(nBlockHeight))
 	{
 		// RETIRED - Daily
 		nSuperblockCycle = consensusParams.nDCCSuperblockCycle;
- 		nBudgetFactor = .70;
+ 		nBudgetFactor = .65;
 		if (nBlockHeight > 33600 && nBlockHeight < consensusParams.PODC_LAST_BLOCK) nBudgetFactor = 1.0; // Early DC Superblocks paid the entire budget.
 	}
 	else if (IsSmartContract(nBlockHeight))
 	{
 		// Active - Daily
 		nSuperblockCycle = consensusParams.nDCCSuperblockCycle;
- 		nBudgetFactor = .70;
+ 		nBudgetFactor = .65;
 	}
 	else
 	{

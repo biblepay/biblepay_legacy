@@ -7,6 +7,7 @@
 
 #include <QDialog>
 #include <QObject>
+#include "wallet/crypter.h"
 
 class BitcoinGUI;
 class ClientModel;
@@ -21,13 +22,16 @@ class HelpMessageDialog : public QDialog
     Q_OBJECT
 
 public:
-    enum HelpMode {
-        about,
-        cmdline,
-        pshelp
+    enum HelpMode 
+	{
+		about,
+		cmdline,
+		pshelp,
+		prayer,
+		readbible
     };
 
-    explicit HelpMessageDialog(QWidget *parent, HelpMode helpMode);
+    explicit HelpMessageDialog(QWidget *parent, HelpMode helpMode, int iPrayer, uint256 txid, std::string sPreview);
     ~HelpMessageDialog();
 
     void printToConsole();
@@ -39,6 +43,8 @@ private:
 
 private Q_SLOTS:
     void on_okButton_accepted();
+	void on_comboBookClicked(int iClick);
+	void on_comboChapterClicked(int iClick);
 };
 
 

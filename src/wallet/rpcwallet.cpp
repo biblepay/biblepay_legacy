@@ -64,6 +64,11 @@ void WalletTxToJSON(const CWalletTx& wtx, UniValue& entry)
     entry.push_back(Pair("instantlock", fLocked));
     if (wtx.IsCoinBase())
         entry.push_back(Pair("generated", true));
+	if (wtx.tx->IsGSCPayment())
+		entry.push_back(Pair("Smart-Contract-Reward", true));
+	if (wtx.tx->IsCPKAssociation())
+		entry.push_back(Pair("Christian-Public-Key-Association", true));
+
     if (confirms > 0)
     {
         entry.push_back(Pair("blockhash", wtx.hashBlock.GetHex()));
@@ -1427,12 +1432,16 @@ void ListTransactions(const CWalletTx& wtx, const std::string& strAccount, int n
                 MaybePushAddress(entry, r.destination);
                 if (wtx.IsCoinBase())
                 {
+					std::string sSuffix = "";
+					if (wtx.tx->IsGSCPayment()) sSuffix = " smart-contract-payment";
+					if (wtx.tx->IsCPKAssociation()) sSuffix = " Christian-Keypair-Association";
+					if (wtx.tx->IsSuperblockPayment()) sSuffix = " superblock-payment";
                     if (wtx.GetDepthInMainChain() < 1)
-                        entry.push_back(Pair("category", "orphan"));
+                        entry.push_back(Pair("category", "orphan" + sSuffix));
                     else if (wtx.GetBlocksToMaturity() > 0)
-                        entry.push_back(Pair("category", "immature"));
+                        entry.push_back(Pair("category", "immature" + sSuffix));
                     else
-                        entry.push_back(Pair("category", "generate"));
+                        entry.push_back(Pair("category", "generate" + sSuffix));
                 }
                 else
                 {

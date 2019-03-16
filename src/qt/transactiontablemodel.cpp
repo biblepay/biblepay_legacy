@@ -381,9 +381,14 @@ QString TransactionTableModel::formatTxType(const TransactionRecord *wtx) const
         return tr("Sent to");
     case TransactionRecord::SendToSelf:
         return tr("Payment to yourself");
+	case TransactionRecord::CPKAssociation:
+		return tr("Christian Public Keypair Association");
+    case TransactionRecord::SuperBlockPayment:
+		return tr("Superblock Payment");
+	case TransactionRecord::GSCPayment:
+		return tr("Smart-Contract Reward");
     case TransactionRecord::Generated:
         return tr("Mined");
-
     case TransactionRecord::PrivateSendDenominate:
         return tr("PrivateSend Denominate");
     case TransactionRecord::PrivateSendCollateralPayment:
@@ -405,18 +410,24 @@ QVariant TransactionTableModel::txAddressDecoration(const TransactionRecord *wtx
     QString theme = GUIUtil::getThemeName();
     switch(wtx->type)
     {
-    case TransactionRecord::Generated:
-        return QIcon(":/icons/" + theme + "/tx_mined");
-    case TransactionRecord::RecvWithPrivateSend:
-    case TransactionRecord::RecvWithAddress:
-    case TransactionRecord::RecvFromOther:
-        return QIcon(":/icons/" + theme + "/tx_input");
-    case TransactionRecord::PrivateSend:
-    case TransactionRecord::SendToAddress:
-    case TransactionRecord::SendToOther:
-        return QIcon(":/icons/" + theme + "/tx_output");
-    default:
-        return QIcon(":/icons/" + theme + "/tx_inout");
+		case TransactionRecord::SuperBlockPayment:
+			return QIcon(":/icons/drkblue/account32");
+		case TransactionRecord::GSCPayment:
+			return QIcon(":/icons/drkblue/donation32");
+		case TransactionRecord::CPKAssociation:
+			return QIcon(":/icons/drkblue/cross3232");
+	    case TransactionRecord::Generated:
+		    return QIcon(":/icons/" + theme + "/tx_mined");
+		case TransactionRecord::RecvWithPrivateSend:
+		case TransactionRecord::RecvWithAddress:
+		case TransactionRecord::RecvFromOther:
+			return QIcon(":/icons/" + theme + "/tx_input");
+		case TransactionRecord::PrivateSend:
+		case TransactionRecord::SendToAddress:
+		case TransactionRecord::SendToOther:
+			return QIcon(":/icons/" + theme + "/tx_output");
+		default:
+			return QIcon(":/icons/" + theme + "/tx_inout");
     }
 }
 

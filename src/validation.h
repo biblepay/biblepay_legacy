@@ -142,13 +142,14 @@ static const int BLOCKS_PER_DAY = 205;
 static const int SANCTUARY_COLLATERAL = 1550001;
 static int64_t MAX_BLOCK_SUBSIDY = 20000;
 static const int SPORK8_HEIGHT = 23000;
+// The highest value in a daily superblock to trigger a daily payment icon
 static const int DEFAULT_GENERATE_THREADS = 1;
 static const int DEFAULT_GENERATE = 1;
 static const int F10000_CUTOVER_HEIGHT = 25910;
 static const int F11000_CUTOVER_HEIGHT = 33440;
 static const int TITHE_MODULUS = 10;
 static const int POBH_FACTOR = 10;
-static const int BIBLE_CHAPTER_COUNT = 66;
+static const int BIBLE_BOOKS_COUNT = 65;
 static const int BIBLE_VERSE_COUNT = 99;
 extern int PRAYER_MODULUS;
 extern int miGlobalPrayerIndex;
