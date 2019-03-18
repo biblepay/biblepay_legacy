@@ -20,6 +20,9 @@ public:
     CProposalValidator(const std::string& strDataHexIn = std::string());
 
     bool Validate(bool fCheckExpiration = true);
+    bool GetDataValue(const std::string& strKey, std::string& strValueRet);
+    bool GetDataValue(const std::string& strKey, int64_t& nValueRet);
+    bool GetDataValue(const std::string& strKey, double& dValueRet);
 
     const std::string& GetErrorMessages()
     {
@@ -29,10 +32,6 @@ public:
 private:
     void ParseStrHexData(const std::string& strHexData);
     void ParseJSONData(const std::string& strJSONData);
-
-    bool GetDataValue(const std::string& strKey, std::string& strValueRet);
-    bool GetDataValue(const std::string& strKey, int64_t& nValueRet);
-    bool GetDataValue(const std::string& strKey, double& dValueRet);
 
     bool ValidateName();
     bool ValidateStartEndEpoch(bool fCheckExpiration = true);

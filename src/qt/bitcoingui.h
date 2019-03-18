@@ -10,6 +10,7 @@
 #endif
 
 #include "amount.h"
+#include "proposals.h"
 
 #include <QLabel>
 #include <QMainWindow>
@@ -83,7 +84,6 @@ protected:
 private:
     ClientModel *clientModel;
     WalletFrame *walletFrame;
-
     UnitDisplayStatusBarControl *unitDisplayControl;
     QLabel *labelWalletEncryptionIcon;
     QLabel *labelWalletHDStatusIcon;
@@ -92,7 +92,6 @@ private:
     QLabel *progressBarLabel;
     QProgressBar *progressBar;
     QProgressDialog *progressDialog;
-
     QMenuBar *appMenuBar;
     QAction *overviewAction;
     QAction *historyAction;
@@ -116,10 +115,16 @@ private:
 	QAction *OneClickMiningAction;
 	QAction *TheTenCommandmentsAction;
 	QAction *JesusConciseCommandmentsAction;
+	//QAction *proposalAddMenuAction;
+	//QAction *proposalListAction;
+	// Note: Any orphaned Action results in a crash (pun intended)
+	//QAction *orphanAction;
+	
 	// END OF BIBLEPAY
 
     QAction *receiveCoinsAction;
     QAction *receiveCoinsMenuAction;
+
     QAction *optionsAction;
     QAction *toggleHideAction;
     QAction *encryptWalletAction;
@@ -139,7 +144,9 @@ private:
     QAction *openAction;
     QAction *showHelpMessageAction;
     QAction *showPrivateSendHelpAction;
-
+	// BIBLEPAY:
+	//QAction *openProposalsAction;
+   
     QSystemTrayIcon *trayIcon;
     QMenu *trayIconMenu;
     QMenu *dockIconMenu;
@@ -230,6 +237,7 @@ private Q_SLOTS:
     void gotoOverviewPage();
     /** Switch to history (transactions) page */
     void gotoHistoryPage();
+
     /** Switch to masternode page */
     void gotoMasternodePage();
     /** Switch to receive coins page */
@@ -245,6 +253,14 @@ private Q_SLOTS:
     /** Show open dialog */
     void openClicked();
 #endif // ENABLE_WALLET
+
+	/** Switch to BiblePay Accountability **/
+	//void gotoAccountabilityPage();
+	
+	/** Switch to Proposal Add page */
+    //void gotoProposalAddPage();
+    //void gotoProposalListPage();
+
     /** Show configuration dialog */
     void optionsClicked();
     /** Show about dialog */

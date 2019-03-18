@@ -116,21 +116,30 @@ std::string sOS;
 int PRAYER_MODULUS = 0;
 int miGlobalPrayerIndex = 0;
 int iMinerThreadCount = 0;
+int nProposalPrepareHeight = 0;
+int nHashCounter = 0;
+int nProposalModulus = 0;
+int64_t nLastDCContractSubmitted = 0;
+int64_t nHPSTimerStart = 0;
+int64_t nBibleMinerPulse = 0;
+int64_t nProposalStartTime = 0;
+
+double dHashesPerSec = 0;
+uint256 uTxIdFee = uint256S("0x0");
+
 bool fPoolMiningMode = false;
 bool fPoolMiningUseSSL = false;
 bool fCommunicatingWithPool = false;
-int64_t nLastDCContractSubmitted = 0;
-int64_t nHPSTimerStart = 0;
-int nHashCounter = 0;
-double dHashesPerSec = 0;
-int64_t nBibleMinerPulse = 0;
+bool fProposalNeedsSubmitted= false;
 
+std::string msProposalResult;
 std::string sGlobalPoolURL;
-
+std::string msProposalHex;
 std::string msGlobalStatus;
 std::string msGlobalStatus2;
 std::string msGlobalStatus3;
-SecureString msEncryptedString;
+SecureString msEncryptedString = "";
+
 // END OF BIBLEPAY
 
 static void CheckBlockIndex(const Consensus::Params& consensusParams);

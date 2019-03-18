@@ -70,6 +70,13 @@ public Q_SLOTS:
     void gotoMasternodePage();
     /** Switch to receive coins page */
     void gotoReceiveCoinsPage();
+	
+	/** Switch to Proposal Add Page */
+	
+	//void gotoProposalAddPage();
+	//void gotoProposalListPage();
+	//void gotoAccountabilityPage();
+
     /** Switch to send coins page */
     void gotoSendCoinsPage(QString addr = "");
 

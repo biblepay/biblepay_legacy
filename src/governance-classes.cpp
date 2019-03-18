@@ -569,7 +569,7 @@ CAmount CSuperblock::GetPaymentsLimit(int nBlockHeight)
     if (!IsValidBlockHeight(nBlockHeight) && !IsDCCSuperblock(nBlockHeight) && !IsSmartContract(nBlockHeight)) 
         return 0;
     
-	// Should we take an average of last months pindex diff here, to reduce the total expenses?
+	// CRITICAL TODO: // When we decide to move to GSC's, let's get the average 30 day trailing diff and apply it to the GSC contract; this will ensure all low payment/high diff blocks are passed on through the GSC
 
     // min subsidy for high diff networks and vice versa
     int nBits = 486585255;  // Set diff at about 1.42 for Superblocks

@@ -10,9 +10,12 @@
 #include "activemasternode.h"
 #include "masternodeman.h"
 #include "governance-classes.h"
+#include "governance.h"
+#include "governance-validators.h"
 #include "masternode-sync.h"
 #include "masternode-payments.h"
 #include "masternodeconfig.h"
+#include "messagesigner.h"
 #include <boost/lexical_cast.hpp>
 #include <boost/algorithm/string/case_conv.hpp> // for to_lower()
 #include <boost/algorithm/string.hpp> // for trim()
@@ -36,6 +39,7 @@
 #include "netaddress.h"
 #include "netbase.h" // for LookupHost
 #include "wallet/wallet.h"
+
 #ifdef ENABLE_WALLET
 extern CWallet* pwalletMain;
 #endif // ENABLE_WALLET
@@ -62,6 +66,23 @@ std::string GenerateNewAddress(std::string& sError, std::string sName)
 	}
 }
 */
+
+std::string GJE(std::string sKey, std::string sValue, bool bIncludeDelimiter, bool bQuoteValue)
+{
+	// This is a helper for the Governance gobject create method
+	std::string sQ = "\"";
+	std::string sOut = sQ + sKey + sQ + ":";
+	if (bQuoteValue)
+	{
+		sOut += sQ + sValue + sQ;
+	}
+	else
+	{
+		sOut += sValue;
+	}
+	if (bIncludeDelimiter) sOut += ",";
+	return sOut;
+}
 
 std::string RoundToString(double d, int place)
 {
@@ -670,68 +691,80 @@ int GetHeightByEpochTime(int64_t nEpoch)
 	return -1;
 }
 
-/*
+void GetGovSuperblockHeights(int& nNextSuperblock, int& nLastSuperblock)
+{
+	
+    int nBlockHeight = 0;
+    {
+        LOCK(cs_main);
+        nBlockHeight = (int)chainActive.Height();
+    }
+    int nSuperblockStartBlock = Params().GetConsensus().nSuperblockStartBlock;
+    int nSuperblockCycle = Params().GetConsensus().nSuperblockCycle;
+    int nFirstSuperblockOffset = (nSuperblockCycle - nSuperblockStartBlock % nSuperblockCycle) % nSuperblockCycle;
+    int nFirstSuperblock = nSuperblockStartBlock + nFirstSuperblockOffset;
+    if(nBlockHeight < nFirstSuperblock)
+	{
+        nLastSuperblock = 0;
+        nNextSuperblock = nFirstSuperblock;
+    } else {
+        nLastSuperblock = nBlockHeight - nBlockHeight % nSuperblockCycle;
+        nNextSuperblock = nLastSuperblock + nSuperblockCycle;
+    }
+}
+
 
 std::string GetActiveProposals()
 {
 	std::string strType = "proposals";
     int nStartTime = GetAdjustedTime() - (86400 * 32);
     LOCK2(cs_main, governance.cs);
-    std::vector<CGovernanceObject*> objs = governance.GetAllNewerThan(nStartTime);
-
-	std::string sXML = "";
+    std::vector<const CGovernanceObject*> objs = governance.GetAllNewerThan(nStartTime);
+	std::string sXML;
 	int id = 0;
 	std::string sDelim = "|";
 	std::string sZero = "\0";
 	int nLastSuperblock = 0;
 	int nNextSuperblock = 0;
 	GetGovSuperblockHeights(nNextSuperblock, nLastSuperblock);
-
-
-    BOOST_FOREACH(CGovernanceObject* pGovObj, objs)
+	for (const CGovernanceObject* pGovObj : objs) 
     {
 		if(strType == "proposals" && pGovObj->GetObjectType() != GOVERNANCE_OBJECT_PROPOSAL) continue;
         if(strType == "triggers" && pGovObj->GetObjectType() != GOVERNANCE_OBJECT_TRIGGER) continue;
         if(strType == "watchdogs" && pGovObj->GetObjectType() != GOVERNANCE_OBJECT_WATCHDOG) continue;
-		UniValue obj = pGovObj->GetJSONObject();
-		std::string sHash = pGovObj->GetHash().GetHex();
-			
-		int64_t nEpoch = (int64_t)cdbl(obj["end_epoch"].get_str(), 0);
-		int nEpochHeight = GetHeightByEpochTime(nEpoch);
-
-		// First ensure the proposals gov height has not passed yet
-		bool bIsPaid = nEpochHeight < nLastSuperblock;
-		if (!bIsPaid)
+		int64_t nEpoch = 0;
+		CProposalValidator validator(pGovObj->GetDataAsHexString());
+		std::string sURL;
+		std::string sCharityType;
+        if (validator.GetDataValue("end_epoch", nEpoch) && validator.GetDataValue("url", sURL) )
 		{
-			int iYes = pGovObj->GetYesCount(VOTE_SIGNAL_FUNDING);
-			int iNo = pGovObj->GetNoCount(VOTE_SIGNAL_FUNDING);
-			int iAbstain = pGovObj->GetAbstainCount(VOTE_SIGNAL_FUNDING);
-			id++;
-			// Attempt to retrieve the expense type from the JSON object
-			std::string sCharityType = "";
-			try
+			sCharityType = "NA";
+			validator.GetDataValue("expensetype", sCharityType);
+			std::string sHash = pGovObj->GetHash().GetHex();
+			int nEpochHeight = GetHeightByEpochTime(nEpoch);
+			// First ensure the proposals gov height has not passed yet
+			bool bIsPaid = nEpochHeight < nLastSuperblock;
+			if (!bIsPaid)
 			{
-				sCharityType = obj["expensetype"].get_str();
-			}
-			catch (const std::runtime_error& e) 
-			{
-				sCharityType = "NA";
-			}
-   			if (sCharityType.empty()) sCharityType = "N/A";
-			std::string sEndEpoch = obj["end_epoch"].get_str();
-			if (!sEndEpoch.empty())
-			{
-				std::string sProposalTime = TimestampToHRDate(cdbl(sEndEpoch,0));
-				std::string sURL = obj["url"].get_str();
+				int iYes = pGovObj->GetYesCount(VOTE_SIGNAL_FUNDING);
+				int iNo = pGovObj->GetNoCount(VOTE_SIGNAL_FUNDING);
+				int iAbstain = pGovObj->GetAbstainCount(VOTE_SIGNAL_FUNDING);
+				id++;
+				if (sCharityType.empty()) sCharityType = "N/A";
+				std::string sProposalTime = TimestampToHRDate(nEpoch);
 				if (id == 1) sURL += "&t=" + RoundToString(GetAdjustedTime(), 0);
 				// proposal_hashes
+				std::string sName;
+				validator.GetDataValue("name", sName);
+				double dCharityAmount = 0;
+				validator.GetDataValue("payment_amount", dCharityAmount);
 				std::string sRow = "<proposal>" + sHash + sDelim 
-					+ obj["name"].get_str() + sDelim 
-					+ obj["payment_amount"].get_str() + sDelim
+					+ sName + sDelim 
+					+ RoundToString(dCharityAmount, 2) + sDelim
 					+ sCharityType + sDelim
 					+ sProposalTime + sDelim
-					+ RoundToString(iYes,0) + sDelim
-					+ RoundToString(iNo,0) + sDelim + RoundToString(iAbstain,0) 
+					+ RoundToString(iYes, 0) + sDelim
+					+ RoundToString(iNo, 0) + sDelim + RoundToString(iAbstain,0) 
 					+ sDelim + sURL;
 				sXML += sRow;
 			}
@@ -739,15 +772,14 @@ std::string GetActiveProposals()
 	}
 	return sXML;
 }
-*/
-
-/*
-NOTES: Evolution cant find ProcessVoteAndRelay - Research
 
 bool VoteManyForGobject(std::string govobj, std::string strVoteSignal, std::string strVoteOutcome, 
 	int iVotingLimit, int& nSuccessful, int& nFailed, std::string& sError)
 {
-        uint256 hash(uint256S(govobj));
+        
+	
+	/*
+	uint256 hash(uint256S(govobj));
 		vote_signal_enum_t eVoteSignal = CGovernanceVoting::ConvertVoteSignal(strVoteSignal);
 		if(eVoteSignal == VOTE_SIGNAL_NONE) 
 		{
@@ -778,8 +810,8 @@ bool VoteManyForGobject(std::string govobj, std::string strVoteSignal, std::stri
             CKey keyMasternode;
 
             UniValue statusObj(UniValue::VOBJ);
-
-            if(!darkSendSigner.GetKeysFromSecret(mne.getPrivKey(), keyMasternode, pubKeyMasternode))
+			
+            if(!CMessageSigner::GetKeysFromSecret(mne.getPrivKey(), keyMasternode, pubKeyMasternode))
 			{
                 nFailed++;
                 sError += "Masternode signing error, could not set key correctly. (" + mne.getAlias() + ")";
@@ -798,7 +830,11 @@ bool VoteManyForGobject(std::string govobj, std::string strVoteSignal, std::stri
             CTxIn vin(COutPoint(nTxHash, nOutputIndex));
 
             CMasternode mn;
-            bool fMnFound = mnodeman.Get(vin, mn);
+
+			COutPoint outpoint = COutPoint(uint256S(mne.getTxHash()), (uint32_t)atoi(mne.getOutputIndex()));
+     
+
+            bool fMnFound = mnodeman.Get(outpoint, mn);
 
             if(!fMnFound) 
 			{
@@ -807,7 +843,30 @@ bool VoteManyForGobject(std::string govobj, std::string strVoteSignal, std::stri
                 continue;
             }
 
-            CGovernanceVote vote(mn.vin, hash, eVoteSignal, eVoteOutcome);
+		  //CGovernanceVote vote = CGovernanceVote(mnpair.first, nParentHash, (vote_signal_enum_t)signal, (vote_outcome_enum_t)outcome);
+            CGovernanceVote vote(outpoint, hash, eVoteSignal, eVoteOutcome);
+	        CPubKey pubKeyOperator;
+            CKey keyOperator;
+            UniValue statusObj(UniValue::VOBJ);
+            if (!CMessageSigner::GetKeysFromSecret(mne.getPrivKey(), keyOperator, pubKeyOperator)) 
+			{
+
+			bool signSuccess = false;
+			if (deterministicMNManager->IsDeterministicMNsSporkActive()) 
+			{
+				if (govObjType == GOVERNANCE_OBJECT_PROPOSAL && eVoteSignal == VOTE_SIGNAL_FUNDING) 
+				{
+					throw JSONRPCError(RPC_INVALID_PARAMETER, "Can't use vote-conf for proposals when deterministic masternodes are active");
+				}
+				if (activeMasternodeInfo.blsKeyOperator) 
+				{
+					signSuccess = vote.Sign(*activeMasternodeInfo.blsKeyOperator);
+				}
+		  } else {
+				signSuccess = vote.Sign(keyMasternode, activeMasternodeInfo.legacyKeyIDOperator);
+			}
+
+
             if(!vote.Sign(keyMasternode, pubKeyMasternode))
 			{
                 nFailed++;
@@ -830,8 +889,11 @@ bool VoteManyForGobject(std::string govobj, std::string strVoteSignal, std::stri
         }
 
      	return (nSuccessful > 0) ? true : false;
+		*/
+
+        return true;
+
 }
-*/
 
 
 /*
@@ -848,8 +910,6 @@ bool AmIMasternode()
 }
 */
 
-
-/*
 std::string CreateGovernanceCollateral(uint256 GovObjHash, CAmount caFee, std::string& sError)
 {
 	CWalletTx wtx;
@@ -862,7 +922,8 @@ std::string CreateGovernanceCollateral(uint256 GovObjHash, CAmount caFee, std::s
 	{
 		// -- make our change address
 		CReserveKey reservekey(pwalletMain);
-		pwalletMain->CommitTransaction(wtx, reservekey, NetMsgType::TX);
+		CValidationState state;
+        pwalletMain->CommitTransaction(wtx, reservekey, g_connman.get(), state, NetMsgType::TX);
 		DBG( cout << "gobject: prepare "
 					<< " strData = " << govobj.GetDataAsString()
 					<< ", hash = " << govobj.GetHash().GetHex()
@@ -872,7 +933,6 @@ std::string CreateGovernanceCollateral(uint256 GovObjHash, CAmount caFee, std::s
 	}
 	return "";
 }
-*/
 
 int GetNextSuperblock()
 {
@@ -1408,53 +1468,46 @@ std::string GetIPFromAddress(std::string sAddress)
 	return vAddr[0];
 }
 
-/*
+
 bool SubmitProposalToNetwork(uint256 txidFee, int64_t nStartTime, std::string sHex, std::string& sError, std::string& out_sGovObj)
 {
-        if(!masternodeSync.IsBlockchainSynced()) 
-		{
-			sError = "Must wait for client to sync with masternode network. ";
-			return false;
-        }
-        // ASSEMBLE NEW GOVERNANCE OBJECT FROM USER PARAMETERS
-        uint256 hashParent = uint256();
-        int nRevision = 1;
-	    CGovernanceObject govobj(hashParent, nRevision, nStartTime, txidFee, sHex);
-        DBG( cout << "gobject: submit "
+	if(!masternodeSync.IsBlockchainSynced()) 
+	{
+		sError = "Must wait for client to sync with masternode network. ";
+		return false;
+    }
+    // ASSEMBLE NEW GOVERNANCE OBJECT FROM USER PARAMETERS
+    uint256 hashParent = uint256();
+    int nRevision = 1;
+	CGovernanceObject govobj(hashParent, nRevision, nStartTime, txidFee, sHex);
+    DBG( cout << "gobject: submit "
              << " strData = " << govobj.GetDataAsString()
              << ", hash = " << govobj.GetHash().GetHex()
              << ", txidFee = " << txidFee.GetHex()
              << endl; );
 
-        std::string strHash = govobj.GetHash().ToString();
-        if(!govobj.IsValidLocally(sError, true)) 
-		{
-            sError += "Object submission rejected because object is not valid.";
-			LogPrintf("\n OBJECT REJECTED:\n gobject submit 0 1 %f %s %s \n", (double)nStartTime, sHex.c_str(), txidFee.GetHex().c_str());
+    std::string strHash = govobj.GetHash().ToString();
+    if(!govobj.IsValidLocally(sError, true)) 
+	{
+		sError += "Object submission rejected because object is not valid.";
+		LogPrintf("\n OBJECT REJECTED:\n gobject submit 0 1 %f %s %s \n", (double)nStartTime, sHex.c_str(), txidFee.GetHex().c_str());
+		return false;
+    }
+    // RELAY THIS OBJECT - Reject if rate check fails but don't update buffer
 
-			return false;
-        }
-
-        // RELAY THIS OBJECT - Reject if rate check fails but don't update buffer
-        if(!governance.MasternodeRateCheck(govobj)) 
-		{
-            sError = "Object creation rate limit exceeded";
-			return false;
-        }
-        // This check should always pass, update buffer
-        if(!governance.MasternodeRateCheck(govobj, UPDATE_TRUE)) 
-		{
-            sError = "Object submission rejected because of rate check failure (buffer updated)";
-			return false;
-        }
-        governance.AddSeenGovernanceObject(govobj.GetHash(), SEEN_OBJECT_IS_VALID);
-        govobj.Relay();
-        bool fAddToSeen = true;
-        governance.AddGovernanceObject(govobj, fAddToSeen);
-		out_sGovObj = govobj.GetHash().ToString();
-		return true;
+	bool fRateCheckBypassed = false;
+    if(!governance.MasternodeRateCheck(govobj, true, false, fRateCheckBypassed)) 
+	{
+        sError = "Object creation rate limit exceeded";
+		return false;
+	}
+    //governance.AddSeenGovernanceObject(govobj.GetHash(), SEEN_OBJECT_IS_VALID);
+    govobj.Relay(*g_connman);
+    governance.AddGovernanceObject(govobj, *g_connman);
+	out_sGovObj = govobj.GetHash().ToString();
+	return true;
 }
-*/
+
 
 std::vector<char> ReadBytesAll(char const* filename)
 {

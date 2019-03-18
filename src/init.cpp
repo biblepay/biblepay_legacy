@@ -239,6 +239,9 @@ void PrepareShutdown()
     StopHTTPRPC();
     StopREST();
     StopRPC();
+	// BIBLEPAY - Stop Miner Gracefully
+	GenerateBiblecoins(false, 0, Params());
+
     StopHTTPServer();
 
     // fRPCInWarmup should be `false` if we completed the loading sequence
