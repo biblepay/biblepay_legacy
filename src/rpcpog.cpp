@@ -39,6 +39,7 @@
 #include "netaddress.h"
 #include "netbase.h" // for LookupHost
 #include "wallet/wallet.h"
+#include <sstream>
 
 #ifdef ENABLE_WALLET
 extern CWallet* pwalletMain;
@@ -713,7 +714,6 @@ void GetGovSuperblockHeights(int& nNextSuperblock, int& nLastSuperblock)
     }
 }
 
-
 std::string GetActiveProposals()
 {
 	std::string strType = "proposals";
@@ -777,122 +777,71 @@ bool VoteManyForGobject(std::string govobj, std::string strVoteSignal, std::stri
 	int iVotingLimit, int& nSuccessful, int& nFailed, std::string& sError)
 {
         
-	
-	/*
 	uint256 hash(uint256S(govobj));
-		vote_signal_enum_t eVoteSignal = CGovernanceVoting::ConvertVoteSignal(strVoteSignal);
-		if(eVoteSignal == VOTE_SIGNAL_NONE) 
+	vote_signal_enum_t eVoteSignal = CGovernanceVoting::ConvertVoteSignal(strVoteSignal);
+	if(eVoteSignal == VOTE_SIGNAL_NONE) 
+	{
+		sError = "Invalid vote signal (funding).";
+		return false;
+	}
+    vote_outcome_enum_t eVoteOutcome = CGovernanceVoting::ConvertVoteOutcome(strVoteOutcome);
+    if(eVoteOutcome == VOTE_OUTCOME_NONE) 
+	{
+        sError = "Invalid vote outcome (yes/no/abstain)";
+		return false;
+	}
+  
+    std::vector<CMasternodeConfig::CMasternodeEntry> entries = masternodeConfig.getEntries();
+
+#ifdef ENABLE_WALLET
+    if (deterministicMNManager->IsDeterministicMNsSporkActive()) 
+	{
+        if (!pwalletMain) 
 		{
-			sError = "Invalid vote signal (funding).";
+			sError = "Voting is not supported when wallet is disabled.";
 			return false;
-		}
-
-        vote_outcome_enum_t eVoteOutcome = CGovernanceVoting::ConvertVoteOutcome(strVoteOutcome);
-        if(eVoteOutcome == VOTE_OUTCOME_NONE) 
-		{
-            sError = "Invalid vote outcome (yes/no/abstain)";
-			return false;
-	    }
-
-        std::vector<CMasternodeConfig::CMasternodeEntry> mnEntries;
-        mnEntries = masternodeConfig.getEntries();
-        UniValue resultsObj(UniValue::VOBJ);
-
-        BOOST_FOREACH(CMasternodeConfig::CMasternodeEntry mne, masternodeConfig.getEntries()) 
-		{
-            std::string strError;
-            std::vector<unsigned char> vchMasterNodeSignature;
-            std::string strMasterNodeSignMessage;
-
-            CPubKey pubKeyCollateralAddress;
-            CKey keyCollateralAddress;
-            CPubKey pubKeyMasternode;
-            CKey keyMasternode;
-
-            UniValue statusObj(UniValue::VOBJ);
-			
-            if(!CMessageSigner::GetKeysFromSecret(mne.getPrivKey(), keyMasternode, pubKeyMasternode))
-			{
-                nFailed++;
-                sError += "Masternode signing error, could not set key correctly. (" + mne.getAlias() + ")";
-                continue;
-            }
-
-            uint256 nTxHash;
-            nTxHash.SetHex(mne.getTxHash());
-
-            int nOutputIndex = 0;
-            if(!ParseInt32(mne.getOutputIndex(), &nOutputIndex)) 
-			{
-                continue;
-            }
-
-            CTxIn vin(COutPoint(nTxHash, nOutputIndex));
-
-            CMasternode mn;
-
-			COutPoint outpoint = COutPoint(uint256S(mne.getTxHash()), (uint32_t)atoi(mne.getOutputIndex()));
-     
-
-            bool fMnFound = mnodeman.Get(outpoint, mn);
-
-            if(!fMnFound) 
-			{
-                nFailed++;
-				sError += "Can't find masternode by collateral output (" + mne.getAlias() + ")";
-                continue;
-            }
-
-		  //CGovernanceVote vote = CGovernanceVote(mnpair.first, nParentHash, (vote_signal_enum_t)signal, (vote_outcome_enum_t)outcome);
-            CGovernanceVote vote(outpoint, hash, eVoteSignal, eVoteOutcome);
-	        CPubKey pubKeyOperator;
-            CKey keyOperator;
-            UniValue statusObj(UniValue::VOBJ);
-            if (!CMessageSigner::GetKeysFromSecret(mne.getPrivKey(), keyOperator, pubKeyOperator)) 
-			{
-
-			bool signSuccess = false;
-			if (deterministicMNManager->IsDeterministicMNsSporkActive()) 
-			{
-				if (govObjType == GOVERNANCE_OBJECT_PROPOSAL && eVoteSignal == VOTE_SIGNAL_FUNDING) 
-				{
-					throw JSONRPCError(RPC_INVALID_PARAMETER, "Can't use vote-conf for proposals when deterministic masternodes are active");
-				}
-				if (activeMasternodeInfo.blsKeyOperator) 
-				{
-					signSuccess = vote.Sign(*activeMasternodeInfo.blsKeyOperator);
-				}
-		  } else {
-				signSuccess = vote.Sign(keyMasternode, activeMasternodeInfo.legacyKeyIDOperator);
-			}
-
-
-            if(!vote.Sign(keyMasternode, pubKeyMasternode))
-			{
-                nFailed++;
-				sError += "Failure to sign. (" + mne.getAlias() + ")";
-                continue;
-            }
-
-            CGovernanceException exception;
-            if(governance.ProcessVoteAndRelay(vote, exception)) 
-			{
-                nSuccessful++;
-				if (iVotingLimit > 0 && nSuccessful >= iVotingLimit) break;
-            }
-            else 
-			{
-                nFailed++;
-				sError += "Error (" + exception.GetMessage() + ")";
-            }
-
         }
+        entries.clear();
+        auto mnList = deterministicMNManager->GetListAtChainTip();
+        mnList.ForEachMN(true, [&](const CDeterministicMNCPtr& dmn) 
+		{
+            bool found = false;
+            for (const auto &mne : entries) 
+			{
+                uint256 nTxHash;
+                nTxHash.SetHex(mne.getTxHash());
 
-     	return (nSuccessful > 0) ? true : false;
-		*/
+                int nOutputIndex = 0;
+                if(!ParseInt32(mne.getOutputIndex(), &nOutputIndex)) {
+                    continue;
+                }
 
-        return true;
+                if (nTxHash == dmn->collateralOutpoint.hash && (uint32_t)nOutputIndex == dmn->collateralOutpoint.n) {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                CKey ownerKey;
+                if (pwalletMain->GetKey(dmn->pdmnState->keyIDVoting, ownerKey)) {
+                    CBitcoinSecret secret(ownerKey);
+                    CMasternodeConfig::CMasternodeEntry mne(dmn->proTxHash.ToString(), dmn->pdmnState->addr.ToStringIPPort(false), secret.ToString(), dmn->collateralOutpoint.hash.ToString(), itostr(dmn->collateralOutpoint.n));
+                    entries.push_back(mne);
+                }
+            }
+        });
+    }
+#else
+    if (deterministicMNManager->IsDeterministicMNsSporkActive()) 
+	{
+        sError = "Voting is not supported when wallet is disabled.";
+		return false;
+    }
+#endif
 
+    UniValue vOutcome = VoteWithMasternodeList(entries, hash, eVoteSignal, eVoteOutcome);
+	bool fResult = vOutcome["result"].get_str() == "success" ? true : false;
+	return fResult;
 }
 
 
@@ -1329,8 +1278,6 @@ std::string AddBlockchainMessages(std::string sAddress, std::string sType, std::
 
 bool CheckNonce(bool f9000, unsigned int nNonce, int nPrevHeight, int64_t nPrevBlockTime, int64_t nBlockTime, const Consensus::Params& params)
 {
-	if (nPrevHeight >= params.EVOLUTION_CUTOVER_HEIGHT) 
-		return true;
 	if (!f9000) return true;
 	int64_t MAX_AGE = 30 * 60;
 	int NONCE_FACTOR = 256;
@@ -1692,39 +1639,6 @@ UniValue GetDataList(std::string sType, int iMaxAgeInDays, int& iSpecificEntry, 
 	if (iSpecificEntry >= iTotalRecords) iSpecificEntry=0;  // Reset the iterator.
 	return ret;
 }
-
-/*
-double GetDifficulty(const CBlockIndex* blockindex)
-{
-    // Floating point number that is a multiple of the minimum difficulty,
-    // minimum difficulty = 1.0.
-    if (blockindex == NULL)
-    {
-        if (chainActive.Tip() == NULL)
-            return 1.0;
-        else
-            blockindex = chainActive.Tip();
-    }
-
-    int nShift = (blockindex->nBits >> 24) & 0xff;
-
-    double dDiff =
-        (double)0x0000ffff / (double)(blockindex->nBits & 0x00ffffff);
-
-    while (nShift < 29)
-    {
-        dDiff *= 256.0;
-        nShift++;
-    }
-    while (nShift > 29)
-    {
-        dDiff /= 256.0;
-        nShift--;
-    }
-
-    return dDiff;
-}
-*/
 
 UniValue ContributionReport()
 {
@@ -2500,4 +2414,70 @@ std::string GetVersionAlert()
 	return sNarr;
 }
 
+bool WriteKey(std::string sKey, std::string sValue)
+{
+    // Allows BiblePay to store the key value in the config file.
+    boost::filesystem::path pathConfigFile(GetArg("-conf", "biblepay.conf"));
+    if (!pathConfigFile.is_complete()) pathConfigFile = GetDataDir(false) / pathConfigFile;
+    if (!boost::filesystem::exists(pathConfigFile))  
+	{
+		// Config is empty, create it:
+		FILE *outFileNew = fopen(pathConfigFile.string().c_str(),"w");
+		fputs("", outFileNew);
+		fclose(outFileNew);
+		LogPrintf("** Created brand new biblepay.conf file **\n");
+	}
+    boost::to_lower(sKey);
+    std::string sLine = "";
+    std::ifstream streamConfigFile;
+    streamConfigFile.open(pathConfigFile.string().c_str());
+    std::string sConfig = "";
+    bool fWritten = false;
+    if(streamConfigFile)
+    {	
+       while(getline(streamConfigFile, sLine))
+       {
+            std::vector<std::string> vEntry = Split(sLine,"=");
+            if (vEntry.size() == 2)
+            {
+                std::string sSourceKey = vEntry[0];
+                std::string sSourceValue = vEntry[1];
+                boost::to_lower(sSourceKey);
+                if (sSourceKey==sKey) 
+                {
+                    sSourceValue = sValue;
+                    sLine = sSourceKey + "=" + sSourceValue;
+                    fWritten=true;
+                }
+            }
+            sLine = strReplace(sLine,"\r","");
+            sLine = strReplace(sLine,"\n","");
+            sLine += "\r\n";
+            sConfig += sLine;
+       }
+    }
+    if (!fWritten) 
+    {
+        sLine = sKey + "=" + sValue + "\r\n";
+        sConfig += sLine;
+    }
+    
+    streamConfigFile.close();
+    FILE *outFile = fopen(pathConfigFile.string().c_str(),"w");
+    fputs(sConfig.c_str(), outFile);
+    fclose(outFile);
+    ReadConfigFile(pathConfigFile.string().c_str());
+    return true;
+}
 
+bool InstantiateOneClickMiningEntries()
+{
+	WriteKey("addnode","node.biblepay.org");
+	WriteKey("addnode","explorer.biblepay.org");
+	WriteKey("genproclimit", "1");
+	// WriteKey("poolport","80");
+	// WriteKey("workerid","");
+	// WriteKey("pool","http://pool.biblepay.org");
+	WriteKey("gen","1");
+	return true;
+}

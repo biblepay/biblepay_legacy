@@ -50,9 +50,9 @@ Var StartMenuGroup
 # Installer attributes
 OutFile @abs_top_srcdir@/@PACKAGE_TARNAME@-${VERSION}-win@WINDOWS_BITS@-setup.exe
 !if "@WINDOWS_BITS@" == "64"
-InstallDir $PROGRAMFILES64\BiblepayCore
+InstallDir $PROGRAMFILES64\BiblepayEvolution
 !else
-InstallDir $PROGRAMFILES\BiblepayCore
+InstallDir $PROGRAMFILES\BiblepayEvolution
 !endif
 CRCCheck on
 XPStyle on
@@ -110,7 +110,7 @@ Section -post SEC0001
 
     # Delete old key (before we switched to PACKAGE_TARNAME, which is set to 'biblepaycore' now, we had 'biblepay' hardcoded)
     # TODO remove this line sometime later
-    DeleteRegKey HKCR "biblepay"
+    DeleteRegKey HKCR "biblepayevolution"
 SectionEnd
 
 # Macro for selecting uninstaller sections
@@ -152,7 +152,7 @@ Section -un.post UNSEC0001
     DeleteRegKey HKCR "@PACKAGE_TARNAME@"
     # Delete old key (before we switched to PACKAGE_TARNAME, which is set to 'biblepaycore' now, we had 'biblepay' hardcoded)
     # TODO remove this line sometime later
-    DeleteRegKey HKCR "biblepay"
+    DeleteRegKey HKCR "biblepayevolution"
     RmDir /REBOOTOK $SMPROGRAMS\$StartMenuGroup
     RmDir /REBOOTOK $INSTDIR
     Push $R0

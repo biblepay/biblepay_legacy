@@ -367,6 +367,8 @@ public:
 		consensus.F9000_CUTOVER_HEIGHT= 100;
 		consensus.F11000_CUTOVER_HEIGHT= 1;
 		consensus.F8000_CUTOVER_HEIGHT = 1;
+		consensus.F9000_CUTOVER_HEIGHT = 10;
+		
 		consensus.F13000_CUTOVER_HEIGHT = 1;
 		consensus.FPOG_CUTOVER_HEIGHT = 1;  // Dec. 23rd, 2018
 		consensus.F14000_CUTOVER_HEIGHT = 1; 
@@ -528,40 +530,40 @@ public:
         strNetworkID = "dev";
 		int BLOCKS_PER_DAY = 205;
 
-        consensus.nSubsidyHalvingInterval = 210240;
-        consensus.nMasternodePaymentsStartBlock = 4010; // not true, but it's ok as long as it's less then nMasternodePaymentsIncreaseBlock
-        consensus.nMasternodePaymentsIncreaseBlock = 4030;
-        consensus.nMasternodePaymentsIncreasePeriod = 10;
-        consensus.nInstantSendConfirmationsRequired = 2;
-        consensus.nInstantSendKeepLock = 6;
-        consensus.nBudgetPaymentsStartBlock = 4100;
-        consensus.nBudgetPaymentsCycleBlocks = 50;
-        consensus.nBudgetPaymentsWindowBlocks = 10;
-        consensus.nSuperblockStartBlock = 4200; // NOTE: Should satisfy nSuperblockStartBlock > nBudgetPeymentsStartBlock
-        consensus.nSuperblockStartHash = uint256(); // do not check this on devnet
-        consensus.nSuperblockCycle = 24; // Superblocks can be issued hourly on devnet
-        consensus.nGovernanceMinQuorum = 1;
-        consensus.nGovernanceFilterElements = 500;
-        consensus.nDCCSuperblockStartBlock = 104; //F11000 CUTOVER HEIGHT + 11
-        consensus.nDCCSuperblockCycle = BLOCKS_PER_DAY; // Daily
-	
-        consensus.nMasternodeMinimumConfirmations = 1;
-        consensus.BIP34Height = 1; // BIP34 activated immediately on devnet
-        consensus.BIP65Height = 1; // BIP65 activated immediately on devnet
-        consensus.BIP66Height = 1; // BIP66 activated immediately on devnet
-        consensus.DIP0001Height = 2; // DIP0001 activated immediately on devnet
-        consensus.powLimit = uint256S("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"); // ~uint256(0) >> 1
-        consensus.nPowTargetTimespan = 24 * 60 * 60; // Biblepay: 1 day
-        consensus.nPowTargetSpacing = 2.5 * 60; // Biblepay: 2.5 minutes
-        consensus.fPowAllowMinDifficultyBlocks = true;
-        consensus.fPowNoRetargeting = false;
-        consensus.nPowKGWHeight = 4001; // nPowKGWHeight >= nPowDGWHeight means "no KGW"
-        consensus.nPowDGWHeight = 4001;
-        consensus.nRuleChangeActivationThreshold = 1512; // 75% for testchains
-        consensus.nMinerConfirmationWindow = 2016; // nPowTargetTimespan / nPowTargetSpacing
-        consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].bit = 28;
-        consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nStartTime = 1199145601; // January 1, 2008
-        consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nTimeout = 1230767999; // December 31, 2008
+		consensus.nSubsidyHalvingInterval = 210240;
+		consensus.nMasternodePaymentsStartBlock = 4010; // not true, but it's ok as long as it's less then nMasternodePaymentsIncreaseBlock
+		consensus.nMasternodePaymentsIncreaseBlock = 4030;
+		consensus.nMasternodePaymentsIncreasePeriod = 10;
+		consensus.nInstantSendConfirmationsRequired = 2;
+		consensus.nInstantSendKeepLock = 6;
+		consensus.nBudgetPaymentsStartBlock = 4100;
+		consensus.nBudgetPaymentsCycleBlocks = 50;
+		consensus.nBudgetPaymentsWindowBlocks = 10;
+		consensus.nSuperblockStartBlock = 4200; // NOTE: Should satisfy nSuperblockStartBlock > nBudgetPeymentsStartBlock
+		consensus.nSuperblockStartHash = uint256(); // do not check this on devnet
+		consensus.nSuperblockCycle = 24; // Superblocks can be issued hourly on devnet
+		consensus.nGovernanceMinQuorum = 1;
+		consensus.nGovernanceFilterElements = 500;
+		consensus.F9000_CUTOVER_HEIGHT = 10;
+		consensus.nDCCSuperblockStartBlock = 104; //F11000 CUTOVER HEIGHT + 11
+		consensus.nDCCSuperblockCycle = BLOCKS_PER_DAY; // Daily
+		consensus.nMasternodeMinimumConfirmations = 1;
+		consensus.BIP34Height = 1; // BIP34 activated immediately on devnet
+		consensus.BIP65Height = 1; // BIP65 activated immediately on devnet
+		consensus.BIP66Height = 1; // BIP66 activated immediately on devnet
+		consensus.DIP0001Height = 2; // DIP0001 activated immediately on devnet
+		consensus.powLimit = uint256S("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"); // ~uint256(0) >> 1
+		consensus.nPowTargetTimespan = 24 * 60 * 60; // Biblepay: 1 day
+		consensus.nPowTargetSpacing = 2.5 * 60; // Biblepay: 2.5 minutes
+		consensus.fPowAllowMinDifficultyBlocks = true;
+		consensus.fPowNoRetargeting = false;
+		consensus.nPowKGWHeight = 4001; // nPowKGWHeight >= nPowDGWHeight means "no KGW"
+		consensus.nPowDGWHeight = 4001;
+		consensus.nRuleChangeActivationThreshold = 1512; // 75% for testchains
+		consensus.nMinerConfirmationWindow = 2016; // nPowTargetTimespan / nPowTargetSpacing
+		consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].bit = 28;
+		consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nStartTime = 1199145601; // January 1, 2008
+		consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nTimeout = 1230767999; // December 31, 2008
 
         // Deployment of BIP68, BIP112, and BIP113.
         consensus.vDeployments[Consensus::DEPLOYMENT_CSV].bit = 0;
@@ -685,7 +687,8 @@ public:
         consensus.nMasternodePaymentsIncreaseBlock = 350;
         consensus.nMasternodePaymentsIncreasePeriod = 10;
         consensus.nInstantSendConfirmationsRequired = 2;
-        consensus.nInstantSendKeepLock = 6;
+		consensus.F9000_CUTOVER_HEIGHT = 10;
+	    consensus.nInstantSendKeepLock = 6;
         consensus.nBudgetPaymentsStartBlock = 1000;
         consensus.nBudgetPaymentsCycleBlocks = 50;
         consensus.nBudgetPaymentsWindowBlocks = 10;

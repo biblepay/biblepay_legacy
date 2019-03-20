@@ -138,5 +138,6 @@ std::string BiblepayHTTPSPost(bool bPost, int iThreadID, std::string sActionName
 std::string BiblePayHTTPSPost2(bool bPost, std::string sProtocol, std::string sDomain, std::string sPage, std::string sPayload, std::string sFileName);
 std::string FormatHTML(std::string sInput, int iInsertCount, std::string sStringToInsert);
 std::string GJE(std::string sKey, std::string sValue, bool bIncludeDelimiter, bool bQuoteValue);
-
+bool InstantiateOneClickMiningEntries();
+bool WriteKey(std::string sKey, std::string sValue);
 #endif

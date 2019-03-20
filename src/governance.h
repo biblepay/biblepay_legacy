@@ -14,6 +14,7 @@
 #include "governance-exceptions.h"
 #include "governance-object.h"
 #include "governance-vote.h"
+#include "masternodeconfig.h"
 #include "net.h"
 #include "sync.h"
 #include "timedata.h"
@@ -41,6 +42,7 @@ struct ExpirationInfo {
 typedef std::pair<CGovernanceObject, ExpirationInfo> object_info_pair_t;
 
 static const int RATE_BUFFER_SIZE = 5;
+UniValue VoteWithMasternodeList(const std::vector<CMasternodeConfig::CMasternodeEntry>& entries, const uint256& hash, vote_signal_enum_t eVoteSignal, vote_outcome_enum_t eVoteOutcome);
 
 class CRateCheckBuffer
 {
@@ -418,6 +420,7 @@ public:
     }
 
     void InitOnLoad();
+
 
     int RequestGovernanceObjectVotes(CNode* pnode, CConnman& connman);
     int RequestGovernanceObjectVotes(const std::vector<CNode*>& vNodesCopy, CConnman& connman);

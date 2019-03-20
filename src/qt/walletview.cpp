@@ -20,7 +20,7 @@
 #include "transactiontablemodel.h"
 #include "transactionview.h"
 #include "walletmodel.h"
-//#include "proposaladddialog.h"
+#include "proposaladddialog.h"
 #include "ui_interface.h"
 #include <QAction>
 #include <QActionGroup>
@@ -71,8 +71,8 @@ WalletView::WalletView(const PlatformStyle *_platformStyle, QWidget *parent):
     transactionsPage->setLayout(vbox);
 
     receiveCoinsPage = new ReceiveCoinsDialog(platformStyle);
-	//proposalAddPage = new ProposalAddDialog(platformStyle);
-	//proposalListPage = new Proposals(platformStyle);
+	proposalAddPage = new ProposalAddDialog(platformStyle);
+	proposalListPage = new Proposals(platformStyle);
     
     sendCoinsPage = new SendCoinsDialog(platformStyle);
 
@@ -83,9 +83,8 @@ WalletView::WalletView(const PlatformStyle *_platformStyle, QWidget *parent):
     addWidget(transactionsPage);
     addWidget(receiveCoinsPage);
     addWidget(sendCoinsPage);
-
-	//addWidget(proposalAddPage);
-	//addWidget(proposalListPage);
+	addWidget(proposalAddPage);
+	addWidget(proposalListPage);
 
     QSettings settings;
     if (!fLiteMode && settings.value("fShowMasternodesTab").toBool()) {
@@ -163,8 +162,8 @@ void WalletView::setWalletModel(WalletModel *_walletModel)
     }
     receiveCoinsPage->setModel(_walletModel);
     sendCoinsPage->setModel(_walletModel);
-	//proposalAddPage->setModel(_walletModel);
-	//proposalListPage->setModel(_walletModel);
+	proposalAddPage->setModel(_walletModel);
+	proposalListPage->setModel(_walletModel);
 
     usedReceivingAddressesPage->setModel(_walletModel->getAddressTableModel());
     usedSendingAddressesPage->setModel(_walletModel->getAddressTableModel());
@@ -240,21 +239,17 @@ void WalletView::gotoMasternodePage()
     }
 }
 
-/*
 void WalletView::gotoProposalAddPage()
 {
 	setCurrentWidget(proposalAddPage);
 	proposalAddPage->UpdateDisplay();
 }
-*/
 
-/*
 void WalletView::gotoProposalListPage()
 {
 	setCurrentWidget(proposalListPage);
 	proposalListPage->UpdateDisplay();
 }
-*/
 
 void WalletView::gotoReceiveCoinsPage()
 {

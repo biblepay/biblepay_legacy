@@ -105,20 +105,18 @@ private:
     QAction *verifyMessageAction;
     QAction *aboutAction;
 	// RANDREWS - BIBLEPAY - Add Read Bible
+	QAction *orphanAction;
+	QAction *OneClickMiningAction;
 	QAction *sinnerAction;
 	QAction *TheLordsPrayerAction;
 	QAction *TheApostlesCreedAction;
 	QAction *TheNiceneCreedAction;
 	QAction *ReadBibleAction;
-	QAction *CreateNewsAction;
-	QAction *ReadNewsAction;
-	QAction *OneClickMiningAction;
 	QAction *TheTenCommandmentsAction;
 	QAction *JesusConciseCommandmentsAction;
-	//QAction *proposalAddMenuAction;
-	//QAction *proposalListAction;
+	QAction *proposalAddMenuAction;
+	QAction *proposalListAction;
 	// Note: Any orphaned Action results in a crash (pun intended)
-	//QAction *orphanAction;
 	
 	// END OF BIBLEPAY
 
@@ -252,14 +250,15 @@ private Q_SLOTS:
 
     /** Show open dialog */
     void openClicked();
+
+	/** Switch to Proposal Add page */
+	void gotoProposalAddPage();
+	void gotoProposalListPage();
+	void OneClickMiningClicked();
+	
+
 #endif // ENABLE_WALLET
 
-	/** Switch to BiblePay Accountability **/
-	//void gotoAccountabilityPage();
-	
-	/** Switch to Proposal Add page */
-    //void gotoProposalAddPage();
-    //void gotoProposalListPage();
 
     /** Show configuration dialog */
     void optionsClicked();
@@ -274,6 +273,8 @@ private Q_SLOTS:
 	void ReadBibleClicked();
 	void TheTenCommandmentsClicked();
 	void JesusConciseCommandmentsClicked();
+	
+	void showAccountability();
 
     /** Show debug window */
     void showDebugWindow();
