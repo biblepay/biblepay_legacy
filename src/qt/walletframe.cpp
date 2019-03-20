@@ -130,21 +130,12 @@ void WalletFrame::gotoMasternodePage()
 }
 
 
-/*
 void WalletFrame::gotoProposalListPage()
 {
     QMap<QString, WalletView*>::const_iterator i;
     for (i = mapWalletViews.constBegin(); i != mapWalletViews.constEnd(); ++i)
         i.value()->gotoProposalListPage();
 }
-*/
-
-
-//void WalletFrame::gotoAccountabilityPage()
-//{
-//	QDesktopServices::openUrl(QUrl("http://accountability.biblepay.org/"));
-//}
-/*
 
 void WalletFrame::gotoProposalAddPage()
 {
@@ -152,8 +143,6 @@ void WalletFrame::gotoProposalAddPage()
     for (i = mapWalletViews.constBegin(); i != mapWalletViews.constEnd(); ++i)
         i.value()->gotoProposalAddPage();
 }
-*/
-
 
 void WalletFrame::gotoReceiveCoinsPage()
 {

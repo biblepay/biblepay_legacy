@@ -73,9 +73,8 @@ public Q_SLOTS:
 	
 	/** Switch to Proposal Add Page */
 	
-	//void gotoProposalAddPage();
-	//void gotoProposalListPage();
-	//void gotoAccountabilityPage();
+	void gotoProposalAddPage();
+	void gotoProposalListPage();
 
     /** Switch to send coins page */
     void gotoSendCoinsPage(QString addr = "");
