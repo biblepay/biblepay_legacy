@@ -146,6 +146,9 @@ public:
 	/** If this is a Superblock Payment */
 	bool IsSuperblockPayment;
 
+	/** If this is an Anti-Bot-Net Tx */
+	bool IsABN;
+
     /** Return the unique identifier for this transaction (part) */
     QString getTxID() const;
 

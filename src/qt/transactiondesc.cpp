@@ -104,6 +104,10 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionReco
 	{
 	     strHTML += "<b>" + tr("Source") + ":</b> " + tr("Christian-Keypair-Association") + "<br>";
 	}
+	else if (wtx.tx->IsABN())
+	{
+		strHTML += "<b>" + tr("Source") + ":</b> " + tr("Anti-BotNet-Transaction") + "<br>";
+	}
 	else if (wtx.tx->IsSuperblockPayment())
 	{
 	     strHTML += "<b>" + tr("Source") + ":</b> " + tr("Superblock-Payment") + "<br>";

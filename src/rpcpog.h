@@ -140,4 +140,10 @@ std::string FormatHTML(std::string sInput, int iInsertCount, std::string sString
 std::string GJE(std::string sKey, std::string sValue, bool bIncludeDelimiter, bool bQuoteValue);
 bool InstantiateOneClickMiningEntries();
 bool WriteKey(std::string sKey, std::string sValue);
+std::string GetTransactionMessage(CTransactionRef tx);
+bool AdvertiseChristianPublicKeypair(std::string sProjectId, std::string &sError);
+CWalletTx CreateAntiBotNetTx(CBlockIndex* pindexLast, double nMinCoinAge, CReserveKey& reservekey, std::string& sXML, std::string& sError);
+double GetAntiBotNetWeight(CBlockIndex* pindex, CTransactionRef tx);
+double GetABNWeight(const CBlock& block);
+
 #endif

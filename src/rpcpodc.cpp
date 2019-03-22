@@ -377,11 +377,10 @@ std::string SerializeSanctuaryQuorumTrigger(int nEventBlockHeight, std::string s
 }
 */
 
-/*
 bool GetTransactionTimeAndAmount(uint256 txhash, int nVout, int64_t& nTime, CAmount& nAmount)
 {
 	uint256 hashBlock = uint256();
-	CTransaction tx2;
+	CTransactionRef tx2;
 	if (GetTransaction(txhash, tx2, Params().GetConsensus(), hashBlock, true))
 	{
 		   BlockMap::iterator mi = mapBlockIndex.find(hashBlock);
@@ -389,84 +388,14 @@ bool GetTransactionTimeAndAmount(uint256 txhash, int nVout, int64_t& nTime, CAmo
 		   {
               CBlockIndex* pMNIndex = (*mi).second; 
 			  nTime = pMNIndex->GetBlockTime();
-		      nAmount = tx2.vout[nVout].nValue;
+		      nAmount = tx2->vout[nVout].nValue;
 			  return true;
 		   }
 	}
 	return false;
 }
-*/
 
 /*
-CTransaction CreateCoinStake(CBlockIndex* pindexLast, CScript scriptCoinstakeKey, double dProofOfLoyaltyPercentage, int iMinConfirms, std::string& sXML, std::string& sError)
-{
-	// This is part of POG
-    CAmount curBalance = pwalletMain->GetUnlockedBalance();
-	CAmount nTargetValue = curBalance * dProofOfLoyaltyPercentage;
-	CTransaction ctx;
-	
-    if (nTargetValue <= 0 || nTargetValue > curBalance) 
-	{
-		sError = "BALANCE TOO LOW TO STAKE";
-		return ctx;
-	}
-
-	if (pwalletMain->IsLocked())
-	{
-		sError = "WALLET MUST BE UNLOCKED TO STAKE";
-		return ctx;
-	}
-
-    CReserveKey reservekey(pwalletMain);
-    CAmount nFeeRequired;
-    std::string strError;
-    std::vector<CRecipient> vecSend;
-    int nChangePosRet = -1;
-    CRecipient recipient = {scriptCoinstakeKey, nTargetValue, false, false, false, false, false, "", "", "", ""};
-	recipient.Message = "<polweight>" + RoundToString(nTargetValue/COIN,2) + "</polweight>";
-				
-    vecSend.push_back(recipient);
-
-	CWalletTx wtx;
-
-	bool fCreated = pwalletMain->CreateTransaction(vecSend, wtx, reservekey, nFeeRequired, nChangePosRet, strError, NULL, true, ONLY_NOT1000IFMN, false, iMinConfirms);
-	if (!fCreated)    
-	{
-		sError = "INSUFFICIENT FUNDS";
-		return ctx;
-	}
-
-	ctx = (CTransaction)wtx;
-
-	std::string sMetrics = "";
-	double dWeight = GetStakeWeight(ctx, pindexLast->GetBlockTime(), "", false, sMetrics, sError);
-
-    // EnsureWalletIsUnlocked();
-	// Ensure they can sign every output
-	std::string sMessage = GetRandHash().GetHex();
-	sXML += "<polmessage>" + sMessage + "</polmessage><polweight>"+RoundToString(dWeight,2) + "</polweight>" + sMetrics;
-
-	for (int iIndex = 0; iIndex < (int)ctx.vout.size(); iIndex++) 
-	{
-		std::string sKey = "SIG_" + RoundToString(iIndex,0);
-		const CTxOut& txout = ctx.vout[iIndex];
-	    std::string sAddr = PubKeyToAddress(txout.scriptPubKey);
-		std::string sSignature = "";
-		bool bSigned = SignStake(sAddr, sMessage, sError, sSignature);
-		if (bSigned)
-		{
-			sXML += "<" + sKey + ">" + sSignature + "</" + sKey + ">";
-		}
-		else
-		{
-			sXML += "<ERR>SIGN_ERROR</ERR>";
-			LogPrintf(" Unable to sign stake %s \n", sAddr.c_str());
-		}
-	}
-	return ctx;
-}
-
-
 int64_t GetDCCFileTimestamp()
 {
 	std::string sDailyMagnitudeFile = GetSANDirectory2() + "magnitude";
@@ -476,7 +405,7 @@ int64_t GetDCCFileTimestamp()
 	return nTime;
 }
 */
-		
+
 
 /*
 bool VoteForGobject(uint256 govobj, std::string sVoteOutcome, std::string& sError)

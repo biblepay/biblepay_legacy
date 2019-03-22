@@ -336,11 +336,31 @@ public:
 	bool IsCPKAssociation() const
 	{
 		// Is this a Christian Public Keypair association tx?
-		if (vout.size() > 1)
+		if (vout.size() > 0)
 		{
 			if (!vout[0].sTxOutMessage.find("<MT>CPK</MT>") == std::string::npos) return true;
 		}
 		return false;
+	}
+
+	bool IsABN() const
+	{
+		// Is this an Anti-Bot-Net Transaction?
+		if (vout.size() > 0)
+		{
+			if (!vout[0].sTxOutMessage.find("<abnsig>") == std::string::npos) return true;
+		}
+		return false;
+	}
+
+	std::string GetTxMessage()
+	{
+		std::string sMsg;
+		for (unsigned int i = 0; i < vout.size(); i++) 
+		{
+			sMsg += vout[i].sTxOutMessage;
+		}
+		return sMsg;
 	}
 
     friend bool operator==(const CTransaction& a, const CTransaction& b)

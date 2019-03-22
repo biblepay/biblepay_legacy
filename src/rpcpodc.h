@@ -39,7 +39,6 @@ std::string GetBoincUnbankedReport(std::string sProjectID);
 std::string GetBoincResearcherHexCodeAndCPID(std::string sProjectId, int nUserId, std::string& sCPID);
 int GetBoincResearcherUserId(std::string sProjectId, std::string sAuthenticator);
 std::string GetBoincAuthenticator(std::string sProjectID, std::string sProjectEmail, std::string sPasswordHash);
-bool AdvertiseDistributedComputingKey(std::string sProjectId, std::string sAuth, std::string sCPID, int nUserId, bool fForce, std::string sUnbankedPublicKey, std::string &sError);
 int GetLastDCSuperblockWithPayment(int nChainHeight);
 int MyRank(int nHeight);
 UniValue GetLeaderboard(int nHeight);

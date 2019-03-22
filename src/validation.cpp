@@ -3416,6 +3416,14 @@ bool ContextualCheckBlockHeader(const CBlockHeader& block, CValidationState& sta
     return true;
 }
 
+
+bool LateBlock(const CBlock& block)
+{
+	// After 60 minutes, we no longer require the anti-bot-net weight (prevent the chain from freezing)
+	int64_t nAge = GetAdjustedTime() - block.GetBlockTime();
+	return nAge > (60 * 60) ? true : false;
+}
+
 bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Consensus::Params& consensusParams, const CBlockIndex* pindexPrev)
 {
     const int nHeight = pindexPrev == NULL ? 0 : pindexPrev->nHeight + 1;
@@ -3472,7 +3480,22 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
             return state.DoS(100, false, REJECT_INVALID, "bad-cb-type", false, "coinbase is not a CbTx");
         }
     }
+	//////////////////////////////////////////////////////////  BIBLEPAY //////////////////////////////////////////////////////////////////////////
+	//                               Additional Checks for GSC (Generic-Smart-Contracts) and for ABN (Anti-Bot-Net) rules
+	//
+	double nMinRequiredABNWeight = GetSporkDouble("requiredabnweight", 0);
+	if (nHeight > consensusParams.ABNHeight && nMinRequiredABNWeight > 0 && !LateBlock(block))
+	{
+		double nABNWeight = GetABNWeight(block);
+		if (nABNWeight < nMinRequiredABNWeight)
+		{
+			LogPrintf("\nContextualCheckBlock::ABN ERROR!  Block does not meet anti-bot-net-minimum required guidelines: BlockWeight %f, RequiredWeight %f", (double)nABNWeight, nMinRequiredABNWeight);
+			// CRITICAL - Before we go to prod, add a D-DOS here
+		}
+	}
 
+	//
+	////////////////////////////////////////////////////// END OF BIBLEPAY ////////////////////////////////////////////////////////////////////////
     return true;
 }
 

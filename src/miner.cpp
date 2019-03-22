@@ -168,6 +168,30 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
         }
     }
 
+	// BiblePay Anti-Bot-Net System
+	double nMinCoinAge = GetSporkDouble("requiredabnweight", 0);
+	std::string sABNLocator;
+	if (nMinCoinAge > 0)
+	{
+		CReserveKey reserve1(pwalletMain);
+		std::string sXML1;
+		std::string sError1;
+		CWalletTx wtxABN = CreateAntiBotNetTx(chainActive.Tip(), nMinCoinAge, reserve1, sXML1, sError1);
+		if (sError1.empty())
+		{
+			pblock->vtx.emplace_back(wtxABN.tx);
+			pblocktemplate->vTxFees.emplace_back(0);
+			pblocktemplate->vTxSigOps.emplace_back(0);
+			nBlockSize += wtxABN.tx->GetTotalSize();
+			++nBlockTx;
+			sABNLocator = "<abnlocator>" + RoundToString(nBlockTx, 0) + "</abnlocator>";
+		}
+		else
+		{
+			LogPrintf("\nCreateNewBlock::Unable to add ABN because %s", sError1.c_str());
+		}
+	}
+
     addPriorityTxs();
 
     int nPackagesSelected = 0;
@@ -222,7 +246,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
 
 	// Add BiblePay version to the subsidy tx message
 	std::string sVersion = FormatFullVersion();
-	coinbaseTx.vout[0].sTxOutMessage += "<VER>" + sVersion + "</VER>";
+	coinbaseTx.vout[0].sTxOutMessage += "<VER>" + sVersion + "</VER>" + sABNLocator;
 	if (!sMinerGuid.empty())
 		coinbaseTx.vout[0].sTxOutMessage += "<MINERGUID>" + sMinerGuid + "</MINERGUID>";
 

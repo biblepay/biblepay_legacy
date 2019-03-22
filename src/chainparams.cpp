@@ -190,6 +190,7 @@ public:
 		consensus.F13000_CUTOVER_HEIGHT = 57700; 
 	
 		consensus.LAST_TITHE_BLOCK = 21565;
+		consensus.ABNHeight = 125000;
 
 		consensus.nSubsidyHalvingInterval = BLOCKS_PER_DAY * 365; // We produce approx 74,825 blocks per year (205 per day)
 		consensus.nInstantSendKeepLock = 7;
@@ -362,19 +363,22 @@ class CTestNetParams : public CChainParams {
 public:
     CTestNetParams() {
         strNetworkID = "test";
-		int BLOCKS_PER_DAY = 205;
 
+		consensus.PODC_LAST_BLOCK = 100; // March 13th, 2019
+		consensus.F7000_CUTOVER_HEIGHT = 100;
+		consensus.F12000_CUTOVER_HEIGHT = 100;
+		consensus.F13000_CUTOVER_HEIGHT = 100; 
+		consensus.ABNHeight = 1000;
+		int BLOCKS_PER_DAY = 205;
 		consensus.F9000_CUTOVER_HEIGHT= 100;
 		consensus.F11000_CUTOVER_HEIGHT= 1;
 		consensus.F8000_CUTOVER_HEIGHT = 1;
 		consensus.F9000_CUTOVER_HEIGHT = 10;
-		
 		consensus.F13000_CUTOVER_HEIGHT = 1;
 		consensus.FPOG_CUTOVER_HEIGHT = 1;  // Dec. 23rd, 2018
 		consensus.F14000_CUTOVER_HEIGHT = 1; 
 		consensus.LAST_TITHE_BLOCK = 1;
-		consensus.EVOLUTION_CUTOVER_HEIGHT = 1;
-	
+		consensus.EVOLUTION_CUTOVER_HEIGHT = 1000;
 		consensus.nSubsidyHalvingInterval = 365 * BLOCKS_PER_DAY;
 		consensus.nMasternodePaymentsStartBlock = 201;
         consensus.nMasternodePaymentsIncreaseBlock = 201;
@@ -390,11 +394,10 @@ public:
         consensus.nGovernanceMinQuorum = 1;
         consensus.nGovernanceFilterElements = 500;
         consensus.nMasternodeMinimumConfirmations = 1;
-        consensus.FoundationAddress = "yadZnJ3hD3FRC8CiLZEVNqejvQFgNtu5ci";
-        consensus.FoundationPODSAddress = "yiqFGdxM2vzKCk74GrjevEGNTC2rLqKFeg";
+        consensus.FoundationAddress = "yTrEKf8XQ7y7tychC2gWuGw1hsLqBybnEN";
+        consensus.FoundationPODSAddress = "yTrEKf8XQ7y7tychC2gWuGw1hsLqBybnEN";
         consensus.nDCCSuperblockStartBlock = 104; //F11000 CUTOVER HEIGHT + 11
         consensus.nDCCSuperblockCycle = BLOCKS_PER_DAY; // Daily
-	    
         consensus.BIP34Height = 76;
         consensus.BIP34Hash = uint256S("0x000008ebb1db2598e897d17275285767717c6acfeac4c73def49fbea1ddcbcb6");
         consensus.BIP65Height = 2431; // 0000039cf01242c7f921dcb4806a5994bc003b48c1973ae0c89b67809c2bb2ab
@@ -451,7 +454,7 @@ public:
         pchMessageStart[3] = 0xff;
         vAlertPubKey = ParseHex("0x0432cb0fcd551eb206e80fa59cc7fd4038923ef3416f3e132637b8e9a4bcd2f8c9e6c4ee9f01c6f3cea7fb5d85b65b7c18ba30e6c133242bf0de488dd839c36001");
         nDefaultPort = 40001;
-        nPruneAfterHeight = 1000;
+        nPruneAfterHeight = 100000;
 
         genesis = CreateGenesisBlock(1496347850, 15, 0x207fffff, 1, 50 * COIN);
 	
@@ -497,7 +500,7 @@ public:
         nPoolMaxTransactions = 3;
         nFulfilledRequestExpireTime = 5*60; // fulfilled requests expire in 5 minutes
 
-        vSporkAddresses = {"yjPtiKh2uwk3bDutTEA2q9mCtXyiZRWn55"};
+        vSporkAddresses = {"yTrEKf8XQ7y7tychC2gWuGw1hsLqBybnEN"};
         nMinSporkKeys = 1;
         fBIP9CheckMasternodesUpgraded = true;
         consensus.fLLMQAllowDummyCommitments = true;
@@ -535,6 +538,7 @@ public:
 		consensus.nMasternodePaymentsIncreaseBlock = 4030;
 		consensus.nMasternodePaymentsIncreasePeriod = 10;
 		consensus.nInstantSendConfirmationsRequired = 2;
+		consensus.ABNHeight = 100;
 		consensus.nInstantSendKeepLock = 6;
 		consensus.nBudgetPaymentsStartBlock = 4100;
 		consensus.nBudgetPaymentsCycleBlocks = 50;

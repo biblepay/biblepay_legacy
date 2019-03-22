@@ -16,6 +16,7 @@
 #include "keystore.h"
 #include "validation.h"
 #include "net.h"
+#include "rpcpog.h"
 #include "policy/policy.h"
 #include "primitives/block.h"
 #include "primitives/transaction.h"
@@ -2160,6 +2161,46 @@ CAmount CWalletTx::GetAvailableWatchOnlyCredit(const bool& fUseCache) const
     return nCredit;
 }
 
+double CWallet::GetAntiBotNetWalletWeight(double nMinCoinAge, CAmount& nTotalRequired)
+{
+    LOCK2(cs_main, cs_wallet);
+	double nTotal = 0;
+	int64_t nOrdinal = 0;
+	nTotalRequired = 0;
+	std::string sCache;
+	double nFoundCoinAge = 0;
+    for (std::map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it)
+    {
+        const CWalletTx* pcoin = &(*it).second;
+        uint256 hash = (*it).first;
+        if (pcoin->IsTrusted())
+		{
+		    for (unsigned int i = 0; i < pcoin->tx->vout.size(); i++)
+			{
+				if (!IsSpent(hash, i))
+				{
+				    isminetype mine = IsMine(pcoin->tx->vout[i]);
+					CAmount nAmount = pcoin->tx->vout[i].nValue;
+					bool fLocked = (nAmount == (SANCTUARY_COLLATERAL * COIN));
+					if (!fLocked && mine != ISMINE_NO && nAmount > (.01*COIN) && (nFoundCoinAge < nMinCoinAge || nMinCoinAge == 0))
+					{
+						double nAge = (double)(chainActive.Tip()->GetBlockTime() - pcoin->GetTxTime()) / 86400;
+						if (nAge < 0) nAge = 0;
+						double nWeight = (nAmount / COIN) * nAge;
+						nTotal += nWeight;
+						nTotalRequired += nAmount;
+						nFoundCoinAge += nWeight;
+						std::string sData = RoundToString((double)nAmount/COIN, 4) + "(" + RoundToString(nAge, 2) + ")=[" + RoundToString(nWeight, 2) + "],";
+						sCache += sData + "\n";
+					}
+				}
+			}
+		}
+    }
+	WriteCache("coin", "age", sCache, GetAdjustedTime());
+    return nTotal;
+}
+
 CAmount CWalletTx::GetAnonymizedCredit(bool fUseCache) const
 {
     if (pwallet == 0)
@@ -2578,18 +2619,24 @@ CAmount CWallet::GetImmatureWatchOnlyBalance() const
     return nTotal;
 }
 
-void CWallet::AvailableCoins(std::vector<COutput>& vCoins, bool fOnlyConfirmed, const CCoinControl *coinControl, bool fIncludeZeroValue, AvailableCoinsType nCoinType, bool fUseInstantSend) const
+void CWallet::AvailableCoins(std::vector<COutput>& vCoins, bool fOnlyConfirmed, const CCoinControl *coinControl, bool fIncludeZeroValue, 
+	AvailableCoinsType nCoinType, bool fUseInstantSend, double dMinCoinAge, CAmount nMinimumSpend) const
 {
-    vCoins.clear();
+	double nTotalWeightFound = 0;
+	CAmount nBufferFulfilled = 0;
+	std::string sData;
 
+    vCoins.clear();
     {
         LOCK2(cs_main, cs_wallet);
         int nInstantSendConfirmationsRequired = Params().GetConsensus().nInstantSendConfirmationsRequired;
-
-        for (std::map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it)
+	    for (std::map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it)
         {
             const uint256& wtxid = it->first;
             const CWalletTx* pcoin = &(*it).second;
+
+			if (dMinCoinAge > 0 && nTotalWeightFound > dMinCoinAge && nBufferFulfilled > nMinimumSpend)
+				continue;
 
             if (!CheckFinalTx(*pcoin))
                 continue;
@@ -2610,7 +2657,8 @@ void CWallet::AvailableCoins(std::vector<COutput>& vCoins, bool fOnlyConfirmed, 
             if (nDepth == 0 && !pcoin->InMempool())
                 continue;
 
-            for (unsigned int i = 0; i < pcoin->tx->vout.size(); i++) {
+            for (unsigned int i = 0; i < pcoin->tx->vout.size(); i++) 
+			{
                 bool found = false;
                 if(nCoinType == ONLY_DENOMINATED) {
                     found = CPrivateSend::IsDenominatedAmount(pcoin->tx->vout[i].nValue);
@@ -2624,6 +2672,12 @@ void CWallet::AvailableCoins(std::vector<COutput>& vCoins, bool fOnlyConfirmed, 
                 } else {
                     found = true;
                 }
+
+
+				// BIBLEPAY - ANTI-BOT NET RULES:
+				if (dMinCoinAge > 0 && pcoin->tx->vout[i].nValue <= (.01 * COIN)) found = false;
+		
+
                 if(!found) continue;
 
                 isminetype mine = IsMine(pcoin->tx->vout[i]);
@@ -2631,13 +2685,25 @@ void CWallet::AvailableCoins(std::vector<COutput>& vCoins, bool fOnlyConfirmed, 
                     (!IsLockedCoin((*it).first, i) || nCoinType == ONLY_1000) &&
                     (pcoin->tx->vout[i].nValue > 0 || fIncludeZeroValue) &&
                     (!coinControl || !coinControl->HasSelected() || coinControl->fAllowOtherInputs || coinControl->IsSelected(COutPoint((*it).first, i))))
+					{
                         vCoins.push_back(COutput(pcoin, i, nDepth,
                                                  ((mine & ISMINE_SPENDABLE) != ISMINE_NO) ||
                                                   (coinControl && coinControl->fAllowWatchOnly && (mine & ISMINE_WATCH_SOLVABLE) != ISMINE_NO),
                                                  (mine & (ISMINE_SPENDABLE | ISMINE_WATCH_SOLVABLE)) != ISMINE_NO));
+						CTransactionRef txLocal = pcoin->tx;
+						
+						double nAge = (double)(chainActive.Tip()->GetBlockTime() - pcoin->GetTxTime()) / 86400;
+						if (nAge < 0) nAge = 0;
+						double nMyWeight = (pcoin->tx->vout[i].nValue/COIN) * nAge;
+						nTotalWeightFound += nMyWeight;
+						if (dMinCoinAge > 0) 
+							nBufferFulfilled += pcoin->tx->vout[i].nValue;
+						sData += RoundToString((double)pcoin->tx->vout[i].nValue/COIN, 4) + "(" + RoundToString(nMyWeight, 2) + "),";
+					}
             }
         }
     }
+	WriteCache("availablecoins", "age", sData, GetAdjustedTime());
 }
 
 static void ApproximateBestSubset(std::vector<std::pair<CAmount, std::pair<const CWalletTx*,unsigned int> > >vValue, const CAmount& nTotalLower, const CAmount& nTargetValue,
@@ -2760,7 +2826,6 @@ bool CWallet::SelectCoinsMinConf(const CAmount& nTargetValue, const int nConfMin
 
             const CWalletTx *pcoin = output.tx;
 
-//            if (fDebug) LogPrint("selectcoins", "value %s confirms %d\n", FormatMoney(pcoin->vout[output.i].nValue), output.nDepth);
             if (output.nDepth < (pcoin->IsFromMe(ISMINE_ALL) ? nConfMine : nConfTheirs))
                 continue;
 
@@ -3408,7 +3473,7 @@ bool CWallet::ConvertList(std::vector<CTxIn> vecTxIn, std::vector<CAmount>& vecA
 
 bool CWallet::CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletTx& wtxNew, CReserveKey& reservekey, CAmount& nFeeRet,
                                 int& nChangePosInOut, std::string& strFailReason, const CCoinControl* coinControl, bool sign, AvailableCoinsType nCoinType,
-								bool fUseInstantSend, int nExtraPayloadSize, std::string sOptPrayerData)
+								bool fUseInstantSend, int nExtraPayloadSize, std::string sOptPrayerData, double dMinCoinAge, CAmount nMinSpend)
 {
     CAmount nFeePay = fUseInstantSend ? CTxLockRequest().GetMinFee(true) : 0;
 
@@ -3476,7 +3541,7 @@ bool CWallet::CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletT
         LOCK2(cs_main, cs_wallet);
         {
             std::vector<COutput> vAvailableCoins;
-            AvailableCoins(vAvailableCoins, true, coinControl, false, nCoinType, fUseInstantSend);
+            AvailableCoins(vAvailableCoins, true, coinControl, false, nCoinType, fUseInstantSend, dMinCoinAge, nMinSpend);
             int nInstantSendConfirmationsRequired = Params().GetConsensus().nInstantSendConfirmationsRequired;
 
             nFeeRet = 0;

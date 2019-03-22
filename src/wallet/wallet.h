@@ -290,6 +290,7 @@ public:
 
     const uint256& GetHash() const { return tx->GetHash(); }
     bool IsCoinBase() const { return tx->IsCoinBase(); }
+	bool IsABN() const { return tx->IsABN(); }
 };
 
 /** 
@@ -801,7 +802,8 @@ public:
     /**
      * populate vCoins with vector of available COutputs.
      */
-    void AvailableCoins(std::vector<COutput>& vCoins, bool fOnlyConfirmed=true, const CCoinControl *coinControl = NULL, bool fIncludeZeroValue=false, AvailableCoinsType nCoinType=ALL_COINS, bool fUseInstantSend = false) const;
+    void AvailableCoins(std::vector<COutput>& vCoins, bool fOnlyConfirmed=true, const CCoinControl *coinControl = NULL, bool fIncludeZeroValue=false, 
+		AvailableCoinsType nCoinType=ALL_COINS, bool fUseInstantSend = false, double dMinCoinAge = 0, CAmount nMinSpend = 0) const;
 
     /**
      * Shuffle and select coins until nTargetValue is reached while avoiding
@@ -927,8 +929,9 @@ public:
     CAmount GetNormalizedAnonymizedBalance() const;
     CAmount GetNeedsToBeAnonymizedBalance(CAmount nMinBalance = 0) const;
     CAmount GetDenominatedBalance(bool unconfirmed=false) const;
+	double GetAntiBotNetWalletWeight(double nMinCoinAge, CAmount& nTotalRequired);
 
-    bool GetBudgetSystemCollateralTX(CWalletTx& tx, uint256 hash, CAmount amount, bool fUseInstantSend, const COutPoint& outpoint=COutPoint()/*defaults null*/);
+	bool GetBudgetSystemCollateralTX(CWalletTx& tx, uint256 hash, CAmount amount, bool fUseInstantSend, const COutPoint& outpoint=COutPoint()/*defaults null*/);
 
     /**
      * Insert additional inputs into the transaction by
@@ -943,7 +946,7 @@ public:
      */
     bool CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletTx& wtxNew, CReserveKey& reservekey, CAmount& nFeeRet, int& nChangePosInOut,
                            std::string& strFailReason, const CCoinControl *coinControl = NULL, bool sign = true, AvailableCoinsType nCoinType=ALL_COINS,
-						   bool fUseInstantSend=false, int nExtraPayloadSize = 0, std::string sOptionalPrayerData = "");
+						   bool fUseInstantSend=false, int nExtraPayloadSize = 0, std::string sOptionalPrayerData = "", double dMinCoinAge = 0, CAmount nMinSpend = 0);
     bool CommitTransaction(CWalletTx& wtxNew, CReserveKey& reservekey, CConnman* connman, CValidationState& state, const std::string& strCommand="tx");
 
     bool CreateCollateralTransaction(CMutableTransaction& txCollateral, std::string& strReason);

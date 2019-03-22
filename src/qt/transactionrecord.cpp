@@ -30,6 +30,10 @@ bool TransactionRecord::showTransaction(const CWalletTx &wtx)
             return false;
         }
     }
+	else if (wtx.IsABN())
+	{
+		return false;
+	}
     return true;
 }
 
@@ -64,7 +68,8 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                 sub.involvesWatchAddress = mine & ISMINE_WATCH_ONLY;
 				sub.IsGSCPayment = wtx.tx->IsGSCPayment();
 				sub.IsSuperblockPayment = wtx.tx->IsSuperblockPayment();
-				
+				sub.IsABN = wtx.tx->IsABN();
+
                 if (ExtractDestination(txout.scriptPubKey, address) && IsMine(*wallet, address))
                 {
                     // Received by Biblepay Address

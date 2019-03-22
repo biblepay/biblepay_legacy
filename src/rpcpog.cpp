@@ -44,9 +44,8 @@
 #ifdef ENABLE_WALLET
 extern CWallet* pwalletMain;
 #endif // ENABLE_WALLET
-// End of HTTPS
 
-/*
+
 std::string GenerateNewAddress(std::string& sError, std::string sName)
 {
     LOCK2(cs_main, pwalletMain->cs_wallet);
@@ -55,7 +54,7 @@ std::string GenerateNewAddress(std::string& sError, std::string sName)
 			pwalletMain->TopUpKeyPool();
 		// Generate a new key that is added to wallet
 		CPubKey newKey;
-		if (!pwalletMain->GetKeyFromPool(newKey))
+		if (!pwalletMain->GetKeyFromPool(newKey, false))
 		{
 			sError = "Keypool ran out, please call keypoolrefill first";
 			return "";
@@ -66,7 +65,6 @@ std::string GenerateNewAddress(std::string& sError, std::string sName)
 		return CBitcoinAddress(keyID).ToString();
 	}
 }
-*/
 
 std::string GJE(std::string sKey, std::string sValue, bool bIncludeDelimiter, bool bQuoteValue)
 {
@@ -300,11 +298,10 @@ CBlockIndex* FindBlockByHeight(int nHeight)
     return pblockindex;
 }
 
-/*
 std::string DefaultRecAddress(std::string sType)
 {
-	std::string sDefaultRecAddress = "";
-	BOOST_FOREACH(const PAIRTYPE(CBitcoinAddress, CAddressBookData)& item, pwalletMain->mapAddressBook)
+	std::string sDefaultRecAddress;
+	for (auto item : pwalletMain->mapAddressBook)
     {
         const CBitcoinAddress& address = item.first;
         std::string strName = item.second.name;
@@ -316,23 +313,21 @@ std::string DefaultRecAddress(std::string sType)
 			boost::to_upper(sType);
 			if (strName == sType) 
 			{
-				sDefaultRecAddress=CBitcoinAddress(address).ToString();
+				sDefaultRecAddress = CBitcoinAddress(address).ToString();
 				return sDefaultRecAddress;
 			}
 		}
     }
 
-	// IPFS-PODS - R ANDREWS - One biblepay public key is associated with each type of signed business object
 	if (!sType.empty())
 	{
-		std::string sError = "";
+		std::string sError;
 		sDefaultRecAddress = GenerateNewAddress(sError, sType);
 		if (sError.empty()) return sDefaultRecAddress;
 	}
 	
 	return sDefaultRecAddress;
 }
-*/
 
 /*
 std::string CreateBankrollDenominations(double nQuantity, CAmount denominationAmount, std::string& sError)
@@ -1307,7 +1302,6 @@ void ClearCache(std::string sSection)
 	}
 }
 
-
 void WriteCache(std::string sSection, std::string sKey, std::string sValue, int64_t locktime, bool IgnoreCase)
 {
 	if (sSection.empty() || sKey.empty()) return;
@@ -1342,6 +1336,18 @@ void PurgeCacheAsOfExpiration(std::string sSection, int64_t nExpiration)
 			}
 		}
 	}
+}
+
+void WriteCacheDouble(std::string sKey, double dValue)
+{
+	std::string sValue = RoundToString(dValue, 2);
+	WriteCache(sKey, "double", sValue, GetAdjustedTime(), true);
+}
+
+double ReadCacheDouble(std::string sKey)
+{
+	double dVal = cdbl(ReadCache(sKey, "double"), 2);
+	return dVal;
 }
 
 std::string GetArrayElement(std::string s, std::string delim, int iPos)
@@ -2480,4 +2486,196 @@ bool InstantiateOneClickMiningEntries()
 	// WriteKey("pool","http://pool.biblepay.org");
 	WriteKey("gen","1");
 	return true;
+}
+
+std::string GetCPK(std::string sProjectId, std::string sPK)
+{
+	return ReadCache(sProjectId, sPK);
+}
+
+bool AdvertiseChristianPublicKeypair(std::string sProjectId, std::string &sError)
+{	
+	std::string sCPK = DefaultRecAddress("Christian-Public-Key");
+	std::string sRec = GetCPK(sProjectId, sCPK);
+	if (!sRec.empty()) 
+    {
+		sError = "ALREADY_IN_CHAIN";
+		return false;
+    }
+	double nLastCPK = ReadCacheDouble(sProjectId);
+	const Consensus::Params& consensusParams = Params().GetConsensus();
+	if ((chainActive.Tip()->nHeight - nLastCPK) < 4 && nLastCPK > 0)
+    {
+		sError = _("A CPK was advertised less then 4 blocks ago. Please wait for your CPK to enter the chain.");
+        return false;
+    }
+
+    CAmount nStakeBalance = pwalletMain->GetBalance();
+    if (nStakeBalance < (1*COIN))
+    {
+        sError = "Balance too low to advertise CPK, 1 BBP minimum is required.";
+        return false;
+    }
+	std::string sNickName = GetArg("-nickname", "");
+	sNickName = SanitizeString(sNickName);
+	LIMITED_STRING(sNickName, 20);
+	
+	std::string sData = sCPK + ";" + sNickName + ";" + RoundToString(GetAdjustedTime(),0);
+	std::string sSignature;
+	bool bSigned = false;
+	bSigned = SignStake(sCPK, sData, sError, sSignature);
+	// Only append the signature after we prove they can sign...
+	if (bSigned)
+	{
+		sData += ";" + sSignature;
+	}
+	else
+	{
+		sError = "Unable to sign CPK " + sCPK + " (" + sError + ")";
+		return false;
+	}
+    
+    std::string sResult = SendBlockchainMessage(sProjectId, sCPK, sData, 1, false, sError);
+	if (!sError.empty())
+	{
+		return false;
+	}
+	WriteCacheDouble(sProjectId, chainActive.Tip()->nHeight);
+	return true;
+}
+
+std::string GetTransactionMessage(CTransactionRef tx)
+{
+	std::string sMsg;
+	for (unsigned int i = 0; i < tx->vout.size(); i++) 
+	{
+		sMsg += tx->vout[i].sTxOutMessage;
+	}
+	return sMsg;
+}
+
+bool CheckAntiBotNetSignature(CTransactionRef tx)
+{
+	std::string sXML = GetTransactionMessage(tx);
+	std::string sSig = ExtractXML(sXML, "<abnsig>", "</abnsig>");
+	std::string sMessage = ExtractXML(sXML, "<abnmsg>", "</abnmsg>");
+	for (unsigned int i = 0; i < tx->vout.size(); i++)
+	{
+		const CTxOut& txout = tx->vout[i];
+		std::string sAddr = PubKeyToAddress(txout.scriptPubKey);
+		std::string sError;
+		bool fSigned = CheckStakeSignature(sAddr, sSig, sMessage, sError);
+		if (fSigned) return true;
+	}
+	return false;
+}
+
+double GetVINCoinAge(CBlockIndex* pindex, CTransactionRef tx)
+{
+	double dTotal = 0;
+	for (int i = 0; i < (int)tx->vin.size(); i++) 
+	{
+    	int n = tx->vin[i].prevout.n;
+		CAmount nAmount = 0;
+		int64_t nTime = 0;
+		bool fOK = GetTransactionTimeAndAmount(tx->vin[i].prevout.hash, n, nTime, nAmount);
+		if (fOK && nTime > 0 && nAmount > 0)
+		{
+			double nAge = (pindex->GetBlockTime() - nTime)/(86400+.01);
+			if (nAge > 365) nAge = 365;           
+			if (nAge < 0)   nAge = 0;
+			double dWeight = nAge * (nAmount / COIN);
+			dTotal += dWeight;
+		}
+	}
+	return dTotal;
+}
+
+double GetAntiBotNetWeight(CBlockIndex* pindex, CTransactionRef tx)
+{
+	double nCoinAge = GetVINCoinAge(pindex, tx);
+	bool fSigned = CheckAntiBotNetSignature(tx);
+	if (!fSigned) 
+	{
+		LogPrintf("antibotnetsignature failed on tx %s with purported coin-age of %f \n",tx->GetHash().GetHex(), nCoinAge);
+		return 0;
+	}
+	return nCoinAge;
+}
+
+CWalletTx CreateAntiBotNetTx(CBlockIndex* pindexLast, double nMinCoinAge, CReserveKey& reservekey, std::string& sXML, std::string& sError)
+{
+	CWalletTx wtx;
+	CAmount nReqCoins = 0;
+    double nABNWeight = pwalletMain->GetAntiBotNetWalletWeight(0, nReqCoins);
+	
+    if (nABNWeight < nMinCoinAge) 
+	{
+		sError = "Sorry, your coin-age is too low to create an anti-botnet transaction.";
+		return wtx;
+	}
+
+	if (pwalletMain->IsLocked())
+	{
+		sError = "Sorry, must be unlocked to create an anti-botnet transaction.";
+		return wtx;
+	}
+	// In Phase 2, we do a dry run to assess the required Coin Amount in the Coin Stake
+	nABNWeight = pwalletMain->GetAntiBotNetWalletWeight(nMinCoinAge, nReqCoins);
+	CAmount nBalance = pwalletMain->GetBalance();
+	LogPrintf("\nABN Tx Total Bal %f, Needed %f, ABNWeight %f ", (double)nBalance/COIN, (double)nReqCoins/COIN, nABNWeight);
+
+	if (nReqCoins > nBalance)
+	{
+		sError = "Sorry, your balance is lower than the required ABN transaction amount.";
+		return wtx;
+	}
+	if (nReqCoins < (1*COIN))
+	{
+		sError = "Sorry, no coins available for an ABN transaction.";
+		return wtx;
+	}
+	std::string sCPK = DefaultRecAddress("Christian-Public-Key");
+	CBitcoinAddress baCPKAddress(sCPK);
+	CScript spkCPKScript = GetScriptForDestination(baCPKAddress.Get());
+	CAmount nFeeRequired;
+	CAmount nBuffer = (10 * COIN);
+	std::vector<CRecipient> vecSend;
+	int nChangePosRet = -1;
+	LogPrintf("-Creating ABN Tx in amount of %f ",(double)nReqCoins/COIN);
+	bool fSubtractFeeFromAmount = false;
+	CRecipient recipient = {spkCPKScript, nReqCoins, false, fSubtractFeeFromAmount};
+	vecSend.push_back(recipient);
+	std::string sMessage = GetRandHash().GetHex();
+	sXML += "<abnmsg>" + sMessage + "</abnmsg>";
+	std::string sSignature;
+	bool bSigned = SignStake(sCPK, sMessage, sError, sSignature);
+	if (!bSigned) 
+	{
+		sError = "CreateABN::Failed to sign.";
+		return wtx;
+	}
+	sXML += "<abnsig>" + sSignature + "</abnsig><abnwgt>" + RoundToString(nMinCoinAge, 0) + "</abnwgt>";
+	std::string strError;
+	bool fCreated = pwalletMain->CreateTransaction(vecSend, wtx, reservekey, nFeeRequired, nChangePosRet, strError, NULL, true, ALL_COINS, false, 0, sXML, nMinCoinAge, nReqCoins + nBuffer);
+
+	if (!fCreated)    
+	{
+		sError = "CreateABN::Fail::" + strError;
+		return wtx;
+	}
+	return wtx;
+}
+
+double GetABNWeight(const CBlock& block)
+{
+	if (block.vtx.size() < 1) return 0;
+	std::string sMsg = GetTransactionMessage(block.vtx[0]);
+	int nABNLocator = (int)cdbl(ExtractXML(sMsg, "<abnlocator>", "</abnlocator>"), 0);
+	if (block.vtx.size() < nABNLocator) return 0;
+	CTransactionRef tx = block.vtx[nABNLocator];
+	CBlockIndex* pindex = mapBlockIndex[block.GetHash()];
+	if (!pindex) return 0;
+	double dWeight = GetAntiBotNetWeight(pindex, tx);
+	return dWeight;
 }

@@ -108,6 +108,8 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *_platformStyle, const NetworkStyle *
     verifyMessageAction(0),
     aboutAction(0),
 	orphanAction(0),
+	proposalListAction(0),
+	proposalAddMenuAction(0),
 	OneClickMiningAction(0),
  	sinnerAction(0),
     TheLordsPrayerAction(0),
@@ -378,16 +380,15 @@ void BitcoinGUI::createActions()
         connect(masternodeAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
         connect(masternodeAction, SIGNAL(triggered()), this, SLOT(gotoMasternodePage()));
 		
-		orphanAction = new QAction(QIcon(":/icons/" + theme + "/edit"), tr("Show &Accountability"), this);
-		orphanAction->setStatusTip(tr("Show Accountability Page"));
-		orphanAction->setToolTip(orphanAction->statusTip());
-		orphanAction->setCheckable(true);
-		tabGroup->addAction(orphanAction);
-		connect(orphanAction, SIGNAL(triggered()), this, SLOT(showAccountability()));
 
     }
 
-
+	orphanAction = new QAction(QIcon(":/icons/" + theme + "/edit"), tr("Show &Accountability"), this);
+	orphanAction->setStatusTip(tr("Show Accountability Page"));
+	orphanAction->setToolTip(orphanAction->statusTip());
+	orphanAction->setCheckable(true);
+	tabGroup->addAction(orphanAction);
+	connect(orphanAction, SIGNAL(triggered()), this, SLOT(showAccountability()));
 
 
     // These showNormalIfMinimized are needed because Send Coins and Receive Coins
@@ -416,40 +417,33 @@ void BitcoinGUI::createActions()
     sinnerAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("The Sinners Prayer"), this);
     sinnerAction->setStatusTip(tr("Show the Sinners Prayer"));
     sinnerAction->setMenuRole(QAction::AboutRole);
-    sinnerAction->setEnabled(false);
 
     TheLordsPrayerAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("The Lords Prayer"), this);
     TheLordsPrayerAction->setStatusTip(tr("Show the Lords Prayer"));
-    TheLordsPrayerAction->setEnabled(false);
 
     TheApostlesCreedAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("The Apostles Creed"), this);
     TheApostlesCreedAction->setStatusTip(tr("Show the Lords Prayer"));
-    TheApostlesCreedAction->setEnabled(false);
 
     TheNiceneCreedAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("The Nicene Creed"), this);
     TheNiceneCreedAction->setStatusTip(tr("Show the Nicene Creed"));
-    TheNiceneCreedAction->setEnabled(false);
 
     TheTenCommandmentsAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("The Ten Commandments"), this);
     TheTenCommandmentsAction->setStatusTip(tr("Show the Ten Commandments"));
-    TheTenCommandmentsAction->setEnabled(false);
 
     JesusConciseCommandmentsAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("Jesus Concise Commandments"), this);
     JesusConciseCommandmentsAction->setStatusTip(tr("Show Jesus Concise Commandments"));
-    JesusConciseCommandmentsAction->setEnabled(false);
 
     ReadBibleAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("Read Bible"), this);
     ReadBibleAction->setStatusTip(tr("Read Bible"));
-    ReadBibleAction->setEnabled(false);
 
     OneClickMiningAction = new QAction(QIcon(":/icons/" + theme + "/editpaste"), tr("One Click Mining Configuration"), this);
     OneClickMiningAction->setStatusTip(tr("One Click Mining Configuration"));
-    OneClickMiningAction->setEnabled(false);
 
     aboutAction = new QAction(QIcon(":/icons/" + theme + "/about"), tr("&About %1").arg(tr(PACKAGE_NAME)), this);
     aboutAction->setStatusTip(tr("Show information about BiblePay Core"));
     aboutAction->setMenuRole(QAction::AboutRole);
     aboutAction->setEnabled(false);
+
     aboutQtAction = new QAction(QIcon(":/icons/" + theme + "/about_qt"), tr("About &Qt"), this);
     aboutQtAction->setStatusTip(tr("Show information about Qt"));
     aboutQtAction->setMenuRole(QAction::AboutQtRole);
@@ -500,11 +494,6 @@ void BitcoinGUI::createActions()
     openPeersAction->setEnabled(false);
     openRepairAction->setEnabled(false);
 
-	// Add submenu items to Proposals
-    //openProposalsAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("Proposal &List"), this);
-    //openProposalsAction->setStatusTip(tr("Show Proposal List"));
-    //openProposalsAction->setEnabled(false);
-
     // Add submenu for Proposal Add
     proposalAddMenuAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("Proposal &Add"), this);
     proposalAddMenuAction->setStatusTip(tr("Add Proposal"));
@@ -543,8 +532,6 @@ void BitcoinGUI::createActions()
     connect(OneClickMiningAction, SIGNAL(triggered()), this, SLOT(OneClickMiningClicked()));
     connect(TheTenCommandmentsAction, SIGNAL(triggered()), this, SLOT(TheTenCommandmentsClicked()));
     connect(JesusConciseCommandmentsAction, SIGNAL(triggered()), this, SLOT(JesusConciseCommandmentsClicked()));
-
-	// CRITICAL
 	connect(proposalListAction, SIGNAL(triggered()), this, SLOT(gotoProposalListPage()));
 	connect(proposalAddMenuAction, SIGNAL(triggered()), this, SLOT(gotoProposalAddPage()));
 
@@ -683,10 +670,9 @@ void BitcoinGUI::createToolBars()
             toolbar->addAction(masternodeAction);
         }
 
-		// CRITICAL 
 		toolbar->addAction(proposalListAction);
 		toolbar->addAction(orphanAction);
-        
+
 		toolbar->setOrientation(Qt::Vertical);
         toolbar->setMovable(false); // remove unused icon in upper left corner
         overviewAction->setChecked(true);
@@ -828,24 +814,18 @@ void BitcoinGUI::removeAllWallets()
 
 void BitcoinGUI::setWalletActionsEnabled(bool enabled)
 {
+	std::cout << "Initializing QT UI..." << std::endl;
     overviewAction->setEnabled(enabled);
     sendCoinsAction->setEnabled(enabled);
     sendCoinsMenuAction->setEnabled(enabled);
     receiveCoinsAction->setEnabled(enabled);
     receiveCoinsMenuAction->setEnabled(enabled);
     historyAction->setEnabled(enabled);
-
-
     QSettings settings;
     if (!fLiteMode && settings.value("fShowMasternodesTab").toBool() && masternodeAction) {
         masternodeAction->setEnabled(enabled);
     }
-
-	// CRITICAL
-    proposalListAction->setEnabled(enabled);
-    proposalAddMenuAction->setEnabled(enabled);
-	
-    encryptWalletAction->setEnabled(enabled);
+	encryptWalletAction->setEnabled(enabled);
     backupWalletAction->setEnabled(enabled);
     changePassphraseAction->setEnabled(enabled);
     signMessageAction->setEnabled(enabled);
@@ -853,16 +833,16 @@ void BitcoinGUI::setWalletActionsEnabled(bool enabled)
     usedSendingAddressesAction->setEnabled(enabled);
     usedReceivingAddressesAction->setEnabled(enabled);
     openAction->setEnabled(enabled);
-
 	sinnerAction->setEnabled(enabled);
     TheLordsPrayerAction->setEnabled(enabled);
     TheApostlesCreedAction->setEnabled(enabled);
     TheNiceneCreedAction->setEnabled(enabled);
+    ReadBibleAction->setEnabled(enabled);
     TheTenCommandmentsAction->setEnabled(enabled);
     JesusConciseCommandmentsAction->setEnabled(enabled);
-    ReadBibleAction->setEnabled(enabled);
-    orphanAction->setEnabled(enabled);
-
+    proposalListAction->setEnabled(enabled);
+    proposalAddMenuAction->setEnabled(enabled);
+	OneClickMiningAction->setEnabled(enabled);
 }
 
 void BitcoinGUI::createTrayIcon(const NetworkStyle *networkStyle)
@@ -1475,14 +1455,6 @@ void BitcoinGUI::showEvent(QShowEvent *event)
     openRepairAction->setEnabled(true);
     aboutAction->setEnabled(true);
     optionsAction->setEnabled(true);
-	sinnerAction->setEnabled(true);
-    TheLordsPrayerAction->setEnabled(true);
-    TheApostlesCreedAction->setEnabled(true);
-    TheNiceneCreedAction->setEnabled(true);
-    TheTenCommandmentsAction->setEnabled(true);
-    JesusConciseCommandmentsAction->setEnabled(true);
-    ReadBibleAction->setEnabled(true);
-	//openProposalsAction->setEnabled(true); 
 }
 
 #ifdef ENABLE_WALLET
