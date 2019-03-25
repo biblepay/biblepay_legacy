@@ -91,7 +91,8 @@ public:
         PrivateSend,
 		CPKAssociation,
 		GSCPayment,
-		SuperBlockPayment
+		SuperBlockPayment,
+		GSCTransmission
     };
 
     /** Number of confirmation recommended for accepting a transaction */

@@ -333,27 +333,7 @@ public:
 		return false;
     }
 
-	bool IsCPKAssociation() const
-	{
-		// Is this a Christian Public Keypair association tx?
-		if (vout.size() > 0)
-		{
-			if (!vout[0].sTxOutMessage.find("<MT>CPK</MT>") == std::string::npos) return true;
-		}
-		return false;
-	}
-
-	bool IsABN() const
-	{
-		// Is this an Anti-Bot-Net Transaction?
-		if (vout.size() > 0)
-		{
-			if (!vout[0].sTxOutMessage.find("<abnsig>") == std::string::npos) return true;
-		}
-		return false;
-	}
-
-	std::string GetTxMessage()
+	std::string GetTxMessage() const
 	{
 		std::string sMsg;
 		for (unsigned int i = 0; i < vout.size(); i++) 
@@ -361,6 +341,27 @@ public:
 			sMsg += vout[i].sTxOutMessage;
 		}
 		return sMsg;
+	}
+
+	bool IsGSCTransmission() const
+	{
+		// Is this a GSC-Stake-Transmission?
+		std::string sMyData = GetTxMessage();
+		return (sMyData.find("<MT>GSCTransmission") != std::string::npos);
+	}
+	
+	bool IsCPKAssociation() const
+	{
+		// Is this a Christian Public Keypair association tx?
+		std::string sMyData = GetTxMessage();
+		return (sMyData.find("<MT>CPK") != std::string::npos);
+	}
+
+	bool IsABN() const
+	{
+		// Is this an Anti-Bot-Net Transaction?
+		std::string sMyData = GetTxMessage();
+		return (sMyData.find("<MT>ABN</MT>") != std::string::npos);
 	}
 
     friend bool operator==(const CTransaction& a, const CTransaction& b)

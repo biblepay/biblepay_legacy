@@ -18,12 +18,24 @@ std::string RetrieveMd5(std::string s1);
 
 struct UserVote
 {
-	int nTotalYesCount;
-	int nTotalNoCount;
-	int nTotalAbstainCount;
-	int nTotalYesWeight;
-	int nTotalNoWeight;
-	int nTotalAbstainWeight;
+	int nTotalYesCount = 0;
+	int nTotalNoCount = 0;
+	int nTotalAbstainCount = 0;
+	int nTotalYesWeight = 0;
+	int nTotalNoWeight = 0;
+	int nTotalAbstainWeight = 0;
+};
+
+struct CPK
+{
+  std::string sAddress;
+  int64_t nLockTime = 0;
+  std::string sCampaign;
+  std::string sNickName;
+  std::string sError;
+  double nProminence = 0;
+  double nPoints = 0;
+  bool fValid = false;
 };
 
 CAmount CAmountFromValue(const UniValue& value);
@@ -108,15 +120,8 @@ bool Contains(std::string data, std::string instring);
 std::string GetVersionAlert();
 bool CheckNonce(bool f9000, unsigned int nNonce, int nPrevHeight, int64_t nPrevBlockTime, int64_t nBlockTime, const Consensus::Params& params);
 bool RPCSendMoney(std::string& sError, const CTxDestination &address, CAmount nValue, bool fSubtractFeeFromAmount, CWalletTx& wtxNew, bool fUseInstantSend=false, std::string sOptionalData = "");
-struct TitheDifficultyParams
-{
-  double min_coin_age;
-  CAmount min_coin_amount;
-  CAmount max_tithe_amount;
-};
 
-TitheDifficultyParams GetTitheParams(const CBlockIndex* pindex);
-TitheDifficultyParams GetTitheParams2(const CBlockIndex* pindex);
+
 std::vector<char> ReadBytesAll(char const* filename);
 std::string VectToString(std::vector<unsigned char> v);
 CAmount StringToAmount(std::string sValue);
@@ -141,9 +146,17 @@ std::string GJE(std::string sKey, std::string sValue, bool bIncludeDelimiter, bo
 bool InstantiateOneClickMiningEntries();
 bool WriteKey(std::string sKey, std::string sValue);
 std::string GetTransactionMessage(CTransactionRef tx);
-bool AdvertiseChristianPublicKeypair(std::string sProjectId, std::string &sError);
+bool AdvertiseChristianPublicKeypair(std::string sProjectId, std::string sNickName, bool fUnJoin, std::string &sError);
 CWalletTx CreateAntiBotNetTx(CBlockIndex* pindexLast, double nMinCoinAge, CReserveKey& reservekey, std::string& sXML, std::string& sError);
 double GetAntiBotNetWeight(CBlockIndex* pindex, CTransactionRef tx);
 double GetABNWeight(const CBlock& block);
+std::map<std::string, std::string> GetSporkMap(std::string sPrimaryKey, std::string sSecondaryKey);
+std::map<std::string, CPK> GetGSCMap(std::string sGSCObjType, std::string sSearch, bool fRequireSig);
+void WriteCacheDouble(std::string sKey, double dValue);
+double ReadCacheDouble(std::string sKey);
+bool CheckAntiBotNetSignature(CTransactionRef tx, std::string sType);
+double GetVINCoinAge(CBlockIndex* pindex, CTransactionRef tx);
+CAmount GetTitheAmount(CTransactionRef ctx);
+
 
 #endif

@@ -2182,7 +2182,10 @@ double CWallet::GetAntiBotNetWalletWeight(double nMinCoinAge, CAmount& nTotalReq
 				    isminetype mine = IsMine(pcoin->tx->vout[i]);
 					CAmount nAmount = pcoin->tx->vout[i].nValue;
 					bool fLocked = (nAmount == (SANCTUARY_COLLATERAL * COIN));
-					if (!fLocked && mine != ISMINE_NO && nAmount > (.01*COIN) && (nFoundCoinAge < nMinCoinAge || nMinCoinAge == 0))
+
+					int nDepth = pcoin->GetDepthInMainChain();
+    	
+					if (nDepth >= GSC_MIN_CONFIRMS && !fLocked && mine != ISMINE_NO && nAmount > (GSC_DUST * COIN) && (nFoundCoinAge < nMinCoinAge || nMinCoinAge == 0))
 					{
 						double nAge = (double)(chainActive.Tip()->GetBlockTime() - pcoin->GetTxTime()) / 86400;
 						if (nAge < 0) nAge = 0;
@@ -2675,7 +2678,8 @@ void CWallet::AvailableCoins(std::vector<COutput>& vCoins, bool fOnlyConfirmed, 
 
 
 				// BIBLEPAY - ANTI-BOT NET RULES:
-				if (dMinCoinAge > 0 && pcoin->tx->vout[i].nValue <= (.01 * COIN)) found = false;
+				if (dMinCoinAge > 0) 
+					if ( pcoin->tx->vout[i].nValue <= (GSC_DUST * COIN) || nDepth < GSC_MIN_CONFIRMS) found = false;
 		
 
                 if(!found) continue;

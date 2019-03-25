@@ -25,9 +25,9 @@ class CGovernanceTriggerManager;
 class CGovernanceObject;
 class CGovernanceVote;
 
-// CRITICAL - increment this min_gov_peer_proto_version to 70210 during next mandatory upgrade
-static const int MIN_GOVERNANCE_PEER_PROTO_VERSION = 70210;
-static const int GOVERNANCE_FILTER_PROTO_VERSION = 70206;
+// CRITICAL - increment this min_gov_peer_proto_version to 70719 during next mandatory upgrade
+static const int MIN_GOVERNANCE_PEER_PROTO_VERSION = 70718;
+static const int GOVERNANCE_FILTER_PROTO_VERSION = 70718;
 
 static const double GOVERNANCE_FILTER_FP_RATE = 0.001;
 

@@ -2,6 +2,7 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include "rpcpog.h"
 #include "spork.h"
 #include "util.h"
 #include "utilmoneystr.h"
@@ -182,6 +183,126 @@ double GetSporkDouble(std::string sName, double nDefault)
 	if (dSetting == 0) return nDefault;
 	return dSetting;
 }
+
+std::map<std::string, std::string> GetSporkMap(std::string sPrimaryKey, std::string sSecondaryKey)
+{
+	boost::to_upper(sPrimaryKey);
+	boost::to_upper(sSecondaryKey);
+	std::string sDelimiter = "|";
+	std::string sSporkDelimiter = ";";
+	const std::string myKey = sPrimaryKey + sSporkDelimiter + sSecondaryKey;
+    const std::string& myValue = mvApplicationCache[myKey];
+	std::vector<std::string> vSporks = Split(myValue.c_str(), sDelimiter);
+	std::map<std::string, std::string> mSporkMap;
+	for (int i = 0; i < vSporks.size(); i++)
+	{
+		std::string sMySpork = vSporks[i];
+		int64_t nLockTime = mvApplicationCacheTimestamp[myKey];
+		if (!sMySpork.empty())
+			mSporkMap.insert(std::make_pair(sMySpork, RoundToString(i, 0)));
+	}
+	return mSporkMap;
+}
+
+std::string Left(std::string sSource, int bytes)
+{
+	if (sSource.length() >= bytes)
+	{
+		return sSource.substr(0, bytes);
+	}
+	return "";
+}	
+
+std::string GetSecondaryKey(std::string sPrimaryKey, std::string sObjType)
+{
+	boost::to_upper(sPrimaryKey);
+	boost::to_upper(sObjType);
+	if (Left(sPrimaryKey, sObjType.length()) == sObjType)
+	{
+		if (sPrimaryKey.length() > sObjType.length())
+		{
+			std::string sSecondaryKey = sPrimaryKey.substr(sObjType.length() + 1, sPrimaryKey.length() - sObjType.length());
+			return sSecondaryKey;
+		}
+	}
+	return "";
+}
+
+bool CheckStakeSignature(std::string sBitcoinAddress, std::string sSignature, std::string strMessage, std::string& strError)
+{
+	CBitcoinAddress addr2(sBitcoinAddress);
+	if (!addr2.IsValid()) 
+	{
+		strError = "Invalid address";
+		return false;
+	}
+	CKeyID keyID2;
+	if (!addr2.GetKeyID(keyID2)) 
+	{
+		strError = "Address does not refer to key";
+		return false;
+	}
+	bool fInvalid = false;
+	std::vector<unsigned char> vchSig2 = DecodeBase64(sSignature.c_str(), &fInvalid);
+	if (fInvalid)
+	{
+		strError = "Malformed base64 encoding";
+		return false;
+	}
+	CHashWriter ss2(SER_GETHASH, 0);
+	ss2 << strMessageMagic;
+	ss2 << strMessage;
+	CPubKey pubkey2;
+    if (!pubkey2.RecoverCompact(ss2.GetHash(), vchSig2)) 
+	{
+		strError = "Unable to recover public key.";
+		return false;
+	}
+	bool fSuccess = (pubkey2.GetID() == keyID2);
+	return fSuccess;
+}
+
+
+CPK GetCPK(std::string sData)
+{
+	// CPK DATA FORMAT: sCPK + "|" + Sanitized NickName + "|" + LockTime + "|" + SecurityHash + "|" + CPK Signature;
+	CPK k;
+	std::vector<std::string> vDec = Split(sData.c_str(), "|");
+	if (vDec.size() < 5) return k;
+	std::string sSecurityHash = vDec[3];
+	std::string sSig = vDec[4];
+	std::string sCPK = vDec[0];
+	k.fValid = CheckStakeSignature(sCPK, sSig, sSecurityHash, k.sError);
+	if (!k.fValid) return k;
+	
+	k.sAddress = sCPK;
+	k.sNickName = vDec[1];
+	k.nLockTime = (int64_t)cdbl(vDec[2], 0);
+
+	return k;
+
+}
+
+std::map<std::string, CPK> GetGSCMap(std::string sGSCObjType, std::string sSearch, bool fRequireSig)
+{
+	std::map<std::string, CPK> mCPKMap;
+	boost::to_upper(sGSCObjType);
+		
+    for (auto ii : mvApplicationCache)
+    {
+		std::string sSecKey = GetSecondaryKey(ii.first, sGSCObjType);
+		if (!sSecKey.empty())
+		{
+			CPK k = GetCPK(mvApplicationCache[ii.first]);
+			if (!k.sAddress.empty() && k.fValid && (!sSearch.empty() && (sSearch == k.sAddress || sSearch == k.sNickName) || (sSearch.empty())))
+			{
+				mCPKMap.insert(std::make_pair(k.sAddress, k));
+			}
+		}
+	}
+	return mCPKMap;
+}
+
 
 CAmount CAmountFromValue(const UniValue& value)
 {
@@ -499,7 +620,7 @@ double GetTitheAgeAndSpentAmount(CTransaction ctx, CBlockIndex* pindex, CAmount&
 	return nTitheAge;
 }
 */
-bool RPCSendMoney(std::string& sError, const CTxDestination &address, CAmount nValue, bool fSubtractFeeFromAmount, CWalletTx& wtxNew, bool fUseInstantSend=false, std::string sOptionalData="")
+bool RPCSendMoney(std::string& sError, const CTxDestination &address, CAmount nValue, bool fSubtractFeeFromAmount, CWalletTx& wtxNew, bool fUseInstantSend, std::string sOptionalData)
 {
     CAmount curBalance = pwalletMain->GetBalance();
 
@@ -1767,15 +1888,15 @@ int DeserializePrayersFromFile()
 	return nHeight;
 }
 
-CAmount GetTitheAmount(CTransaction ctx)
+CAmount GetTitheAmount(CTransactionRef ctx)
 {
 	const Consensus::Params& consensusParams = Params().GetConsensus();
-	for (unsigned int z = 0; z < ctx.vout.size(); z++)
+	for (unsigned int z = 0; z < ctx->vout.size(); z++)
 	{
-		std::string sRecip = PubKeyToAddress(ctx.vout[z].scriptPubKey);
+		std::string sRecip = PubKeyToAddress(ctx->vout[z].scriptPubKey);
 		if (sRecip == consensusParams.FoundationAddress) 
 		{
-			return ctx.vout[z].nValue;  // First Tithe amount found in transaction counts
+			return ctx->vout[z].nValue;  // First Tithe amount found in transaction counts
 		}
 	}
 	return 0;
@@ -1898,40 +2019,6 @@ struct TxMessage
 };
 
 
-bool CheckStakeSignature(std::string sBitcoinAddress, std::string sSignature, std::string strMessage, std::string& strError)
-{
-	CBitcoinAddress addr2(sBitcoinAddress);
-	if (!addr2.IsValid()) 
-	{
-		strError = "Invalid address";
-		return false;
-	}
-	CKeyID keyID2;
-	if (!addr2.GetKeyID(keyID2)) 
-	{
-		strError = "Address does not refer to key";
-		return false;
-	}
-	bool fInvalid = false;
-	std::vector<unsigned char> vchSig2 = DecodeBase64(sSignature.c_str(), &fInvalid);
-	if (fInvalid)
-	{
-		strError = "Malformed base64 encoding";
-		return false;
-	}
-	CHashWriter ss2(SER_GETHASH, 0);
-	ss2 << strMessageMagic;
-	ss2 << strMessage;
-	CPubKey pubkey2;
-    if (!pubkey2.RecoverCompact(ss2.GetHash(), vchSig2)) 
-	{
-		strError = "Unable to recover public key.";
-		return false;
-	}
-	bool fSuccess = (pubkey2.GetID() == keyID2);
-	return fSuccess;
-}
-
 bool CheckSporkSig(TxMessage t)
 {
 	std::string sError = "";
@@ -2032,9 +2119,9 @@ TxMessage GetTxMessage(std::string sMessage, int64_t nTime, int iPosition, std::
 		// these are sent by our users to each other
 		t.fPassedSecurityCheck = true;
 	}
-	else if (t.sMessageType == "DCC")
+	else if (t.sMessageType == "DCC" || Contains(t.sMessageType, "CPK"))
 	{
-		// These are checked in the memory pool (since we have some unbanked CPIDs who didn't sign the CPID from the wallet)
+		// These now have a security hash on each record and are checked individually using CheckStakeSignature
 		t.fPassedSecurityCheck = true;
 	}
 	else if (t.sMessageType == "EXPENSE" || t.sMessageType == "REVENUE" || t.sMessageType == "ORPHAN")
@@ -2493,11 +2580,18 @@ std::string GetCPK(std::string sProjectId, std::string sPK)
 	return ReadCache(sProjectId, sPK);
 }
 
-bool AdvertiseChristianPublicKeypair(std::string sProjectId, std::string &sError)
+bool AdvertiseChristianPublicKeypair(std::string sProjectId, std::string sNickName, bool fUnJoin, std::string &sError)
 {	
 	std::string sCPK = DefaultRecAddress("Christian-Public-Key");
 	std::string sRec = GetCPK(sProjectId, sCPK);
-	if (!sRec.empty()) 
+	if (fUnJoin)
+	{
+		if (sRec.empty()) {
+			sError = "Sorry, you are not enrolled in this project.";
+			return false;
+		}
+	}
+	else if (!sRec.empty()) 
     {
 		sError = "ALREADY_IN_CHAIN";
 		return false;
@@ -2516,18 +2610,20 @@ bool AdvertiseChristianPublicKeypair(std::string sProjectId, std::string &sError
         sError = "Balance too low to advertise CPK, 1 BBP minimum is required.";
         return false;
     }
-	std::string sNickName = GetArg("-nickname", "");
+	
 	sNickName = SanitizeString(sNickName);
 	LIMITED_STRING(sNickName, 20);
-	
-	std::string sData = sCPK + ";" + sNickName + ";" + RoundToString(GetAdjustedTime(),0);
+	std::string sMsg = GetRandHash().GetHex();
+	std::string sPK = sCPK;
+	if (fUnJoin) sPK = "";	
+	std::string sData = sPK + "|" + sNickName + "|" + RoundToString(GetAdjustedTime(),0) + "|" + sMsg;
 	std::string sSignature;
 	bool bSigned = false;
-	bSigned = SignStake(sCPK, sData, sError, sSignature);
+	bSigned = SignStake(sCPK, sMsg, sError, sSignature);
 	// Only append the signature after we prove they can sign...
 	if (bSigned)
 	{
-		sData += ";" + sSignature;
+		sData += "|" + sSignature;
 	}
 	else
 	{
@@ -2554,10 +2650,10 @@ std::string GetTransactionMessage(CTransactionRef tx)
 	return sMsg;
 }
 
-bool CheckAntiBotNetSignature(CTransactionRef tx)
+bool CheckAntiBotNetSignature(CTransactionRef tx, std::string sType)
 {
 	std::string sXML = GetTransactionMessage(tx);
-	std::string sSig = ExtractXML(sXML, "<abnsig>", "</abnsig>");
+	std::string sSig = ExtractXML(sXML, "<" + sType + "sig>", "</" + sType + "sig>");
 	std::string sMessage = ExtractXML(sXML, "<abnmsg>", "</abnmsg>");
 	for (unsigned int i = 0; i < tx->vout.size(); i++)
 	{
@@ -2594,7 +2690,7 @@ double GetVINCoinAge(CBlockIndex* pindex, CTransactionRef tx)
 double GetAntiBotNetWeight(CBlockIndex* pindex, CTransactionRef tx)
 {
 	double nCoinAge = GetVINCoinAge(pindex, tx);
-	bool fSigned = CheckAntiBotNetSignature(tx);
+	bool fSigned = CheckAntiBotNetSignature(tx, "abn");
 	if (!fSigned) 
 	{
 		LogPrintf("antibotnetsignature failed on tx %s with purported coin-age of %f \n",tx->GetHash().GetHex(), nCoinAge);
@@ -2647,7 +2743,7 @@ CWalletTx CreateAntiBotNetTx(CBlockIndex* pindexLast, double nMinCoinAge, CReser
 	CRecipient recipient = {spkCPKScript, nReqCoins, false, fSubtractFeeFromAmount};
 	vecSend.push_back(recipient);
 	std::string sMessage = GetRandHash().GetHex();
-	sXML += "<abnmsg>" + sMessage + "</abnmsg>";
+	sXML += "<MT>ABN</MT><abnmsg>" + sMessage + "</abnmsg>";
 	std::string sSignature;
 	bool bSigned = SignStake(sCPK, sMessage, sError, sSignature);
 	if (!bSigned) 
@@ -2655,7 +2751,7 @@ CWalletTx CreateAntiBotNetTx(CBlockIndex* pindexLast, double nMinCoinAge, CReser
 		sError = "CreateABN::Failed to sign.";
 		return wtx;
 	}
-	sXML += "<abnsig>" + sSignature + "</abnsig><abnwgt>" + RoundToString(nMinCoinAge, 0) + "</abnwgt>";
+	sXML += "<abnsig>" + sSignature + "</abnsig><abncpk>" + sCPK + "</abncpk><abnwgt>" + RoundToString(nMinCoinAge, 0) + "</abnwgt>";
 	std::string strError;
 	bool fCreated = pwalletMain->CreateTransaction(vecSend, wtx, reservekey, nFeeRequired, nChangePosRet, strError, NULL, true, ALL_COINS, false, 0, sXML, nMinCoinAge, nReqCoins + nBuffer);
 

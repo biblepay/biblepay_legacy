@@ -68,6 +68,8 @@ void WalletTxToJSON(const CWalletTx& wtx, UniValue& entry)
 		entry.push_back(Pair("Smart-Contract-Reward", true));
 	if (wtx.tx->IsCPKAssociation())
 		entry.push_back(Pair("Christian-Public-Key-Association", true));
+	if (wtx.tx->IsGSCTransmission())
+		entry.push_back(Pair("GSC-Stake-Transmission", true));
 	if (wtx.tx->IsABN())
 		entry.push_back(Pair("Anti-BotNet-Transaction", true));
     if (confirms > 0)
@@ -1436,6 +1438,7 @@ void ListTransactions(const CWalletTx& wtx, const std::string& strAccount, int n
 					std::string sSuffix = "";
 					if (wtx.tx->IsGSCPayment()) sSuffix = " smart-contract-payment";
 					if (wtx.tx->IsCPKAssociation()) sSuffix = " Christian-Keypair-Association";
+					if (wtx.tx->IsGSCTransmission()) sSuffix = " GSC-Stake-Transmission";
 					if (wtx.tx->IsABN()) sSuffix = " Anti-Botnet-Transaction";
 					if (wtx.tx->IsSuperblockPayment()) sSuffix = " superblock-payment";
                     if (wtx.GetDepthInMainChain() < 1)

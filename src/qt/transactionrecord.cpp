@@ -69,7 +69,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
 				sub.IsGSCPayment = wtx.tx->IsGSCPayment();
 				sub.IsSuperblockPayment = wtx.tx->IsSuperblockPayment();
 				sub.IsABN = wtx.tx->IsABN();
-
+	
                 if (ExtractDestination(txout.scriptPubKey, address) && IsMine(*wallet, address))
                 {
                     // Received by Biblepay Address
@@ -171,7 +171,9 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                     && CPrivateSend::IsCollateralAmount(-nNet))
                 {
                     sub.type = TransactionRecord::PrivateSendCollateralPayment;
-                } else {
+                }
+				else 
+				{
                     for (const auto& txout : wtx.tx->vout) {
                         if (txout.nValue == CPrivateSend::GetMaxCollateralAmount()) {
                             sub.type = TransactionRecord::PrivateSendMakeCollaterals;
@@ -182,6 +184,10 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                         }
                     }
                 }
+				if (wtx.tx->IsCPKAssociation())
+					sub.type = TransactionRecord::CPKAssociation;  
+				if (wtx.tx->IsGSCTransmission())
+					sub.type = TransactionRecord::GSCTransmission;
             }
 
             CAmount nChange = wtx.GetChange();
@@ -333,7 +339,11 @@ void TransactionRecord::updateStatus(const CWalletTx &wtx)
     else
     {
         status.lockedByInstantSend = wtx.IsLockedByInstantSend();
-        if (status.depth < 0)
+		if (wtx.IsABN())
+		{
+			status.status = TransactionStatus::Abandoned;
+		}
+		else if (status.depth < 0)
         {
             status.status = TransactionStatus::Conflicted;
         }

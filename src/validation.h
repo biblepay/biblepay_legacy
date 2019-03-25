@@ -151,6 +151,8 @@ static const int TITHE_MODULUS = 10;
 static const int POBH_FACTOR = 10;
 static const int BIBLE_BOOKS_COUNT = 65;
 static const int BIBLE_VERSE_COUNT = 99;
+static const int GSC_MIN_CONFIRMS = 5;
+static const double GSC_DUST = .01;
 extern int PRAYER_MODULUS;
 extern int miGlobalPrayerIndex;
 extern SecureString msEncryptedString;

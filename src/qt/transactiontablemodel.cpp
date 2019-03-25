@@ -139,20 +139,19 @@ public:
                     qWarning() << "TransactionTablePriv::updateWallet: Warning: Got CT_NEW, but transaction is not in wallet";
                     break;
                 }
-                // Added -- insert at the right position
-                QList<TransactionRecord> toInsert =
-                        TransactionRecord::decomposeTransaction(wallet, mi->second);
-                if(!toInsert.isEmpty()) /* only if something to insert */
-                {
-                    parent->beginInsertRows(QModelIndex(), lowerIndex, lowerIndex+toInsert.size()-1);
-                    int insert_idx = lowerIndex;
-                    Q_FOREACH(const TransactionRecord &rec, toInsert)
-                    {
-                        cachedWallet.insert(insert_idx, rec);
-                        insert_idx += 1;
-                    }
-                    parent->endInsertRows();
-                }
+				// Added -- insert at the right position
+				QList<TransactionRecord> toInsert =	TransactionRecord::decomposeTransaction(wallet, mi->second);
+				if(!toInsert.isEmpty()) /* only if something to insert */
+				{
+					parent->beginInsertRows(QModelIndex(), lowerIndex, lowerIndex+toInsert.size()-1);
+					int insert_idx = lowerIndex;
+					Q_FOREACH(const TransactionRecord &rec, toInsert)
+					{
+						cachedWallet.insert(insert_idx, rec);
+						insert_idx += 1;
+					}
+					parent->endInsertRows();
+				}
             }
             break;
         case CT_DELETED:
@@ -383,6 +382,8 @@ QString TransactionTableModel::formatTxType(const TransactionRecord *wtx) const
         return tr("Payment to yourself");
 	case TransactionRecord::CPKAssociation:
 		return tr("Christian Public Keypair Association");
+	case TransactionRecord::GSCTransmission:
+		return tr("GSC Transmission");
     case TransactionRecord::SuperBlockPayment:
 		return tr("Superblock Payment");
 	case TransactionRecord::GSCPayment:
@@ -416,6 +417,8 @@ QVariant TransactionTableModel::txAddressDecoration(const TransactionRecord *wtx
 			return QIcon(":/icons/drkblue/donation32");
 		case TransactionRecord::CPKAssociation:
 			return QIcon(":/icons/drkblue/cross3232");
+		case TransactionRecord::GSCTransmission:
+			return QIcon(":/icons/drkblue/tx_output");
 	    case TransactionRecord::Generated:
 		    return QIcon(":/icons/" + theme + "/tx_mined");
 		case TransactionRecord::RecvWithPrivateSend:

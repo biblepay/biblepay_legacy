@@ -30,6 +30,7 @@
 #include "masternode-payments.h"
 #include "masternode-sync.h"
 #include "validationinterface.h"
+#include "smartcontract-client.h"
 
 #include "evo/specialtx.h"
 #include "evo/cbtx.h"
@@ -956,9 +957,9 @@ bool PeersExist()
 
 void static BibleMiner(const CChainParams& chainparams, int iThreadID, int iFeatureSet)
 {
-	LogPrintf("BibleMiner -- started thread %f \n",(double)iThreadID);
+	LogPrintf("BibleMiner -- started thread %f \n", (double)iThreadID);
     int64_t nThreadStart = GetTimeMillis();
-	int64_t nLastGSC = GetAdjustedTime();
+	int64_t nLastGSC = GetAdjustedTime() - (60 * 60 * 4) + 60;
 	int64_t nThreadWork = 0;
 	int64_t nLastReadyToMine = GetAdjustedTime() - 480;
 	int64_t nLastClearCache = GetAdjustedTime() - 480;
@@ -967,13 +968,13 @@ void static BibleMiner(const CChainParams& chainparams, int iThreadID, int iFeat
 	int64_t POOL_MIN_MINUTES = 3 * 60;
 	int64_t POOL_MAX_MINUTES = 7 * 60;
 
-	int64_t nGSCFrequency = cdbl(GetSporkValue("gscfrequency"), 0);
+	int64_t nGSCFrequency = cdbl(GetSporkValue("gscclientminerfrequency"), 0);
 	if (nGSCFrequency == 0) 
 		nGSCFrequency = (60 * 60 * 4);
 	int iFailCount = 0;
 	// This allows the miner to dictate how much sleep will occur when distributed computing is enabled.  This will let Rosetta use the maximum CPU time.  NOTE: The default is 200ms per 256 hashes.
 	double dMinerSleep = cdbl(GetArg("-minersleep", "325"), 0);
-	LogPrintf(" MinerSleep %f \n",(double)dMinerSleep);
+	LogPrintf(" MinerSleep %f \n", (double)dMinerSleep);
 	unsigned int nExtraNonce = 0;
 	unsigned int nHashesDone = 0;
 	int iOuterLoop = 0;
@@ -1032,11 +1033,17 @@ recover:
             CBlockIndex* pindexPrev = chainActive.Tip();
             if(!pindexPrev) break;
 
-			// POG - R ANDREWS - 12/6/2018 - Once every 4 hours, tithe if profitable and possible
+			// POG - R ANDREWS - 12/6/2018 - Once every gscclientminerfrequency, call the gsc client side and create applicable transactions
 			int64_t nGSCAge = GetAdjustedTime() - nLastGSC;
 			if (iThreadID == 0 && (nGSCAge > nGSCFrequency))
 			{
 				nLastGSC = GetAdjustedTime();
+				
+				bool fCreated = CreateClientSideTransaction();
+				if (!fCreated)
+				{
+					LogPrintf("\nBibleMiner::Unable to create client side GSC transaction. (See Log). %f", iThreadID);
+				}
 			}
 
 			// Create Evo block
@@ -1045,7 +1052,7 @@ recover:
             if (!pblocktemplate.get())
             {
 				MilliSleep(30000);
-				LogPrintf("miner", "No block to mine");
+				LogPrint("miner", "No block to mine %f", iThreadID);
 				goto recover;
             }
             CBlock *pblock = &pblocktemplate->block;
@@ -1224,13 +1231,13 @@ recover:
     }
     catch (const boost::thread_interrupted&)
     {
-        LogPrintf("\r\nBiblepayMiner -- terminated\n");
+        LogPrint("miner", "\r\nBiblepayMiner -- terminated\n %f", iThreadID);
 		dHashesPerSec = 0;
         throw;
     }
     catch (const std::runtime_error &e)
     {
-        LogPrintf("\r\nBiblepayMiner -- runtime error: %s\n", e.what());
+        LogPrint("miner", "\r\nBiblepayMiner -- runtime error: %s\n", e.what());
 		dHashesPerSec = 0;
 		// This happens occasionally when TestBlockValidity fails; I suppose the best thing to do for now is start the thread over.
 		nThreadStart = GetTimeMillis();

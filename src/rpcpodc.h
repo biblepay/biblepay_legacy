@@ -48,9 +48,8 @@ bool SignCPID(std::string sCPID, std::string& sError, std::string& out_FullSig);
 std::string GetBoincHostsByUser(int iRosettaID, std::string sProjectId);
 std::vector<std::string> GetListOfDCCS(std::string sSearch, bool fRequireSig);
 double GetTeamPercentage(double dUserTeam, double dProjectTeam, std::string sTeamBlacklist, double dNonBiblepayTeamPercentage);
-
 double VerifyTasks(std::string sCPID, std::string sTasks);
-std::string SerializeSanctuaryQuorumTrigger(int nEventBlockHeight, std::string sContract);
+std::string SerializeSanctuaryQuorumTrigger(int iContractAssessmentHeight, int nEventBlockHeight, std::string sContract);
 double GetQTPhase(double dPrice, int nEventHeight, double& out_PriorPrice, double& out_PriorPhase);
 bool VerifyDarkSendSigner(std::string sXML);
 double GetPBase();
@@ -91,7 +90,6 @@ bool FilterPhase1(int iNextSuperblock, std::string sConcatCPIDs, std::string sSo
 std::string GetBoincTasksByHost(int iHostID, std::string sProjectId);
 std::string GetBoincPasswordHash(std::string sProjectPassword, std::string sProjectEmail);
 int64_t GetDCCFileTimestamp();
-bool GetContractPaymentData(std::string sContract, int nBlockHeight, std::string& sPaymentAddresses, std::string& sAmounts);
 int GetRequiredQuorumLevel(int nHeight);
 void GetDistributedComputingGovObjByHeight(int nHeight, uint256 uOptFilter, int& out_nVotes, uint256& out_uGovObjHash, std::string& out_PaymentAddresses, std::string& out_PaymentAmounts);
 int GetSanctuaryCount();
@@ -100,7 +98,6 @@ int GetMinimumResearcherParticipationLevel();
 void ClearSanctuaryMemories();
 double GetMinimumRequiredUTXOStake(double dRAC, double dFactor);
 std::string SendBlockchainMessage(std::string sType, std::string sPrimaryKey, std::string sValue, double dStorageFee, bool Sign, std::string& sError);
-bool VoteForDistributedComputingContract(int nHeight, std::string sMyContract, std::string sError);
 bool IsMature(int64_t nTime, int64_t nMaturityAge);
 std::string ToYesNo(bool bValue);
 bool VoteForGobject(uint256 govobj, std::string sVoteOutcome, std::string& sError);

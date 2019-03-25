@@ -814,7 +814,8 @@ void BitcoinGUI::removeAllWallets()
 
 void BitcoinGUI::setWalletActionsEnabled(bool enabled)
 {
-	std::cout << "Initializing QT UI..." << std::endl;
+	if (fDebug) 
+		std::cout << "UI.." << std::endl;
     overviewAction->setEnabled(enabled);
     sendCoinsAction->setEnabled(enabled);
     sendCoinsMenuAction->setEnabled(enabled);

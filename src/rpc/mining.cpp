@@ -303,6 +303,8 @@ UniValue getmininginfo(const JSONRPCRequest& request)
 	obj.push_back(Pair("poolinfo3",        ConcatenatePoolHealth("poolinfo3")));
 	obj.push_back(Pair("poolmining",       fPoolMiningMode));
 	obj.push_back(Pair("pool_url",         sGlobalPoolURL));
+	obj.push_back(Pair("required_abn_weight", GetSporkDouble("requiredabnweight", 0)));
+
     return obj;
 
 }

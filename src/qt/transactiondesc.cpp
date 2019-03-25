@@ -100,7 +100,11 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionReco
     //
     // From
     //
-	if (wtx.tx->IsCPKAssociation())
+	if (wtx.tx->IsGSCTransmission())
+	{
+	     strHTML += "<b>" + tr("Source") + ":</b> " + tr("GSC-Transmission") + "<br>";
+	}
+	else if (wtx.tx->IsCPKAssociation())
 	{
 	     strHTML += "<b>" + tr("Source") + ":</b> " + tr("Christian-Keypair-Association") + "<br>";
 	}

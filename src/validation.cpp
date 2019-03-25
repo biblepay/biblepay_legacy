@@ -39,7 +39,7 @@
 #include "validationinterface.h"
 #include "versionbits.h"
 #include "warnings.h"
-
+#include "smartcontract-server.h"
 #include "instantx.h"
 #include "masternodeman.h"
 #include "masternode-payments.h"
@@ -2352,6 +2352,7 @@ static bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockInd
 	if (!fLoadingIndex) 
 	{
 		MemorizeBlockChainPrayers(true, false, false, false);
+		ExecuteGenericSmartContractQuorumProcess();
 	}
 	// END BIBLEPAY
 
@@ -3489,7 +3490,8 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
 		double nABNWeight = GetABNWeight(block);
 		if (nABNWeight < nMinRequiredABNWeight)
 		{
-			LogPrintf("\nContextualCheckBlock::ABN ERROR!  Block does not meet anti-bot-net-minimum required guidelines: BlockWeight %f, RequiredWeight %f", (double)nABNWeight, nMinRequiredABNWeight);
+			LogPrintf("\nContextualCheckBlock::ABN ERROR!  Block %f does not meet anti-bot-net-minimum required guidelines: BlockWeight %f, RequiredWeight %f", 
+				(double)nHeight, (double)nABNWeight, nMinRequiredABNWeight);
 			// CRITICAL - Before we go to prod, add a D-DOS here
 		}
 	}

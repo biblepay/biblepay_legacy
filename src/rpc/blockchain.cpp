@@ -29,7 +29,8 @@
 #include "governance-classes.h"
 #include "evo/specialtx.h"
 #include "evo/cbtx.h"
-
+#include "smartcontract-client.h"
+#include "smartcontract-server.h"
 #include <stdint.h>
 
 #include <univalue.h>
@@ -1807,6 +1808,54 @@ UniValue exec(const JSONRPCRequest& request)
 			results.push_back(Pair(sBookName, sReversed));
 		}
 	}
+	else if (sItem == "testgscvote")
+	{
+		int iNextSuperblock = 0;
+		int iLastSuperblock = GetLastGSCSuperblockHeight(chainActive.Tip()->nHeight, iNextSuperblock);
+		std::string sContract = GetGSCContract(); // As of iLastSuperblock height
+		results.push_back(Pair("contract", sContract));
+		std::string sAddresses;
+		std::string sAmounts;
+		int iVotes = 0;
+		uint256 uPAMHash = uint256S("0x0");
+		uint256 uGovObjHash = uint256S("0x0");
+		GetGSCGovObjByHeight(iNextSuperblock, uPAMHash, iVotes, uGovObjHash, sAddresses, sAmounts);
+		std::string sError;
+		results.push_back(Pair("govobjhash", uGovObjHash.GetHex()));
+		results.push_back(Pair("Addresses", sAddresses));
+		results.push_back(Pair("Amounts", sAmounts));
+		if (uGovObjHash == uint256S("0x0"))
+		{
+			// create the contract
+			std::string sQuorumTrigger = SerializeSanctuaryQuorumTrigger(iLastSuperblock, iNextSuperblock, sContract);
+			std::string sGobjectHash;
+			SubmitGSCTrigger(sQuorumTrigger, sGobjectHash, sError);
+			results.push_back(Pair("quorum_hex", sQuorumTrigger));
+			// Add the contract explanation as JSON
+			std::vector<unsigned char> v = ParseHex(sQuorumTrigger);
+			std::string sMyQuorumTrigger(v.begin(), v.end());
+			UniValue u(UniValue::VOBJ);
+			u.read(sMyQuorumTrigger);
+			std::string sMyJsonQuorumTrigger = u.write().c_str();
+			results.push_back(Pair("quorum_json", sMyJsonQuorumTrigger));
+			results.push_back(Pair("quorum_gobject_trigger_hash", sGobjectHash));
+			results.push_back(Pair("quorum_error", sError));
+		}
+		results.push_back(Pair("votes_for_my_contract", iVotes));
+		int iRequiredVotes = GetRequiredQuorumLevel(iNextSuperblock);
+		results.push_back(Pair("required_votes", iRequiredVotes));
+		results.push_back(Pair("last_superblock", iLastSuperblock));
+		results.push_back(Pair("next_superblock", iNextSuperblock));
+		bool fTriggered = CSuperblockManager::IsSuperblockTriggered(iNextSuperblock);
+		results.push_back(Pair("next_superblock_triggered", fTriggered));
+		/*  QT (Reserved)
+		std::string sSig = SignPrice(".01");
+		bool fSigValid = VerifyDarkSendSigner(sSig);
+		*/
+		bool bRes = VoteForGSCContract(iNextSuperblock, sContract, sError);
+		results.push_back(Pair("vote_result", bRes));
+		results.push_back(Pair("vote_error", sError));
+	}
 	else if (sItem == "hexblocktocoinbase")
 	{
 		// This call is used by pools (pool.biblepay.org and purepool) to verify a serialized solution
@@ -1950,10 +1999,50 @@ UniValue exec(const JSONRPCRequest& request)
 	else if (sItem == "cpk")
 	{
 		std::string sError;
-		bool fAdv = AdvertiseChristianPublicKeypair("cpk", sError);
+		if (request.params.size() != 2)
+			throw std::runtime_error("You must specify exec cpk nickname.");
+		std::string sNickName = request.params[1].get_str();
+		
+		bool fAdv = AdvertiseChristianPublicKeypair("cpk", sNickName, false, sError);
 		results.push_back(Pair("Results", fAdv));
 		if (!fAdv)
 			results.push_back(Pair("Error", sError));
+	}
+	else if (sItem == "unjoin")
+	{
+		if (request.params.size() != 2)
+			throw std::runtime_error("You must specify project_name to un-join.");
+		std::string sProject = request.params[1].get_str();
+		std::string sError;
+		if (!CheckCampaign(sProject))
+			throw std::runtime_error("Campaign does not exist.");
+		bool fAdv = AdvertiseChristianPublicKeypair("cpk-" + sProject, "", true, sError);
+		results.push_back(Pair("Results", fAdv));
+		if (!fAdv)
+			results.push_back(Pair("Error", sError));
+	}
+	else if (sItem == "join")
+	{
+		if (request.params.size() != 2)
+			throw std::runtime_error("You must specify project_name.");
+		std::string sProject = request.params[1].get_str();
+		std::string sError;
+		if (!CheckCampaign(sProject))
+			throw std::runtime_error("Campaign does not exist.");
+		bool fAdv = AdvertiseChristianPublicKeypair("cpk-" + sProject, "", false, sError);
+		results.push_back(Pair("Results", fAdv));
+		if (!fAdv)
+			results.push_back(Pair("Error", sError));
+	}
+	else if (sItem == "getcampaigns")
+	{
+		UniValue c = GetCampaigns();
+		return c;
+	}
+	else if (sItem == "prominence")
+	{
+		UniValue p = GetProminenceLevels();
+		return p;
 	}
 	else if (sItem == "datalist")
 	{
