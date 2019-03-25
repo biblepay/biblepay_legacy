@@ -7,6 +7,11 @@ apt-get install libqt5gui5 libqt5core5a libqt5dbus5 qttools5-dev qttools5-dev-to
 apt-get install git
 apt-get install curl build-essential libtool autotools-dev automake pkg-config python3 bsdmainutils cmake
 
+sudo add-apt-repository ppa:bitcoin/bitcoin
+sudo apt-get update
+sudo apt-get install libdb4.8-dev libdb4.8++-dev
+
+
 Building Daemon and QT:
 git clone http://github.com/biblepay/biblepay-evolution
 prefix=x86_64-pc-linux-gnu
