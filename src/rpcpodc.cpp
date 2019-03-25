@@ -24,12 +24,6 @@
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
 
-#ifdef MAC_OSX
-#include <boost/process/system.hpp>        // for ShellCommand
-#include <boost/process/io.hpp>
-namespace bp = boost::process;
-#endif
-
 extern CWallet* pwalletMain;
 
 std::string GetSANDirectory2()
