@@ -735,14 +735,14 @@ void BitcoinGUI::createMenuBar()
     }
 
     // Chat - TestNet (The problem below is fPOGEnabled is set to true after QT is initalized... sigh)
-    if (fPOGEnabled || true)
+    if (true)
     {
         QMenu *menuChat = appMenuBar->addMenu(tr("&Chat"));
         menuChat->addAction(openChatGeneralAction);
         menuChat->addAction(openChatPMAction);
     }
 
-    if (fPOGEnabled || true)
+    if (false)
     {
         QMenu *menuPOG = appMenuBar->addMenu(tr("&POG"));
         menuPOG->addAction(pogLeaderboardListMenuAction);
@@ -1223,7 +1223,6 @@ void BitcoinGUI::gotoOverviewPage()
     overviewAction->setChecked(true);
     if (walletFrame) walletFrame->gotoOverviewPage();
 }
-
 
 void BitcoinGUI::gotoAccountabilityPage()
 {

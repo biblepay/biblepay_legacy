@@ -5,13 +5,15 @@
 #ifndef RPCPOG_H
 #define RPCPOG_H
 
-#include "wallet/wallet.h"
 #include "hash.h"
 #include "net.h"
 #include "utilstrencodings.h"
 #include "chat.h"
 #include "main.h"
 #include <univalue.h>
+#ifdef ENABLE_WALLET
+#include "wallet/wallet.h"
+#endif
 
 std::string RetrieveMd5(std::string s1);
 
