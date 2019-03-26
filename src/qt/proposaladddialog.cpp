@@ -103,7 +103,7 @@ void ProposalAddDialog::on_btnSubmit_clicked()
 	std::string sAddress = GUIUtil::FROMQS(ui->txtAddress->text());
 	std::string sAmount = GUIUtil::FROMQS(ui->txtAmount->text());
 	std::string sURL = GUIUtil::FROMQS(ui->txtURL->text());
-	std::string sError = "";
+	std::string sError;
 	if (sName.length() < 3) sError += "Proposal Name must be populated. ";
 	CBitcoinAddress address(sAddress);
 	if (!address.IsValid()) sError += "Proposal Funding Address is invalid. ";
@@ -116,23 +116,25 @@ void ProposalAddDialog::on_btnSubmit_clicked()
 		sError += "There is a proposal already being submitted (" + msProposalResult + ").  Please wait until this proposal is sent before creating a new one. ";
 	}
 	
-	std::string sPrepareTxId = "";
-	std::string sHex = "";
-	int64_t unixEndTimestamp = GetAdjustedTime();
+	std::string sPrepareTxId;
+	std::string sHex;
 	int64_t unixStartTimestamp = GetAdjustedTime();
-		
+	int64_t unixEndTimestamp = GetAdjustedTime() + (60 * 60 * 24 * 30);
+	// Evo requires no spaces
+	sName = strReplace(sName, " ", "_");
+
 	if (sError.empty())
 	{
 		// gobject prepare 0 1 EPOCH_TIME HEX
 		std::string sType = "1"; //Proposal
 		std::string sQ = "\"";
 		std::string sJson = "[[" + sQ + "proposal" + sQ + ",{";
-		sJson += GJE("end_epoch", RoundToString(unixEndTimestamp, 0), true, true);
+		sJson += GJE("start_epoch", RoundToString(unixStartTimestamp, 0), true, false);
+		sJson += GJE("end_epoch", RoundToString(unixEndTimestamp, 0), true, false);
 		sJson += GJE("name", sName, true, true);
-		sJson += GJE("payment_address",sAddress, true, true);
-		sJson += GJE("payment_amount",sAmount, true, true);
-		sJson += GJE("start_epoch", RoundToString(unixStartTimestamp, 0), true, true);
-		sJson += GJE("type",sType, true, false);
+		sJson += GJE("payment_address", sAddress, true, true);
+		sJson += GJE("payment_amount", sAmount, true, false);
+		sJson += GJE("type", sType, true, false);
 		sJson += GJE("expensetype", sExpenseType, true, true);
 		sJson += GJE("url", sURL, false, true);
 		sJson += "}]]";
@@ -152,7 +154,8 @@ void ProposalAddDialog::on_btnSubmit_clicked()
 		{
 			if(!govobj.IsValidLocally(sError, false))
 			{
-				 sError = "Governance object is not valid - " + govobj.GetHash().ToString();
+				 LogPrintf("Error while creating governance object %s, object not valid. Error: %s \n", sJson, sError);
+				 sError += "Governance object is not valid - " + govobj.GetHash().ToString();
 			}
 
 			if (sError.empty())
@@ -166,7 +169,7 @@ void ProposalAddDialog::on_btnSubmit_clicked()
 	{
 		// Set the proposal up to be submitted after 6 confirms using Biblepay Governance Service:
 		nProposalPrepareHeight = chainActive.Tip()->nHeight;
-		msProposalResult = "Submitting Proposal in 6 blocks...";
+		msProposalResult = "Submitting Proposal at height " + RoundToString(nProposalPrepareHeight + 6, 0) + "...";
 		uTxIdFee = uint256S(sPrepareTxId);
 		nProposalStartTime = unixStartTimestamp;
 		msProposalHex = sHex;

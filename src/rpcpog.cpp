@@ -17,6 +17,7 @@
 #include "masternode-payments.h"
 #include "masternodeconfig.h"
 #include "messagesigner.h"
+#include "smartcontract-server.h"
 #include <boost/lexical_cast.hpp>
 #include <boost/algorithm/string/case_conv.hpp> // for to_lower()
 #include <boost/algorithm/string.hpp> // for trim()
@@ -954,9 +955,29 @@ bool VoteManyForGobject(std::string govobj, std::string strVoteSignal, std::stri
 		return false;
     }
 #endif
-
-    UniValue vOutcome = VoteWithMasternodeList(entries, hash, eVoteSignal, eVoteOutcome);
-	bool fResult = vOutcome["result"].get_str() == "success" ? true : false;
+	UniValue vOutcome;
+    
+	try
+	{
+		vOutcome = VoteWithMasternodeList(entries, hash, eVoteSignal, eVoteOutcome, nSuccessful, nFailed);
+	}
+	catch(std::runtime_error& e)
+	{
+		sError = e.what();
+		return false;
+	}
+	catch (std::exception& e) 
+	{
+       sError = e.what();
+	   return false;
+    }
+	catch (...) 
+	{
+		sError = "Voting failed.";
+		return false;
+	}
+    
+	bool fResult = nSuccessful > 0 ? true : false;
 	return fResult;
 }
 
@@ -2580,7 +2601,7 @@ std::string GetCPK(std::string sProjectId, std::string sPK)
 	return ReadCache(sProjectId, sPK);
 }
 
-bool AdvertiseChristianPublicKeypair(std::string sProjectId, std::string sNickName, bool fUnJoin, std::string &sError)
+bool AdvertiseChristianPublicKeypair(std::string sProjectId, std::string sNickName, bool fUnJoin, bool fForce, std::string &sError)
 {	
 	std::string sCPK = DefaultRecAddress("Christian-Public-Key");
 	std::string sRec = GetCPK(sProjectId, sCPK);
@@ -2591,11 +2612,22 @@ bool AdvertiseChristianPublicKeypair(std::string sProjectId, std::string sNickNa
 			return false;
 		}
 	}
-	else if (!sRec.empty()) 
+	else if (!sRec.empty() && !fForce) 
     {
 		sError = "ALREADY_IN_CHAIN";
 		return false;
     }
+
+	if (!sNickName.empty())
+	{
+		bool fExists = NickNameExists(sNickName);
+		if (fExists) 
+		{
+			sError = "Sorry, NickName is already taken.";
+			return false;
+		}
+	}
+
 	double nLastCPK = ReadCacheDouble(sProjectId);
 	const Consensus::Params& consensusParams = Params().GetConsensus();
 	if ((chainActive.Tip()->nHeight - nLastCPK) < 4 && nLastCPK > 0)

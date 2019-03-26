@@ -23,5 +23,6 @@ uint256 GetPAMHashByContract(std::string sContract);
 bool VoteForGSCContract(int nHeight, std::string sMyContract, std::string sError);
 std::string ExecuteGenericSmartContractQuorumProcess();
 UniValue GetProminenceLevels();
+bool NickNameExists(std::string sNickName);
 
 #endif

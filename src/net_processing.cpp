@@ -1467,7 +1467,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             return false;
         }
 
-        if (nVersion < nMinPeerProtoVersion)
+        if ((nVersion < nMinPeerProtoVersion) || (!fProd && nVersion < MIN_PEER_TESTNET_PROTO_VERSION))
         {
             // disconnect from peers older than this proto version
             LogPrintf("peer=%d using obsolete version %i; disconnecting\n", pfrom->id, nVersion);
@@ -1476,7 +1476,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             pfrom->fDisconnect = true;
             return false;
         }
-
+	
         if (nVersion == 10300)
             nVersion = 300;
         if (!vRecv.empty())

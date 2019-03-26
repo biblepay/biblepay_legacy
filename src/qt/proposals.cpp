@@ -143,7 +143,7 @@ void Proposals::ProcessVote(std::string gobject, std::string signal, std::string
 		std::string sVoteNarr = "";
 		if (nSuccessful > 0)
 		{
-			sVoteNarr = "Voting was successful.  Voted " + RoundToString(nSuccessful, 0) + " times, failed to vote " + RoundToString(nFailed, 0) + "time(s).  ";
+			sVoteNarr = "Voting was successful.  Voted " + RoundToString(nSuccessful, 0) + " times, failed to vote " + RoundToString(nFailed, 0) + " time(s).  ";
 			if (!sError.empty()) sVoteNarr += " [" + sError + "]";
 		}
 		else

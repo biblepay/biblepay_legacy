@@ -42,7 +42,7 @@ struct ExpirationInfo {
 typedef std::pair<CGovernanceObject, ExpirationInfo> object_info_pair_t;
 
 static const int RATE_BUFFER_SIZE = 5;
-UniValue VoteWithMasternodeList(const std::vector<CMasternodeConfig::CMasternodeEntry>& entries, const uint256& hash, vote_signal_enum_t eVoteSignal, vote_outcome_enum_t eVoteOutcome);
+UniValue VoteWithMasternodeList(const std::vector<CMasternodeConfig::CMasternodeEntry>& entries, const uint256& hash, vote_signal_enum_t eVoteSignal, vote_outcome_enum_t eVoteOutcome, int& nSuccess, int& nFail);
 
 class CRateCheckBuffer
 {

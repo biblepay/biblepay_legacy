@@ -1817,8 +1817,10 @@ UniValue exec(const JSONRPCRequest& request)
 		std::string sAddresses;
 		std::string sAmounts;
 		int iVotes = 0;
-		uint256 uPAMHash = uint256S("0x0");
 		uint256 uGovObjHash = uint256S("0x0");
+		uint256 uPAMHash = GetPAMHashByContract(sContract);
+		results.push_back(Pair("pam_hash", uPAMHash.GetHex()));
+	
 		GetGSCGovObjByHeight(iNextSuperblock, uPAMHash, iVotes, uGovObjHash, sAddresses, sAmounts);
 		std::string sError;
 		results.push_back(Pair("govobjhash", uGovObjHash.GetHex()));
@@ -1999,11 +2001,13 @@ UniValue exec(const JSONRPCRequest& request)
 	else if (sItem == "cpk")
 	{
 		std::string sError;
-		if (request.params.size() != 2)
-			throw std::runtime_error("You must specify exec cpk nickname.");
+		if (request.params.size() != 2 && request.params.size() != 3)
+			throw std::runtime_error("You must specify exec cpk nickname [optional: force=true/false].");
 		std::string sNickName = request.params[1].get_str();
-		
-		bool fAdv = AdvertiseChristianPublicKeypair("cpk", sNickName, false, sError);
+		bool fForce = false;
+		if (request.params.size() == 3)
+			fForce = request.params[2].get_str() == "true" ? true : false;
+		bool fAdv = AdvertiseChristianPublicKeypair("cpk", sNickName, false, fForce, sError);
 		results.push_back(Pair("Results", fAdv));
 		if (!fAdv)
 			results.push_back(Pair("Error", sError));
@@ -2011,12 +2015,12 @@ UniValue exec(const JSONRPCRequest& request)
 	else if (sItem == "unjoin")
 	{
 		if (request.params.size() != 2)
-			throw std::runtime_error("You must specify project_name to un-join.");
+			throw std::runtime_error("You must specify the project_name to un-join.");
 		std::string sProject = request.params[1].get_str();
 		std::string sError;
 		if (!CheckCampaign(sProject))
 			throw std::runtime_error("Campaign does not exist.");
-		bool fAdv = AdvertiseChristianPublicKeypair("cpk-" + sProject, "", true, sError);
+		bool fAdv = AdvertiseChristianPublicKeypair("cpk-" + sProject, "", true, false, sError);
 		results.push_back(Pair("Results", fAdv));
 		if (!fAdv)
 			results.push_back(Pair("Error", sError));
@@ -2024,12 +2028,12 @@ UniValue exec(const JSONRPCRequest& request)
 	else if (sItem == "join")
 	{
 		if (request.params.size() != 2)
-			throw std::runtime_error("You must specify project_name.");
+			throw std::runtime_error("You must specify the project_name.");
 		std::string sProject = request.params[1].get_str();
 		std::string sError;
 		if (!CheckCampaign(sProject))
 			throw std::runtime_error("Campaign does not exist.");
-		bool fAdv = AdvertiseChristianPublicKeypair("cpk-" + sProject, "", false, sError);
+		bool fAdv = AdvertiseChristianPublicKeypair("cpk-" + sProject, "", false, false, sError);
 		results.push_back(Pair("Results", fAdv));
 		if (!fAdv)
 			results.push_back(Pair("Error", sError));

@@ -3482,8 +3482,8 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
         }
     }
 	//////////////////////////////////////////////////////////  BIBLEPAY //////////////////////////////////////////////////////////////////////////
-	//                               Additional Checks for GSC (Generic-Smart-Contracts) and for ABN (Anti-Bot-Net) rules
-	//
+	//                               Additional Checks for GSC (Generic-Smart-Contracts) and for ABN (Anti-Bot-Net) rules                        //
+	//                                                                                                                                           //
 	double nMinRequiredABNWeight = GetSporkDouble("requiredabnweight", 0);
 	if (nHeight > consensusParams.ABNHeight && nMinRequiredABNWeight > 0 && !LateBlock(block))
 	{
@@ -3492,11 +3492,13 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
 		{
 			LogPrintf("\nContextualCheckBlock::ABN ERROR!  Block %f does not meet anti-bot-net-minimum required guidelines: BlockWeight %f, RequiredWeight %f", 
 				(double)nHeight, (double)nABNWeight, nMinRequiredABNWeight);
-			// CRITICAL - Before we go to prod, add a D-DOS here
+			double nEnforce = GetSporkDouble("enforceabnweight", 0);
+			if (nEnforce == 1)
+				return state.DoS(10, false, REJECT_INVALID, "low-abn-weight", false, "Insufficient ABN weight");
 		}
 	}
 
-	//
+	//                                                                                                                                           //
 	////////////////////////////////////////////////////// END OF BIBLEPAY ////////////////////////////////////////////////////////////////////////
     return true;
 }
