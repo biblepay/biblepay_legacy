@@ -9,7 +9,7 @@
 #include "init.h"
 #include "utilstrencodings.h"
 #include "validation.h"
-
+#include "rpcpog.h"
 #include <boost/algorithm/string.hpp>
 
 #include <univalue.h>
@@ -560,6 +560,25 @@ bool CSuperblock::IsDCCSuperblock(int nHeight)
 	}
 }
 
+int Get24HourAvgBits(const CBlockIndex* pindexSource, int nPrevBits)
+{
+	const CBlockIndex *pindexLast = pindexSource;
+	if (pindexLast == NULL || pindexLast->nHeight == 0)  return nPrevBits;
+	int nLookback = BLOCKS_PER_DAY;
+	double nTotal = 0;
+	double nSamples = 0;
+	for (int i = 1; i <= nLookback; i++) 
+	{
+		if (pindexLast->pprev == NULL) { break; }
+		nTotal += pindexLast->nBits;
+		nSamples++;
+		pindexLast = pindexLast->pprev;
+	}
+	if (nSamples < 1) return nPrevBits;
+	double nAvg = nTotal / nSamples;
+	return (int)nAvg;
+}
+
 CAmount CSuperblock::GetPaymentsLimit(int nBlockHeight)
 {
 	if (nBlockHeight < 1) return 0;
@@ -569,13 +588,11 @@ CAmount CSuperblock::GetPaymentsLimit(int nBlockHeight)
     if (!IsValidBlockHeight(nBlockHeight) && !IsDCCSuperblock(nBlockHeight) && !IsSmartContract(nBlockHeight)) 
         return 0;
     
-	// CRITICAL TODO: // When we decide to move to GSC's, let's get the average 30 day trailing diff and apply it to the GSC contract; this will ensure all low payment/high diff blocks are passed on through the GSC
-
-    // min subsidy for high diff networks and vice versa
-    int nBits = 486585255;  // Set diff at about 1.42 for Superblocks
-	
+	// Use this difficulty only for Monthly governance (which accounts for 20% of emissions, but use trailing 24 hour diff for smart contracts)
+	int nBits = 486585255;
+		
     // Some part of all blocks issued during the cycle goes to superblock, see GetBlockSubsidy
-	// We have a 28.50%/20% escrow being held back from each block, (or 48.50%).  28.5% is for the daily generic smart contract superblock, 20% for the monthly governance budget (This is split into 65% for Daily rewards and 35% for monthly rewards).
+	// We have 48.50% escrow being held back from each block, 28.5% is for the daily generic smart contract superblock, 20% for the monthly governance budget; split into 65% for Daily rewards and 35% for monthly rewards.
 	
 	int nSuperblockCycle = 0;
 	double nBudgetFactor = 0;
@@ -591,13 +608,19 @@ CAmount CSuperblock::GetPaymentsLimit(int nBlockHeight)
 		// RETIRED - Daily
 		nSuperblockCycle = consensusParams.nDCCSuperblockCycle;
  		nBudgetFactor = .65;
-		if (nBlockHeight > 33600 && nBlockHeight < consensusParams.PODC_LAST_BLOCK) nBudgetFactor = 1.0; // Early DC Superblocks paid the entire budget.
+		if (fProd && nBlockHeight > 33600 && nBlockHeight < consensusParams.PODC_LAST_BLOCK) nBudgetFactor = 1.0; // Early DC Superblocks paid the entire budget.
 	}
 	else if (IsSmartContract(nBlockHeight))
 	{
 		// Active - Daily
 		nSuperblockCycle = consensusParams.nDCCSuperblockCycle;
  		nBudgetFactor = .65;
+		// Use the actual average difficulty level over 24 hours as of 7 days ago for Daily Payments (this means that we pay less out when block difficulty limited the subsidy).  We go back 7 days to allow planning and keep anti-fork logic.
+		int nAssessmentHeight = nBlockHeight - (BLOCKS_PER_DAY * 7);
+		if (nAssessmentHeight < 1) nAssessmentHeight = 1;
+		CBlockIndex* pindex = FindBlockByHeight(nAssessmentHeight);
+		nBits = Get24HourAvgBits(pindex, nBits);
+		LogPrintf(" AssessmentHeight %f, BlockHeight %f, 24HrAvgBits %f \n", (double)nAssessmentHeight, (double)nBlockHeight, (double)nBits);
 	}
 	else
 	{
@@ -611,9 +634,7 @@ CAmount CSuperblock::GetPaymentsLimit(int nBlockHeight)
 	CAmount nAbsoluteMaxMonthlyBudget = MAX_BLOCK_SUBSIDY * BLOCKS_PER_DAY * 30 * .20 * COIN; // Ensure monthly budget is never > 20% of avg monthly total block emission regardless of low difficulty in PODC
 	if (nPaymentsLimit > nAbsoluteMaxMonthlyBudget) nPaymentsLimit = nAbsoluteMaxMonthlyBudget;
     LogPrint("net", "CSuperblock::GetPaymentsLimit -- Valid superblock height %d, payments max %d \n", (double)nBlockHeight, (double)nPaymentsLimit/COIN);
-	LogPrint("gobject", "CSuperblock::GetPaymentsLimit -- Valid superblock height %d, payments max %d \n", (double)nBlockHeight, (double)nPaymentsLimit/COIN);
-	LogPrintf("CSuperblock::GetPaymentsLimit -- Valid superblock height %d, payments max %d \n", (double)nBlockHeight, (double)nPaymentsLimit/COIN);
-
+	
     return nPaymentsLimit;
 }
 

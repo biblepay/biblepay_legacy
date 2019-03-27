@@ -54,7 +54,7 @@ UniValue GetCampaigns()
 	for (std::pair<std::string, CPK> a : cp)
 	{
 		CPK c1 = a.second;
-		results.push_back(Pair("member " + a.first, c1.sAddress));
+		results.push_back(Pair("member [" + c1.sNickName + "]" + a.first, c1.sAddress));
 	}
 
 	// List of CPKs per Campaign

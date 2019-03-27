@@ -69,7 +69,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
 				sub.IsGSCPayment = wtx.tx->IsGSCPayment();
 				sub.IsSuperblockPayment = wtx.tx->IsSuperblockPayment();
 				sub.IsABN = wtx.tx->IsABN();
-	
+				
                 if (ExtractDestination(txout.scriptPubKey, address) && IsMine(*wallet, address))
                 {
                     // Received by Biblepay Address
@@ -238,7 +238,9 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                     // Sent to Biblepay Address
                     sub.type = TransactionRecord::SendToAddress;
                     sub.address = CBitcoinAddress(address).ToString();
-                }
+					if (wtx.tx->IsCPKAssociation()) 
+                        sub.type = TransactionRecord::CPKAssociation;  
+			    }
                 else
                 {
                     // Sent to IP, or other non-address transaction like OP_EVAL

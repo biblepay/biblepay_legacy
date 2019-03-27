@@ -21,7 +21,7 @@
 #include "messagesigner.h"
 #include <boost/lexical_cast.hpp>
 #include <boost/algorithm/string/case_conv.hpp> // for to_lower()
-#include <boost/algorithm/string.hpp> // for trim()
+#include <boost/algorithm/string.hpp> // for trim(), and case insensitive compare
 #include <boost/date_time/posix_time/posix_time.hpp> // for StringToUnixTime()
 #include <math.h>       /* round, floor, ceil, trunc */
 #include <boost/asio.hpp>
@@ -149,6 +149,17 @@ bool VoteForGobject(uint256 govobj, std::string sVoteOutcome, std::string& sErro
    
 }
 
+bool NickNameExists(std::string sNickName)
+{
+	std::map<std::string, CPK> mAllCPKs = GetGSCMap("cpk", "", true);
+	boost::to_upper(sNickName);
+	for (std::pair<std::string, CPK> a : mAllCPKs)
+	{
+		if (boost::iequals(a.second.sNickName, sNickName))
+			return true;
+	}
+	return false;
+}
 
 std::string AssessBlocks(int nHeight)
 {
@@ -161,6 +172,8 @@ std::string AssessBlocks(int nHeight)
 	CBlockIndex* pindex = FindBlockByHeight(nMinDepth);
 	const Consensus::Params& consensusParams = Params().GetConsensus();
 	std::map<std::string, CPK> mPoints;
+	std::map<std::string, CPK> mAllCPKs = GetGSCMap("cpk", "", true);
+
 	while (pindex && pindex->nHeight < nMaxDepth)
 	{
 		if (pindex->nHeight < chainActive.Tip()->nHeight) 
@@ -174,7 +187,8 @@ std::string AssessBlocks(int nHeight)
 				{
 					std::string sCampaignName;
 					std::string sCPK = GetTxCPK(block.vtx[n], sCampaignName);
-					// Ensure CPK is in good standing here
+					CPK localCPK = GetCPK(sCPK);
+
 					double nCoinAge = 0;
 					CAmount nDonation = 0;
 					GetTransactionPoints(pindex, block.vtx[n], nCoinAge, nDonation);
@@ -187,9 +201,10 @@ std::string AssessBlocks(int nHeight)
 							c.nPoints += nPoints;
 							c.sCampaign = sCampaignName;
 							c.sAddress = sCPK;
+							c.sNickName = mAllCPKs[sCPK].sNickName;
 							mPoints[sCPK] = c;
 							if (fDebug)
-								LogPrintf("\nUser %s , Points %f, Campaign %s, coinage %f, donation %f, usertotal %f ",c.sAddress, (double)nPoints, c.sCampaign, (double)nCoinAge, (double)nDonation/COIN, (double)c.nPoints);
+								LogPrintf("\nUser %s , Points %f, Campaign %s, coinage %f, donation %f, usertotal %f ", c.sAddress, (double)nPoints, c.sCampaign, (double)nCoinAge, (double)nDonation/COIN, (double)c.nPoints);
 						}
 					}
 				}
@@ -389,7 +404,7 @@ uint256 GetPAMHash(std::string sAddresses, std::string sAmounts)
 uint256 GetPAMHashByContract(std::string sContract)
 {
 	std::string sAddresses = ExtractXML(sContract, "<ADDRESSES>","</ADDRESSES>");
-	std::string sAmounts = ExtractXML(sContract, "<AMOUNTS>","</AMOUNTS>");
+	std::string sAmounts = ExtractXML(sContract, "<PAYMENTS>","</PAYMENTS>");
 	uint256 u = GetPAMHash(sAddresses, sAmounts);
 	return u;
 }
@@ -410,12 +425,14 @@ void GetGSCGovObjByHeight(int nHeight, uint256 uOptFilter, int& out_nVotes, uint
 		if(strType == "watchdogs" && pGovObj->GetObjectType() != GOVERNANCE_OBJECT_WATCHDOG) continue;
 		int64_t nLocalHeight = 0;
 		CProposalValidator validator(pGovObj->GetDataAsHexString());
-		if (validator.GetDataValue("end_epoch", nLocalHeight) && validator.GetDataValue("payment_addresses", sPAD) && validator.GetDataValue("payment_amounts", sPAM))
+		if (validator.GetDataValue("event_block_height", nLocalHeight) && validator.GetDataValue("payment_addresses", sPAD) && validator.GetDataValue("payment_amounts", sPAM))
 		{
 			if (nLocalHeight == nHeight)
 			{
 				int iVotes = pGovObj->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING);
 				uint256 uHash = GetPAMHash(sPAD, sPAM);
+				LogPrintf(" Found gscgovobj %s with votes %f with pam hash %s ",pGovObj->GetHash().GetHex(), (double)iVotes, uHash.GetHex());
+
 				if (uOptFilter != uint256S("0x0") && uHash != uOptFilter) continue;
 				// This governance-object matches the trigger height and the optional filter
 				if (iVotes > iHighVotes) 
@@ -515,11 +532,11 @@ UniValue GetProminenceLevels()
 		{
 			std::string sCPK = vRow[0];
 			double nPoints = cdbl(vRow[1], 2);
-			double nProminence = cdbl(vRow[2], 2);
+			double nProminence = cdbl(vRow[2], 4) * 100;
 			std::string sNickName = vRow[3];
 			if (sNickName.empty()) sNickName = "N/A";
 			std::string sMoniker = sCPK + " [" + sNickName + "]" + " - " + RoundToString(nPoints, 2);
-			results.push_back(Pair(sMoniker, nProminence * 100));
+			results.push_back(Pair(sMoniker, nProminence));
 		}
 	}
 

@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>776</width>
-    <height>387</height>
+    <width>827</width>
+    <height>438</height>
    </rect>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout" stretch="0,0,1">
@@ -94,7 +94,7 @@
         <item row="2" column="2">
          <widget class="QLabel" name="label_5">
           <property name="text">
-           <string>Biblepay - Add New Proposal - 1.0&lt;br&gt;</string>
+           <string>Biblepay - Add New Proposal - v1.1&lt;br&gt;</string>
           </property>
          </widget>
         </item>
@@ -277,6 +277,10 @@
  </widget>
  <tabstops>
   <tabstop>txtName</tabstop>
+  <tabstop>txtAmount</tabstop>
+  <tabstop>txtURL</tabstop>
+  <tabstop>txtAddress</tabstop>
+  <tabstop>cmbExpenseType</tabstop>
   <tabstop>btnSubmit</tabstop>
  </tabstops>
  <resources>

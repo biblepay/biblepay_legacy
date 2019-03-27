@@ -146,7 +146,7 @@ std::string GJE(std::string sKey, std::string sValue, bool bIncludeDelimiter, bo
 bool InstantiateOneClickMiningEntries();
 bool WriteKey(std::string sKey, std::string sValue);
 std::string GetTransactionMessage(CTransactionRef tx);
-bool AdvertiseChristianPublicKeypair(std::string sProjectId, std::string sNickName, bool fUnJoin, std::string &sError);
+bool AdvertiseChristianPublicKeypair(std::string sProjectId, std::string sNickName, bool fUnJoin, bool fForce, std::string &sError);
 CWalletTx CreateAntiBotNetTx(CBlockIndex* pindexLast, double nMinCoinAge, CReserveKey& reservekey, std::string& sXML, std::string& sError);
 double GetAntiBotNetWeight(CBlockIndex* pindex, CTransactionRef tx);
 double GetABNWeight(const CBlock& block);
@@ -157,6 +157,7 @@ double ReadCacheDouble(std::string sKey);
 bool CheckAntiBotNetSignature(CTransactionRef tx, std::string sType);
 double GetVINCoinAge(CBlockIndex* pindex, CTransactionRef tx);
 CAmount GetTitheAmount(CTransactionRef ctx);
+CPK GetCPK(std::string sData);
 
 
 #endif

@@ -923,6 +923,13 @@ void restoreWindowGeometry(const QString& strSetting, const QSize& defaultSize, 
 QString getThemeName()
 {
     QSettings settings;
+	static bool fDebugged = false;
+	if (fDebug && !fDebugged)
+	{
+		fDebugged = true;
+		std::string sMySettings = settings.fileName().toUtf8().constData();
+		LogPrintf("\n Using QT settings file location %s \n", sMySettings);
+	}
     QString theme = settings.value("theme", "").toString();
 
     if(!theme.isEmpty()){

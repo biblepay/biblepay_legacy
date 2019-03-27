@@ -468,7 +468,7 @@ UniValue gobject_vote_conf(const JSONRPCRequest& request)
 
 UniValue VoteWithMasternodeList(const std::vector<CMasternodeConfig::CMasternodeEntry>& entries,
                                 const uint256& hash, vote_signal_enum_t eVoteSignal,
-                                vote_outcome_enum_t eVoteOutcome)
+                                vote_outcome_enum_t eVoteOutcome, int& nSuccessful, int& nFailed)
 {
     int govObjType;
     {
@@ -479,9 +479,6 @@ UniValue VoteWithMasternodeList(const std::vector<CMasternodeConfig::CMasternode
         }
         govObjType = pGovObj->GetObjectType();
     }
-
-    int nSuccessful = 0;
-    int nFailed = 0;
 
     UniValue resultsObj(UniValue::VOBJ);
 
@@ -638,8 +635,11 @@ UniValue gobject_vote_many(const JSONRPCRequest& request)
         throw JSONRPCError(RPC_INVALID_PARAMETER, "vote-many not supported when wallet is disabled.");
     }
 #endif
+	
+    int nSuccessful = 0;
+    int nFailed = 0;
 
-    return VoteWithMasternodeList(entries, hash, eVoteSignal, eVoteOutcome);
+    return VoteWithMasternodeList(entries, hash, eVoteSignal, eVoteOutcome, nSuccessful, nFailed);
 }
 
 void gobject_vote_alias_help()
@@ -708,8 +708,11 @@ UniValue gobject_vote_alias(const JSONRPCRequest& request)
                 entries.push_back(mne);
         }
     }
+	
+    int nSuccessful = 0;
+    int nFailed = 0;
 
-    return VoteWithMasternodeList(entries, hash, eVoteSignal, eVoteOutcome);
+    return VoteWithMasternodeList(entries, hash, eVoteSignal, eVoteOutcome, nSuccessful, nFailed);
 }
 
 UniValue ListObjects(const std::string& strCachedSignal, const std::string& strType, int nStartTime)

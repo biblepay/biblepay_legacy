@@ -1617,7 +1617,7 @@ void BitcoinGUI::detectShutdown()
 
 	// Governance - Check to see if we should submit a proposal
     nProposalModulus++;
-    if (false && nProposalModulus % 15 == 0 && !fLoadingIndex)
+    if (nProposalModulus % 15 == 0 && !fLoadingIndex)
     {
         nProposalModulus = 0;
         if (fProposalNeedsSubmitted)
@@ -1629,6 +1629,10 @@ void BitcoinGUI::detectShutdown()
                 std::string sError;
                 std::string sGovObj;
                 bool fSubmitted = SubmitProposalToNetwork(uTxIdFee, nProposalStartTime, msProposalHex, sError, sGovObj);
+				if (!sError.empty())
+				{
+					LogPrintf("Proposal Submission Problem: %s ", sError);
+				}
                 msProposalResult = fSubmitted ? "Submitted Proposal Successfully <br>( " + sGovObj + " )" : sError;
                 LogPrintf(" Proposal Submission Result:  %s  \n", msProposalResult.c_str());
             }
