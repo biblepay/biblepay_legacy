@@ -621,6 +621,12 @@ double GetTitheAgeAndSpentAmount(CTransaction ctx, CBlockIndex* pindex, CAmount&
 	return nTitheAge;
 }
 */
+
+CAmount GetRPCBalance()
+{
+	return pwalletMain->GetBalance();
+}
+
 bool RPCSendMoney(std::string& sError, const CTxDestination &address, CAmount nValue, bool fSubtractFeeFromAmount, CWalletTx& wtxNew, bool fUseInstantSend, std::string sOptionalData)
 {
     CAmount curBalance = pwalletMain->GetBalance();

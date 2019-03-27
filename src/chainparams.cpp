@@ -404,11 +404,11 @@ public:
         consensus.DIP0001Height = 5500;
         consensus.powLimit = uint256S("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"); 
         consensus.nPowTargetTimespan = 24 * 60 * 60; // Biblepay: 1 day
-        consensus.nPowTargetSpacing = 1 * 60; // Biblepay: 2.5 minutes
+        consensus.nPowTargetSpacing = 1 * 60; // Biblepay: 1 minutes
         consensus.fPowAllowMinDifficultyBlocks = true;
         consensus.fPowNoRetargeting = false;
-        consensus.nPowKGWHeight = 4002; // nPowKGWHeight >= nPowDGWHeight means "no KGW"
-        consensus.nPowDGWHeight = 4002;
+        consensus.nPowKGWHeight = 1; // nPowKGWHeight >= nPowDGWHeight means "no KGW"
+        consensus.nPowDGWHeight = 1;
         consensus.nRuleChangeActivationThreshold = 1512; // 75% for testchains
         consensus.nMinerConfirmationWindow = 205; // nPowTargetTimespan / nPowTargetSpacing
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].bit = 28;
@@ -560,8 +560,8 @@ public:
 		consensus.nPowTargetSpacing = 2.5 * 60; // Biblepay: 2.5 minutes
 		consensus.fPowAllowMinDifficultyBlocks = true;
 		consensus.fPowNoRetargeting = false;
-		consensus.nPowKGWHeight = 4001; // nPowKGWHeight >= nPowDGWHeight means "no KGW"
-		consensus.nPowDGWHeight = 4001;
+		consensus.nPowKGWHeight = 1; // nPowKGWHeight >= nPowDGWHeight means "no KGW"
+		consensus.nPowDGWHeight = 1;
 		consensus.nRuleChangeActivationThreshold = 1512; // 75% for testchains
 		consensus.nMinerConfirmationWindow = 2016; // nPowTargetTimespan / nPowTargetSpacing
 		consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].bit = 28;
@@ -711,8 +711,8 @@ public:
         consensus.nPowTargetSpacing = 2.5 * 60; // Biblepay: 2.5 minutes
         consensus.fPowAllowMinDifficultyBlocks = true;
         consensus.fPowNoRetargeting = true;
-        consensus.nPowKGWHeight = 15200; // same as mainnet
-        consensus.nPowDGWHeight = 34140; // same as mainnet
+        consensus.nPowKGWHeight = 1; // same as mainnet
+        consensus.nPowDGWHeight = 1; // same as mainnet
         consensus.nRuleChangeActivationThreshold = 108; // 75% for testchains
         consensus.nMinerConfirmationWindow = 144; // Faster than normal for regtest (144 instead of 2016)
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].bit = 28;

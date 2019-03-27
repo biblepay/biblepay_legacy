@@ -14,6 +14,7 @@
 #include "messagesigner.h"
 #include "netfulfilledman.h"
 #include "netmessagemaker.h"
+#include "rpcpog.h"
 #ifdef ENABLE_WALLET
 #include "privatesend-client.h"
 #endif // ENABLE_WALLET
@@ -1939,9 +1940,12 @@ void CMasternodeMan::WarnMasternodeDaemonUpdates()
         return;
 
     int nUpdatedMasternodes{0};
-
-    for (const auto& mnpair : mapMasternodes) {
-        if (mnpair.second.lastPing.nDaemonVersion > CLIENT_VERSION) {
+	int THEIR_VERSION = 0;
+    for (const auto& mnpair : mapMasternodes) 
+	{
+        if (mnpair.second.lastPing.nDaemonVersion > CLIENT_VERSION) 
+		{
+			THEIR_VERSION = mnpair.second.lastPing.nDaemonVersion;
             ++nUpdatedMasternodes;
         }
     }
@@ -1952,8 +1956,8 @@ void CMasternodeMan::WarnMasternodeDaemonUpdates()
 
     std::string strWarning;
     if (nUpdatedMasternodes != size()) {
-        strWarning = strprintf(_("Warning: At least %d of %d masternodes are running on a newer software version. Please check latest releases, you might need to update too."),
-                    nUpdatedMasternodes, size());
+        strWarning = strprintf(_("Warning: At least %d of %d masternodes are running on a newer software version [%f]. Please check latest releases, you might need to update too (You are running [%f].)"), 
+			 nUpdatedMasternodes, size(), (double)THEIR_VERSION, (double)CLIENT_VERSION);
     } else {
         // someone was postponing this update for way too long probably
         strWarning = strprintf(_("Warning: Every masternode (out of %d known ones) is running on a newer software version. Please check latest releases, it's very likely that you missed a major/critical update."),

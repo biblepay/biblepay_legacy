@@ -388,7 +388,7 @@ QString TransactionTableModel::formatTxType(const TransactionRecord *wtx) const
 		return tr("Superblock Payment");
 	case TransactionRecord::GSCPayment:
 		return tr("Smart-Contract Reward");
-    case TransactionRecord::Generated:
+	case TransactionRecord::Generated:
         return tr("Mined");
     case TransactionRecord::PrivateSendDenominate:
         return tr("PrivateSend Denominate");
@@ -418,7 +418,7 @@ QVariant TransactionTableModel::txAddressDecoration(const TransactionRecord *wtx
 		case TransactionRecord::CPKAssociation:
 			return QIcon(":/icons/drkblue/cross3232");
 		case TransactionRecord::GSCTransmission:
-			return QIcon(":/icons/drkblue/tx_output");
+			return QIcon(":/icons/drkblue/donation32");
 	    case TransactionRecord::Generated:
 		    return QIcon(":/icons/" + theme + "/tx_mined");
 		case TransactionRecord::RecvWithPrivateSend:

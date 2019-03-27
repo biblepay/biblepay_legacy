@@ -158,6 +158,7 @@ bool CheckAntiBotNetSignature(CTransactionRef tx, std::string sType);
 double GetVINCoinAge(CBlockIndex* pindex, CTransactionRef tx);
 CAmount GetTitheAmount(CTransactionRef ctx);
 CPK GetCPK(std::string sData);
+CAmount GetRPCBalance();
 
 
 #endif
