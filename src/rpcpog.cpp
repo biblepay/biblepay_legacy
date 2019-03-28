@@ -2801,14 +2801,22 @@ CWalletTx CreateAntiBotNetTx(CBlockIndex* pindexLast, double nMinCoinAge, CReser
 	return wtx;
 }
 
-double GetABNWeight(const CBlock& block)
+double GetABNWeight(const CBlock& block, bool fMining)
 {
 	if (block.vtx.size() < 1) return 0;
 	std::string sMsg = GetTransactionMessage(block.vtx[0]);
 	int nABNLocator = (int)cdbl(ExtractXML(sMsg, "<abnlocator>", "</abnlocator>"), 0);
 	if (block.vtx.size() < nABNLocator) return 0;
 	CTransactionRef tx = block.vtx[nABNLocator];
-	CBlockIndex* pindex = mapBlockIndex[block.GetHash()];
+	CBlockIndex* pindex;
+	if (!fMining)
+	{
+		pindex = mapBlockIndex[block.GetHash()];
+	}
+	else
+	{
+		pindex=chainActive.Tip();
+	}
 	if (!pindex) return 0;
 	double dWeight = GetAntiBotNetWeight(pindex, tx);
 	return dWeight;

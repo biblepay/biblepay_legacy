@@ -319,7 +319,9 @@ bool CSuperblockManager::IsSuperblockTriggered(int nBlockHeight)
 
 bool CSuperblockManager::GetBestSuperblock(CSuperblock_sptr& pSuperblockRet, int nBlockHeight)
 {
-    if (!CSuperblock::IsValidBlockHeight(nBlockHeight) && !CSuperblock::IsSmartContract(nBlockHeight)) {
+    if (!CSuperblock::IsValidBlockHeight(nBlockHeight) && !CSuperblock::IsSmartContract(nBlockHeight)) 
+	{
+		LogPrintf("**GETBESTSUPERBLOCK::HEIGHT %f, Not a valid superblock height**", nBlockHeight);
         return false;
     }
 

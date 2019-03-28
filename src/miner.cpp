@@ -955,6 +955,25 @@ bool PeersExist()
 	 return (iConCount > 0);
 }
 
+bool LateBlock(CBlock block)
+{
+	// After 60 minutes, we no longer require the anti-bot-net weight (prevent the chain from freezing)
+	int64_t nAge = GetAdjustedTime() - block.GetBlockTime();
+	return nAge > (60 * 60) ? true : false;
+}
+
+bool IsMyABNSufficient(CBlock block, int nHeight)
+{
+	const Consensus::Params& consensusParams = Params().GetConsensus();
+	double nMinRequiredABNWeight = GetSporkDouble("requiredabnweight", 0);
+	if (nHeight > consensusParams.ABNHeight && nMinRequiredABNWeight > 0 && !LateBlock(block))
+	{
+		double nABNWeight = GetABNWeight(block, true);
+		if (nABNWeight < nMinRequiredABNWeight) return false;
+	}
+	return true;
+}
+
 void static BibleMiner(const CChainParams& chainparams, int iThreadID, int iFeatureSet)
 {
 	LogPrintf("BibleMiner -- started thread %f \n", (double)iThreadID);
@@ -1055,7 +1074,10 @@ recover:
 				LogPrint("miner", "No block to mine %f", iThreadID);
 				goto recover;
             }
-            CBlock *pblock = &pblocktemplate->block;
+			CBlock *pblock = &pblocktemplate->block;
+			bool bABNOK = IsMyABNSufficient(pblocktemplate->block, pindexPrev->nHeight);
+			LogPrintf(" ABN OK: %f ", (double)bABNOK);
+
             IncrementExtraNonce(pblock, pindexPrev, nExtraNonce);
 			nHashesDone++;
 			UpdateHashesPerSec(nHashesDone);
@@ -1151,6 +1173,8 @@ recover:
 						}
 						if (dMinerSleep > 0) 
 							MilliSleep(dMinerSleep);
+						if (!bABNOK)
+							MilliSleep(1000);  // ABN not sufficient; sleep unless block becomes late
 					}
 				
 					// 0x4FFF is approximately 20 seconds, then we update hashmeter
@@ -1165,7 +1189,13 @@ recover:
                 boost::this_thread::interruption_point();
                 // Regtest mode doesn't require peers
                 iOuterLoop++;
-			
+				if (!bABNOK)
+				{
+					MilliSleep(5000);
+					break;  // Allow them to try to create a new block (the 5 second sleep is to ensure that we don't hit the user with too many new ABN transactions per minute.
+					// NOTE: If the block is Late (> 60 mins old), bABNOK will be true (meaning they can mine at full speed during a late block)
+				}
+
 				if (fPoolMiningMode && (!sPoolMiningAddress.empty()) && ((GetAdjustedTime() - nLastReadyToMine) > POOL_MAX_MINUTES))
 				{
 					LogPrint("miner", "Pool mining hard block; checking for new work; \n");

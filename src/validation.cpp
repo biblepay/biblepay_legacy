@@ -2352,7 +2352,8 @@ static bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockInd
 	if (!fLoadingIndex) 
 	{
 		MemorizeBlockChainPrayers(true, false, false, false);
-		ExecuteGenericSmartContractQuorumProcess();
+		std::string sStatus = ExecuteGenericSmartContractQuorumProcess();
+		LogPrintf("EGSCQP %f %s", (double)pindex->nHeight, sStatus);
 	}
 	// END BIBLEPAY
 
@@ -3487,7 +3488,7 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
 	double nMinRequiredABNWeight = GetSporkDouble("requiredabnweight", 0);
 	if (nHeight > consensusParams.ABNHeight && nMinRequiredABNWeight > 0 && !LateBlock(block))
 	{
-		double nABNWeight = GetABNWeight(block);
+		double nABNWeight = GetABNWeight(block, false);
 		if (nABNWeight < nMinRequiredABNWeight)
 		{
 			LogPrintf("\nContextualCheckBlock::ABN ERROR!  Block %f does not meet anti-bot-net-minimum required guidelines: BlockWeight %f, RequiredWeight %f", 

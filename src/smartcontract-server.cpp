@@ -93,11 +93,10 @@ bool VoteForGobject(uint256 govobj, std::string sVoteOutcome, std::string& sErro
 	vote_outcome_enum_t eVoteOutcome = CGovernanceVoting::ConvertVoteOutcome(sVoteOutcome);
 	int nSuccessful = 0;
 	int nFailed = 0;
-	uint256 hash;
 	int govObjType;
 	{
         LOCK(governance.cs);
-        CGovernanceObject *pGovObj = governance.FindGovernanceObject(hash);
+        CGovernanceObject *pGovObj = governance.FindGovernanceObject(govobj);
         if (!pGovObj) 
 		{
 			sError = "Governance object not found";
@@ -115,7 +114,7 @@ bool VoteForGobject(uint256 govobj, std::string sVoteOutcome, std::string& sErro
 		return false;
     }
 
-    CGovernanceVote vote(mn.outpoint, hash, eVoteSignal, eVoteOutcome);
+    CGovernanceVote vote(mn.outpoint, govobj, eVoteSignal, eVoteOutcome);
 
     bool signSuccess = false;
     if (deterministicMNManager->IsDeterministicMNsSporkActive()) {
@@ -264,7 +263,7 @@ int GetRequiredQuorumLevel(int nHeight)
 	return nReq;
 }
 
-bool VoteForGSCContract(int nHeight, std::string sMyContract, std::string sError)
+bool VoteForGSCContract(int nHeight, std::string sMyContract, std::string& sError)
 {
 	int iPendingVotes = 0;
 	uint256 uGovObjHash;
@@ -405,10 +404,8 @@ uint256 GetPAMHashByContract(std::string sContract)
 {
 	std::string sAddresses = ExtractXML(sContract, "<ADDRESSES>","</ADDRESSES>");
 	std::string sAmounts = ExtractXML(sContract, "<PAYMENTS>","</PAYMENTS>");
-	
 	uint256 u = GetPAMHash(sAddresses, sAmounts);
-	LogPrintf("GetPAMByContract addr %s, amounts %s, uint %s",sAddresses, sAmounts, u.GetHex());
-
+	/* LogPrintf("GetPAMByContract addr %s, amounts %s, uint %s",sAddresses, sAmounts, u.GetHex()); */
 	return u;
 }
 
@@ -432,7 +429,7 @@ void GetGSCGovObjByHeight(int nHeight, uint256 uOptFilter, int& out_nVotes, uint
 			std::string sPAM = obj["payment_amounts"].get_str();
 			int iVotes = myGov->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING);
 			uint256 uHash = GetPAMHash(sPAD, sPAM);
-			LogPrintf("\n Found gscgovobj2 %s with votes %f with pad %s and pam %s , pam hash %s ", myGov->GetHash().GetHex(), (double)iVotes, sPAD, sPAM, uHash.GetHex());
+			/* LogPrintf("\n Found gscgovobj2 %s with votes %f with pad %s and pam %s , pam hash %s ", myGov->GetHash().GetHex(), (double)iVotes, sPAD, sPAM, uHash.GetHex()); */
 			if (uOptFilter != uint256S("0x0") && uHash != uOptFilter) continue;
 			// This governance-object matches the trigger height and the optional filter
 			if (iVotes > iHighVotes) 
@@ -553,7 +550,7 @@ std::string ExecuteGenericSmartContractQuorumProcess()
 		return "INVALID_CHAIN";
 	if (!ChainSynced(chainActive.Tip()))
 		return "CHAIN_NOT_SYNCED";
-	bool fQuorum = (chainActive.Tip()->nHeight % 12 == 0);
+	bool fQuorum = (chainActive.Tip()->nHeight % 9 == 0);
 	if (!fQuorum)
 		return "NOT_TIME_FOR_QUORUM";
 		
@@ -585,7 +582,7 @@ std::string ExecuteGenericSmartContractQuorumProcess()
 		std::string sQuorumTrigger = SerializeSanctuaryQuorumTrigger(iLastSuperblock, iNextSuperblock, sContract);
 		std::string sGobjectHash;
 		SubmitGSCTrigger(sQuorumTrigger, sGobjectHash, sError);
-		LogPrintf(" ** ExecuteGenericSmartContractQuorumProcess::CreatingGSCContract Hex %s , Gobject %s, results %s **\n", sQuorumTrigger.c_str(), sGobjectHash.c_str(), sError.c_str());
+		LogPrintf("**ExecuteGenericSmartContractQuorumProcess::CreatingGSCContract Hex %s , Gobject %s, results %s **\n", sQuorumTrigger.c_str(), sGobjectHash.c_str(), sError.c_str());
 		return "CREATING_CONTRACT";
 	}
 	if (iVotes < iRequiredVotes)
@@ -595,12 +592,11 @@ std::string ExecuteGenericSmartContractQuorumProcess()
 		if (bResult) return "VOTED_FOR_GSC_CONTRACT";
 		if (!bResult)
 		{
-			LogPrintf(" **ExecuteGenericSmartContractQuorum::Unable to vote for GSC contract %s ", sError.c_str());
+			LogPrintf("\n**ExecuteGenericSmartContractQuorum::Unable to vote for GSC contract: Reason [%s] ", sError.c_str());
 		}
 		else
 		{
-			LogPrintf("\n ** ExecuteGenericSmartContractQuorum::Voted Successfully %f.", 1);
-
+			LogPrintf("\n**ExecuteGenericSmartContractQuorum::Voted Successfully %f.", 1);
 		}
 
 		return "UNABLE_TO_VOTE_FOR_GSC_CONTRACT";

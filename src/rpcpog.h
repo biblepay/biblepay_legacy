@@ -149,7 +149,7 @@ std::string GetTransactionMessage(CTransactionRef tx);
 bool AdvertiseChristianPublicKeypair(std::string sProjectId, std::string sNickName, bool fUnJoin, bool fForce, std::string &sError);
 CWalletTx CreateAntiBotNetTx(CBlockIndex* pindexLast, double nMinCoinAge, CReserveKey& reservekey, std::string& sXML, std::string& sError);
 double GetAntiBotNetWeight(CBlockIndex* pindex, CTransactionRef tx);
-double GetABNWeight(const CBlock& block);
+double GetABNWeight(const CBlock& block, bool fMining);
 std::map<std::string, std::string> GetSporkMap(std::string sPrimaryKey, std::string sSecondaryKey);
 std::map<std::string, CPK> GetGSCMap(std::string sGSCObjType, std::string sSearch, bool fRequireSig);
 void WriteCacheDouble(std::string sKey, double dValue);

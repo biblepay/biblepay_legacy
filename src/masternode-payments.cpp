@@ -245,6 +245,7 @@ void FillBlockPayments(CMutableTransaction& txNew, int nBlockHeight, CAmount blo
     bool allowSuperblockAndMNReward = deterministicMNManager->IsDeterministicMNsSporkActive(nBlockHeight);
 
     // don't allow payments to superblocks AND masternodes before spork15 activation
+	// BIBLEPAY NOTE:  This means that before spork15, the sanctuary does not receive a payment at the superblock height, but after spork15, both the sanc and the superblock payments are included in the block
     if (!voutSuperblockPaymentsRet.empty() && !allowSuperblockAndMNReward) {
         txNew.vout.insert(txNew.vout.end(), voutSuperblockPaymentsRet.begin(), voutSuperblockPaymentsRet.end());
         return;

@@ -155,7 +155,7 @@ UniValue blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool tx
     result.push_back(Pair("difficulty", GetDifficulty(blockindex)));
     result.push_back(Pair("chainwork", blockindex->nChainWork.GetHex()));
 	result.push_back(Pair("subsidy", block.vtx[0]->vout[0].nValue/COIN));
-	result.push_back(Pair("anti-botnet-weight", GetABNWeight(block)));
+	result.push_back(Pair("anti-botnet-weight", GetABNWeight(block, false)));
 	result.push_back(Pair("blockversion", GetBlockVersion(block.vtx[0]->vout[0].sTxOutMessage)));
 	if (block.vtx.size() > 1)
 		result.push_back(Pair("sanctuary_reward", block.vtx[0]->vout[1].nValue/COIN));
@@ -1850,6 +1850,11 @@ UniValue exec(const JSONRPCRequest& request)
 		results.push_back(Pair("next_superblock", iNextSuperblock));
 		bool fTriggered = CSuperblockManager::IsSuperblockTriggered(iNextSuperblock);
 		results.push_back(Pair("next_superblock_triggered", fTriggered));
+
+		std::string sReqPay = CSuperblockManager::GetRequiredPaymentsString(iNextSuperblock);
+		results.push_back(Pair("next_superblock_req_payments", sReqPay));
+
+
 		/*  QT (Reserved)
 		std::string sSig = SignPrice(".01");
 		bool fSigValid = VerifyDarkSendSigner(sSig);

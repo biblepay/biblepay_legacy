@@ -3,7 +3,7 @@ AC_PREREQ([2.60])
 define(_CLIENT_VERSION_MAJOR, 1)
 define(_CLIENT_VERSION_MINOR, 4)
 define(_CLIENT_VERSION_REVISION, 0)
-define(_CLIENT_VERSION_BUILD, 3)
+define(_CLIENT_VERSION_BUILD, 4)
 define(_CLIENT_VERSION_IS_RELEASE, true)
 define(_COPYRIGHT_YEAR, 2018) 
 define(_COPYRIGHT_HOLDERS,[The %s developers])
@@ -13,7 +13,7 @@ AC_CONFIG_SRCDIR([src/validation.cpp])
 AC_CONFIG_HEADERS([src/config/biblepay-config.h])
 AC_CONFIG_AUX_DIR([build-aux])
 AC_CONFIG_MACRO_DIR([build-aux/m4])
-
+ 
 BITCOIN_DAEMON_NAME=biblepayd
 BITCOIN_GUI_NAME=biblepay-qt
 BITCOIN_CLI_NAME=biblepay-cli
