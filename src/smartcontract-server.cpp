@@ -163,6 +163,7 @@ bool NickNameExists(std::string sNickName)
 std::string AssessBlocks(int nHeight)
 {
 	CAmount nPaymentsLimit = CSuperblock::GetPaymentsLimit(nHeight);
+	nPaymentsLimit -= MAX_BLOCK_SUBSIDY * COIN;
 
 	int nMaxDepth = nHeight;
 	int nMinDepth = nMaxDepth - BLOCKS_PER_DAY;
@@ -202,7 +203,7 @@ std::string AssessBlocks(int nHeight)
 							c.sAddress = sCPK;
 							c.sNickName = mAllCPKs[sCPK].sNickName;
 							mPoints[sCPK] = c;
-							if (fDebug)
+							if (fDebugSpam)
 								LogPrintf("\nUser %s , Points %f, Campaign %s, coinage %f, donation %f, usertotal %f ", c.sAddress, (double)nPoints, c.sCampaign, (double)nCoinAge, (double)nDonation/COIN, (double)c.nPoints);
 						}
 					}
@@ -483,6 +484,7 @@ std::string SerializeSanctuaryQuorumTrigger(int iContractAssessmentHeight, int n
 	std::string sQ = "\"";
 	std::string sJson = "[[" + sQ + "trigger" + sQ + ",{";
 	sJson += GJE("event_block_height", sEventBlockHeight, true, false); // Must be an int
+	sJson += GJE("start_epoch", RoundToString(GetAdjustedTime(), 0), true, false);
 	sJson += GJE("payment_addresses", sPaymentAddresses,  true, true);
 	sJson += GJE("payment_amounts",   sPaymentAmounts,    true, true);
 	sJson += GJE("proposal_hashes",   sProposalHashes,    true, true);
@@ -519,6 +521,10 @@ bool ChainSynced(CBlockIndex* pindex)
 UniValue GetProminenceLevels()
 {
 	UniValue results(UniValue::VOBJ);
+	int iNextSuperblock = 0;
+	int iLastSuperblock = GetLastGSCSuperblockHeight(chainActive.Tip()->nHeight, iNextSuperblock);
+	CAmount nPaymentsLimit = CSuperblock::GetPaymentsLimit(iLastSuperblock);
+
 	std::string sContract = GetGSCContract();
 	std::string sData = ExtractXML(sContract, "<DATA>", "</DATA>");
 	std::vector<std::string> vData = Split(sData.c_str(), "\n");
@@ -532,9 +538,11 @@ UniValue GetProminenceLevels()
 			double nPoints = cdbl(vRow[1], 2);
 			double nProminence = cdbl(vRow[2], 4) * 100;
 			std::string sNickName = vRow[3];
-			if (sNickName.empty()) sNickName = "N/A";
-			std::string sMoniker = sCPK + " [" + sNickName + "]" + " - " + RoundToString(nPoints, 2);
-			results.push_back(Pair(sMoniker, nProminence));
+			if (sNickName.empty())
+				sNickName = "N/A";
+			CAmount nOwed = nPaymentsLimit * (nProminence / 100) * .99;
+			std::string sNarr = sCPK + " [" + sNickName + "]" + ", Pts: " + RoundToString(nPoints, 2) + ", Reward: " + RoundToString((double)nOwed / COIN, 2);
+			results.push_back(Pair(sNarr, RoundToString(nProminence, 2) + "%"));
 		}
 	}
 

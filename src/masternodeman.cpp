@@ -190,8 +190,8 @@ void CMasternodeMan::CheckAndRemove(CConnman& connman)
         return;
 
     if(!masternodeSync.IsMasternodeListSynced()) return;
-
-    LogPrintf("CMasternodeMan::CheckAndRemove\n");
+	if (fDebugSpam)
+		LogPrintf("CMasternodeMan::CheckAndRemove\n");
 
     {
         // Need LOCK2 here to ensure consistent locking order because code below locks cs_main
@@ -1953,6 +1953,9 @@ void CMasternodeMan::WarnMasternodeDaemonUpdates()
     // Warn only when at least half of known masternodes already updated
     if (nUpdatedMasternodes < size() / 2)
         return;
+
+	if (nUpdatedMasternodes == 0) 
+		return;
 
     std::string strWarning;
     if (nUpdatedMasternodes != size()) {

@@ -880,7 +880,8 @@ void CMasternodePayments::CheckAndRemove()
         CMasternodePaymentVote vote = (*it).second;
 
         if(nCachedBlockHeight - vote.nBlockHeight > nLimit) {
-            LogPrint("mnpayments", "CMasternodePayments::%s -- Removing old Masternode payment: nBlockHeight=%d\n", __func__, vote.nBlockHeight);
+            if (fDebugSpam)
+				LogPrint("mnpayments", "CMasternodePayments::%s -- Removing old Masternode payment: nBlockHeight=%d\n", __func__, vote.nBlockHeight);
             mapMasternodePaymentVotes.erase(it++);
             mapMasternodeBlocks.erase(vote.nBlockHeight);
         } else {
@@ -1299,7 +1300,8 @@ void CMasternodePayments::UpdatedBlockTip(const CBlockIndex *pindex, CConnman& c
     }
 
     nCachedBlockHeight = pindex->nHeight;
-    LogPrint("mnpayments", "CMasternodePayments::%s -- nCachedBlockHeight=%d\n", __func__, nCachedBlockHeight);
+    if (fDebugSpam)
+		LogPrint("mnpayments", "CMasternodePayments::%s -- nCachedBlockHeight=%d\n", __func__, nCachedBlockHeight);
 
     int nFutureBlock = nCachedBlockHeight + 10;
 

@@ -273,9 +273,10 @@ CPK GetCPK(std::string sData)
 	std::string sSecurityHash = vDec[3];
 	std::string sSig = vDec[4];
 	std::string sCPK = vDec[0];
+	if (sCPK.empty()) return k;
+
 	k.fValid = CheckStakeSignature(sCPK, sSig, sSecurityHash, k.sError);
 	if (!k.fValid) return k;
-	
 	k.sAddress = sCPK;
 	k.sNickName = vDec[1];
 	k.nLockTime = (int64_t)cdbl(vDec[2], 0);
@@ -839,7 +840,6 @@ void GetGovSuperblockHeights(int& nNextSuperblock, int& nLastSuperblock)
 
 std::string GetActiveProposals()
 {
-	std::string strType = "proposals";
     int nStartTime = GetAdjustedTime() - (86400 * 32);
     LOCK2(cs_main, governance.cs);
     std::vector<const CGovernanceObject*> objs = governance.GetAllNewerThan(nStartTime);
@@ -852,17 +852,15 @@ std::string GetActiveProposals()
 	GetGovSuperblockHeights(nNextSuperblock, nLastSuperblock);
 	for (const CGovernanceObject* pGovObj : objs) 
     {
-		if(strType == "proposals" && pGovObj->GetObjectType() != GOVERNANCE_OBJECT_PROPOSAL) continue;
-        if(strType == "triggers" && pGovObj->GetObjectType() != GOVERNANCE_OBJECT_TRIGGER) continue;
-        if(strType == "watchdogs" && pGovObj->GetObjectType() != GOVERNANCE_OBJECT_WATCHDOG) continue;
+		if (pGovObj->GetObjectType() != GOVERNANCE_OBJECT_PROPOSAL) continue;
 		int64_t nEpoch = 0;
 		CProposalValidator validator(pGovObj->GetDataAsHexString());
 		std::string sURL;
 		std::string sCharityType;
-        if (validator.GetDataValue("end_epoch", nEpoch) && validator.GetDataValue("url", sURL) )
+		validator.GetDataValue("url", sURL);
+		validator.GetDataValue("expensetype", sCharityType);
+		if (sCharityType.empty()) sCharityType = "N/A";
 		{
-			sCharityType = "NA";
-			validator.GetDataValue("expensetype", sCharityType);
 			std::string sHash = pGovObj->GetHash().GetHex();
 			int nEpochHeight = GetHeightByEpochTime(nEpoch);
 			// First ensure the proposals gov height has not passed yet
@@ -2246,7 +2244,8 @@ void MemorizeBlockChainPrayers(bool fDuringConnectBlock, bool fSubThread, bool f
 			SerializePrayersToFile(nMaxDepth-1);
 		}
 	}
-	LogPrint("net", "Finished MemorizeBlockChainPrayers @ %f ", GetAdjustedTime());
+	if (fDebugSpam)
+		LogPrint("net", "Finished MemorizeBlockChainPrayers @ %f ", GetAdjustedTime());
 }
 
 
@@ -2602,7 +2601,7 @@ bool InstantiateOneClickMiningEntries()
 	return true;
 }
 
-std::string GetCPK(std::string sProjectId, std::string sPK)
+std::string GetCPKData(std::string sProjectId, std::string sPK)
 {
 	return ReadCache(sProjectId, sPK);
 }
@@ -2610,7 +2609,7 @@ std::string GetCPK(std::string sProjectId, std::string sPK)
 bool AdvertiseChristianPublicKeypair(std::string sProjectId, std::string sNickName, bool fUnJoin, bool fForce, std::string &sError)
 {	
 	std::string sCPK = DefaultRecAddress("Christian-Public-Key");
-	std::string sRec = GetCPK(sProjectId, sCPK);
+	std::string sRec = GetCPKData(sProjectId, sCPK);
 	if (fUnJoin)
 	{
 		if (sRec.empty()) {

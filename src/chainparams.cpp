@@ -220,7 +220,7 @@ public:
         consensus.BIP34Hash = uint256();
 	    consensus.BIP65Height = 120000; // 00000000000076d8fcea02ec0963de4abfd01e771fec0863f960c2c64fe6f357
         consensus.BIP66Height = 120000; // 00000000000b1fa2dfa312863570e13fae9ca7b5566cb27e55422620b469aefa
-        consensus.DIP0001Height = 120000;
+        consensus.DIP0001Height = 220000;
 
         consensus.powLimit = uint256S("0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"); 
 
@@ -399,9 +399,9 @@ public:
         consensus.nDCCSuperblockCycle = BLOCKS_PER_DAY; // Daily
         consensus.BIP34Height = 76;
         consensus.BIP34Hash = uint256S("0x000008ebb1db2598e897d17275285767717c6acfeac4c73def49fbea1ddcbcb6");
-        consensus.BIP65Height = 2431; // 0000039cf01242c7f921dcb4806a5994bc003b48c1973ae0c89b67809c2bb2ab
-        consensus.BIP66Height = 2075; // 0000002acdd29a14583540cb72e1c5cc83783560e38fa7081495d474fe1671f7
-        consensus.DIP0001Height = 5500;
+        consensus.BIP65Height = 2431; 
+        consensus.BIP66Height = 2075; 
+        consensus.DIP0001Height = 205000;
         consensus.powLimit = uint256S("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"); 
         consensus.nPowTargetTimespan = 24 * 60 * 60; // Biblepay: 1 day
         consensus.nPowTargetSpacing = 1 * 60; // Biblepay: 1 minutes
@@ -507,9 +507,7 @@ public:
 		checkpointData = (CCheckpointData) 
 		{
 			boost::assign::map_list_of
-				(1, uint256S("0x18b37b60b422ea27d57ceea9dd794b5f74c561565ecc03e85a22ecdf74cbb33a"))
-				(50000, uint256S("0x182cd59a2e10f9d4e26bfe05661bb82d20b98afb60b627a6e65b576777073bbb"))
-				(90000, uint256S("0x8bd27ad1d6d2a6767a168525f50d9a95cec7629c246ec1d031a119c171a95b5b")),
+				(1, uint256S("0xde31388eddd9e0ea515353628a0ca1f167466f09c45b10354de10459c7c018f2"))
 		};
 
         chainTxData = ChainTxData{

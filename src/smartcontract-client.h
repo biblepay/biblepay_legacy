@@ -16,5 +16,7 @@ class CWallet;
 UniValue GetCampaigns();
 bool CheckCampaign(std::string sName);
 bool CreateClientSideTransaction();
+bool Enrolled(std::string sCampaignName, std::string& sError);
+
 
 #endif

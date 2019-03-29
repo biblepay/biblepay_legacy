@@ -375,6 +375,8 @@ QString TransactionTableModel::formatTxType(const TransactionRecord *wtx) const
         return tr("Received from");
     case TransactionRecord::RecvWithPrivateSend:
         return tr("Received via PrivateSend");
+	case TransactionRecord::GSCTransmission:
+		return tr("GSC Transmission");
     case TransactionRecord::SendToAddress:
     case TransactionRecord::SendToOther:
         return tr("Sent to");
@@ -382,9 +384,7 @@ QString TransactionTableModel::formatTxType(const TransactionRecord *wtx) const
         return tr("Payment to yourself");
 	case TransactionRecord::CPKAssociation:
 		return tr("Christian Public Keypair Association");
-	case TransactionRecord::GSCTransmission:
-		return tr("GSC Transmission");
-    case TransactionRecord::SuperBlockPayment:
+	case TransactionRecord::SuperBlockPayment:
 		return tr("Superblock Payment");
 	case TransactionRecord::GSCPayment:
 		return tr("Smart-Contract Reward");

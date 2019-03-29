@@ -254,8 +254,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     // Update coinbase transaction with additional info about masternode and governance payments,
     // get some info back to pass to getblocktemplate
     FillBlockPayments(coinbaseTx, nHeight, blockReward, pblocktemplate->voutMasternodePayments, pblocktemplate->voutSuperblockPayments);
-    // LogPrintf("CreateNewBlock -- nBlockHeight %d blockReward %lld txoutMasternode %s coinbaseTx %s",
-    //             nHeight, blockReward, pblocktemplate->txoutsMasternode.ToString(), coinbaseTx.ToString());
+    // LogPrintf("CreateNewBlock -- nBlockHeight %d blockReward %lld txoutMasternode %s coinbaseTx %s", nHeight, blockReward, pblocktemplate->txoutsMasternode.ToString(), coinbaseTx.ToString());
 
     pblock->vtx[0] = MakeTransactionRef(std::move(coinbaseTx));
     pblocktemplate->vTxFees[0] = -nFees;
@@ -1139,18 +1138,21 @@ recover:
 							// Found a solution
 
 					        std::shared_ptr<const CBlock> shared_pblock = std::make_shared<const CBlock>(*pblock);
-							bool bAccepted = !ProcessNewBlock(Params(), shared_pblock, true, NULL);
-							if (!bAccepted)
+							if (bABNOK)
 							{
-								LogPrint("miner", "\nblock rejected.");
-								MilliSleep(15000);
+								bool bAccepted = !ProcessNewBlock(Params(), shared_pblock, true, NULL);
+								if (!bAccepted)
+								{
+									LogPrint("miner", "\nblock rejected.");
+									MilliSleep(15000);
+								}
+								coinbaseScript->KeepScript();
+								// In regression test mode, stop mining after a block is found. This
+								// allows developers to controllably generate a block on demand.
+								if (chainparams.MineBlocksOnDemand())
+										throw boost::thread_interrupted();
+								break;
 							}
-							coinbaseScript->KeepScript();
-							// In regression test mode, stop mining after a block is found. This
-							// allows developers to controllably generate a block on demand.
-							if (chainparams.MineBlocksOnDemand())
-									throw boost::thread_interrupted();
-							break;
 						}
 					}
 						

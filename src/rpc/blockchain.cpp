@@ -1453,10 +1453,15 @@ UniValue getchaintips(const JSONRPCRequest& request)
 
     BOOST_FOREACH(const PAIRTYPE(const uint256, CBlockIndex*)& item, mapBlockIndex)
     {
-        if (!chainActive.Contains(item.second)) {
-            setOrphans.insert(item.second);
-            setPrevs.insert(item.second->pprev);
-        }
+        if (item.second != NULL) 
+		{
+	        if (!chainActive.Contains(item.second)) 
+			{
+         		setOrphans.insert(item.second);
+				if (item.second->pprev != NULL) 
+					setPrevs.insert(item.second->pprev);
+			}
+		}
     }
 
     for (std::set<const CBlockIndex*>::iterator it = setOrphans.begin(); it != setOrphans.end(); ++it)
@@ -2052,6 +2057,17 @@ UniValue exec(const JSONRPCRequest& request)
 	{
 		UniValue p = GetProminenceLevels();
 		return p;
+	}
+	else if (sItem == "checkcpk")
+	{
+		if (request.params.size() != 2)
+			throw std::runtime_error("You must specify campaign name.");
+		std::string sType = request.params[1].get_str();
+		std::string sError;
+		bool fEnrolled = Enrolled(sType, sError);
+		if (!sError.empty())
+			results.push_back(Pair("Error", sError));
+		results.push_back(Pair("Enrolled_Results", fEnrolled));
 	}
 	else if (sItem == "datalist")
 	{

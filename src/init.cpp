@@ -1183,6 +1183,7 @@ bool AppInitParameterInteraction()
     // ********************************************************* Step 3: parameter-to-internal-flags
 
     fDebug = mapMultiArgs.count("-debug");
+    fDebugSpam = mapMultiArgs.count("-debugspam");
     // Special-case: if -debug=0/-nodebug is set, turn off debugging messages
     if (fDebug) {
         const std::vector<std::string>& categories = mapMultiArgs.at("-debug");

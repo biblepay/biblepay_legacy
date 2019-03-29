@@ -357,13 +357,15 @@ CNode* CConnman::ConnectNode(CAddress addrConnect, const char *pszDest, bool fCo
         CNode* pnode = FindNode((CService)addrConnect);
         if (pnode)
         {
-            LogPrintf("Failed to open new connection, already connected\n");
+            if (fDebugSpam)
+				LogPrintf("Failed to open new connection, already connected\n");
             return NULL;
         }
     }
 
     /// debug print
-    LogPrint("net", "trying connection %s lastseen=%.1fhrs\n",
+    if (fDebugSpam)
+		LogPrint("net", "trying connection %s lastseen=%.1fhrs\n",
         pszDest ? pszDest : addrConnect.ToString(),
         pszDest ? 0.0 : (double)(GetAdjustedTime() - addrConnect.nTime)/3600.0);
 
@@ -390,7 +392,8 @@ CNode* CConnman::ConnectNode(CAddress addrConnect, const char *pszDest, bool fCo
             {
                 pnode->MaybeSetAddrName(std::string(pszDest));
                 CloseSocket(hSocket);
-                LogPrintf("Failed to open new connection, already connected\n");
+                if (fDebugSpam)
+					LogPrintf("Failed to open new connection, already connected\n");
                 return NULL;
             }
         }
@@ -1140,7 +1143,8 @@ void CConnman::ThreadSocketHandler()
             {
                 if (pnode->fDisconnect)
                 {
-                    LogPrintf("ThreadSocketHandler -- removing node: peer=%d addr=%s nRefCount=%d fInbound=%d fMasternode=%d\n",
+                    if (fDebugSpam)
+						LogPrintf("ThreadSocketHandler -- removing node: peer=%d addr=%s nRefCount=%d fInbound=%d fMasternode=%d\n",
                               pnode->id, pnode->addr.ToString(), pnode->GetRefCount(), pnode->fInbound, pnode->fMasternode);
 
                     // remove from vNodes

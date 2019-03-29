@@ -617,12 +617,13 @@ CAmount CSuperblock::GetPaymentsLimit(int nBlockHeight)
 		// Active - Daily
 		nSuperblockCycle = consensusParams.nDCCSuperblockCycle;
  		nBudgetFactor = .65;
+		// CRITICAL TODO: Before testnet phase 3, we will address this feature in a distinct phase
 		// Use the actual average difficulty level over 24 hours as of 7 days ago for Daily Payments (this means that we pay less out when block difficulty limited the subsidy).  We go back 7 days to allow planning and keep anti-fork logic.
-		int nAssessmentHeight = nBlockHeight - (BLOCKS_PER_DAY * 7);
-		if (nAssessmentHeight < 1) nAssessmentHeight = 1;
-		CBlockIndex* pindex = FindBlockByHeight(nAssessmentHeight);
-		nBits = Get24HourAvgBits(pindex, nBits);
-		LogPrintf(" AssessmentHeight %f, BlockHeight %f, 24HrAvgBits %f \n", (double)nAssessmentHeight, (double)nBlockHeight, (double)nBits);
+		// int nAssessmentHeight = nBlockHeight - (BLOCKS_PER_DAY * 7);
+		// if (nAssessmentHeight < 1) nAssessmentHeight = 1;
+		// CBlockIndex* pindex = FindBlockByHeight(nAssessmentHeight);
+		// nBits = Get24HourAvgBits(pindex, nBits);
+		// LogPrintf(" AssessmentHeight %f, BlockHeight %f, 24HrAvgBits %f \n", (double)nAssessmentHeight, (double)nBlockHeight, (double)nBits);
 	}
 	else
 	{
