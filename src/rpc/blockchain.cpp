@@ -1398,7 +1398,7 @@ struct CompareBlocksByHeight
 
 UniValue getchaintips(const JSONRPCRequest& request)
 {
-    if (request.fHelp || request.params.size() > 2)
+	    if (request.fHelp || request.params.size() > 2)
         throw std::runtime_error(
             "getchaintips ( count branchlen )\n"
             "Return information about all known tips in the block tree,"
@@ -1414,7 +1414,6 @@ UniValue getchaintips(const JSONRPCRequest& request)
             "    \"difficulty\" : x.xxx,       (numeric) The difficulty\n"
             "    \"chainwork\" : \"0000...1f3\"  (string) Expected number of hashes required to produce the current chain (in hex)\n"
             "    \"branchlen\": 0              (numeric) zero for main chain\n"
-            "    \"forkpoint\": \"xxxx\",        (string) same as \"hash\" for the main chain\n"
             "    \"status\": \"active\"          (string) \"active\" for the main chain\n"
             "  },\n"
             "  {\n"
@@ -1423,7 +1422,6 @@ UniValue getchaintips(const JSONRPCRequest& request)
             "    \"difficulty\" : x.xxx,\n"
             "    \"chainwork\" : \"0000...1f3\"\n"
             "    \"branchlen\": 1              (numeric) length of branch connecting the tip to the main chain\n"
-            "    \"forkpoint\": \"xxxx\",        (string) block hash of the last common block between this tip and the main chain\n"
             "    \"status\": \"xxxx\"            (string) status of the chain (active, valid-fork, valid-headers, headers-only, invalid)\n"
             "  }\n"
             "]\n"
@@ -1440,35 +1438,25 @@ UniValue getchaintips(const JSONRPCRequest& request)
 
     LOCK(cs_main);
 
-    /*
-     * Idea:  the set of chain tips is chainActive.tip, plus orphan blocks which do not have another orphan building off of them.
-     * Algorithm:
-     *  - Make one pass through mapBlockIndex, picking out the orphan blocks, and also storing a set of the orphan block's pprev pointers.
-     *  - Iterate through the orphan blocks. If the block isn't pointed to by another orphan, it is a chain tip.
-     *  - add chainActive.Tip()
-     */
+    /* Build up a list of chain tips.  We start with the list of all
+       known blocks, and successively remove blocks that appear as pprev
+       of another block.  */
     std::set<const CBlockIndex*, CompareBlocksByHeight> setTips;
-    std::set<const CBlockIndex*> setOrphans;
-    std::set<const CBlockIndex*> setPrevs;
-
+		
+    BOOST_FOREACH(const PAIRTYPE(const uint256, CBlockIndex*)& item, mapBlockIndex)
+	{
+		if (item.second != NULL) setTips.insert(item.second);
+	}
     BOOST_FOREACH(const PAIRTYPE(const uint256, CBlockIndex*)& item, mapBlockIndex)
     {
-        if (item.second != NULL) 
+		if (item.second != NULL)
 		{
-	        if (!chainActive.Contains(item.second)) 
+			if (item.second->pprev != NULL)
 			{
-         		setOrphans.insert(item.second);
-				if (item.second->pprev != NULL) 
-					setPrevs.insert(item.second->pprev);
+				const CBlockIndex* pprev = item.second->pprev;
+				if (pprev) setTips.erase(pprev);
 			}
 		}
-    }
-
-    for (std::set<const CBlockIndex*>::iterator it = setOrphans.begin(); it != setOrphans.end(); ++it)
-    {
-        if (setPrevs.erase(*it) == 0) {
-            setTips.insert(*it);
-        }
     }
 
     // Always report the currently active tip.
@@ -1488,7 +1476,7 @@ UniValue getchaintips(const JSONRPCRequest& request)
     BOOST_FOREACH(const CBlockIndex* block, setTips)
     {
         const CBlockIndex* pindexFork = chainActive.FindFork(block);
-        const int branchLen = block->nHeight - pindexFork->nHeight;
+        const int branchLen = block->nHeight - chainActive.FindFork(block)->nHeight;
         if(branchLen < nBranchMin) continue;
 
         if(nCountMax-- < 1) break;
@@ -1499,10 +1487,11 @@ UniValue getchaintips(const JSONRPCRequest& request)
         obj.push_back(Pair("difficulty", GetDifficulty(block)));
         obj.push_back(Pair("chainwork", block->nChainWork.GetHex()));
         obj.push_back(Pair("branchlen", branchLen));
-        obj.push_back(Pair("forkpoint", pindexFork->phashBlock->GetHex()));
+		obj.push_back(Pair("forkpoint", pindexFork->phashBlock->GetHex()));
 
         std::string status;
-        if (chainActive.Contains(block)) {
+        if (chainActive.Contains(block)) 
+		{
             // This block is part of the currently active chain.
             status = "active";
         } else if (block->nStatus & BLOCK_FAILED_MASK) {
@@ -2068,6 +2057,11 @@ UniValue exec(const JSONRPCRequest& request)
 		if (!sError.empty())
 			results.push_back(Pair("Error", sError));
 		results.push_back(Pair("Enrolled_Results", fEnrolled));
+	}
+	else if (sItem == "sendgscc")
+	{
+		bool fCreated = CreateClientSideTransaction();
+		results.push_back(Pair("results", (double)fCreated));
 	}
 	else if (sItem == "datalist")
 	{

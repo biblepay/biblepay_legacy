@@ -149,21 +149,20 @@ unsigned int static DarkGravityWave(const CBlockIndex* pindexLast, const CBlockH
 		_nTargetTimespan = CountBlocks * 296;
 	}
 	
-	if (!fProdChain && pindexLast->nHeight < 250)
+	if (!fProdChain)
 	{
-		_nTargetTimespan = CountBlocks; // One second blocks in testnet before block 1000
-	}
-	else if (!fProdChain && pindexLast->nHeight > 249 && pindexLast->nHeight < 2500)
-	{
-		_nTargetTimespan = 30;
-	}
-	else if (!fProdChain && pindexLast->nHeight > 3200 && pindexLast->nHeight <= 5000)
-	{
-		_nTargetTimespan = 60; // One minute blocks in testnet
-	}
-	else if (!fProdChain && pindexLast->nHeight > 5000)
-	{
-		_nTargetTimespan = 120;
+		if (pindexLast->nHeight < 250)
+		{
+			_nTargetTimespan = CountBlocks; // One second blocks in testnet
+		}
+		else if (pindexLast->nHeight >= 250 && pindexLast->nHeight < 5000)
+		{
+			_nTargetTimespan = 30; // 30 second blocks 
+		}
+		else if (pindexLast->nHeight >= 5000)
+		{
+			_nTargetTimespan = 120;  // 2 minute blocks in testnet
+		}
 	}
 
 	// if (fDebugMaster) LogPrintf(" Height: %f, targettimespan %f  nActualTimespan %f ",(double)pindexLast->nHeight, (double)_nTargetTimespan, (double)nActualTimespan);

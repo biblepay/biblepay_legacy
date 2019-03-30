@@ -257,10 +257,12 @@ std::string AssessBlocks(int nHeight)
 
 int GetRequiredQuorumLevel(int nHeight)
 {
-	if (!fProd) return 2;
+	static int MINIMUM_QUORUM_PROD = 10;
+	static int MINIMUM_QUORUM_TESTNET = 3;
 	int nCount = mnodeman.CountEnabled();
 	int nReq = nCount * .20;
-	if (nReq < 3) nReq = 3;
+	int nMinimumQuorum = fProd ? MINIMUM_QUORUM_PROD : MINIMUM_QUORUM_TESTNET;
+	if (nReq < nMinimumQuorum) nReq = nMinimumQuorum;
 	return nReq;
 }
 
@@ -578,10 +580,11 @@ std::string ExecuteGenericSmartContractQuorumProcess()
 	GetGSCGovObjByHeight(iNextSuperblock, uPamHash, iPendingVotes, uGovObjHash, sAddresses, sAmounts);
 	
 	int iRequiredVotes = GetRequiredQuorumLevel(iNextSuperblock);
-	bool bPending = iPendingVotes >= iRequiredVotes;
+	bool bPending = iPendingVotes > iRequiredVotes;
 	if (bPending) 
 	{
-		if (fDebug) LogPrintf("\n ExecuteGenericSmartContractQuorum::We have a pending superblock at height %f \n",(double)iNextSuperblock);
+		if (fDebug)
+			LogPrintf("\n ExecuteGenericSmartContractQuorum::We have a pending superblock at height %f \n", (double)iNextSuperblock);
 		return "PENDING_SUPERBLOCK";
 	}
 	
@@ -593,23 +596,21 @@ std::string ExecuteGenericSmartContractQuorumProcess()
 		LogPrintf("**ExecuteGenericSmartContractQuorumProcess::CreatingGSCContract Hex %s , Gobject %s, results %s **\n", sQuorumTrigger.c_str(), sGobjectHash.c_str(), sError.c_str());
 		return "CREATING_CONTRACT";
 	}
-	if (iVotes < iRequiredVotes)
+	if (iVotes <= iRequiredVotes)
 	{
 		bool bResult = VoteForGSCContract(iNextSuperblock, sContract, sError);
-		
-		if (bResult) return "VOTED_FOR_GSC_CONTRACT";
 		if (!bResult)
 		{
 			LogPrintf("\n**ExecuteGenericSmartContractQuorum::Unable to vote for GSC contract: Reason [%s] ", sError.c_str());
+			return "UNABLE_TO_VOTE_FOR_GSC_CONTRACT";
 		}
 		else
 		{
 			LogPrintf("\n**ExecuteGenericSmartContractQuorum::Voted Successfully %f.", 1);
+			return "VOTED_FOR_GSC_CONTRACT";
 		}
-
-		return "UNABLE_TO_VOTE_FOR_GSC_CONTRACT";
 	}
-	else if (iVotes >= iRequiredVotes)
+	else if (iVotes > iRequiredVotes)
 	{
 		LogPrintf(" ExecuteGenericSmartContractQuorum::GSC Contract %s has won.  Waiting for superblock. ", uGovObjHash.GetHex());
 		return "PENDING_SUPERBLOCK";

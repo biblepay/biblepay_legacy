@@ -965,7 +965,8 @@ bool IsMyABNSufficient(CBlock block, int nHeight)
 {
 	const Consensus::Params& consensusParams = Params().GetConsensus();
 	double nMinRequiredABNWeight = GetSporkDouble("requiredabnweight", 0);
-	if (nHeight > consensusParams.ABNHeight && nMinRequiredABNWeight > 0 && !LateBlock(block))
+	double nEnforceABNWeight = GetSporkDouble("enforceabnweight", 0);
+	if (nEnforceABNWeight == 1 && nHeight > consensusParams.ABNHeight && nMinRequiredABNWeight > 0 && !LateBlock(block))
 	{
 		double nABNWeight = GetABNWeight(block, true);
 		if (nABNWeight < nMinRequiredABNWeight) return false;

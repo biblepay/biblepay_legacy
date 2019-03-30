@@ -3226,11 +3226,13 @@ bool CWallet::SelectCoinsGroupedByAddresses(std::vector<CompactTallyItem>& vecTa
     }
 
     // debug
-    if (LogAcceptCategory("selectcoins")) {
+    if (LogAcceptCategory("selectcoins")) 
+	{
         std::string strMessage = "SelectCoinsGroupedByAddresses - vecTallyRet:\n";
         for (const auto& item : vecTallyRet)
             strMessage += strprintf("  %s %f\n", CBitcoinAddress(item.txdest).ToString().c_str(), float(item.nAmount)/COIN);
-        LogPrint("selectcoins", "%s", strMessage);
+        if (fDebugSpam)
+			LogPrint("selectcoins", "%s", strMessage);
     }
 
     return vecTallyRet.size() > 0;

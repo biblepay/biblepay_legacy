@@ -857,6 +857,7 @@ std::string GetActiveProposals()
 		CProposalValidator validator(pGovObj->GetDataAsHexString());
 		std::string sURL;
 		std::string sCharityType;
+		validator.GetDataValue("end_epoch", nEpoch);
 		validator.GetDataValue("url", sURL);
 		validator.GetDataValue("expensetype", sCharityType);
 		if (sCharityType.empty()) sCharityType = "N/A";

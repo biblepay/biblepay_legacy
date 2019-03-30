@@ -24,5 +24,6 @@ bool VoteForGSCContract(int nHeight, std::string sMyContract, std::string& sErro
 std::string ExecuteGenericSmartContractQuorumProcess();
 UniValue GetProminenceLevels();
 bool NickNameExists(std::string sNickName);
+int GetRequiredQuorumLevel(int nHeight);
 
 #endif
