@@ -10,6 +10,7 @@
 #include "utilstrencodings.h"
 #include "validation.h"
 #include "rpcpog.h"
+#include "smartcontract-server.h"
 #include <boost/algorithm/string.hpp>
 
 #include <univalue.h>
@@ -262,6 +263,7 @@ bool CSuperblockManager::IsSuperblockTriggered(int nBlockHeight)
     }
 
     LOCK(governance.cs);
+	
     // GET ALL ACTIVE TRIGGERS
     std::vector<CSuperblock_sptr> vecTriggers = triggerman.GetActiveTriggers();
 
@@ -269,7 +271,8 @@ bool CSuperblockManager::IsSuperblockTriggered(int nBlockHeight)
 
     DBG(std::cout << "IsSuperblockTriggered Number triggers = " << vecTriggers.size() << std::endl;);
 
-    for (const auto& pSuperblock : vecTriggers) {
+    for (const auto& pSuperblock : vecTriggers) 
+	{
         if (!pSuperblock) {
             LogPrintf("CSuperblockManager::IsSuperblockTriggered -- Non-superblock found, continuing\n");
             DBG(std::cout << "IsSuperblockTriggered Not a superblock, continuing " << std::endl;);
@@ -288,8 +291,12 @@ bool CSuperblockManager::IsSuperblockTriggered(int nBlockHeight)
 
         // note : 12.1 - is epoch calculation correct?
 
-        if (nBlockHeight != pSuperblock->GetBlockHeight()) {
-            LogPrint("gobject", "CSuperblockManager::IsSuperblockTriggered -- block height doesn't match nBlockHeight = %d, blockStart = %d, continuing\n",
+        if (nBlockHeight != pSuperblock->GetBlockHeight()) 
+		{
+            // R ANDREWS - Looking over the contents of the gobject, this just means we have some triggers not yet disposed of at prior heights; not a problem
+			// So essentially this means: skipping over a trigger that is not for our height
+			if (fDebugSpam)
+				LogPrint("gobject", "CSuperblockManager::IsSuperblockTriggered -- skipping trigger not for our height (Our_Superblock_Height nBlockHeight = %d, Gobject_event_height blockStart = %d), continuing\n",
                 nBlockHeight,
                 pSuperblock->GetBlockHeight());
             DBG(std::cout << "IsSuperblockTriggered Not the target block, continuing"
@@ -303,11 +310,26 @@ bool CSuperblockManager::IsSuperblockTriggered(int nBlockHeight)
 
         pObj->UpdateSentinelVariables();
 
-        if (pObj->IsSetCachedFunding()) {
-            LogPrint("gobject", "CSuperblockManager::IsSuperblockTriggered -- fCacheFunding = true, returning true\n");
-            DBG(std::cout << "IsSuperblockTriggered returning true" << std::endl;);
-            return true;
-        } else {
+        if (pObj->IsSetCachedFunding()) 
+		{
+			// BIBLEPAY - If this is a Smart Contract, first we need to verify it meets the Quorum requirements
+			if (CSuperblock::IsSmartContract(nBlockHeight))
+			{
+				int iVotes = pObj->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING);
+				int iRequiredVotes = GetRequiredQuorumLevel(nBlockHeight);
+				bool bPassed = iVotes >= iRequiredVotes;
+				LogPrintf("CSuperblockManager::IsSuperblockTriggered - Votes %f, Required Votes %f, Status %f", (double)iVotes, (double)iRequiredVotes, (double)bPassed);
+				if (bPassed) return true;  // Otherwise iterate to the next one
+			}
+			else
+			{
+				LogPrint("gobject", "CSuperblockManager::IsSuperblockTriggered -- fCacheFunding = true, returning true\n");
+				DBG(std::cout << "IsSuperblockTriggered returning true" << std::endl;);
+				return true;
+			}
+        }
+		else 
+		{
             LogPrint("gobject", "CSuperblockManager::IsSuperblockTriggered -- fCacheFunding = false, continuing\n");
             DBG(std::cout << "IsSuperblockTriggered No fCachedFunding, continuing" << std::endl;);
         }
@@ -319,7 +341,10 @@ bool CSuperblockManager::IsSuperblockTriggered(int nBlockHeight)
 
 bool CSuperblockManager::GetBestSuperblock(CSuperblock_sptr& pSuperblockRet, int nBlockHeight)
 {
-    if (!CSuperblock::IsValidBlockHeight(nBlockHeight) && !CSuperblock::IsSmartContract(nBlockHeight)) {
+    if (!CSuperblock::IsValidBlockHeight(nBlockHeight) && !CSuperblock::IsSmartContract(nBlockHeight)) 
+	{
+		if (fDebugSpam)
+			LogPrintf("**GetBestSuperblock::HEIGHT %f, Not a valid superblock height**", nBlockHeight);
         return false;
     }
 
@@ -615,12 +640,13 @@ CAmount CSuperblock::GetPaymentsLimit(int nBlockHeight)
 		// Active - Daily
 		nSuperblockCycle = consensusParams.nDCCSuperblockCycle;
  		nBudgetFactor = .65;
+		// CRITICAL TODO: Before testnet phase 3, we will address this feature in a distinct phase
 		// Use the actual average difficulty level over 24 hours as of 7 days ago for Daily Payments (this means that we pay less out when block difficulty limited the subsidy).  We go back 7 days to allow planning and keep anti-fork logic.
-		int nAssessmentHeight = nBlockHeight - (BLOCKS_PER_DAY * 7);
-		if (nAssessmentHeight < 1) nAssessmentHeight = 1;
-		CBlockIndex* pindex = FindBlockByHeight(nAssessmentHeight);
-		nBits = Get24HourAvgBits(pindex, nBits);
-		LogPrintf(" AssessmentHeight %f, BlockHeight %f, 24HrAvgBits %f \n", (double)nAssessmentHeight, (double)nBlockHeight, (double)nBits);
+		// int nAssessmentHeight = nBlockHeight - (BLOCKS_PER_DAY * 7);
+		// if (nAssessmentHeight < 1) nAssessmentHeight = 1;
+		// CBlockIndex* pindex = FindBlockByHeight(nAssessmentHeight);
+		// nBits = Get24HourAvgBits(pindex, nBits);
+		// LogPrintf(" AssessmentHeight %f, BlockHeight %f, 24HrAvgBits %f \n", (double)nAssessmentHeight, (double)nBlockHeight, (double)nBits);
 	}
 	else
 	{

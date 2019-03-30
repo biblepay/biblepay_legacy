@@ -111,11 +111,17 @@ void ProposalAddDialog::on_btnSubmit_clicked()
 	if (sURL.length() < 10) sError += "You must enter a discussion URL. ";
 	std::string sExpenseType = GUIUtil::FROMQS(ui->cmbExpenseType->currentText());
 	if (sExpenseType.empty()) sError += "Expense Type must be chosen. ";
+	CAmount nBalance = GetRPCBalance();
+
 	if (fProposalNeedsSubmitted) 
 	{
 		sError += "There is a proposal already being submitted (" + msProposalResult + ").  Please wait until this proposal is sent before creating a new one. ";
 	}
-	
+	else
+	{
+		if (nBalance < (2501*COIN)) sError += "Sorry balance too low to create proposal collateral. ";
+	}
+
 	std::string sPrepareTxId;
 	std::string sHex;
 	int64_t unixStartTimestamp = GetAdjustedTime();

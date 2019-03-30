@@ -98,7 +98,8 @@ public:
      */
     void updateWallet(const uint256 &hash, int status, bool showTransaction)
     {
-        qDebug() << "TransactionTablePriv::updateWallet: " + QString::fromStdString(hash.ToString()) + " " + QString::number(status);
+        if (fDebugSpam)
+			qDebug() << "TransactionTablePriv::updateWallet: " + QString::fromStdString(hash.ToString()) + " " + QString::number(status);
 
         // Find bounds of this transaction in model
         QList<TransactionRecord>::iterator lower = qLowerBound(
@@ -117,7 +118,8 @@ public:
                 status = CT_DELETED; /* In model, but want to hide, treat as deleted */
         }
 
-        qDebug() << "    inModel=" + QString::number(inModel) +
+        if (fDebugSpam)
+			qDebug() << "    inModel=" + QString::number(inModel) +
                     " Index=" + QString::number(lowerIndex) + "-" + QString::number(upperIndex) +
                     " showTransaction=" + QString::number(showTransaction) + " derivedStatus=" + QString::number(status);
 
@@ -375,6 +377,8 @@ QString TransactionTableModel::formatTxType(const TransactionRecord *wtx) const
         return tr("Received from");
     case TransactionRecord::RecvWithPrivateSend:
         return tr("Received via PrivateSend");
+	case TransactionRecord::GSCTransmission:
+		return tr("GSC Transmission");
     case TransactionRecord::SendToAddress:
     case TransactionRecord::SendToOther:
         return tr("Sent to");
@@ -382,13 +386,11 @@ QString TransactionTableModel::formatTxType(const TransactionRecord *wtx) const
         return tr("Payment to yourself");
 	case TransactionRecord::CPKAssociation:
 		return tr("Christian Public Keypair Association");
-	case TransactionRecord::GSCTransmission:
-		return tr("GSC Transmission");
-    case TransactionRecord::SuperBlockPayment:
+	case TransactionRecord::SuperBlockPayment:
 		return tr("Superblock Payment");
 	case TransactionRecord::GSCPayment:
 		return tr("Smart-Contract Reward");
-    case TransactionRecord::Generated:
+	case TransactionRecord::Generated:
         return tr("Mined");
     case TransactionRecord::PrivateSendDenominate:
         return tr("PrivateSend Denominate");
@@ -418,7 +420,7 @@ QVariant TransactionTableModel::txAddressDecoration(const TransactionRecord *wtx
 		case TransactionRecord::CPKAssociation:
 			return QIcon(":/icons/drkblue/cross3232");
 		case TransactionRecord::GSCTransmission:
-			return QIcon(":/icons/drkblue/tx_output");
+			return QIcon(":/icons/drkblue/donation32");
 	    case TransactionRecord::Generated:
 		    return QIcon(":/icons/" + theme + "/tx_mined");
 		case TransactionRecord::RecvWithPrivateSend:
@@ -783,7 +785,8 @@ public:
     void invoke(QObject *ttm)
     {
         QString strHash = QString::fromStdString(hash.GetHex());
-        qDebug() << "NotifyTransactionChanged: " + strHash + " status= " + QString::number(status);
+		if (fDebugSpam)
+			qDebug() << "NotifyTransactionChanged: " + strHash + " status= " + QString::number(status);
         QMetaObject::invokeMethod(ttm, "updateTransaction", Qt::QueuedConnection,
                                   Q_ARG(QString, strHash),
                                   Q_ARG(int, status),

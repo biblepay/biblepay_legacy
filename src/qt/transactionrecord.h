@@ -150,6 +150,9 @@ public:
 	/** If this is an Anti-Bot-Net Tx */
 	bool IsABN;
 
+	/** If this is a GSC Transmission Tx */
+	bool IsGSCTransmission;
+
     /** Return the unique identifier for this transaction (part) */
     QString getTxID() const;
 

@@ -220,7 +220,7 @@ public:
         consensus.BIP34Hash = uint256();
 	    consensus.BIP65Height = 120000; // 00000000000076d8fcea02ec0963de4abfd01e771fec0863f960c2c64fe6f357
         consensus.BIP66Height = 120000; // 00000000000b1fa2dfa312863570e13fae9ca7b5566cb27e55422620b469aefa
-        consensus.DIP0001Height = 120000;
+        consensus.DIP0001Height = 220000;
 
         consensus.powLimit = uint256S("0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"); 
 
@@ -379,36 +379,36 @@ public:
 		consensus.LAST_TITHE_BLOCK = 1;
 		consensus.EVOLUTION_CUTOVER_HEIGHT = 1000;
 		consensus.nSubsidyHalvingInterval = 365 * BLOCKS_PER_DAY;
-		consensus.nMasternodePaymentsStartBlock = 201;
-        consensus.nMasternodePaymentsIncreaseBlock = 201;
+		consensus.nMasternodePaymentsStartBlock = 2001;
+        consensus.nMasternodePaymentsIncreaseBlock = 2001;
         consensus.nMasternodePaymentsIncreasePeriod = BLOCKS_PER_DAY * 30;
         consensus.nInstantSendConfirmationsRequired = 6;
         consensus.nInstantSendKeepLock = 6;
-        consensus.nBudgetPaymentsStartBlock = 200;
+        consensus.nBudgetPaymentsStartBlock = 2002;
         consensus.nBudgetPaymentsCycleBlocks = 50;
         consensus.nBudgetPaymentsWindowBlocks = 10;
-        consensus.nSuperblockStartBlock = 1201; // NOTE: Should satisfy nSuperblockStartBlock > nBudgetPeymentsStartBlock
-        consensus.nSuperblockStartHash = uint256(); // do not check this on testnet
-		consensus.nSuperblockCycle = BLOCKS_PER_DAY * 7;
+        consensus.nSuperblockStartBlock = 4007; // NOTE: Should satisfy nSuperblockStartBlock > nBudgetPaymentsStartBlock
+        consensus.nSuperblockStartHash = uint256(); // Do not check this on testnet
+		consensus.nSuperblockCycle = BLOCKS_PER_DAY * 7; // Weekly in TestNet
         consensus.nGovernanceMinQuorum = 1;
         consensus.nGovernanceFilterElements = 500;
         consensus.nMasternodeMinimumConfirmations = 1;
         consensus.FoundationAddress = "yTrEKf8XQ7y7tychC2gWuGw1hsLqBybnEN";
         consensus.FoundationPODSAddress = "yTrEKf8XQ7y7tychC2gWuGw1hsLqBybnEN";
-        consensus.nDCCSuperblockStartBlock = 104; //F11000 CUTOVER HEIGHT + 11
+        consensus.nDCCSuperblockStartBlock = 4504; 
         consensus.nDCCSuperblockCycle = BLOCKS_PER_DAY; // Daily
         consensus.BIP34Height = 76;
         consensus.BIP34Hash = uint256S("0x000008ebb1db2598e897d17275285767717c6acfeac4c73def49fbea1ddcbcb6");
-        consensus.BIP65Height = 2431; // 0000039cf01242c7f921dcb4806a5994bc003b48c1973ae0c89b67809c2bb2ab
-        consensus.BIP66Height = 2075; // 0000002acdd29a14583540cb72e1c5cc83783560e38fa7081495d474fe1671f7
-        consensus.DIP0001Height = 5500;
+        consensus.BIP65Height = 2431; 
+        consensus.BIP66Height = 2075; 
+        consensus.DIP0001Height = 205000;
         consensus.powLimit = uint256S("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"); 
         consensus.nPowTargetTimespan = 24 * 60 * 60; // Biblepay: 1 day
-        consensus.nPowTargetSpacing = 1 * 60; // Biblepay: 2.5 minutes
+        consensus.nPowTargetSpacing = 1 * 60; // Biblepay: 1 minutes
         consensus.fPowAllowMinDifficultyBlocks = true;
         consensus.fPowNoRetargeting = false;
-        consensus.nPowKGWHeight = 4002; // nPowKGWHeight >= nPowDGWHeight means "no KGW"
-        consensus.nPowDGWHeight = 4002;
+        consensus.nPowKGWHeight = 1; // nPowKGWHeight >= nPowDGWHeight means "no KGW"
+        consensus.nPowDGWHeight = 1;
         consensus.nRuleChangeActivationThreshold = 1512; // 75% for testchains
         consensus.nMinerConfirmationWindow = 205; // nPowTargetTimespan / nPowTargetSpacing
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].bit = 28;
@@ -507,9 +507,7 @@ public:
 		checkpointData = (CCheckpointData) 
 		{
 			boost::assign::map_list_of
-				(1, uint256S("0x18b37b60b422ea27d57ceea9dd794b5f74c561565ecc03e85a22ecdf74cbb33a"))
-				(50000, uint256S("0x182cd59a2e10f9d4e26bfe05661bb82d20b98afb60b627a6e65b576777073bbb"))
-				(90000, uint256S("0x8bd27ad1d6d2a6767a168525f50d9a95cec7629c246ec1d031a119c171a95b5b")),
+				(1, uint256S("0xde31388eddd9e0ea515353628a0ca1f167466f09c45b10354de10459c7c018f2"))
 		};
 
         chainTxData = ChainTxData{
@@ -542,7 +540,7 @@ public:
 		consensus.nBudgetPaymentsStartBlock = 4100;
 		consensus.nBudgetPaymentsCycleBlocks = 50;
 		consensus.nBudgetPaymentsWindowBlocks = 10;
-		consensus.nSuperblockStartBlock = 4200; // NOTE: Should satisfy nSuperblockStartBlock > nBudgetPeymentsStartBlock
+		consensus.nSuperblockStartBlock = 4200; // NOTE: Should satisfy nSuperblockStartBlock > nBudgetPaymentsStartBlock
 		consensus.nSuperblockStartHash = uint256(); // do not check this on devnet
 		consensus.nSuperblockCycle = 24; // Superblocks can be issued hourly on devnet
 		consensus.nGovernanceMinQuorum = 1;
@@ -560,8 +558,8 @@ public:
 		consensus.nPowTargetSpacing = 2.5 * 60; // Biblepay: 2.5 minutes
 		consensus.fPowAllowMinDifficultyBlocks = true;
 		consensus.fPowNoRetargeting = false;
-		consensus.nPowKGWHeight = 4001; // nPowKGWHeight >= nPowDGWHeight means "no KGW"
-		consensus.nPowDGWHeight = 4001;
+		consensus.nPowKGWHeight = 1; // nPowKGWHeight >= nPowDGWHeight means "no KGW"
+		consensus.nPowDGWHeight = 1;
 		consensus.nRuleChangeActivationThreshold = 1512; // 75% for testchains
 		consensus.nMinerConfirmationWindow = 2016; // nPowTargetTimespan / nPowTargetSpacing
 		consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].bit = 28;
@@ -711,8 +709,8 @@ public:
         consensus.nPowTargetSpacing = 2.5 * 60; // Biblepay: 2.5 minutes
         consensus.fPowAllowMinDifficultyBlocks = true;
         consensus.fPowNoRetargeting = true;
-        consensus.nPowKGWHeight = 15200; // same as mainnet
-        consensus.nPowDGWHeight = 34140; // same as mainnet
+        consensus.nPowKGWHeight = 1; // same as mainnet
+        consensus.nPowDGWHeight = 1; // same as mainnet
         consensus.nRuleChangeActivationThreshold = 108; // 75% for testchains
         consensus.nMinerConfirmationWindow = 144; // Faster than normal for regtest (144 instead of 2016)
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].bit = 28;

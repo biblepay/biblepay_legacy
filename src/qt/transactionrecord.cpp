@@ -239,7 +239,13 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                     sub.type = TransactionRecord::SendToAddress;
                     sub.address = CBitcoinAddress(address).ToString();
 					if (wtx.tx->IsCPKAssociation()) 
+					{
                         sub.type = TransactionRecord::CPKAssociation;  
+					}
+					else if (wtx.tx->IsGSCTransmission())
+					{
+						sub.type = TransactionRecord::GSCTransmission;
+					}
 			    }
                 else
                 {

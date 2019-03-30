@@ -245,6 +245,7 @@ void FillBlockPayments(CMutableTransaction& txNew, int nBlockHeight, CAmount blo
     bool allowSuperblockAndMNReward = deterministicMNManager->IsDeterministicMNsSporkActive(nBlockHeight);
 
     // don't allow payments to superblocks AND masternodes before spork15 activation
+	// BIBLEPAY NOTE:  This means that before spork15, the sanctuary does not receive a payment at the superblock height, but after spork15, both the sanc and the superblock payments are included in the block
     if (!voutSuperblockPaymentsRet.empty() && !allowSuperblockAndMNReward) {
         txNew.vout.insert(txNew.vout.end(), voutSuperblockPaymentsRet.begin(), voutSuperblockPaymentsRet.end());
         return;
@@ -748,8 +749,8 @@ bool CMasternodeBlockPayees::HasPayeeWithVotes(const CScript& payeeIn, int nVote
             return true;
         }
     }
-
-    LogPrint("mnpayments", "CMasternodeBlockPayees::%s -- ERROR: couldn't find any payee with %d+ votes\n", __func__, nVotesReq);
+	if (fDebugSpam)
+		LogPrint("mnpayments", "CMasternodeBlockPayees::%s -- ERROR: couldn't find any payee with %d+ votes\n", __func__, nVotesReq);
     return false;
 }
 
@@ -879,7 +880,8 @@ void CMasternodePayments::CheckAndRemove()
         CMasternodePaymentVote vote = (*it).second;
 
         if(nCachedBlockHeight - vote.nBlockHeight > nLimit) {
-            LogPrint("mnpayments", "CMasternodePayments::%s -- Removing old Masternode payment: nBlockHeight=%d\n", __func__, vote.nBlockHeight);
+            if (fDebugSpam)
+				LogPrint("mnpayments", "CMasternodePayments::%s -- Removing old Masternode payment: nBlockHeight=%d\n", __func__, vote.nBlockHeight);
             mapMasternodePaymentVotes.erase(it++);
             mapMasternodeBlocks.erase(vote.nBlockHeight);
         } else {
@@ -1298,7 +1300,8 @@ void CMasternodePayments::UpdatedBlockTip(const CBlockIndex *pindex, CConnman& c
     }
 
     nCachedBlockHeight = pindex->nHeight;
-    LogPrint("mnpayments", "CMasternodePayments::%s -- nCachedBlockHeight=%d\n", __func__, nCachedBlockHeight);
+    if (fDebugSpam)
+		LogPrint("mnpayments", "CMasternodePayments::%s -- nCachedBlockHeight=%d\n", __func__, nCachedBlockHeight);
 
     int nFutureBlock = nCachedBlockHeight + 10;
 

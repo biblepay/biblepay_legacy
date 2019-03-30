@@ -20,9 +20,10 @@ std::string GetGSCContract();
 bool SubmitGSCTrigger(std::string sHex, std::string& gobjecthash, std::string& sError);
 void GetGSCGovObjByHeight(int nHeight, uint256 uOptFilter, int& out_nVotes, uint256& out_uGovObjHash, std::string& out_PaymentAddresses, std::string& out_PaymentAmounts);
 uint256 GetPAMHashByContract(std::string sContract);
-bool VoteForGSCContract(int nHeight, std::string sMyContract, std::string sError);
+bool VoteForGSCContract(int nHeight, std::string sMyContract, std::string& sError);
 std::string ExecuteGenericSmartContractQuorumProcess();
 UniValue GetProminenceLevels();
 bool NickNameExists(std::string sNickName);
+int GetRequiredQuorumLevel(int nHeight);
 
 #endif

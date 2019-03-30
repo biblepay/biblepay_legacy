@@ -129,6 +129,7 @@ std::map<std::string, std::string> mapArgs;
 static std::map<std::string, std::vector<std::string> > _mapMultiArgs;
 const std::map<std::string, std::vector<std::string> >& mapMultiArgs = _mapMultiArgs;
 bool fDebug = false;
+bool fDebugSpam = false;
 bool fPrintToConsole = false;
 bool fPrintToDebugLog = true;
 
@@ -389,8 +390,12 @@ int LogPrintStr(const std::string &str)
                 if (freopen(pathDebug.string().c_str(),"a",fileout) != NULL)
                     setbuf(fileout, NULL); // unbuffered
             }
+			static std::string strLastWritten;
+			bool fSame = (strTimestamped == strLastWritten);
 
-            ret = FileWriteStr(strTimestamped, fileout);
+			strLastWritten = strTimestamped;
+			if (!fSame)
+				ret = FileWriteStr(strTimestamped, fileout);
         }
     }
     return ret;

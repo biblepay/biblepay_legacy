@@ -63,6 +63,7 @@ public:
 
 extern const std::map<std::string, std::vector<std::string> >& mapMultiArgs;
 extern bool fDebug;
+extern bool fDebugSpam;
 extern bool fPrintToConsole;
 extern bool fPrintToDebugLog;
 

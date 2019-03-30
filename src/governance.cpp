@@ -679,7 +679,8 @@ void CGovernanceManager::SyncSingleObjAndItsVotes(CNode* pnode, const uint256& n
     }
 
     // Push the govobj inventory message over to the other client
-    LogPrint("gobject", "CGovernanceManager::%s -- syncing govobj: %s, peer=%d\n", __func__, strHash, pnode->id);
+    if (fDebugSpam)
+		LogPrint("gobject", "CGovernanceManager::%s -- syncing govobj: %s, peer=%d\n", __func__, strHash, pnode->id);
     pnode->PushInventory(CInv(MSG_GOVERNANCE_OBJECT, it->first));
 
     auto fileVotes = govobj.GetVoteFile();
@@ -699,7 +700,8 @@ void CGovernanceManager::SyncSingleObjAndItsVotes(CNode* pnode, const uint256& n
     CNetMsgMaker msgMaker(pnode->GetSendVersion());
     connman.PushMessage(pnode, msgMaker.Make(NetMsgType::SYNCSTATUSCOUNT, MASTERNODE_SYNC_GOVOBJ, 1));
     connman.PushMessage(pnode, msgMaker.Make(NetMsgType::SYNCSTATUSCOUNT, MASTERNODE_SYNC_GOVOBJ_VOTE, nVoteCount));
-    LogPrintf("CGovernanceManager::%s -- sent 1 object and %d votes to peer=%d\n", __func__, nVoteCount, pnode->id);
+    if (fDebugSpam)
+		LogPrintf("CGovernanceManager::%s -- sent 1 object and %d votes to peer=%d\n", __func__, nVoteCount, pnode->id);
 }
 
 void CGovernanceManager::SyncAll(CNode* pnode, CConnman& connman) const
@@ -740,7 +742,8 @@ void CGovernanceManager::SyncAll(CNode* pnode, CConnman& connman) const
         }
 
         // Push the inventory budget proposal message over to the other client
-        LogPrint("gobject", "CGovernanceManager::%s -- syncing govobj: %s, peer=%d\n", __func__, strHash, pnode->id);
+        if (fDebugSpam)
+			LogPrint("gobject", "CGovernanceManager::%s -- syncing govobj: %s, peer=%d\n", __func__, strHash, pnode->id);
         pnode->PushInventory(CInv(MSG_GOVERNANCE_OBJECT, nHash));
         ++nObjCount;
     }
@@ -748,7 +751,8 @@ void CGovernanceManager::SyncAll(CNode* pnode, CConnman& connman) const
     CNetMsgMaker msgMaker(pnode->GetSendVersion());
     connman.PushMessage(pnode, msgMaker.Make(NetMsgType::SYNCSTATUSCOUNT, MASTERNODE_SYNC_GOVOBJ, nObjCount));
     connman.PushMessage(pnode, msgMaker.Make(NetMsgType::SYNCSTATUSCOUNT, MASTERNODE_SYNC_GOVOBJ_VOTE, nVoteCount));
-    LogPrintf("CGovernanceManager::%s -- sent %d objects and %d votes to peer=%d\n", __func__, nObjCount, nVoteCount, pnode->id);
+    if (fDebugSpam)
+		LogPrintf("CGovernanceManager::%s -- sent %d objects and %d votes to peer=%d\n", __func__, nObjCount, nVoteCount, pnode->id);
 }
 
 void CGovernanceManager::MasternodeRateUpdate(const CGovernanceObject& govobj)
@@ -1104,7 +1108,8 @@ int CGovernanceManager::RequestGovernanceObjectVotes(const std::vector<CNode*>& 
         }
     }
 
-    LogPrint("gobject", "CGovernanceManager::RequestGovernanceObjectVotes -- start: vTriggerObjHashes %d vOtherObjHashes %d mapAskedRecently %d\n",
+	if (fDebugSpam)
+		LogPrint("gobject", "CGovernanceManager::RequestGovernanceObjectVotes -- start: vTriggerObjHashes %d vOtherObjHashes %d mapAskedRecently %d\n",
         vTriggerObjHashes.size(), vOtherObjHashes.size(), mapAskedRecently.size());
 
     FastRandomContext insecure_rand;
@@ -1153,8 +1158,9 @@ int CGovernanceManager::RequestGovernanceObjectVotes(const std::vector<CNode*>& 
         }
         if (!fAsked) i--;
     }
-    LogPrint("gobject", "CGovernanceManager::RequestGovernanceObjectVotes -- end: vTriggerObjHashes %d vOtherObjHashes %d mapAskedRecently %d\n",
-        vTriggerObjHashes.size(), vOtherObjHashes.size(), mapAskedRecently.size());
+	if (fDebugSpam)
+		LogPrint("gobject", "CGovernanceManager::RequestGovernanceObjectVotes -- end: vTriggerObjHashes %d vOtherObjHashes %d mapAskedRecently %d\n",
+			vTriggerObjHashes.size(), vOtherObjHashes.size(), mapAskedRecently.size());
 
     return int(vTriggerObjHashes.size() + vOtherObjHashes.size());
 }

@@ -73,6 +73,14 @@ UniValue GetCampaigns()
 	return results;
 }
 
+CPK GetMyCPK(std::string sProjectName)
+{
+	std::string sCPK = DefaultRecAddress("Christian-Public-Key");
+	std::string sRec = GetCPKData(sProjectName, sCPK);
+	CPK myCPK = GetCPK(sRec);
+	return myCPK;
+}
+
 bool CheckCampaign(std::string sName)
 {
 	boost::to_upper(sName);
@@ -178,10 +186,34 @@ double UserSetting(std::string sName, double dDefault)
 //////////////////////////////////////////////////////////////////////////// CAMPAIGN #1 - Created March 23rd, 2019 - PROOF-OF-GIVING /////////////////////////////////////////////////////////////////////////////
 // Loop through each campaign, create the applicable client-side transaction 
 
+bool Enrolled(std::string sCampaignName, std::string& sError)
+{
+	// First, verify the user is in good standing
+	CPK myCPK = GetMyCPK("cpk");
+	if (myCPK.sAddress.empty()) 
+	{
+		sError = "User has no CPK.";
+		return false;
+	}
+	// If we got this far, it was signed.
+	if (sCampaignName == "cpk") return true;
+	// Now check the project signature.
+	CPK myProject = GetMyCPK("cpk-" + sCampaignName);
+	if (myProject.sAddress.empty())
+	{
+		sError = "User is not enrolled.";
+		return false;
+	}
+	return true;
+}
+
+static const double nDefaultCoinAgePercentage = .10;
+static const double nDefaultTithe = 7;
+
 bool CreateClientSideTransaction()
 {
 	std::map<std::string, std::string> mCampaigns = GetSporkMap("spork", "gsccampaigns");
-	// CRITICAL - Change this to 12 hours before we go to prod
+	// CRITICAL TODO - Change this to 12 hours before we go to prod
 	double nTransmissionFrequency = GetSporkDouble("gscclienttransmissionfrequency", (60 * 60 * 1));
 	// List of Campaigns
 	for (auto s : mCampaigns)
@@ -191,26 +223,29 @@ bool CreateClientSideTransaction()
 		if (nAge > nTransmissionFrequency)
 		{
 			WriteCacheDouble(s.first + "_lastclientgsc", GetAdjustedTime());
-			// This particular campaign needs a transaction sent
-			LogPrintf("\nSmartContract-Client::Creating Client side transaction for campaign %s ", s.first);
+			// This particular campaign needs a transaction sent (if the user is in good standing and enrolled in this project)
 			std::string sError;
-			std::string sXML;
-		    CReserveKey reservekey(pwalletMain);
-			double nCoinAgePercentage = UserSetting(s.first + "_coinagepercentage", .10);
-			CAmount nFoundationDonation = UserSetting(s.first + "_foundationdonation", 7) * COIN;
-			CWalletTx wtx = CreateGSCClientTransmission(s.first, chainActive.Tip(), nCoinAgePercentage, nFoundationDonation, reservekey, sXML, sError);
-			LogPrintf("\nCreated client side transmission - %s (Error) %s with txid %s ", sXML, sError, wtx.tx->GetHash().GetHex());
-			CValidationState state;
-
-			if (sError.empty())
+			if (Enrolled(s.first, sError))
 			{
-			    if (!pwalletMain->CommitTransaction(wtx, reservekey, g_connman.get(), state,  NetMsgType::TX))
+				LogPrintf("\nSmartContract-Client::Creating Client side transaction for campaign %s ", s.first);
+				sError = "";
+				std::string sXML;
+				CReserveKey reservekey(pwalletMain);
+				double nCoinAgePercentage = UserSetting(s.first + "_coinagepercentage", nDefaultCoinAgePercentage);
+				CAmount nFoundationDonation = UserSetting(s.first + "_foundationdonation", nDefaultTithe) * COIN;
+				CWalletTx wtx = CreateGSCClientTransmission(s.first, chainActive.Tip(), nCoinAgePercentage, nFoundationDonation, reservekey, sXML, sError);
+				LogPrintf("\nCreated client side transmission - %s (Error) %s with txid %s ", sXML, sError, wtx.tx->GetHash().GetHex());
+				CValidationState state;
+
+				if (sError.empty())
 				{
-					LogPrint("GSC", "\nUnable to Commit transaction %s", wtx.tx->GetHash().GetHex());
-					return false;
+					if (!pwalletMain->CommitTransaction(wtx, reservekey, g_connman.get(), state,  NetMsgType::TX))
+					{
+						LogPrint("GSC", "\nUnable to Commit transaction %s", wtx.tx->GetHash().GetHex());
+						return false;
+					}
 				}
 			}
-			
 		}
 	}
 	return true;

@@ -93,11 +93,10 @@ bool VoteForGobject(uint256 govobj, std::string sVoteOutcome, std::string& sErro
 	vote_outcome_enum_t eVoteOutcome = CGovernanceVoting::ConvertVoteOutcome(sVoteOutcome);
 	int nSuccessful = 0;
 	int nFailed = 0;
-	uint256 hash;
 	int govObjType;
 	{
         LOCK(governance.cs);
-        CGovernanceObject *pGovObj = governance.FindGovernanceObject(hash);
+        CGovernanceObject *pGovObj = governance.FindGovernanceObject(govobj);
         if (!pGovObj) 
 		{
 			sError = "Governance object not found";
@@ -115,7 +114,7 @@ bool VoteForGobject(uint256 govobj, std::string sVoteOutcome, std::string& sErro
 		return false;
     }
 
-    CGovernanceVote vote(mn.outpoint, hash, eVoteSignal, eVoteOutcome);
+    CGovernanceVote vote(mn.outpoint, govobj, eVoteSignal, eVoteOutcome);
 
     bool signSuccess = false;
     if (deterministicMNManager->IsDeterministicMNsSporkActive()) {
@@ -164,6 +163,7 @@ bool NickNameExists(std::string sNickName)
 std::string AssessBlocks(int nHeight)
 {
 	CAmount nPaymentsLimit = CSuperblock::GetPaymentsLimit(nHeight);
+	nPaymentsLimit -= MAX_BLOCK_SUBSIDY * COIN;
 
 	int nMaxDepth = nHeight;
 	int nMinDepth = nMaxDepth - BLOCKS_PER_DAY;
@@ -203,7 +203,7 @@ std::string AssessBlocks(int nHeight)
 							c.sAddress = sCPK;
 							c.sNickName = mAllCPKs[sCPK].sNickName;
 							mPoints[sCPK] = c;
-							if (fDebug)
+							if (fDebugSpam)
 								LogPrintf("\nUser %s , Points %f, Campaign %s, coinage %f, donation %f, usertotal %f ", c.sAddress, (double)nPoints, c.sCampaign, (double)nCoinAge, (double)nDonation/COIN, (double)c.nPoints);
 						}
 					}
@@ -257,14 +257,16 @@ std::string AssessBlocks(int nHeight)
 
 int GetRequiredQuorumLevel(int nHeight)
 {
-	if (!fProd) return 2;
+	static int MINIMUM_QUORUM_PROD = 10;
+	static int MINIMUM_QUORUM_TESTNET = 3;
 	int nCount = mnodeman.CountEnabled();
 	int nReq = nCount * .20;
-	if (nReq < 3) nReq = 3;
+	int nMinimumQuorum = fProd ? MINIMUM_QUORUM_PROD : MINIMUM_QUORUM_TESTNET;
+	if (nReq < nMinimumQuorum) nReq = nMinimumQuorum;
 	return nReq;
 }
 
-bool VoteForGSCContract(int nHeight, std::string sMyContract, std::string sError)
+bool VoteForGSCContract(int nHeight, std::string sMyContract, std::string& sError)
 {
 	int iPendingVotes = 0;
 	uint256 uGovObjHash;
@@ -406,12 +408,12 @@ uint256 GetPAMHashByContract(std::string sContract)
 	std::string sAddresses = ExtractXML(sContract, "<ADDRESSES>","</ADDRESSES>");
 	std::string sAmounts = ExtractXML(sContract, "<PAYMENTS>","</PAYMENTS>");
 	uint256 u = GetPAMHash(sAddresses, sAmounts);
+	/* LogPrintf("GetPAMByContract addr %s, amounts %s, uint %s",sAddresses, sAmounts, u.GetHex()); */
 	return u;
 }
 
 void GetGSCGovObjByHeight(int nHeight, uint256 uOptFilter, int& out_nVotes, uint256& out_uGovObjHash, std::string& out_PaymentAddresses, std::string& out_PaymentAmounts)
 {
-	std::string strType = "triggers";
 	int nStartTime = 0; 
 	LOCK2(cs_main, governance.cs);
 	std::vector<const CGovernanceObject*> objs = governance.GetAllNewerThan(nStartTime);
@@ -420,29 +422,26 @@ void GetGSCGovObjByHeight(int nHeight, uint256 uOptFilter, int& out_nVotes, uint
 	int iHighVotes = -1;
 	for (const auto& pGovObj : objs) 
 	{
-		if(strType == "proposals" && pGovObj->GetObjectType() != GOVERNANCE_OBJECT_PROPOSAL) continue;
-		if(strType == "triggers" && pGovObj->GetObjectType() != GOVERNANCE_OBJECT_TRIGGER) continue;
-		if(strType == "watchdogs" && pGovObj->GetObjectType() != GOVERNANCE_OBJECT_WATCHDOG) continue;
-		int64_t nLocalHeight = 0;
-		CProposalValidator validator(pGovObj->GetDataAsHexString());
-		if (validator.GetDataValue("event_block_height", nLocalHeight) && validator.GetDataValue("payment_addresses", sPAD) && validator.GetDataValue("payment_amounts", sPAM))
+		CGovernanceObject* myGov = governance.FindGovernanceObject(pGovObj->GetHash());
+		if (myGov->GetObjectType() != GOVERNANCE_OBJECT_TRIGGER) continue;
+	    UniValue obj = myGov->GetJSONObject();
+		int nLocalHeight = obj["event_block_height"].get_int();
+		if (nLocalHeight == nHeight)
 		{
-			if (nLocalHeight == nHeight)
+			std::string sPAD = obj["payment_addresses"].get_str();
+			std::string sPAM = obj["payment_amounts"].get_str();
+			int iVotes = myGov->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING);
+			uint256 uHash = GetPAMHash(sPAD, sPAM);
+			/* LogPrintf("\n Found gscgovobj2 %s with votes %f with pad %s and pam %s , pam hash %s ", myGov->GetHash().GetHex(), (double)iVotes, sPAD, sPAM, uHash.GetHex()); */
+			if (uOptFilter != uint256S("0x0") && uHash != uOptFilter) continue;
+			// This governance-object matches the trigger height and the optional filter
+			if (iVotes > iHighVotes) 
 			{
-				int iVotes = pGovObj->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING);
-				uint256 uHash = GetPAMHash(sPAD, sPAM);
-				LogPrintf(" Found gscgovobj %s with votes %f with pam hash %s ",pGovObj->GetHash().GetHex(), (double)iVotes, uHash.GetHex());
-
-				if (uOptFilter != uint256S("0x0") && uHash != uOptFilter) continue;
-				// This governance-object matches the trigger height and the optional filter
-				if (iVotes > iHighVotes) 
-				{
-					iHighVotes = iVotes;
-					out_PaymentAddresses = sPAD;
-					out_PaymentAmounts = sPAM;
-					out_nVotes = iHighVotes;
-					out_uGovObjHash = pGovObj->GetHash();
-				}
+				iHighVotes = iVotes;
+				out_PaymentAddresses = sPAD;
+				out_PaymentAmounts = sPAM;
+				out_nVotes = iHighVotes;
+				out_uGovObjHash = myGov->GetHash();
 			}
 		}
 	}
@@ -480,11 +479,14 @@ std::string SerializeSanctuaryQuorumTrigger(int iContractAssessmentHeight, int n
 	std::string sPaymentAmounts;
 	bool bStatus = GetContractPaymentData(sContract, iContractAssessmentHeight, sPaymentAddresses, sPaymentAmounts);
 	if (!bStatus) return "";
-	std::string sProposalHashes = GetGSCHash(sContract).GetHex();
+
+	std::string sProposalHashes = GetPAMHashByContract(sContract).GetHex();
+
 	std::string sType = "2"; // GSC Trigger is always 2
 	std::string sQ = "\"";
 	std::string sJson = "[[" + sQ + "trigger" + sQ + ",{";
 	sJson += GJE("event_block_height", sEventBlockHeight, true, false); // Must be an int
+	sJson += GJE("start_epoch", RoundToString(GetAdjustedTime(), 0), true, false);
 	sJson += GJE("payment_addresses", sPaymentAddresses,  true, true);
 	sJson += GJE("payment_amounts",   sPaymentAmounts,    true, true);
 	sJson += GJE("proposal_hashes",   sProposalHashes,    true, true);
@@ -521,6 +523,10 @@ bool ChainSynced(CBlockIndex* pindex)
 UniValue GetProminenceLevels()
 {
 	UniValue results(UniValue::VOBJ);
+	int iNextSuperblock = 0;
+	int iLastSuperblock = GetLastGSCSuperblockHeight(chainActive.Tip()->nHeight, iNextSuperblock);
+	CAmount nPaymentsLimit = CSuperblock::GetPaymentsLimit(iLastSuperblock);
+
 	std::string sContract = GetGSCContract();
 	std::string sData = ExtractXML(sContract, "<DATA>", "</DATA>");
 	std::vector<std::string> vData = Split(sData.c_str(), "\n");
@@ -534,9 +540,11 @@ UniValue GetProminenceLevels()
 			double nPoints = cdbl(vRow[1], 2);
 			double nProminence = cdbl(vRow[2], 4) * 100;
 			std::string sNickName = vRow[3];
-			if (sNickName.empty()) sNickName = "N/A";
-			std::string sMoniker = sCPK + " [" + sNickName + "]" + " - " + RoundToString(nPoints, 2);
-			results.push_back(Pair(sMoniker, nProminence));
+			if (sNickName.empty())
+				sNickName = "N/A";
+			CAmount nOwed = nPaymentsLimit * (nProminence / 100) * .99;
+			std::string sNarr = sCPK + " [" + sNickName + "]" + ", Pts: " + RoundToString(nPoints, 2) + ", Reward: " + RoundToString((double)nOwed / COIN, 2);
+			results.push_back(Pair(sNarr, RoundToString(nProminence, 2) + "%"));
 		}
 	}
 
@@ -552,7 +560,7 @@ std::string ExecuteGenericSmartContractQuorumProcess()
 		return "INVALID_CHAIN";
 	if (!ChainSynced(chainActive.Tip()))
 		return "CHAIN_NOT_SYNCED";
-	bool fQuorum = (chainActive.Tip()->nHeight % 12 == 0);
+	bool fQuorum = (chainActive.Tip()->nHeight % 9 == 0);
 	if (!fQuorum)
 		return "NOT_TIME_FOR_QUORUM";
 		
@@ -572,10 +580,11 @@ std::string ExecuteGenericSmartContractQuorumProcess()
 	GetGSCGovObjByHeight(iNextSuperblock, uPamHash, iPendingVotes, uGovObjHash, sAddresses, sAmounts);
 	
 	int iRequiredVotes = GetRequiredQuorumLevel(iNextSuperblock);
-	bool bPending = iPendingVotes >= iRequiredVotes;
+	bool bPending = iPendingVotes > iRequiredVotes;
 	if (bPending) 
 	{
-		if (fDebug) LogPrintf("We have a pending superblock at height %f \n",(double)iNextSuperblock);
+		if (fDebug)
+			LogPrintf("\n ExecuteGenericSmartContractQuorum::We have a pending superblock at height %f \n", (double)iNextSuperblock);
 		return "PENDING_SUPERBLOCK";
 	}
 	
@@ -584,22 +593,26 @@ std::string ExecuteGenericSmartContractQuorumProcess()
 		std::string sQuorumTrigger = SerializeSanctuaryQuorumTrigger(iLastSuperblock, iNextSuperblock, sContract);
 		std::string sGobjectHash;
 		SubmitGSCTrigger(sQuorumTrigger, sGobjectHash, sError);
-		LogPrintf(" ** ExecuteGenericSmartContractQuorumProcess::CreatingGSCContract Hex %s , Gobject %s, results %s **\n", sQuorumTrigger.c_str(), sGobjectHash.c_str(), sError.c_str());
+		LogPrintf("**ExecuteGenericSmartContractQuorumProcess::CreatingGSCContract Hex %s , Gobject %s, results %s **\n", sQuorumTrigger.c_str(), sGobjectHash.c_str(), sError.c_str());
 		return "CREATING_CONTRACT";
 	}
-	if (iVotes < iRequiredVotes)
+	if (iVotes <= iRequiredVotes)
 	{
 		bool bResult = VoteForGSCContract(iNextSuperblock, sContract, sError);
-		if (bResult) return "VOTED_FOR_GSC_CONTRACT";
 		if (!bResult)
 		{
-			LogPrintf(" **unable to vote for GSC contract %s ", sError.c_str());
+			LogPrintf("\n**ExecuteGenericSmartContractQuorum::Unable to vote for GSC contract: Reason [%s] ", sError.c_str());
+			return "UNABLE_TO_VOTE_FOR_GSC_CONTRACT";
 		}
-		return "UNABLE_TO_VOTE_FOR_GSC_CONTRACT";
+		else
+		{
+			LogPrintf("\n**ExecuteGenericSmartContractQuorum::Voted Successfully %f.", 1);
+			return "VOTED_FOR_GSC_CONTRACT";
+		}
 	}
-	else if (iVotes >= iRequiredVotes)
+	else if (iVotes > iRequiredVotes)
 	{
-		LogPrintf(" GSC Contract %s has won.  Waiting for superblock. ", uGovObjHash.GetHex());
+		LogPrintf(" ExecuteGenericSmartContractQuorum::GSC Contract %s has won.  Waiting for superblock. ", uGovObjHash.GetHex());
 		return "PENDING_SUPERBLOCK";
 	}
 
