@@ -1848,7 +1848,6 @@ UniValue exec(const JSONRPCRequest& request)
 		std::string sReqPay = CSuperblockManager::GetRequiredPaymentsString(iNextSuperblock);
 		results.push_back(Pair("next_superblock_req_payments", sReqPay));
 
-
 		/*  QT (Reserved)
 		std::string sSig = SignPrice(".01");
 		bool fSigValid = VerifyDarkSendSigner(sSig);
@@ -1943,6 +1942,32 @@ UniValue exec(const JSONRPCRequest& request)
 
 			results.push_back(Pair("weight " + RoundToString(dMin, 2), dABN));
 			results.push_back(Pair("total_required " + RoundToString(dMin, 2), nTotalReq/COIN));
+		}
+	}
+	else if (sItem == "getpogpoints")
+	{
+		if (request.params.size() < 2)
+			 throw std::runtime_error("You must specify the txid.");
+		std::string sTxId = request.params[1].get_str();
+		uint256 hashBlock = uint256();
+		CTransactionRef tx;
+		uint256 uTx = ParseHashV(sTxId, "txid");
+		double nCoinAge = 0;
+		CAmount nDonation = 0;
+		if (GetTransaction(uTx, tx, Params().GetConsensus(), hashBlock, true))
+		{
+		    CBlockIndex* pblockindex = mapBlockIndex[hashBlock];
+			if (!pblockindex) 
+				throw std::runtime_error("bad blockindex for this tx.");
+			double nPoints = CalculatePoints("POG", nCoinAge, nDonation);
+			GetTransactionPoints(pblockindex, tx, nCoinAge, nDonation);
+			results.push_back(Pair("pog_points", nPoints));
+			results.push_back(Pair("coin_age", nCoinAge));
+			results.push_back(Pair("orphan_donation", (double)nDonation / COIN));
+		}
+		else
+		{
+			results.push_back(Pair("error", "not found"));
 		}
 	}
 	else if (sItem == "auditabntx")

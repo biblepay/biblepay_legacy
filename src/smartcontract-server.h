@@ -25,5 +25,8 @@ std::string ExecuteGenericSmartContractQuorumProcess();
 UniValue GetProminenceLevels(int nHeight);
 bool NickNameExists(std::string sNickName);
 int GetRequiredQuorumLevel(int nHeight);
+double CalculatePoints(std::string sCampaign, double nCoinAge, CAmount nDonation);
+void GetTransactionPoints(CBlockIndex* pindex, CTransactionRef tx, double& nCoinAge, CAmount& nDonation);
+bool ChainSynced(CBlockIndex* pindex);
 
 #endif

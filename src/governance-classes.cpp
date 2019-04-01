@@ -318,8 +318,10 @@ bool CSuperblockManager::IsSuperblockTriggered(int nBlockHeight)
 				int iVotes = pObj->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING);
 				int iRequiredVotes = GetRequiredQuorumLevel(nBlockHeight);
 				bool bPassed = iVotes >= iRequiredVotes;
-				LogPrintf("CSuperblockManager::IsSuperblockTriggered - Height %f, Votes %f, Required Votes %f, Status %f", (double)nBlockHeight, (double)iVotes, (double)iRequiredVotes, (double)bPassed);
-				if (bPassed) return true;  // Otherwise iterate to the next one
+				LogPrintf("\nCSuperblockManager::IsGSCSuperblockTriggered - Height %f, Votes %f, Required Votes %f, Status %f",
+					(double)nBlockHeight, (double)iVotes, (double)iRequiredVotes, (double)bPassed);
+				// If IsSetCachedFunding() is set, it met the requirements
+				return true;
 			}
 			else
 			{

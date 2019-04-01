@@ -38,6 +38,25 @@ struct CPK
   bool fValid = false;
 };
 
+struct BiblePayProposal
+{
+	std::string sName;
+	int64_t nStartEpoch = 0;
+	int64_t nEndEpoch = 0;
+	std::string sURL;
+	std::string sExpenseType;
+	double nAmount;
+	std::string sAddress;
+	uint256 uHash = uint256S("0x0");
+	int nHeight = 0;
+	bool fPassing = false;
+	int nNetYesVotes = 0;
+	int nYesVotes = 0;
+	int nNoVotes = 0;
+	int nAbstainVotes = 0;
+	std::string sProposalHRTime;
+};
+
 CAmount CAmountFromValue(const UniValue& value);
 std::string RoundToString(double d, int place);
 std::string QueryBibleHashVerses(uint256 hash, uint64_t nBlockTime, uint64_t nPrevBlockTime, int nPrevHeight, CBlockIndex* pindexPrev);
@@ -160,6 +179,8 @@ CAmount GetTitheAmount(CTransactionRef ctx);
 CPK GetCPK(std::string sData);
 std::string GetCPKData(std::string sProjectId, std::string sPK);
 CAmount GetRPCBalance();
+void GetGovSuperblockHeights(int& nNextSuperblock, int& nLastSuperblock);
+int GetHeightByEpochTime(int64_t nEpoch);
 
 
 #endif
