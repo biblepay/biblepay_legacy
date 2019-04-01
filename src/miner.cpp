@@ -958,8 +958,9 @@ bool PeersExist()
 bool LateBlock(CBlock block, CBlockIndex* pindexPrev, int iMinutes)
 {
 	// After 60 minutes, we no longer require the anti-bot-net weight (prevent the chain from freezing)
-	int64_t nAge = block.GetBlockTime() - pindexPrev->nTime;
-	return nAge > (60 * iMinutes) ? true : false;
+	int64_t nAgeTip = block.GetBlockTime() - pindexPrev->nTime;
+	int64_t nAge = GetAdjustedTime() - pindexPrev->nTime;
+	return (nAge > (60 * iMinutes) || nAgeTip > (60 * iMinutes)) ? true : false;
 }
 
 bool IsMyABNSufficient(CBlock block, CBlockIndex* pindexPrev, int nHeight)
