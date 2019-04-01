@@ -276,7 +276,12 @@ CPK GetCPK(std::string sData)
 	if (sCPK.empty()) return k;
 
 	k.fValid = CheckStakeSignature(sCPK, sSig, sSecurityHash, k.sError);
-	if (!k.fValid) return k;
+	if (!k.fValid) 
+	{
+		LogPrintf("GetCPK::Error Sig %s, SH %s, Err %s, CPK %s, NickName %s ", sSig, sSecurityHash, k.sError, sCPK, vDec[1]);
+		return k;
+	}
+
 	k.sAddress = sCPK;
 	k.sNickName = vDec[1];
 	k.nLockTime = (int64_t)cdbl(vDec[2], 0);
@@ -452,22 +457,21 @@ std::string DefaultRecAddress(std::string sType)
 	return sDefaultRecAddress;
 }
 
-/*
 std::string CreateBankrollDenominations(double nQuantity, CAmount denominationAmount, std::string& sError)
 {
-	// First mark the denominations with the 1milliBBP TitheMarker (this saves them from being spent in PODC Updates):
+	// First mark the denominations with the 1milliBBP TitheMarker
 	denominationAmount += ((.001) * COIN);
 	CAmount nBankrollMask = .001 * COIN;
 
 	CAmount nTotal = denominationAmount * nQuantity;
 
-	CAmount curBalance = pwalletMain->GetUnlockedBalance();
+	CAmount curBalance = pwalletMain->GetBalance();
 	if (curBalance < nTotal)
 	{
 		sError = "Insufficient funds (Unlock Wallet).";
 		return "";
 	}
-	std::string sTitheAddress = DefaultRecAddress("TITHES");
+	std::string sTitheAddress = DefaultRecAddress("CHRISTIAN-PUBLIC-KEYPAIR");
 	CBitcoinAddress cbAddress(sTitheAddress);
 	CWalletTx wtx;
 	
@@ -479,14 +483,14 @@ std::string CreateBankrollDenominations(double nQuantity, CAmount denominationAm
 	for (int i = 0; i < nQuantity; i++)
 	{
 		bool fSubtractFeeFromAmount = false;
-	    CRecipient recipient = {scriptPubKey, denominationAmount, false, fSubtractFeeFromAmount, false, false, false, "", "", "", ""};
-		recipient.Message = "";
+	    CRecipient recipient = {scriptPubKey, denominationAmount, false, fSubtractFeeFromAmount};
 		vecSend.push_back(recipient);
 	}
 	
 	bool fUseInstantSend = false;
 	double minCoinAge = 0;
-    if (!pwalletMain->CreateTransaction(vecSend, wtx, reservekey, nFeeRequired, nChangePosRet, sError, NULL, true, ONLY_NOT1000IFMN, fUseInstantSend, 0, minCoinAge, 0, nBankrollMask)) 
+	std::string sOptData;
+    if (!pwalletMain->CreateTransaction(vecSend, wtx, reservekey, nFeeRequired, nChangePosRet, sError, NULL, true, ONLY_NONDENOMINATED, fUseInstantSend, 0, sOptData)) 
 	{
 		if (!sError.empty())
 		{
@@ -499,7 +503,8 @@ std::string CreateBankrollDenominations(double nQuantity, CAmount denominationAm
 			return "";
 		}
     }
-    if (!pwalletMain->CommitTransaction(wtx, reservekey, fUseInstantSend ? NetMsgType::TXLOCKREQUEST : NetMsgType::TX))
+	CValidationState state;
+    if (!pwalletMain->CommitTransaction(wtx, reservekey, g_connman.get(), state, fUseInstantSend ? NetMsgType::TXLOCKREQUEST : NetMsgType::TX))
     {
 		sError = "Error: The transaction was rejected! This might happen if some of the coins in your wallet were already spent, such as if you used a copy of wallet.dat and coins were spent in the copy but not marked as spent here.";
 		return "";
@@ -508,26 +513,6 @@ std::string CreateBankrollDenominations(double nQuantity, CAmount denominationAm
 	std::string sTxId = wtx.GetHash().GetHex();
 	return sTxId;
 }
-*/
-
-
-/*
-CAmount GetTitheTotal(CTransaction tx)
-{
-	CAmount nTotal = 0;
-	const Consensus::Params& consensusParams = Params().GetConsensus();
-    
-	for (int i=0; i < (int)tx.vout.size(); i++)
-	{
- 		std::string sRecipient = PubKeyToAddress(tx.vout[i].scriptPubKey);
-		if (sRecipient == consensusParams.FoundationAddress)
-		{ 
-			nTotal += tx.vout[i].nValue;
-		}
-	 }
-	 return nTotal;
-}
-*/
 
 std::string RetrieveMd5(std::string s1)
 {

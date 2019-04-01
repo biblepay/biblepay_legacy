@@ -64,10 +64,12 @@ std::string GetTxCPK(CTransactionRef tx, std::string& sCampaignName)
 //////////////////////////////////////////////////////////////////////////////// GSC Server side Abstraction Interface ////////////////////////////////////////////////////////////////////////////////////////////////
 
 
-std::string GetGSCContract()
+std::string GetGSCContract(int nHeight)
 {
 	int nNextSuperblock = 0;
 	int nLast = GetLastGSCSuperblockHeight(chainActive.Tip()->nHeight, nNextSuperblock);
+	if (nHeight != 0) 
+		nLast = nHeight;
 	std::string sContract = AssessBlocks(nLast);
 	return sContract;
 }
@@ -164,6 +166,10 @@ std::string AssessBlocks(int nHeight)
 {
 	CAmount nPaymentsLimit = CSuperblock::GetPaymentsLimit(nHeight);
 	nPaymentsLimit -= MAX_BLOCK_SUBSIDY * COIN;
+	if (!chainActive.Tip()) 
+		return "";
+	if (nHeight > chainActive.Tip()->nHeight)
+		nHeight = chainActive.Tip()->nHeight - 1;
 
 	int nMaxDepth = nHeight;
 	int nMinDepth = nMaxDepth - BLOCKS_PER_DAY;
@@ -201,10 +207,11 @@ std::string AssessBlocks(int nHeight)
 							c.nPoints += nPoints;
 							c.sCampaign = sCampaignName;
 							c.sAddress = sCPK;
-							c.sNickName = mAllCPKs[sCPK].sNickName;
+							c.sNickName = localCPK.sNickName;
 							mPoints[sCPK] = c;
 							if (fDebugSpam)
-								LogPrintf("\nUser %s , Points %f, Campaign %s, coinage %f, donation %f, usertotal %f ", c.sAddress, (double)nPoints, c.sCampaign, (double)nCoinAge, (double)nDonation/COIN, (double)c.nPoints);
+								LogPrintf("\nUser %s , Points %f, Campaign %s, coinage %f, donation %f, usertotal %f ", c.sAddress, (double)nPoints, c.sCampaign, (double)nCoinAge, 
+								(double)nDonation/COIN, (double)c.nPoints);
 						}
 					}
 				}
@@ -520,14 +527,14 @@ bool ChainSynced(CBlockIndex* pindex)
 	return (nAge > (60 * 60)) ? false : true;
 }
 
-UniValue GetProminenceLevels()
+UniValue GetProminenceLevels(int nHeight)
 {
 	UniValue results(UniValue::VOBJ);
-	int iNextSuperblock = 0;
-	int iLastSuperblock = GetLastGSCSuperblockHeight(chainActive.Tip()->nHeight, iNextSuperblock);
-	CAmount nPaymentsLimit = CSuperblock::GetPaymentsLimit(iLastSuperblock);
-
-	std::string sContract = GetGSCContract();
+	if (nHeight == 0) 
+		return NullUniValue;
+      
+	CAmount nPaymentsLimit = CSuperblock::GetPaymentsLimit(nHeight);
+	std::string sContract = GetGSCContract(nHeight);
 	std::string sData = ExtractXML(sContract, "<DATA>", "</DATA>");
 	std::vector<std::string> vData = Split(sData.c_str(), "\n");
 	double dTotalPaid = 0;
@@ -539,7 +546,8 @@ UniValue GetProminenceLevels()
 			std::string sCPK = vRow[0];
 			double nPoints = cdbl(vRow[1], 2);
 			double nProminence = cdbl(vRow[2], 4) * 100;
-			std::string sNickName = vRow[3];
+			CPK oPrimary = GetCPKFromProject("cpk", sCPK);
+			std::string sNickName = oPrimary.sNickName;
 			if (sNickName.empty())
 				sNickName = "N/A";
 			CAmount nOwed = nPaymentsLimit * (nProminence / 100) * .99;
@@ -573,7 +581,7 @@ std::string ExecuteGenericSmartContractQuorumProcess()
 	std::string sAddresses;
 	std::string sAmounts;
 	std::string sError;
-	std::string sContract = GetGSCContract();
+	std::string sContract = GetGSCContract(0);
 	uint256 uGovObjHash = uint256S("0x0");
 	uint256 uPamHash = GetPAMHashByContract(sContract);
 	

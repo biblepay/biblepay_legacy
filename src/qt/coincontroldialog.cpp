@@ -131,7 +131,10 @@ CoinControlDialog::CoinControlDialog(const PlatformStyle *_platformStyle, QWidge
     // (un)select all
     connect(ui->pushButtonSelectAll, SIGNAL(clicked()), this, SLOT(buttonSelectAllClicked()));
 
-    // Toggle lock state
+	// Select Some (BiblePay)
+	connect(ui->pushButtonSelectSome, SIGNAL(clicked()), this, SLOT(buttonSelectSomeClicked()));
+    
+	// Toggle lock state
     connect(ui->pushButtonToggleLock, SIGNAL(clicked()), this, SLOT(buttonToggleLockClicked()));
 
     // change coin control first column label due Qt4 bug.
@@ -187,6 +190,25 @@ void CoinControlDialog::buttonBoxClicked(QAbstractButton* button)
     if (ui->buttonBox->buttonRole(button) == QDialogButtonBox::AcceptRole)
         done(QDialog::Accepted); // closes the dialog
 }
+
+// Select Some
+void CoinControlDialog::buttonSelectSomeClicked()
+{
+    Qt::CheckState state = Qt::Checked;
+    ui->treeWidget->setEnabled(false);
+    for (int i = 0; i < ui->treeWidget->topLevelItemCount(); i++)
+	{
+		if (ui->treeWidget->topLevelItem(i)->checkState(COLUMN_CHECKBOX) != state)
+		{
+			// BIBLEPAY - Select 20% of the checkboxes
+			if (GetRandInt(100) <= 20)
+				ui->treeWidget->topLevelItem(i)->setCheckState(COLUMN_CHECKBOX, state);
+		}
+	}
+    ui->treeWidget->setEnabled(true);
+    CoinControlDialog::updateLabels(model, this);
+}
+
 
 // (un)select all
 void CoinControlDialog::buttonSelectAllClicked()

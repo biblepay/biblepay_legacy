@@ -444,7 +444,8 @@ void CMasternodePayments::ProcessMessage(CNode* pfrom, const std::string& strCom
         vRecv >> vote;
 
         if(pfrom->nVersion < GetMinMasternodePaymentsProto()) {
-            LogPrint("mnpayments", "MASTERNODEPAYMENTVOTE -- peer=%d using obsolete version %i\n", pfrom->id, pfrom->nVersion);
+            if (fDebugSpam)
+				LogPrint("mnpayments", "MASTERNODEPAYMENTVOTE -- peer=%d using obsolete version %i\n", pfrom->id, pfrom->nVersion);
             connman.PushMessage(pfrom, CNetMsgMaker(pfrom->GetSendVersion()).Make(NetMsgType::REJECT, strCommand, REJECT_OBSOLETE,
                                strprintf("Version must be %d or greater", GetMinMasternodePaymentsProto())));
             return;
@@ -469,7 +470,8 @@ void CMasternodePayments::ProcessMessage(CNode* pfrom, const std::string& strCom
 
             // Avoid processing same vote multiple times if it was already verified earlier
             if(!res.second && res.first->second.IsVerified()) {
-                LogPrint("mnpayments", "MASTERNODEPAYMENTVOTE -- hash=%s, nBlockHeight=%d/%d seen\n",
+                if (fDebugSpam)
+					LogPrint("mnpayments", "MASTERNODEPAYMENTVOTE -- hash=%s, nBlockHeight=%d/%d seen\n",
                             nHash.ToString(), vote.nBlockHeight, nCachedBlockHeight);
                 return;
             }
@@ -481,7 +483,8 @@ void CMasternodePayments::ProcessMessage(CNode* pfrom, const std::string& strCom
 
         int nFirstBlock = nCachedBlockHeight - GetStorageLimit();
         if(vote.nBlockHeight < nFirstBlock || vote.nBlockHeight > nCachedBlockHeight+20) {
-            LogPrint("mnpayments", "MASTERNODEPAYMENTVOTE -- vote out of range: nFirstBlock=%d, nBlockHeight=%d, nHeight=%d\n", nFirstBlock, vote.nBlockHeight, nCachedBlockHeight);
+            if (fDebugSpam)
+				LogPrint("mnpayments", "MASTERNODEPAYMENTVOTE -- vote out of range: nFirstBlock=%d, nBlockHeight=%d, nHeight=%d\n", nFirstBlock, vote.nBlockHeight, nCachedBlockHeight);
             return;
         }
 
@@ -494,7 +497,8 @@ void CMasternodePayments::ProcessMessage(CNode* pfrom, const std::string& strCom
         masternode_info_t mnInfo;
         if(!mnodeman.GetMasternodeInfo(vote.masternodeOutpoint, mnInfo)) {
             // mn was not found, so we can't check vote, some info is probably missing
-            LogPrintf("MASTERNODEPAYMENTVOTE -- masternode is missing %s\n", vote.masternodeOutpoint.ToStringShort());
+            if (fDebugSpam)
+				LogPrintf("MASTERNODEPAYMENTVOTE -- masternode is missing %s\n", vote.masternodeOutpoint.ToStringShort());
             mnodeman.AskForMN(pfrom, vote.masternodeOutpoint, connman);
             return;
         }
@@ -519,7 +523,8 @@ void CMasternodePayments::ProcessMessage(CNode* pfrom, const std::string& strCom
         }
 
         if(!UpdateLastVote(vote)) {
-            LogPrintf("MASTERNODEPAYMENTVOTE -- masternode already voted, masternode=%s\n", vote.masternodeOutpoint.ToStringShort());
+            if (fDebugSpam)
+				LogPrintf("MASTERNODEPAYMENTVOTE -- masternode already voted, masternode=%s\n", vote.masternodeOutpoint.ToStringShort());
             return;
         }
 
@@ -527,7 +532,8 @@ void CMasternodePayments::ProcessMessage(CNode* pfrom, const std::string& strCom
         ExtractDestination(vote.payee, address1);
         CBitcoinAddress address2(address1);
 
-        LogPrint("mnpayments", "MASTERNODEPAYMENTVOTE -- vote: address=%s, nBlockHeight=%d, nHeight=%d, prevout=%s, hash=%s new\n",
+        if (fDebugSpam)
+			LogPrint("mnpayments", "MASTERNODEPAYMENTVOTE -- vote: address=%s, nBlockHeight=%d, nHeight=%d, prevout=%s, hash=%s new\n",
                     address2.ToString(), vote.nBlockHeight, nCachedBlockHeight, vote.masternodeOutpoint.ToStringShort(), nHash.ToString());
 
         if(AddOrUpdatePaymentVote(vote)){
@@ -566,7 +572,8 @@ bool CMasternodePaymentVote::Sign()
         }
 
         if (!CHashSigner::VerifyHash(hash, activeMasternodeInfo.legacyKeyIDOperator, vchSig, strError)) {
-            LogPrintf("CMasternodePaymentVote::%s -- VerifyHash() failed, error: %s\n", __func__, strError);
+            if (fDebugSpam)
+				LogPrintf("CMasternodePaymentVote::%s -- VerifyHash() failed, error: %s\n", __func__, strError);
             return false;
         }
     } else {
@@ -575,7 +582,8 @@ bool CMasternodePaymentVote::Sign()
                     ScriptToAsmStr(payee);
 
         if(!CMessageSigner::SignMessage(strMessage, vchSig, activeMasternodeInfo.legacyKeyOperator)) {
-            LogPrintf("CMasternodePaymentVote::%s -- SignMessage() failed\n", __func__);
+            if (fDebugSpam)
+				LogPrintf("CMasternodePaymentVote::%s -- SignMessage() failed\n", __func__);
             return false;
         }
 

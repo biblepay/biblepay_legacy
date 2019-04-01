@@ -48,6 +48,7 @@
 #include "evo/providertx.h"
 #include "evo/deterministicmns.h"
 #include "evo/cbtx.h"
+#include "governance-classes.h" // For superblock Height
 
 #include <atomic>
 #include <sstream>
@@ -3438,11 +3439,11 @@ bool ContextualCheckBlockHeader(const CBlockHeader& block, CValidationState& sta
 }
 
 
-bool LateBlock(const CBlock& block)
+bool LateBlock(const CBlock& block, const CBlockIndex* pindexPrev, int iMinutes)
 {
 	// After 60 minutes, we no longer require the anti-bot-net weight (prevent the chain from freezing)
-	int64_t nAge = GetAdjustedTime() - block.GetBlockTime();
-	return nAge > (60 * 60) ? true : false;
+	int64_t nAge = block.GetBlockTime() - pindexPrev->nTime;
+	return nAge > (60 * iMinutes) ? true : false;
 }
 
 bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Consensus::Params& consensusParams, const CBlockIndex* pindexPrev)
@@ -3505,7 +3506,7 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
 	//                               Additional Checks for GSC (Generic-Smart-Contracts) and for ABN (Anti-Bot-Net) rules                        //
 	//                                                                                                                                           //
 	double nMinRequiredABNWeight = GetSporkDouble("requiredabnweight", 0);
-	if (nHeight > consensusParams.ABNHeight && nMinRequiredABNWeight > 0 && !LateBlock(block))
+	if (nHeight > consensusParams.ABNHeight && nMinRequiredABNWeight > 0 && !LateBlock(block, pindexPrev, 60))
 	{
 		double nABNWeight = GetABNWeight(block, false);
 		if (nABNWeight < nMinRequiredABNWeight)
@@ -3516,6 +3517,14 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
 			if (nEnforce == 1)
 				return state.DoS(10, false, REJECT_INVALID, "low-abn-weight", false, "Insufficient ABN weight");
 		}
+	}
+
+	bool bIsSuperblock = CSuperblock::IsValidBlockHeight(nHeight) || CSuperblock::IsSmartContract(nHeight);
+	CAmount nPayments = block.vtx[0]->GetValueOut();
+	if (nHeight > consensusParams.EVOLUTION_CUTOVER_HEIGHT && bIsSuperblock && nPayments < ((MAX_BLOCK_SUBSIDY + 1) * COIN) && !LateBlock(block, pindexPrev, 30))
+	{
+		LogPrintf("\nContextualCheckBlock::CheckGSCSuperblock, Block Height %f, This superblock has no recipients!", (double)nHeight);
+		return state.DoS(1, false, REJECT_INVALID, "invalid-gsc-recipient-count", false, "Invalid GSC recipient count");
 	}
 
 	//                                                                                                                                           //

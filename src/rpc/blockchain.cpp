@@ -1806,7 +1806,7 @@ UniValue exec(const JSONRPCRequest& request)
 	{
 		int iNextSuperblock = 0;
 		int iLastSuperblock = GetLastGSCSuperblockHeight(chainActive.Tip()->nHeight, iNextSuperblock);
-		std::string sContract = GetGSCContract(); // As of iLastSuperblock height
+		std::string sContract = GetGSCContract(0); // As of iLastSuperblock height
 		results.push_back(Pair("contract", sContract));
 		std::string sAddresses;
 		std::string sAmounts;
@@ -2044,7 +2044,31 @@ UniValue exec(const JSONRPCRequest& request)
 	}
 	else if (sItem == "prominence")
 	{
-		UniValue p = GetProminenceLevels();
+		if (request.params.size() != 2 && request.params.size() != 1)
+			throw std::runtime_error("You must specify prominence height || prominence last || prominence future || prominence.  The default is future.");
+		int iNextSuperblock = 0;
+		int iLastSuperblock = GetLastGSCSuperblockHeight(chainActive.Tip()->nHeight, iNextSuperblock);
+		std::string sLHF;
+		if (request.params.size() > 1)
+			sLHF = request.params[1].get_str();
+		int nHeight = 0;
+		if (sLHF == "last")
+		{
+			nHeight = iLastSuperblock;
+		}
+		else if (sLHF == "future")
+		{
+			nHeight = iNextSuperblock;
+		}
+		else if (cdbl(sLHF, 0) > 0)
+		{
+			nHeight = cdbl(sLHF, 0);
+		}
+		
+		if (nHeight == 0)
+			nHeight = iNextSuperblock;
+
+		UniValue p = GetProminenceLevels(nHeight);
 		return p;
 	}
 	else if (sItem == "checkcpk")
@@ -2058,10 +2082,33 @@ UniValue exec(const JSONRPCRequest& request)
 			results.push_back(Pair("Error", sError));
 		results.push_back(Pair("Enrolled_Results", fEnrolled));
 	}
+	else if (sItem == "bankroll")
+	{
+		if (request.params.size() != 3)
+			throw std::runtime_error("You must specify type: IE 'exec bankroll quantity denomination'.  IE exec bankroll 10 100 (creates ten 100 BBP bills).");
+		double nQty = cdbl(request.params[1].get_str(), 0);
+		CAmount denomination = cdbl(request.params[2].get_str(), 4) * COIN;
+		std::string sError = "";
+		std::string sTxId = CreateBankrollDenominations(nQty, denomination, sError);
+		if (!sError.empty())
+		{
+			if (sError == "Signing transaction failed") 
+				sError += ".  (Please ensure your wallet is unlocked).";
+			results.push_back(Pair("Error", sError));
+		}
+		else
+		{
+			results.push_back(Pair("TXID", sTxId));
+		}
+	}
 	else if (sItem == "sendgscc")
 	{
-		bool fCreated = CreateClientSideTransaction();
+		std::string sError;
+		bool fCreated = CreateClientSideTransaction(true, sError);
 		results.push_back(Pair("results", (double)fCreated));
+		if (!sError.empty())
+			results.push_back(Pair("Error!", sError));
+
 	}
 	else if (sItem == "datalist")
 	{

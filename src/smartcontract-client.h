@@ -8,6 +8,7 @@
 #include "wallet/wallet.h"
 #include "hash.h"
 #include "net.h"
+#include "rpcpog.h"
 #include "utilstrencodings.h"
 #include <univalue.h>
 
@@ -15,8 +16,8 @@ class CWallet;
 
 UniValue GetCampaigns();
 bool CheckCampaign(std::string sName);
-bool CreateClientSideTransaction();
+bool CreateClientSideTransaction(bool fForce, std::string& sError);
 bool Enrolled(std::string sCampaignName, std::string& sError);
-
+CPK GetCPKFromProject(std::string sProjName, std::string sCPKPtr);
 
 #endif
