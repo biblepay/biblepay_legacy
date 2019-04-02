@@ -1306,7 +1306,8 @@ void CGovernanceManager::UpdatedBlockTip(const CBlockIndex* pindex, CConnman& co
     }
 
     nCachedBlockHeight = pindex->nHeight;
-    LogPrint("gobject", "CGovernanceManager::UpdatedBlockTip -- nCachedBlockHeight: %d\n", nCachedBlockHeight);
+    if (fDebugSpam)
+		LogPrint("gobject", "CGovernanceManager::UpdatedBlockTip -- nCachedBlockHeight: %d\n", nCachedBlockHeight);
 
     if (deterministicMNManager->IsDeterministicMNsSporkActive(pindex->nHeight)) {
         ClearPreDIP3Votes();

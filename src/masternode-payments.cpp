@@ -170,7 +170,7 @@ bool IsBlockPayeeValid(const CTransaction& txNew, int nBlockHeight, CAmount bloc
 {
     if(!masternodeSync.IsSynced() || fLiteMode) {
         //there is no budget data to use to check anything, let's just accept the longest chain
-        if(fDebug) LogPrintf("%s -- WARNING: Not enough data, skipping block payee checks\n", __func__);
+        if (fDebugSpam) LogPrintf("%s -- WARNING: Not enough data, skipping block payee checks\n", __func__);
         return true;
     }
 
@@ -252,7 +252,8 @@ void FillBlockPayments(CMutableTransaction& txNew, int nBlockHeight, CAmount blo
     }
 
     if (!mnpayments.GetMasternodeTxOuts(nBlockHeight, blockReward, voutMasternodePaymentsRet)) {
-        LogPrint("mnpayments", "%s -- no masternode to pay (MN list probably empty)\n", __func__);
+        if (fDebugSpam)
+			LogPrint("mnpayments", "%s -- no masternode to pay (MN list probably empty)\n", __func__);
     }
 
     txNew.vout.insert(txNew.vout.end(), voutMasternodePaymentsRet.begin(), voutMasternodePaymentsRet.end());
@@ -266,8 +267,8 @@ void FillBlockPayments(CMutableTransaction& txNew, int nBlockHeight, CAmount blo
             voutMasternodeStr += ",";
         voutMasternodeStr += txout.ToString();
     }
-
-    LogPrint("mnpayments", "%s -- nBlockHeight %d blockReward %lld voutMasternodePaymentsRet \"%s\" txNew %s", __func__,
+	if (fDebugSpam || txNew.vout.size() > 3)
+		LogPrint("mnpayments", "%s -- nBlockHeight %d blockReward %lld voutMasternodePaymentsRet \"%s\" txNew %s", __func__,
                             nBlockHeight, blockReward, voutMasternodeStr, txNew.ToString());
 }
 
@@ -379,7 +380,8 @@ bool CMasternodePayments::GetMasternodeTxOuts(int nBlockHeight, CAmount blockRew
         masternode_info_t mnInfo;
         if(!mnodeman.GetNextMasternodeInQueueForPayment(nBlockHeight, true, nCount, mnInfo)) {
             // ...and we can't calculate it on our own
-            LogPrintf("CMasternodePayments::%s -- Failed to detect masternode to pay\n", __func__);
+            if (fDebugSpam)
+				LogPrintf("CMasternodePayments::%s -- Failed to detect masternode to pay\n", __func__);
             return false;
         }
         // fill payee with locally calculated winner and hope for the best

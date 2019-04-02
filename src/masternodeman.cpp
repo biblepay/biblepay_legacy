@@ -1917,7 +1917,8 @@ void CMasternodeMan::SetMasternodeLastPing(const COutPoint& outpoint, const CMas
 void CMasternodeMan::UpdatedBlockTip(const CBlockIndex *pindex)
 {
     nCachedBlockHeight = pindex->nHeight;
-    LogPrint("masternode", "CMasternodeMan::UpdatedBlockTip -- nCachedBlockHeight=%d\n", nCachedBlockHeight);
+    if (fDebugSpam)
+		LogPrint("masternode", "CMasternodeMan::UpdatedBlockTip -- nCachedBlockHeight=%d\n", nCachedBlockHeight);
 
     AddDeterministicMasternodes();
     RemoveNonDeterministicMasternodes();

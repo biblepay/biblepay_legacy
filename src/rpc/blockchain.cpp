@@ -31,6 +31,7 @@
 #include "evo/cbtx.h"
 #include "smartcontract-client.h"
 #include "smartcontract-server.h"
+#include "masternode-sync.h"
 #include <stdint.h>
 
 #include <univalue.h>
@@ -1482,37 +1483,41 @@ UniValue getchaintips(const JSONRPCRequest& request)
         if(nCountMax-- < 1) break;
 
         UniValue obj(UniValue::VOBJ);
-        obj.push_back(Pair("height", block->nHeight));
-        obj.push_back(Pair("hash", block->phashBlock->GetHex()));
-        obj.push_back(Pair("difficulty", GetDifficulty(block)));
-        obj.push_back(Pair("chainwork", block->nChainWork.GetHex()));
-        obj.push_back(Pair("branchlen", branchLen));
-		obj.push_back(Pair("forkpoint", pindexFork->phashBlock->GetHex()));
-
-        std::string status;
-        if (chainActive.Contains(block)) 
+		if (block->nHeight > chainActive.Tip()->nHeight * .65)
 		{
-            // This block is part of the currently active chain.
-            status = "active";
-        } else if (block->nStatus & BLOCK_FAILED_MASK) {
-            // This block or one of its ancestors is invalid.
-            status = "invalid";
-        } else if (block->nChainTx == 0) {
-            // This block cannot be connected because full block data for it or one of its parents is missing.
-            status = "headers-only";
-        } else if (block->IsValid(BLOCK_VALID_SCRIPTS)) {
-            // This block is fully validated, but no longer part of the active chain. It was probably the active block once, but was reorganized.
-            status = "valid-fork";
-        } else if (block->IsValid(BLOCK_VALID_TREE)) {
-            // The headers for this block are valid, but it has not been validated. It was probably never part of the most-work chain.
-            status = "valid-headers";
-        } else {
-            // No clue.
-            status = "unknown";
-        }
-        obj.push_back(Pair("status", status));
+			obj.push_back(Pair("height", block->nHeight));
+			obj.push_back(Pair("hash", block->phashBlock->GetHex()));
+			obj.push_back(Pair("difficulty", GetDifficulty(block)));
+			obj.push_back(Pair("chainwork", block->nChainWork.GetHex()));
+			obj.push_back(Pair("branchlen", branchLen));
+			obj.push_back(Pair("forkpoint", pindexFork->phashBlock->GetHex()));
+			obj.push_back(Pair("forkheight", pindexFork->nHeight));
 
-        res.push_back(obj);
+			std::string status;
+			if (chainActive.Contains(block)) 
+			{
+				// This block is part of the currently active chain.
+				status = "active";
+			} else if (block->nStatus & BLOCK_FAILED_MASK) {
+				// This block or one of its ancestors is invalid.
+				status = "invalid";
+			} else if (block->nChainTx == 0) {
+				// This block cannot be connected because full block data for it or one of its parents is missing.
+				status = "headers-only";
+			} else if (block->IsValid(BLOCK_VALID_SCRIPTS)) {
+				// This block is fully validated, but no longer part of the active chain. It was probably the active block once, but was reorganized.
+				status = "valid-fork";
+			} else if (block->IsValid(BLOCK_VALID_TREE)) {
+				// The headers for this block are valid, but it has not been validated. It was probably never part of the most-work chain.
+				status = "valid-headers";
+			} else {
+				// No clue.
+				status = "unknown";
+			}
+			obj.push_back(Pair("status", status));
+
+			res.push_back(obj);
+		}
     }
 
     return res;
@@ -1959,8 +1964,9 @@ UniValue exec(const JSONRPCRequest& request)
 		    CBlockIndex* pblockindex = mapBlockIndex[hashBlock];
 			if (!pblockindex) 
 				throw std::runtime_error("bad blockindex for this tx.");
-			double nPoints = CalculatePoints("POG", nCoinAge, nDonation);
 			GetTransactionPoints(pblockindex, tx, nCoinAge, nDonation);
+			double nPoints = CalculatePoints("POG", nCoinAge, nDonation);
+		
 			results.push_back(Pair("pog_points", nPoints));
 			results.push_back(Pair("coin_age", nCoinAge));
 			results.push_back(Pair("orphan_donation", (double)nDonation / COIN));
@@ -2134,6 +2140,37 @@ UniValue exec(const JSONRPCRequest& request)
 		if (!sError.empty())
 			results.push_back(Pair("Error!", sError));
 
+	}
+	else if (sItem == "health")
+	{
+		bool bImpossible = (!masternodeSync.IsSynced() || fLiteMode);
+		int iNextSuperblock = 0;
+		int iLastSuperblock = GetLastGSCSuperblockHeight(chainActive.Tip()->nHeight, iNextSuperblock);
+		std::string sAddresses;
+		std::string sAmounts;
+		int iVotes = 0;
+		uint256 uGovObjHash = uint256S("0x0");
+		uint256 uPAMHash = uint256S("0x0");
+		GetGSCGovObjByHeight(iNextSuperblock, uPAMHash, iVotes, uGovObjHash, sAddresses, sAmounts);
+		results.push_back(Pair("govobjhash", uGovObjHash.GetHex()));
+		int iRequiredVotes = GetRequiredQuorumLevel(iNextSuperblock);
+		results.push_back(Pair("Amounts", sAmounts));
+		results.push_back(Pair("Addresses", sAddresses));
+		results.push_back(Pair("votes", iVotes));
+		results.push_back(Pair("required_votes", iRequiredVotes));
+		results.push_back(Pair("last_superblock", iLastSuperblock));
+		results.push_back(Pair("next_superblock", iNextSuperblock));
+		bool fTriggered = CSuperblockManager::IsSuperblockTriggered(iNextSuperblock);
+		results.push_back(Pair("next_superblock_triggered", fTriggered));
+		if (bImpossible)
+		{
+			results.push_back(Pair("WARNING", "Running in Lite Mode or Sanctuaries are not synced."));
+		}
+
+		bool fHealthy = (!sAmounts.empty() && !sAddresses.empty() && uGovObjHash != uint256S("0x0")) || bImpossible;
+		results.push_back(Pair("Healthy", fHealthy));
+		bool fPassing = (iVotes >= iRequiredVotes);
+	    results.push_back(Pair("GSC_Voted_In", fPassing));
 	}
 	else if (sItem == "datalist")
 	{

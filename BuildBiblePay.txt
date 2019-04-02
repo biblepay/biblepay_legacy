@@ -37,9 +37,10 @@ Evolution; Building Windows using Cross-Compile 64-bit version:
 https://github.com/bitcoin/bitcoin/blob/master/doc/build-windows.md
 cd depends
 make HOST=i686-w64-mingw32 -j4
-cd ../src
+cd ..
+./autogen.sh
 ./configure --prefix /biblepay-evolution/depends/i686-w64-mingw32
-
+cd src
 sudo make
 make deploy
 (deploy files in /biblepay-evolution)

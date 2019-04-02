@@ -41,8 +41,10 @@ static const CAmount GOVERNANCE_PROPOSAL_FEE_TX = (2500 * COIN);
 static const int64_t GOVERNANCE_FEE_CONFIRMATIONS = 6;
 static const int64_t GOVERNANCE_MIN_RELAY_FEE_CONFIRMATIONS = 1;
 static const int64_t GOVERNANCE_UPDATE_MIN = 60 * 60;
-static const int64_t GOVERNANCE_DELETION_DELAY = 10 * 60;
-static const int64_t GOVERNANCE_ORPHAN_EXPIRATION_TIME = 10 * 60;
+// The delay time between marking an object as logically deleting it and physically deleting it
+static const int64_t GOVERNANCE_DELETION_DELAY = 24 * 60 * 60;
+// The duration we hold on to orphaned votes (votes with no parent object)
+static const int64_t GOVERNANCE_ORPHAN_EXPIRATION_TIME = 4 * 60 * 60;
 
 // FOR SEEN MAP ARRAYS - GOVERNANCE OBJECTS AND VOTES
 static const int SEEN_OBJECT_IS_VALID = 0;

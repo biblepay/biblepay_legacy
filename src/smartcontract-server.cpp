@@ -500,8 +500,8 @@ bool SubmitGSCTrigger(std::string sHex, std::string& gobjecthash, std::string& s
 	int64_t nAge = GetAdjustedTime() - nLastGSCSubmitted;
 	if (nAge < (60 * 15))
 	{
-            sError = "Local Creation rate limit exceeded (0208)";
-			return false;
+		sError = "Local Creation rate limit exceeded (0208)";
+		return false;
 	}
 
 	if (fMissingConfirmations) 
@@ -706,11 +706,45 @@ UniValue GetProminenceLevels(int nHeight)
 	return results;
 }
 
+void SendDistressSignal()
+{
+	// Node will try to pull the gobjects again
+	LogPrintf("SmartContract-Server::SendDistressSignal: Node is missing a gobject, pulling...%f\n", GetAdjustedTime());
+    masternodeSync.Reset();
+    masternodeSync.SwitchToNextAsset(*g_connman);  
+}
+
+void CheckGSCHealth()
+{
+	// This is for Non-Sancs
+	bool bImpossible = (!masternodeSync.IsSynced() || fLiteMode);
+	if (bImpossible)
+		return;
+	int iNextSuperblock = 0;
+	int iLastSuperblock = GetLastGSCSuperblockHeight(chainActive.Tip()->nHeight, iNextSuperblock);
+	std::string sAddresses;
+	std::string sAmounts;
+	int iVotes = 0;
+	uint256 uGovObjHash = uint256S("0x0");
+	uint256 uPAMHash = uint256S("0x0");
+	GetGSCGovObjByHeight(iNextSuperblock, uPAMHash, iVotes, uGovObjHash, sAddresses, sAmounts);
+	int iRequiredVotes = GetRequiredQuorumLevel(iNextSuperblock);
+	int nBlocksLeft = iNextSuperblock - chainActive.Tip()->nHeight;
+	if (nBlocksLeft < BLOCKS_PER_DAY / 2)
+	{
+		if (iVotes < iRequiredVotes || uGovObjHash == uint256S("0x0") || sAddresses.empty())
+			SendDistressSignal();
+	}
+}
 
 std::string ExecuteGenericSmartContractQuorumProcess()
 {
-	std::string sWatchman = WatchmanOnTheWall();
-	LogPrintf("WatchmanOnTheWall::Status %s ", sWatchman);
+	bool fQuorum = (chainActive.Tip()->nHeight % 9 == 0);
+	if (!fQuorum)
+		return "NOT_TIME_FOR_QUORUM";
+
+	if (!fMasternodeMode) 
+		CheckGSCHealth();
 
 	if (!fMasternodeMode)   
 		return "NOT_A_SANCTUARY";
@@ -718,10 +752,11 @@ std::string ExecuteGenericSmartContractQuorumProcess()
 		return "INVALID_CHAIN";
 	if (!ChainSynced(chainActive.Tip()))
 		return "CHAIN_NOT_SYNCED";
-	bool fQuorum = (chainActive.Tip()->nHeight % 9 == 0);
-	if (!fQuorum)
-		return "NOT_TIME_FOR_QUORUM";
-		
+
+	std::string sWatchman = WatchmanOnTheWall();
+	if (fDebugSpam)
+		LogPrintf("WatchmanOnTheWall::Status %s ", sWatchman);
+
 	int iNextSuperblock = 0;
 	int iLastSuperblock = GetLastGSCSuperblockHeight(chainActive.Tip()->nHeight, iNextSuperblock);
 	
@@ -739,13 +774,37 @@ std::string ExecuteGenericSmartContractQuorumProcess()
 	
 	int iRequiredVotes = GetRequiredQuorumLevel(iNextSuperblock);
 	bool bPending = iPendingVotes > iRequiredVotes;
+	// Regardless of having a pending superblock or not, let's forward our crown jewel to the network once every quorum - to ensure they have it
+	if (uGovObjHash != uint256S("0x0"))
+	{
+		CGovernanceObject *myGov = governance.FindGovernanceObject(uGovObjHash);
+		if (myGov)
+		{
+			myGov->Relay(*g_connman);
+			LogPrintf(" Relaying crown jewel %s ", myGov->GetHash().GetHex());
+		}
+	}
+
 	if (bPending) 
 	{
 		if (fDebug)
 			LogPrintf("\n ExecuteGenericSmartContractQuorum::We have a pending superblock at height %f \n", (double)iNextSuperblock);
 		return "PENDING_SUPERBLOCK";
 	}
-	
+	// R ANDREWS - BIBLEPAY - 4/2/2019
+	// If we are > halfway into daily GSC deadline, and have not received the gobject, emit a distress signal
+	int nBlocksLeft = iNextSuperblock - chainActive.Tip()->nHeight;
+	if (nBlocksLeft < BLOCKS_PER_DAY / 2)
+	{
+		if (iVotes < iRequiredVotes || uGovObjHash == uint256S("0x0") || sAddresses.empty())
+		{
+			// Not enough votes, check for gobject
+			SendDistressSignal();
+			LogPrintf("\n ExecuteGenericSmartContractQuorum::DistressAlert!  Not enough votes %f for GSC %s!", 
+				iVotes, uGovObjHash.GetHex());
+		}
+	}
+
 	if (uGovObjHash == uint256S("0x0"))
 	{
 		std::string sQuorumTrigger = SerializeSanctuaryQuorumTrigger(iLastSuperblock, iNextSuperblock, sContract);
