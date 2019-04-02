@@ -16,14 +16,17 @@ class CWallet;
 
 std::string AssessBlocks(int nHeight);
 int GetLastGSCSuperblockHeight(int nCurrentHeight, int& nNextSuperblock);
-std::string GetGSCContract();
+std::string GetGSCContract(int nHeight);
 bool SubmitGSCTrigger(std::string sHex, std::string& gobjecthash, std::string& sError);
 void GetGSCGovObjByHeight(int nHeight, uint256 uOptFilter, int& out_nVotes, uint256& out_uGovObjHash, std::string& out_PaymentAddresses, std::string& out_PaymentAmounts);
 uint256 GetPAMHashByContract(std::string sContract);
 bool VoteForGSCContract(int nHeight, std::string sMyContract, std::string& sError);
 std::string ExecuteGenericSmartContractQuorumProcess();
-UniValue GetProminenceLevels();
+UniValue GetProminenceLevels(int nHeight);
 bool NickNameExists(std::string sNickName);
 int GetRequiredQuorumLevel(int nHeight);
+double CalculatePoints(std::string sCampaign, double nCoinAge, CAmount nDonation);
+void GetTransactionPoints(CBlockIndex* pindex, CTransactionRef tx, double& nCoinAge, CAmount& nDonation);
+bool ChainSynced(CBlockIndex* pindex);
 
 #endif

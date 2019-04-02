@@ -1806,7 +1806,7 @@ UniValue exec(const JSONRPCRequest& request)
 	{
 		int iNextSuperblock = 0;
 		int iLastSuperblock = GetLastGSCSuperblockHeight(chainActive.Tip()->nHeight, iNextSuperblock);
-		std::string sContract = GetGSCContract(); // As of iLastSuperblock height
+		std::string sContract = GetGSCContract(0); // As of iLastSuperblock height
 		results.push_back(Pair("contract", sContract));
 		std::string sAddresses;
 		std::string sAmounts;
@@ -1847,7 +1847,6 @@ UniValue exec(const JSONRPCRequest& request)
 
 		std::string sReqPay = CSuperblockManager::GetRequiredPaymentsString(iNextSuperblock);
 		results.push_back(Pair("next_superblock_req_payments", sReqPay));
-
 
 		/*  QT (Reserved)
 		std::string sSig = SignPrice(".01");
@@ -1943,6 +1942,32 @@ UniValue exec(const JSONRPCRequest& request)
 
 			results.push_back(Pair("weight " + RoundToString(dMin, 2), dABN));
 			results.push_back(Pair("total_required " + RoundToString(dMin, 2), nTotalReq/COIN));
+		}
+	}
+	else if (sItem == "getpogpoints")
+	{
+		if (request.params.size() < 2)
+			 throw std::runtime_error("You must specify the txid.");
+		std::string sTxId = request.params[1].get_str();
+		uint256 hashBlock = uint256();
+		CTransactionRef tx;
+		uint256 uTx = ParseHashV(sTxId, "txid");
+		double nCoinAge = 0;
+		CAmount nDonation = 0;
+		if (GetTransaction(uTx, tx, Params().GetConsensus(), hashBlock, true))
+		{
+		    CBlockIndex* pblockindex = mapBlockIndex[hashBlock];
+			if (!pblockindex) 
+				throw std::runtime_error("bad blockindex for this tx.");
+			double nPoints = CalculatePoints("POG", nCoinAge, nDonation);
+			GetTransactionPoints(pblockindex, tx, nCoinAge, nDonation);
+			results.push_back(Pair("pog_points", nPoints));
+			results.push_back(Pair("coin_age", nCoinAge));
+			results.push_back(Pair("orphan_donation", (double)nDonation / COIN));
+		}
+		else
+		{
+			results.push_back(Pair("error", "not found"));
 		}
 	}
 	else if (sItem == "auditabntx")
@@ -2044,7 +2069,31 @@ UniValue exec(const JSONRPCRequest& request)
 	}
 	else if (sItem == "prominence")
 	{
-		UniValue p = GetProminenceLevels();
+		if (request.params.size() != 2 && request.params.size() != 1)
+			throw std::runtime_error("You must specify prominence height || prominence last || prominence future || prominence.  The default is future.");
+		int iNextSuperblock = 0;
+		int iLastSuperblock = GetLastGSCSuperblockHeight(chainActive.Tip()->nHeight, iNextSuperblock);
+		std::string sLHF;
+		if (request.params.size() > 1)
+			sLHF = request.params[1].get_str();
+		int nHeight = 0;
+		if (sLHF == "last")
+		{
+			nHeight = iLastSuperblock;
+		}
+		else if (sLHF == "future")
+		{
+			nHeight = iNextSuperblock;
+		}
+		else if (cdbl(sLHF, 0) > 0)
+		{
+			nHeight = cdbl(sLHF, 0);
+		}
+		
+		if (nHeight == 0)
+			nHeight = iNextSuperblock;
+
+		UniValue p = GetProminenceLevels(nHeight);
 		return p;
 	}
 	else if (sItem == "checkcpk")
@@ -2058,10 +2107,33 @@ UniValue exec(const JSONRPCRequest& request)
 			results.push_back(Pair("Error", sError));
 		results.push_back(Pair("Enrolled_Results", fEnrolled));
 	}
+	else if (sItem == "bankroll")
+	{
+		if (request.params.size() != 3)
+			throw std::runtime_error("You must specify type: IE 'exec bankroll quantity denomination'.  IE exec bankroll 10 100 (creates ten 100 BBP bills).");
+		double nQty = cdbl(request.params[1].get_str(), 0);
+		CAmount denomination = cdbl(request.params[2].get_str(), 4) * COIN;
+		std::string sError = "";
+		std::string sTxId = CreateBankrollDenominations(nQty, denomination, sError);
+		if (!sError.empty())
+		{
+			if (sError == "Signing transaction failed") 
+				sError += ".  (Please ensure your wallet is unlocked).";
+			results.push_back(Pair("Error", sError));
+		}
+		else
+		{
+			results.push_back(Pair("TXID", sTxId));
+		}
+	}
 	else if (sItem == "sendgscc")
 	{
-		bool fCreated = CreateClientSideTransaction();
+		std::string sError;
+		bool fCreated = CreateClientSideTransaction(true, sError);
 		results.push_back(Pair("results", (double)fCreated));
+		if (!sError.empty())
+			results.push_back(Pair("Error!", sError));
+
 	}
 	else if (sItem == "datalist")
 	{

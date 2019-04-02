@@ -445,7 +445,8 @@ void CNode::CloseSocketDisconnect()
     LOCK(cs_hSocket);
     if (hSocket != INVALID_SOCKET)
     {
-        LogPrint("net", "disconnecting peer=%d\n", id);
+        if (fDebugSpam)
+			LogPrint("net", "disconnecting peer=%d\n", id);
         CloseSocket(hSocket);
     }
 }
@@ -1065,15 +1066,18 @@ void CConnman::AcceptConnection(const ListenSocket& hListenSocket) {
         return;
     }
 
-    if (!fNetworkActive) {
-        LogPrintf("connection from %s dropped: not accepting new connections\n", addr.ToString());
+    if (!fNetworkActive) 
+	{
+        if (fDebugSpam)
+			LogPrintf("connection from %s dropped: not accepting new connections\n", addr.ToString());
         CloseSocket(hSocket);
         return;
     }
 
     if (!IsSelectableSocket(hSocket))
     {
-        LogPrintf("connection from %s dropped: non-selectable socket\n", addr.ToString());
+        if (fDebugSpam)
+			LogPrintf("connection from %s dropped: non-selectable socket\n", addr.ToString());
         CloseSocket(hSocket);
         return;
     }
@@ -1118,9 +1122,8 @@ void CConnman::AcceptConnection(const ListenSocket& hListenSocket) {
     pnode->AddRef();
     pnode->fWhitelisted = whitelisted;
     GetNodeSignals().InitializeNode(pnode, *this);
-
-    LogPrint("net", "connection from %s accepted\n", addr.ToString());
-
+	if (fDebugSpam)
+		LogPrint("net", "connection from %s accepted\n", addr.ToString());
     {
         LOCK(cs_vNodes);
         vNodes.push_back(pnode);
@@ -1354,7 +1357,10 @@ void CConnman::ThreadSocketHandler()
                         {
                             // socket closed gracefully
                             if (!pnode->fDisconnect)
-                                LogPrint("net", "socket closed\n");
+							{
+                                if (fDebugSpam)
+									LogPrint("net", "socket closed\n");
+							}
                             pnode->CloseSocketDisconnect();
                         }
                         else if (nBytes < 0)
@@ -1364,7 +1370,10 @@ void CConnman::ThreadSocketHandler()
                             if (nErr != WSAEWOULDBLOCK && nErr != WSAEMSGSIZE && nErr != WSAEINTR && nErr != WSAEINPROGRESS)
                             {
                                 if (!pnode->fDisconnect)
-                                    LogPrintf("socket recv error %s\n", NetworkErrorString(nErr));
+								{
+                                    if (fDebugSpam)
+										LogPrintf("socket recv error %s\n", NetworkErrorString(nErr));
+								}
                                 pnode->CloseSocketDisconnect();
                             }
                         }
@@ -2893,9 +2902,15 @@ CNode::CNode(NodeId idIn, ServiceFlags nLocalServicesIn, int nMyStartingHeightIn
     mapRecvBytesPerMsgCmd[NET_MESSAGE_COMMAND_OTHER] = 0;
 
     if (fLogIPs)
-        LogPrint("net", "Added connection to %s peer=%d\n", addrName, id);
-    else
-        LogPrint("net", "Added connection peer=%d\n", id);
+	{
+        if (fDebugSpam)
+			LogPrint("net", "Added connection to %s peer=%d\n", addrName, id);
+	}
+	else
+	{
+		if (fDebugSpam)
+			LogPrint("net", "Added connection peer=%d\n", id);
+	}
 }
 
 CNode::~CNode()

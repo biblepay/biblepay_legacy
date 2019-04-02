@@ -156,7 +156,7 @@
        <widget class="BitcoinAmountField" name="payAmount">
         <property name="minimumSize">
          <size>
-          <width>135</width>
+          <width>165</width>
           <height>0</height>
          </size>
         </property>

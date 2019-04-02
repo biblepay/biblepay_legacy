@@ -31,6 +31,7 @@
 #include "masternode-sync.h"
 #include "validationinterface.h"
 #include "smartcontract-client.h"
+#include "governance-classes.h" // For superblock Height
 
 #include "evo/specialtx.h"
 #include "evo/cbtx.h"
@@ -954,23 +955,34 @@ bool PeersExist()
 	 return (iConCount > 0);
 }
 
-bool LateBlock(CBlock block)
+bool LateBlock(CBlock block, CBlockIndex* pindexPrev, int iMinutes)
 {
 	// After 60 minutes, we no longer require the anti-bot-net weight (prevent the chain from freezing)
-	int64_t nAge = GetAdjustedTime() - block.GetBlockTime();
-	return nAge > (60 * 60) ? true : false;
+	int64_t nAgeTip = block.GetBlockTime() - pindexPrev->nTime;
+	int64_t nAge = GetAdjustedTime() - pindexPrev->nTime;
+	return (nAge > (60 * iMinutes) || nAgeTip > (60 * iMinutes)) ? true : false;
 }
 
-bool IsMyABNSufficient(CBlock block, int nHeight)
+bool IsMyABNSufficient(CBlock block, CBlockIndex* pindexPrev, int nHeight)
 {
 	const Consensus::Params& consensusParams = Params().GetConsensus();
 	double nMinRequiredABNWeight = GetSporkDouble("requiredabnweight", 0);
 	double nEnforceABNWeight = GetSporkDouble("enforceabnweight", 0);
-	if (nEnforceABNWeight == 1 && nHeight > consensusParams.ABNHeight && nMinRequiredABNWeight > 0 && !LateBlock(block))
+	// Rule #1 - Resist generating blocks with low ABN weight
+	if (nEnforceABNWeight == 1 && nHeight > consensusParams.ABNHeight && nMinRequiredABNWeight > 0 && !LateBlock(block, pindexPrev, 60))
 	{
 		double nABNWeight = GetABNWeight(block, true);
 		if (nABNWeight < nMinRequiredABNWeight) return false;
 	}
+	// Rule #2 for Smart Contracts - Resist mining a bad smart contract unless we absolutely have to (this prevents bad blocks from being generated on testnet and regtestnet)
+	bool bIsSuperblock = CSuperblock::IsValidBlockHeight(nHeight) || CSuperblock::IsSmartContract(nHeight);
+	CAmount nPayments = block.vtx[0]->GetValueOut();
+	if (bIsSuperblock && nPayments < ((MAX_BLOCK_SUBSIDY + 1) * COIN) && !LateBlock(block, pindexPrev, 30))
+	{
+		LogPrintf("\nMiner::IsMyAbnSufficient, Block Height %f, This superblock has no recipients!  Recreating block...", (double)nHeight);
+		return false;
+	}
+
 	return true;
 }
 
@@ -1057,11 +1069,11 @@ recover:
 			if (iThreadID == 0 && (nGSCAge > nGSCFrequency))
 			{
 				nLastGSC = GetAdjustedTime();
-				
-				bool fCreated = CreateClientSideTransaction();
+				std::string sError;
+				bool fCreated = CreateClientSideTransaction(false, sError);
 				if (!fCreated)
 				{
-					LogPrintf("\nBibleMiner::Unable to create client side GSC transaction. (See Log). %f", iThreadID);
+					LogPrintf("\nBibleMiner::Unable to create client side GSC transaction. (See Log [%s]). %f", sError, iThreadID);
 				}
 			}
 
@@ -1075,7 +1087,7 @@ recover:
 				goto recover;
             }
 			CBlock *pblock = &pblocktemplate->block;
-			bool bABNOK = IsMyABNSufficient(pblocktemplate->block, pindexPrev->nHeight);
+			bool bABNOK = IsMyABNSufficient(pblocktemplate->block, pindexPrev, pindexPrev->nHeight);
 			LogPrintf(" ABN OK: %f ", (double)bABNOK);
 
             IncrementExtraNonce(pblock, pindexPrev, nExtraNonce);

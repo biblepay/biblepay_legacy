@@ -444,7 +444,8 @@ void CDBEnv::Flush(bool fShutdown)
         while (mi != mapFileUseCount.end()) {
             std::string strFile = (*mi).first;
             int nRefCount = (*mi).second;
-            LogPrint("db", "CDBEnv::Flush: Flushing %s (refcount = %d)...\n", strFile, nRefCount);
+            if (fDebugSpam)
+				LogPrint("db", "CDBEnv::Flush: Flushing %s (refcount = %d)...\n", strFile, nRefCount);
             if (nRefCount == 0) {
                 // Move log data to the dat file
                 CloseDb(strFile);
@@ -458,7 +459,8 @@ void CDBEnv::Flush(bool fShutdown)
             } else
                 mi++;
         }
-        LogPrint("db", "CDBEnv::Flush: Flush(%s)%s took %15dms\n", fShutdown ? "true" : "false", fDbEnvInit ? "" : " database not started", GetTimeMillis() - nStart);
+        if (fDebugSpam)
+			LogPrint("db", "CDBEnv::Flush: Flush(%s)%s took %15dms\n", fShutdown ? "true" : "false", fDbEnvInit ? "" : " database not started", GetTimeMillis() - nStart);
         if (fShutdown) {
             char** listp;
             if (mapFileUseCount.empty()) {

@@ -37,6 +37,12 @@ extern CWallet* pwalletMain;
 
 //////////////////////////////////////////////////////////////////// BIBLEPAY - SMART CONTRACTS - CLIENT SIDE ///////////////////////////////////////////////////////////////////////////////////////////////
 
+CPK GetCPKFromProject(std::string sProjName, std::string sCPKPtr)
+{
+	std::string sRec = GetCPKData(sProjName, sCPKPtr);
+	CPK oCPK = GetCPK(sRec);
+	return oCPK;
+}
 
 UniValue GetCampaigns()
 {
@@ -44,29 +50,32 @@ UniValue GetCampaigns()
 	std::map<std::string, std::string> mCampaigns = GetSporkMap("spork", "gsccampaigns");
 	int i = 0;
 	// List of Campaigns
+	results.push_back(Pair("List Of", "BiblePay Campaigns"));
 	for (auto s : mCampaigns)
 	{
 		results.push_back(Pair("campaign " + s.first, s.first));
 	}
 
+	results.push_back(Pair("List Of", "BiblePay CPKs"));
 	// List of Christian-Keypairs (Global members)
 	std::map<std::string, CPK> cp = GetGSCMap("cpk", "", true);
 	for (std::pair<std::string, CPK> a : cp)
 	{
-		CPK c1 = a.second;
-		results.push_back(Pair("member [" + c1.sNickName + "]" + a.first, c1.sAddress));
+		// CRITICAL TODO: Figure out why nickname is missing from GSCMap but not from GetCPKFromProject
+		CPK oPrimary = GetCPKFromProject("cpk", a.second.sAddress);
+		results.push_back(Pair("member [" + oPrimary.sNickName + "]", a.second.sAddress));
 	}
 
-	// List of CPKs per Campaign
+	results.push_back(Pair("List Of", "Campaign Participants"));
+	// List of participating CPKs per Campaign
 	for (auto s : mCampaigns)
 	{
 		std::string sCampaign = s.first;
-	
 		std::map<std::string, CPK> cp1 = GetGSCMap("cpk-" + sCampaign, "", true);
 		for (std::pair<std::string, CPK> a : cp1)
 		{
-			CPK c1 = a.second;
-			results.push_back(Pair("campaign-" + sCampaign + "-member", c1.sAddress));
+			CPK oPrimary = GetCPKFromProject("cpk", a.second.sAddress);
+			results.push_back(Pair("campaign-" + sCampaign + "-member [" + oPrimary.sNickName + "]", oPrimary.sAddress));
 		}
 	}
 	
@@ -210,7 +219,7 @@ bool Enrolled(std::string sCampaignName, std::string& sError)
 static const double nDefaultCoinAgePercentage = .10;
 static const double nDefaultTithe = 7;
 
-bool CreateClientSideTransaction()
+bool CreateClientSideTransaction(bool fForce, std::string& sError)
 {
 	std::map<std::string, std::string> mCampaigns = GetSporkMap("spork", "gsccampaigns");
 	// CRITICAL TODO - Change this to 12 hours before we go to prod
@@ -220,7 +229,7 @@ bool CreateClientSideTransaction()
 	{
 		int64_t nLastGSC = (int64_t)ReadCacheDouble(s.first + "_lastclientgsc");
 		int64_t nAge = GetAdjustedTime() - nLastGSC;
-		if (nAge > nTransmissionFrequency)
+		if (nAge > nTransmissionFrequency || fForce)
 		{
 			WriteCacheDouble(s.first + "_lastclientgsc", GetAdjustedTime());
 			// This particular campaign needs a transaction sent (if the user is in good standing and enrolled in this project)
