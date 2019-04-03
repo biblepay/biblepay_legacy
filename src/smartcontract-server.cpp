@@ -708,10 +708,14 @@ UniValue GetProminenceLevels(int nHeight)
 
 void SendDistressSignal()
 {
-	// Node will try to pull the gobjects again
-	LogPrintf("SmartContract-Server::SendDistressSignal: Node is missing a gobject, pulling...%f\n", GetAdjustedTime());
-    masternodeSync.Reset();
-    masternodeSync.SwitchToNextAsset(*g_connman);  
+	static int64_t nLastReset = 0;
+	if (GetAdjustedTime() - nLastReset > (60 * 30))
+	{
+		// Node will try to pull the gobjects again
+		LogPrintf("SmartContract-Server::SendDistressSignal: Node is missing a gobject, pulling...%f\n", GetAdjustedTime());
+		masternodeSync.Reset();
+		nLastReset = GetAdjustedTime();
+	}
 }
 
 void CheckGSCHealth()
@@ -761,7 +765,6 @@ std::string ExecuteGenericSmartContractQuorumProcess()
 	int iLastSuperblock = GetLastGSCSuperblockHeight(chainActive.Tip()->nHeight, iNextSuperblock);
 	
 	//  Check for Pending Contract
-	int iPendingVotes = 0;
 	int iVotes = 0;
 	std::string sAddresses;
 	std::string sAmounts;
@@ -770,10 +773,10 @@ std::string ExecuteGenericSmartContractQuorumProcess()
 	uint256 uGovObjHash = uint256S("0x0");
 	uint256 uPamHash = GetPAMHashByContract(sContract);
 	
-	GetGSCGovObjByHeight(iNextSuperblock, uPamHash, iPendingVotes, uGovObjHash, sAddresses, sAmounts);
+	GetGSCGovObjByHeight(iNextSuperblock, uPamHash, iVotes, uGovObjHash, sAddresses, sAmounts);
 	
 	int iRequiredVotes = GetRequiredQuorumLevel(iNextSuperblock);
-	bool bPending = iPendingVotes > iRequiredVotes;
+	bool bPending = iVotes > iRequiredVotes;
 	// Regardless of having a pending superblock or not, let's forward our crown jewel to the network once every quorum - to ensure they have it
 	if (uGovObjHash != uint256S("0x0"))
 	{
@@ -801,7 +804,7 @@ std::string ExecuteGenericSmartContractQuorumProcess()
 			// Not enough votes, check for gobject
 			SendDistressSignal();
 			LogPrintf("\n ExecuteGenericSmartContractQuorum::DistressAlert!  Not enough votes %f for GSC %s!", 
-				iVotes, uGovObjHash.GetHex());
+				(double)iVotes, uGovObjHash.GetHex());
 		}
 	}
 
