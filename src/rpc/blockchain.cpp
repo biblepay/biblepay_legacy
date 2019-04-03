@@ -2179,6 +2179,17 @@ UniValue exec(const JSONRPCRequest& request)
 		results.push_back(Pair("Response", sResponse));
 		results.push_back(Pair("Contract", sContract));
 	}
+	else if (sItem == "getgschashes")
+	{
+		int iNextSuperblock = 0;
+		int iLastSuperblock = GetLastGSCSuperblockHeight(chainActive.Tip()->nHeight, iNextSuperblock);
+		std::string sContract = GetGSCContract(0); // As of iLastSuperblock height
+		results.push_back(Pair("Contract", sContract));
+		uint256 hPAMHash = GetPAMHashByContract(sContract);
+		std::string sData;
+		GetGovObjDataByPamHash(iNextSuperblock, hPAMHash, sData);
+		results.push_back(Pair("Data", sData));
+	}
 	else if (sItem == "datalist")
 	{
 		if (request.params.size() != 2 && request.params.size() != 3)

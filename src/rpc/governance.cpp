@@ -715,7 +715,7 @@ UniValue gobject_vote_alias(const JSONRPCRequest& request)
     return VoteWithMasternodeList(entries, hash, eVoteSignal, eVoteOutcome, nSuccessful, nFailed);
 }
 
-UniValue ListObjects(const std::string& strCachedSignal, const std::string& strType, int nStartTime)
+UniValue ListObjects(const std::string& strCachedSignal, const std::string& strType, int nStartTime, std::string sWildCard)
 {
     UniValue objResult(UniValue::VOBJ);
 
@@ -737,34 +737,48 @@ UniValue ListObjects(const std::string& strCachedSignal, const std::string& strT
         if (strType == "proposals" && pGovObj->GetObjectType() != GOVERNANCE_OBJECT_PROPOSAL) continue;
         if (strType == "triggers" && pGovObj->GetObjectType() != GOVERNANCE_OBJECT_TRIGGER) continue;
 
-        UniValue bObj(UniValue::VOBJ);
-        bObj.push_back(Pair("DataHex",  pGovObj->GetDataAsHexString()));
-        bObj.push_back(Pair("DataString",  pGovObj->GetDataAsPlainString()));
-        bObj.push_back(Pair("Hash",  pGovObj->GetHash().ToString()));
-        bObj.push_back(Pair("CollateralHash",  pGovObj->GetCollateralHash().ToString()));
-        bObj.push_back(Pair("ObjectType", pGovObj->GetObjectType()));
-        bObj.push_back(Pair("CreationTime", pGovObj->GetCreationTime()));
-        const COutPoint& masternodeOutpoint = pGovObj->GetMasternodeOutpoint();
-        if (masternodeOutpoint != COutPoint()) {
-            bObj.push_back(Pair("SigningMasternode", masternodeOutpoint.ToStringShort()));
-        }
+		bool bFound = true;
+		if (!sWildCard.empty())
+		{
+			bFound = false;
+			if (pGovObj->GetHash().GetHex().find(sWildCard) != std::string::npos)
+				bFound = true;
+			if (pGovObj->GetDataAsPlainString().find(sWildCard) != std::string::npos)
+				bFound = true;
+		}
 
-        // REPORT STATUS FOR FUNDING VOTES SPECIFICALLY
-        bObj.push_back(Pair("AbsoluteYesCount",  pGovObj->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING)));
-        bObj.push_back(Pair("YesCount",  pGovObj->GetYesCount(VOTE_SIGNAL_FUNDING)));
-        bObj.push_back(Pair("NoCount",  pGovObj->GetNoCount(VOTE_SIGNAL_FUNDING)));
-        bObj.push_back(Pair("AbstainCount",  pGovObj->GetAbstainCount(VOTE_SIGNAL_FUNDING)));
+		if (bFound)
+		{
+			UniValue bObj(UniValue::VOBJ);
+			bObj.push_back(Pair("DataHex",  pGovObj->GetDataAsHexString()));
+			bObj.push_back(Pair("DataString",  pGovObj->GetDataAsPlainString()));
+			bObj.push_back(Pair("Hash",  pGovObj->GetHash().ToString()));
+			bObj.push_back(Pair("CollateralHash",  pGovObj->GetCollateralHash().ToString()));
+			bObj.push_back(Pair("ObjectType", pGovObj->GetObjectType()));
+			bObj.push_back(Pair("CreationTime", pGovObj->GetCreationTime()));
+			const COutPoint& masternodeOutpoint = pGovObj->GetMasternodeOutpoint();
+			if (masternodeOutpoint != COutPoint()) {
+				bObj.push_back(Pair("SigningMasternode", masternodeOutpoint.ToStringShort()));
+			}
 
-        // REPORT VALIDITY AND CACHING FLAGS FOR VARIOUS SETTINGS
-        std::string strError = "";
-        bObj.push_back(Pair("fBlockchainValidity",  pGovObj->IsValidLocally(strError, false)));
-        bObj.push_back(Pair("IsValidReason",  strError.c_str()));
-        bObj.push_back(Pair("fCachedValid",  pGovObj->IsSetCachedValid()));
-        bObj.push_back(Pair("fCachedFunding",  pGovObj->IsSetCachedFunding()));
-        bObj.push_back(Pair("fCachedDelete",  pGovObj->IsSetCachedDelete()));
-        bObj.push_back(Pair("fCachedEndorsed",  pGovObj->IsSetCachedEndorsed()));
+			// REPORT STATUS FOR FUNDING VOTES SPECIFICALLY
+			bObj.push_back(Pair("AbsoluteYesCount",  pGovObj->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING)));
+			bObj.push_back(Pair("YesCount",  pGovObj->GetYesCount(VOTE_SIGNAL_FUNDING)));
+			bObj.push_back(Pair("NoCount",  pGovObj->GetNoCount(VOTE_SIGNAL_FUNDING)));
+			bObj.push_back(Pair("AbstainCount",  pGovObj->GetAbstainCount(VOTE_SIGNAL_FUNDING)));
 
-        objResult.push_back(Pair(pGovObj->GetHash().ToString(), bObj));
+			// REPORT VALIDITY AND CACHING FLAGS FOR VARIOUS SETTINGS
+			std::string strError = "";
+			bObj.push_back(Pair("fBlockchainValidity",  pGovObj->IsValidLocally(strError, false)));
+			bObj.push_back(Pair("IsValidReason",  strError.c_str()));
+			bObj.push_back(Pair("fCachedValid",  pGovObj->IsSetCachedValid()));
+			bObj.push_back(Pair("fCachedFunding",  pGovObj->IsSetCachedFunding()));
+			bObj.push_back(Pair("fCachedDelete",  pGovObj->IsSetCachedDelete()));
+			bObj.push_back(Pair("fCachedEndorsed",  pGovObj->IsSetCachedEndorsed()));
+		
+
+			objResult.push_back(Pair(pGovObj->GetHash().ToString(), bObj));
+		}
     }
 
     return objResult;
@@ -796,7 +810,26 @@ UniValue gobject_list(const JSONRPCRequest& request)
     if (strType != "proposals" && strType != "triggers" && strType != "all")
         return "Invalid type, should be 'proposals', 'triggers' or 'all'";
 
-    return ListObjects(strCachedSignal, strType, 0);
+    return ListObjects(strCachedSignal, strType, 0, "");
+}
+
+UniValue gobject_list_wild(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() > 4)
+        gobject_list_help();
+
+    std::string strWild;
+	std::string strCachedSignal = "valid";
+    if (request.params.size() >= 2) strCachedSignal = request.params[1].get_str();
+    if (strCachedSignal != "valid" && strCachedSignal != "funding" && strCachedSignal != "delete" && strCachedSignal != "endorsed" && strCachedSignal != "all")
+        return "Invalid signal, should be 'valid', 'funding', 'delete', 'endorsed' or 'all'";
+
+    std::string strType = "all";
+    if (request.params.size() >= 3) strType = request.params[2].get_str();
+    if (strType != "proposals" && strType != "triggers" && strType != "all")
+        return "Invalid type, should be 'proposals', 'triggers' or 'all'";
+	if (request.params.size() >= 4) strWild = request.params[3].get_str();
+    return ListObjects(strCachedSignal, strType, 0, strWild);
 }
 
 void gobject_diff_help()
@@ -825,7 +858,7 @@ UniValue gobject_diff(const JSONRPCRequest& request)
     if (strType != "proposals" && strType != "triggers" && strType != "all")
         return "Invalid type, should be 'proposals', 'triggers' or 'all'";
 
-    return ListObjects(strCachedSignal, strType, governance.GetLastDiffTime());
+    return ListObjects(strCachedSignal, strType, governance.GetLastDiffTime(), "");
 }
 
 void gobject_get_help()
@@ -1073,6 +1106,8 @@ UniValue gobject(const JSONRPCRequest& request)
     } else if (strCommand == "list") {
         // USERS CAN QUERY THE SYSTEM FOR A LIST OF VARIOUS GOVERNANCE ITEMS
         return gobject_list(request);
+	} else if (strCommand == "listwild") {
+		return gobject_list_wild(request);
     } else if (strCommand == "diff") {
         return gobject_diff(request);
     } else if (strCommand == "get") {
