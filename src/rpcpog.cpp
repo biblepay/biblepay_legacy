@@ -839,16 +839,19 @@ std::string GetActiveProposals()
     {
 		if (pGovObj->GetObjectType() != GOVERNANCE_OBJECT_PROPOSAL) continue;
 		int64_t nEpoch = 0;
+		int64_t nStartEpoch = 0;
 		CProposalValidator validator(pGovObj->GetDataAsHexString());
 		std::string sURL;
 		std::string sCharityType;
+		validator.GetDataValue("start_epoch", nStartEpoch);
 		validator.GetDataValue("end_epoch", nEpoch);
 		validator.GetDataValue("url", sURL);
 		validator.GetDataValue("expensetype", sCharityType);
+
 		if (sCharityType.empty()) sCharityType = "N/A";
 		{
 			std::string sHash = pGovObj->GetHash().GetHex();
-			int nEpochHeight = GetHeightByEpochTime(nEpoch);
+			int nEpochHeight = GetHeightByEpochTime(nStartEpoch);
 			// First ensure the proposals gov height has not passed yet
 			bool bIsPaid = nEpochHeight < nLastSuperblock;
 			if (!bIsPaid)
@@ -858,7 +861,7 @@ std::string GetActiveProposals()
 				int iAbstain = pGovObj->GetAbstainCount(VOTE_SIGNAL_FUNDING);
 				id++;
 				if (sCharityType.empty()) sCharityType = "N/A";
-				std::string sProposalTime = TimestampToHRDate(nEpoch);
+				std::string sProposalTime = TimestampToHRDate(nStartEpoch);
 				if (id == 1) sURL += "&t=" + RoundToString(GetAdjustedTime(), 0);
 				// proposal_hashes
 				std::string sName;

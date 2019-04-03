@@ -28,5 +28,6 @@ int GetRequiredQuorumLevel(int nHeight);
 double CalculatePoints(std::string sCampaign, double nCoinAge, CAmount nDonation);
 void GetTransactionPoints(CBlockIndex* pindex, CTransactionRef tx, double& nCoinAge, CAmount& nDonation);
 bool ChainSynced(CBlockIndex* pindex);
+std::string WatchmanOnTheWall(bool fForce, std::string& sContract);
 
 #endif

@@ -2172,6 +2172,13 @@ UniValue exec(const JSONRPCRequest& request)
 		bool fPassing = (iVotes >= iRequiredVotes);
 	    results.push_back(Pair("GSC_Voted_In", fPassing));
 	}
+	else if (sItem == "watchman")
+	{
+		std::string sContract;
+		std::string sResponse = WatchmanOnTheWall(true, sContract);
+		results.push_back(Pair("Response", sResponse));
+		results.push_back(Pair("Contract", sContract));
+	}
 	else if (sItem == "datalist")
 	{
 		if (request.params.size() != 2 && request.params.size() != 3)
