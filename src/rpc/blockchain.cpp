@@ -1399,9 +1399,9 @@ struct CompareBlocksByHeight
 
 UniValue getchaintips(const JSONRPCRequest& request)
 {
-	    if (request.fHelp || request.params.size() > 2)
+	    if (request.fHelp || request.params.size() > 3)
         throw std::runtime_error(
-            "getchaintips ( count branchlen )\n"
+            "getchaintips ( count branchlen minimum_difficulty )\n"
             "Return information about all known tips in the block tree,"
             " including the main chain as well as orphaned branches.\n"
             "\nArguments:\n"
@@ -1472,6 +1472,10 @@ UniValue getchaintips(const JSONRPCRequest& request)
     if(request.params.size() == 2)
         nBranchMin = request.params[1].get_int();
 
+	double nMinDiff = 0;
+	if (request.params.size() == 3)
+		nMinDiff = cdbl(request.params[2].get_str(), 4);
+
     /* Construct the output array.  */
     UniValue res(UniValue::VARR);
     BOOST_FOREACH(const CBlockIndex* block, setTips)
@@ -1483,9 +1487,16 @@ UniValue getchaintips(const JSONRPCRequest& request)
         if(nCountMax-- < 1) break;
 
         UniValue obj(UniValue::VOBJ);
-		if (block->nHeight > chainActive.Tip()->nHeight * .65)
+		bool bInclude = true;
+		
+		if (nMinDiff > 0 && GetDifficulty(block) < nMinDiff) 
+			bInclude = false;
+		
+		if (bInclude)
 		{
 			obj.push_back(Pair("height", block->nHeight));
+			bool bSuperblock = (CSuperblock::IsValidBlockHeight(block->nHeight) || CSuperblock::IsSmartContract(block->nHeight));
+			obj.push_back(Pair("superblock", bSuperblock));
 			obj.push_back(Pair("hash", block->phashBlock->GetHex()));
 			obj.push_back(Pair("difficulty", GetDifficulty(block)));
 			obj.push_back(Pair("chainwork", block->nChainWork.GetHex()));

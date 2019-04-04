@@ -856,6 +856,11 @@ std::string GetActiveProposals()
 			bool bIsPaid = nEpochHeight < nLastSuperblock;
 			if (!bIsPaid)
 			{
+				BiblePayProposal bbpProposal = GetProposalByHash(pGovObj->GetHash(), nLastSuperblock);
+				std::string sReport = DescribeProposal(bbpProposal);
+				LogPrintf("Proposal %s , epochHeight %f, nLastSuperblock %f ", 
+					sReport, nEpochHeight, nLastSuperblock);
+
 				int iYes = pGovObj->GetYesCount(VOTE_SIGNAL_FUNDING);
 				int iNo = pGovObj->GetNoCount(VOTE_SIGNAL_FUNDING);
 				int iAbstain = pGovObj->GetAbstainCount(VOTE_SIGNAL_FUNDING);
@@ -2808,4 +2813,15 @@ double GetABNWeight(const CBlock& block, bool fMining)
 	if (!pindex) return 0;
 	double dWeight = GetAntiBotNetWeight(pindex, tx);
 	return dWeight;
+}
+
+bool CheckABNSignature(const CBlock& block, std::string& out_CPK)
+{
+	if (block.vtx.size() < 1) return 0;
+	std::string sMsg = GetTransactionMessage(block.vtx[0]);
+	int nABNLocator = (int)cdbl(ExtractXML(sMsg, "<abnlocator>", "</abnlocator>"), 0);
+	if (block.vtx.size() < nABNLocator) return 0;
+	CTransactionRef tx = block.vtx[nABNLocator];
+	out_CPK = ExtractXML(tx->vout[0].sTxOutMessage, "<abncpk>", "</abncpk>");
+	return CheckAntiBotNetSignature(tx, "abn");
 }

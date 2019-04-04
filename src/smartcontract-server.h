@@ -9,10 +9,10 @@
 #include "hash.h"
 #include "net.h"
 #include "utilstrencodings.h"
+#include "rpcpog.h"
 #include <univalue.h>
 
 class CWallet;
-
 
 std::string AssessBlocks(int nHeight);
 int GetLastGSCSuperblockHeight(int nCurrentHeight, int& nNextSuperblock);
@@ -30,5 +30,8 @@ void GetTransactionPoints(CBlockIndex* pindex, CTransactionRef tx, double& nCoin
 bool ChainSynced(CBlockIndex* pindex);
 std::string WatchmanOnTheWall(bool fForce, std::string& sContract);
 void GetGovObjDataByPamHash(int nHeight, uint256 hPamHash, std::string& out_Data);
+BiblePayProposal GetProposalByHash(uint256 govObj, int nLastSuperblock);
+std::string DescribeProposal(BiblePayProposal bbpProposal);
+bool CheckForValidGSC(int nHeight);
 
 #endif

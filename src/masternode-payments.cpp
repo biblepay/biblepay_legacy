@@ -190,23 +190,38 @@ bool IsBlockPayeeValid(const CTransaction& txNew, int nBlockHeight, CAmount bloc
     // superblocks started
     // SEE IF THIS IS A VALID SUPERBLOCK
 
-    if(sporkManager.IsSporkActive(SPORK_9_SUPERBLOCKS_ENABLED)) {
-        if(CSuperblockManager::IsSuperblockTriggered(nBlockHeight)) {
-            if(CSuperblockManager::IsValid(txNew, nBlockHeight, blockReward)) {
+    if(sporkManager.IsSporkActive(SPORK_9_SUPERBLOCKS_ENABLED)) 
+	{
+        if(CSuperblockManager::IsSuperblockTriggered(nBlockHeight)) 
+		{
+			if(!masternodeSync.IsSynced() || fLiteMode) 
+			{
+				LogPrintf("\nIsBlockPayeeValid::WARNING: Client not synced or running in lite mode.  %s", __func__);
+				return true;
+			}
+    
+            if(CSuperblockManager::IsValid(txNew, nBlockHeight, blockReward)) 
+			{
                 LogPrint("gobject", "%s -- Valid superblock at height %d: %s", __func__, nBlockHeight, txNew.ToString());
                 // only allow superblock and masternode payments in the same block after spork15 activation
                 if (!deterministicMNManager->IsDeterministicMNsSporkActive(nBlockHeight))
                     return true;
                 // continue validation, should also pay MN
-            } else {
+            }
+			else
+			{
                 LogPrintf("%s -- ERROR: Invalid superblock detected at height %d: %s", __func__, nBlockHeight, txNew.ToString());
                 // should NOT allow such superblocks, when superblocks are enabled
                 return false;
             }
-        } else {
+        }
+		else 
+		{
             LogPrint("gobject", "%s -- No triggered superblock detected at height %d\n", __func__, nBlockHeight);
         }
-    } else {
+    }
+	else 
+	{
         // should NOT allow superblocks at all, when superblocks are disabled
         LogPrint("gobject", "%s -- Superblocks are disabled, no superblocks allowed\n", __func__);
     }
@@ -1085,8 +1100,10 @@ void CMasternodePayments::CheckBlockVotes(int nBlockHeight)
         if (++i >= MNPAYMENTS_SIGNATURES_TOTAL) break;
     }
 
-    if (mapMasternodesDidNotVote.empty()) {
-        LogPrint("mnpayments", "%s", debugStr);
+    if (mapMasternodesDidNotVote.empty()) 
+	{
+        if (fDebugSpam)
+			LogPrint("mnpayments", "%s", debugStr);
         return;
     }
 
@@ -1095,7 +1112,8 @@ void CMasternodePayments::CheckBlockVotes(int nBlockHeight)
         debugStr += strprintf("    - %s: %d\n", item.first.ToStringShort(), item.second);
     }
 
-    LogPrint("mnpayments", "%s", debugStr);
+	if (fDebugSpam)
+		LogPrint("mnpayments", "%s", debugStr);
 }
 
 void CMasternodePaymentVote::Relay(CConnman& connman) const
@@ -1106,7 +1124,8 @@ void CMasternodePaymentVote::Relay(CConnman& connman) const
 
     // Do not relay until fully synced
     if(!masternodeSync.IsSynced()) {
-        LogPrint("mnpayments", "CMasternodePayments::%s -- won't relay until fully synced\n", __func__);
+        if (fDebugSpam)
+			LogPrint("mnpayments", "CMasternodePayments::%s -- won't relay until fully synced\n", __func__);
         return;
     }
 
@@ -1195,7 +1214,8 @@ void CMasternodePayments::Sync(CNode* pnode, CConnman& connman) const
         }
     }
 
-    LogPrintf("CMasternodePayments::%s -- Sent %d votes to peer=%d\n", __func__, nInvCount, pnode->id);
+	if (fDebugSpam)
+		LogPrintf("CMasternodePayments::%s -- Sent %d votes to peer=%d\n", __func__, nInvCount, pnode->id);
     CNetMsgMaker msgMaker(pnode->GetSendVersion());
     connman.PushMessage(pnode, msgMaker.Make(NetMsgType::SYNCSTATUSCOUNT, MASTERNODE_SYNC_MNW, nInvCount));
 }

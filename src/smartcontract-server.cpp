@@ -823,6 +823,7 @@ void SendDistressSignal()
 		// Node will try to pull the gobjects again
 		LogPrintf("SmartContract-Server::SendDistressSignal: Node is missing a gobject, pulling...%f\n", GetAdjustedTime());
 		masternodeSync.Reset();
+		masternodeSync.SwitchToNextAsset(*g_connman);
 		nLastReset = GetAdjustedTime();
 	}
 }
@@ -845,36 +846,64 @@ void CheckGSCHealth()
 	int nBlocksLeft = iNextSuperblock - chainActive.Tip()->nHeight;
 	if (nBlocksLeft < BLOCKS_PER_DAY / 2)
 	{
-		if (iVotes < iRequiredVotes || uGovObjHash == uint256S("0x0") || sAddresses.empty())
+		if (uGovObjHash == uint256S("0x0"))
 			SendDistressSignal();
 	}
 }
 
+bool CheckForValidGSC(int nHeight)
+{
+	if (!CSuperblock::IsSmartContract(nHeight))
+		return false;
+
+	// Reconstruct contract
+	std::string sContract = GetGSCContract(nHeight);
+	std::string sPayments = ExtractXML(sContract, "<PAYMENTS>", "</PAYMENTS>");
+	if (!sPayments.empty())
+	{
+		LogPrintf("SmartContract-Server::CheckForValidGSC::Contains Payments %s, Node contains empty GSC govobj", sPayments);
+		// At this point, we can not assume our local contract is the correct one, but we can assume that our nodes gobjects need synced, and it cannot refuse the superblock (we don't have enough data to make that call which would result in a fork)
+		// Trigger a resync
+		masternodeSync.Reset();
+		masternodeSync.SwitchToNextAsset(*g_connman);
+		return true;
+	}
+	// We don't see a superblock at this height... 
+	return false;
+}
+
+
 std::string ExecuteGenericSmartContractQuorumProcess()
 {
-	int iQuorumLevel = rand() % 1000;
-	// The fQuorum boolean allows us to cascade a new contract (in contrast to being synchronized).  This means we are more likely to create one instead of many if it does not exist.
-	bool fQuorum = (iQuorumLevel % 9 == 0);
-	if (!fQuorum)
-		return "NOT_TIME_FOR_QUORUM";
-
-	if (!fMasternodeMode) 
-		CheckGSCHealth();
-
-	if (!fMasternodeMode)   
-		return "NOT_A_SANCTUARY";
 	if (!chainActive.Tip()) 
 		return "INVALID_CHAIN";
+
 	if (!ChainSynced(chainActive.Tip()))
 		return "CHAIN_NOT_SYNCED";
+	
+	if (!fMasternodeMode)   
+		return "NOT_A_SANCTUARY";
 
-	std::string sContr;
-	std::string sWatchman = WatchmanOnTheWall(false, sContr);
-	if (fDebugSpam)
-		LogPrintf("WatchmanOnTheWall::Status %s Contract %s", sWatchman, sContr);
-
+	bool fWatchmanQuorum = (chainActive.Tip()->nHeight % 10 == 0) && fMasternodeMode;
+	if (fWatchmanQuorum)
+	{
+		std::string sContr;
+		std::string sWatchman = WatchmanOnTheWall(false, sContr);
+		if (fDebugSpam)
+			LogPrintf("WatchmanOnTheWall::Status %s Contract %s", sWatchman, sContr);
+	}
+	// Goal 1: Be synchronized as a team after the warming period, but be cascading during the warming period
 	int iNextSuperblock = 0;
 	int iLastSuperblock = GetLastGSCSuperblockHeight(chainActive.Tip()->nHeight, iNextSuperblock);
+	int nBlocksSinceLastEpoch = chainActive.Tip()->nHeight - iLastSuperblock;
+	const Consensus::Params& consensusParams = Params().GetConsensus();
+	int WARMING_DURATION = consensusParams.nSuperblockCycle * .10;
+	int nCascadeHeight = GetRandInt(chainActive.Tip()->nHeight);
+	bool fWarmingPeriod = nBlocksSinceLastEpoch < WARMING_DURATION;
+	int nQuorumAssessmentHeight = fWarmingPeriod ? nCascadeHeight : chainActive.Tip()->nHeight;
+	bool fQuorum = (nQuorumAssessmentHeight % 5 == 0);
+	if (!fQuorum)
+		return "NTFQ_";
 	
 	//  Check for Pending Contract
 	int iVotes = 0;
@@ -913,8 +942,6 @@ std::string ExecuteGenericSmartContractQuorumProcess()
 	{
 		if (iVotes < iRequiredVotes || uGovObjHash == uint256S("0x0") || sAddresses.empty())
 		{
-			// Not enough votes, check for gobject
-			SendDistressSignal();
 			LogPrintf("\n ExecuteGenericSmartContractQuorum::DistressAlert!  Not enough votes %f for GSC %s!", 
 				(double)iVotes, uGovObjHash.GetHex());
 		}

@@ -184,6 +184,7 @@ std::string GetCPKData(std::string sProjectId, std::string sPK);
 CAmount GetRPCBalance();
 void GetGovSuperblockHeights(int& nNextSuperblock, int& nLastSuperblock);
 int GetHeightByEpochTime(int64_t nEpoch);
+bool CheckABNSignature(const CBlock& block, std::string& out_CPK);
 
 
 #endif

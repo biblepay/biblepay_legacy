@@ -3447,6 +3447,35 @@ bool LateBlock(const CBlock& block, const CBlockIndex* pindexPrev, int iMinutes)
 	return (nAge > (60 * iMinutes) || nAgeTip > (60 * iMinutes)) ? true : false;
 }
 
+bool AntiGPU(std::string CPK, CBlockIndex* pindexPrev)
+{
+	if (CPK.empty()) return false;
+	int iCheckWindow = fProd ? 4 : 1;
+	CBlockIndex* pindex = pindexPrev;
+	int64_t headerAge = GetAdjustedTime() - pindexPrev->nTime;
+	if (headerAge > (60 * 60 * 1)) return false;
+	const CChainParams& chainparams = Params();
+ 	for (int i = 0; i < iCheckWindow; i++)
+	{
+		if (pindex != NULL)
+		{
+			CBlock block;
+        	if (ReadBlockFromDisk(block, pindex, chainparams.GetConsensus()))
+			{
+				std::string lastCPK;
+				CheckABNSignature(block, lastCPK);
+				if (!lastCPK.empty() && !CPK.empty() && lastCPK == CPK)
+				{
+					return true;
+				}
+			}
+			pindex = pindexPrev->pprev;
+		}
+	}
+	return false;
+}
+
+
 bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Consensus::Params& consensusParams, const CBlockIndex* pindexPrev)
 {
     const int nHeight = pindexPrev == NULL ? 0 : pindexPrev->nHeight + 1;

@@ -151,7 +151,9 @@ bool CGovernanceTriggerManager::AddNewTrigger(uint256 nHash)
 
 void CGovernanceTriggerManager::CleanAndRemove()
 {
-    LogPrint("gobject", "CGovernanceTriggerManager::CleanAndRemove -- Start\n");
+    if (fDebugSpam)
+		LogPrint("gobject", "CGovernanceTriggerManager::CleanAndRemove -- Start\n");
+
     DBG(std::cout << "CGovernanceTriggerManager::CleanAndRemove: Start" << std::endl;);
     AssertLockHeld(governance.cs);
 
@@ -166,7 +168,8 @@ void CGovernanceTriggerManager::CleanAndRemove()
         CSuperblock_sptr& pSuperblock = it->second;
         if (!pSuperblock) {
             DBG(std::cout << "CGovernanceTriggerManager::CleanAndRemove: NULL superblock marked for removal" << std::endl;);
-            LogPrint("gobject", "CGovernanceTriggerManager::CleanAndRemove -- NULL superblock marked for removal\n");
+            if (fDebugSpam)
+				LogPrint("gobject", "CGovernanceTriggerManager::CleanAndRemove -- NULL superblock marked for removal\n");
             remove = true;
         } else {
             pObj = governance.FindGovernanceObject(it->first);
@@ -192,7 +195,8 @@ void CGovernanceTriggerManager::CleanAndRemove()
                 break;
             }
         }
-        LogPrint("gobject", "CGovernanceTriggerManager::CleanAndRemove -- %smarked for removal\n", remove ? "" : "NOT ");
+        if (fDebugSpam)
+			LogPrint("gobject", "CGovernanceTriggerManager::CleanAndRemove -- %smarked for removal\n", remove ? "" : "NOT ");
 
         if (remove) {
             DBG(
@@ -338,6 +342,14 @@ bool CSuperblockManager::IsSuperblockTriggered(int nBlockHeight)
         }
     }
 
+	// BIBLEPAY - R ANDREWS - Before giving up on a GSC, check to see if the client itself thinks this is a superblock
+	bool fIsValidGSC = CheckForValidGSC(nBlockHeight);
+	if (fIsValidGSC) 
+		return true;
+	if (CSuperblock::IsSmartContract(nBlockHeight)) 
+	{
+		LogPrintf("IsSuperblockTriggered::SmartContract -- WARNING: No GSC superblock triggered at this height %f. ", nBlockHeight);
+	}
     return false;
 }
 
@@ -521,7 +533,8 @@ CSuperblock::
     std::string strAmounts = obj["payment_amounts"].get_str();
     ParsePaymentSchedule(strAddresses, strAmounts);
 
-    LogPrint("gobject", "CSuperblock -- nBlockHeight = %d, strAddresses = %s, strAmounts = %s, vecPayments.size() = %d\n",
+	if (fDebugSpam)
+		LogPrint("gobject", "CSuperblockConstructor::  nBlockHeight = %d, strAddresses = %s, strAmounts = %s, vecPayments.size() = %d\n",
         nBlockHeight, strAddresses, strAmounts, vecPayments.size());
 
     DBG(std::cout << "CSuperblock Constructor End" << std::endl;);
