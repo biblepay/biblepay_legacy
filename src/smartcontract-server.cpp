@@ -455,15 +455,16 @@ uint256 GetPAMHash(std::string sAddresses, std::string sAmounts)
 	return uint256S("0x" + sHash);
 }
 
-std::vector<std::pair<std::string, uint256>> GetGSCSortedByGov(int nHeight, uint256 inPamHash, bool fIncludeNonMatching)
+std::vector<std::pair<int64_t, uint256>> GetGSCSortedByGov(int nHeight, uint256 inPamHash, bool fIncludeNonMatching)
 {
 	int nStartTime = 0; 
 	LOCK2(cs_main, governance.cs);
 	std::vector<const CGovernanceObject*> objs = governance.GetAllNewerThan(nStartTime);
 	std::string sPAM;
 	std::string sPAD;
-	std::vector<std::pair<std::string, uint256> > vPropByGov;
+	std::vector<std::pair<int64_t, uint256> > vPropByGov;
 	vPropByGov.reserve(objs.size() + 1);
+	int iOffset = 0;
 	for (const auto& pGovObj : objs) 
 	{
 		CGovernanceObject* myGov = governance.FindGovernanceObject(pGovObj->GetHash());
@@ -472,6 +473,7 @@ std::vector<std::pair<std::string, uint256>> GetGSCSortedByGov(int nHeight, uint
 		int nLocalHeight = obj["event_block_height"].get_int();
 		if (nLocalHeight == nHeight)
 		{
+			iOffset++;
 			std::string sPAD = obj["payment_addresses"].get_str();
 			std::string sPAM = obj["payment_amounts"].get_str();
 			int iVotes = myGov->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING);
@@ -479,12 +481,12 @@ std::vector<std::pair<std::string, uint256>> GetGSCSortedByGov(int nHeight, uint
 			if (fIncludeNonMatching && inPamHash != uPamHash)
 			{
 				// This is a Gov Obj that matches the height, but does not match the contract, we need to vote it down
-				vPropByGov.push_back(std::make_pair(myGov->GetHash().GetHex(), myGov->GetHash()));
+				vPropByGov.push_back(std::make_pair(myGov->GetCreationTime() + iOffset, myGov->GetHash()));
 			}
-			else if (inPamHash == uPamHash)
+			if (!fIncludeNonMatching && inPamHash == uPamHash)
 			{
 				// Note:  the pair is used in case we want to store an object later (the PamHash is not distinct, but the govHash is).
-				vPropByGov.push_back(std::make_pair(myGov->GetHash().GetHex(), myGov->GetHash()));
+				vPropByGov.push_back(std::make_pair(myGov->GetCreationTime() + iOffset, myGov->GetHash()));
 			}
 		}
 	}
@@ -507,11 +509,12 @@ bool VoteForGSCContract(int nHeight, std::string sMyContract, std::string& sErro
 	}
 	// Sort by GSC gobject hash (creation time does not work as multiple nodes may be called during the same second to create a GSC)
 	// Phase 1: Eliminate all Ties, and vote for the lowest Valid matching contract:
-	std::vector<std::pair<std::string, uint256>> vPropByGov = GetGSCSortedByGov(nHeight, uPamHash, false);
+	std::vector<std::pair<int64_t, uint256>> vPropByGov = GetGSCSortedByGov(nHeight, uPamHash, false);
 	// Now we need to sort the vector by Gov hash
 	std::sort(vPropByGov.begin(), vPropByGov.end());
 	std::string sAction;
 	int iVotes = 0;
+	
 	for (int i = 0; i < vPropByGov.size(); i++)
 	{
 		CGovernanceObject* myGov = governance.FindGovernanceObject(vPropByGov[i].second);
@@ -520,19 +523,24 @@ bool VoteForGSCContract(int nHeight, std::string sMyContract, std::string& sErro
 		LogPrintf("\nSmartContract-Server::VoteForGSCContractOrderedByHash::Voting %s for govHash %s, with pre-existing-votes %f (created %f)",
 			sAction, myGov->GetHash().GetHex(), iVotes, myGov->GetCreationTime());
 		VoteForGobject(myGov->GetHash(), sAction, sError);
+		break;
 	}
 	// Phase 2: Vote against contracts at this height that do not match our hash
-	vPropByGov = GetGSCSortedByGov(nHeight, uPamHash, true);
-	for (int i = 0; i < vPropByGov.size(); i++)
+	bool bFeatureOff = true;
+	if (!bFeatureOff)
 	{
-		CGovernanceObject* myGovForRemoval = governance.FindGovernanceObject(vPropByGov[i].second);
-		sAction = "no";
-		int iVotes = myGovForRemoval->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING);
-		LogPrintf("\nSmartContract-Server::VoteDownBadGCCContracts::Voting %s for govHash %s, with pre-existing-votes %f (created %f)",
-			sAction, myGovForRemoval->GetHash().GetHex(), iVotes, myGovForRemoval->GetCreationTime());
-		VoteForGobject(myGovForRemoval->GetHash(), sAction, sError);
+		vPropByGov = GetGSCSortedByGov(nHeight, uPamHash, true);
+		for (int i = 0; i < vPropByGov.size(); i++)
+		{
+			CGovernanceObject* myGovForRemoval = governance.FindGovernanceObject(vPropByGov[i].second);
+			sAction = "no";
+			int iVotes = myGovForRemoval->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING);
+			LogPrintf("\nSmartContract-Server::VoteDownBadGCCContracts::Voting %s for govHash %s, with pre-existing-votes %f (created %f)",
+				sAction, myGovForRemoval->GetHash().GetHex(), iVotes, myGovForRemoval->GetCreationTime());
+			VoteForGobject(myGovForRemoval->GetHash(), sAction, sError);
+		}
 	}
-	
+
 	return sError.empty() ? true : false;
 }
 
@@ -840,10 +848,12 @@ void SendDistressSignal()
 	if (GetAdjustedTime() - nLastReset > (60 * 30))
 	{
 		// Node will try to pull the gobjects again
+		/*
 		LogPrintf("SmartContract-Server::SendDistressSignal: Node is missing a gobject, pulling...%f\n", GetAdjustedTime());
 		masternodeSync.Reset();
 		masternodeSync.SwitchToNextAsset(*g_connman);
 		nLastReset = GetAdjustedTime();
+		*/
 	}
 }
 
