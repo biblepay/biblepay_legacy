@@ -847,42 +847,38 @@ std::string GetActiveProposals()
 		validator.GetDataValue("end_epoch", nEpoch);
 		validator.GetDataValue("url", sURL);
 		validator.GetDataValue("expensetype", sCharityType);
-
 		if (sCharityType.empty()) sCharityType = "N/A";
+		BiblePayProposal bbpProposal = GetProposalByHash(pGovObj->GetHash(), nLastSuperblock);
+		std::string sHash = pGovObj->GetHash().GetHex();
+		int nEpochHeight = GetHeightByEpochTime(nStartEpoch);
+		// First ensure the proposals gov height has not passed yet
+		bool bIsPaid = nEpochHeight < nLastSuperblock;
+		std::string sReport = DescribeProposal(bbpProposal);
+		LogPrintf("\nGetActiveProposals::Proposal %s , epochHeight %f, nLastSuperblock %f, IsPaid %f ", 
+					sReport, nEpochHeight, nLastSuperblock, (double)bIsPaid);
+		if (!bIsPaid)
 		{
-			std::string sHash = pGovObj->GetHash().GetHex();
-			int nEpochHeight = GetHeightByEpochTime(nStartEpoch);
-			// First ensure the proposals gov height has not passed yet
-			bool bIsPaid = nEpochHeight < nLastSuperblock;
-			if (!bIsPaid)
-			{
-				BiblePayProposal bbpProposal = GetProposalByHash(pGovObj->GetHash(), nLastSuperblock);
-				std::string sReport = DescribeProposal(bbpProposal);
-				LogPrintf("Proposal %s , epochHeight %f, nLastSuperblock %f ", 
-					sReport, nEpochHeight, nLastSuperblock);
-
-				int iYes = pGovObj->GetYesCount(VOTE_SIGNAL_FUNDING);
-				int iNo = pGovObj->GetNoCount(VOTE_SIGNAL_FUNDING);
-				int iAbstain = pGovObj->GetAbstainCount(VOTE_SIGNAL_FUNDING);
-				id++;
-				if (sCharityType.empty()) sCharityType = "N/A";
-				std::string sProposalTime = TimestampToHRDate(nStartEpoch);
-				if (id == 1) sURL += "&t=" + RoundToString(GetAdjustedTime(), 0);
-				// proposal_hashes
-				std::string sName;
-				validator.GetDataValue("name", sName);
-				double dCharityAmount = 0;
-				validator.GetDataValue("payment_amount", dCharityAmount);
-				std::string sRow = "<proposal>" + sHash + sDelim 
-					+ sName + sDelim 
-					+ RoundToString(dCharityAmount, 2) + sDelim
-					+ sCharityType + sDelim
-					+ sProposalTime + sDelim
+			int iYes = pGovObj->GetYesCount(VOTE_SIGNAL_FUNDING);
+			int iNo = pGovObj->GetNoCount(VOTE_SIGNAL_FUNDING);
+			int iAbstain = pGovObj->GetAbstainCount(VOTE_SIGNAL_FUNDING);
+			id++;
+			if (sCharityType.empty()) sCharityType = "N/A";
+			std::string sProposalTime = TimestampToHRDate(nStartEpoch);
+			if (id == 1) sURL += "&t=" + RoundToString(GetAdjustedTime(), 0);
+			// proposal_hashes
+			std::string sName;
+			validator.GetDataValue("name", sName);
+			double dCharityAmount = 0;
+			validator.GetDataValue("payment_amount", dCharityAmount);
+			std::string sRow = "<proposal>" + sHash + sDelim 
+				+ sName + sDelim 
+				+ RoundToString(dCharityAmount, 2) + sDelim
+				+ sCharityType + sDelim
+				+ sProposalTime + sDelim
 					+ RoundToString(iYes, 0) + sDelim
 					+ RoundToString(iNo, 0) + sDelim + RoundToString(iAbstain,0) 
 					+ sDelim + sURL;
 				sXML += sRow;
-			}
 		}
 	}
 	return sXML;

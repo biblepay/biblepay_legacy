@@ -455,7 +455,7 @@ uint256 GetPAMHash(std::string sAddresses, std::string sAmounts)
 	return uint256S("0x" + sHash);
 }
 
-std::vector<std::pair<std::string, uint256>> GetGSCSortedByGov(int nHeight, uint256 inPamHash)
+std::vector<std::pair<std::string, uint256>> GetGSCSortedByGov(int nHeight, uint256 inPamHash, bool fIncludeNonMatching)
 {
 	int nStartTime = 0; 
 	LOCK2(cs_main, governance.cs);
@@ -476,7 +476,12 @@ std::vector<std::pair<std::string, uint256>> GetGSCSortedByGov(int nHeight, uint
 			std::string sPAM = obj["payment_amounts"].get_str();
 			int iVotes = myGov->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING);
 			uint256 uPamHash = GetPAMHash(sPAD, sPAM);
-			if (inPamHash == uPamHash)
+			if (fIncludeNonMatching && inPamHash != uPamHash)
+			{
+				// This is a Gov Obj that matches the height, but does not match the contract, we need to vote it down
+				vPropByGov.push_back(std::make_pair(myGov->GetHash().GetHex(), myGov->GetHash()));
+			}
+			else if (inPamHash == uPamHash)
 			{
 				// Note:  the pair is used in case we want to store an object later (the PamHash is not distinct, but the govHash is).
 				vPropByGov.push_back(std::make_pair(myGov->GetHash().GetHex(), myGov->GetHash()));
@@ -501,19 +506,33 @@ bool VoteForGSCContract(int nHeight, std::string sMyContract, std::string& sErro
 		return false;
 	}
 	// Sort by GSC gobject hash (creation time does not work as multiple nodes may be called during the same second to create a GSC)
-	std::vector<std::pair<std::string, uint256>> vPropByGov = GetGSCSortedByGov(nHeight, uPamHash);
+	// Phase 1: Eliminate all Ties, and vote for the lowest Valid matching contract:
+	std::vector<std::pair<std::string, uint256>> vPropByGov = GetGSCSortedByGov(nHeight, uPamHash, false);
 	// Now we need to sort the vector by Gov hash
 	std::sort(vPropByGov.begin(), vPropByGov.end());
-
+	std::string sAction;
+	int iVotes = 0;
 	for (int i = 0; i < vPropByGov.size(); i++)
 	{
 		CGovernanceObject* myGov = governance.FindGovernanceObject(vPropByGov[i].second);
-		std::string sAction = (i==0) ? "yes" : "no";
-		int iVotes = myGov->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING);
-		LogPrintf("\nSmartContract-Server::VoteForGSCContract::Voting %s for govHash %s, with pre-existing-votes %f (created %f)",
+		sAction = (i==0) ? "yes" : "no";
+		iVotes = myGov->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING);
+		LogPrintf("\nSmartContract-Server::VoteForGSCContractOrderedByHash::Voting %s for govHash %s, with pre-existing-votes %f (created %f)",
 			sAction, myGov->GetHash().GetHex(), iVotes, myGov->GetCreationTime());
-		VoteForGobject(uGovObjHash, "yes", sError);
+		VoteForGobject(myGov->GetHash(), sAction, sError);
 	}
+	// Phase 2: Vote against contracts at this height that do not match our hash
+	vPropByGov = GetGSCSortedByGov(nHeight, uPamHash, true);
+	for (int i = 0; i < vPropByGov.size(); i++)
+	{
+		CGovernanceObject* myGovForRemoval = governance.FindGovernanceObject(vPropByGov[i].second);
+		sAction = "no";
+		int iVotes = myGovForRemoval->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING);
+		LogPrintf("\nSmartContract-Server::VoteDownBadGCCContracts::Voting %s for govHash %s, with pre-existing-votes %f (created %f)",
+			sAction, myGovForRemoval->GetHash().GetHex(), iVotes, myGovForRemoval->GetCreationTime());
+		VoteForGobject(myGovForRemoval->GetHash(), sAction, sError);
+	}
+	
 	return sError.empty() ? true : false;
 }
 

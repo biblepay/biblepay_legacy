@@ -2154,6 +2154,7 @@ UniValue exec(const JSONRPCRequest& request)
 	}
 	else if (sItem == "health")
 	{
+		// This command pulls the best-superblock (the one with the highest votes for the next height)
 		bool bImpossible = (!masternodeSync.IsSynced() || fLiteMode);
 		int iNextSuperblock = 0;
 		int iLastSuperblock = GetLastGSCSuperblockHeight(chainActive.Tip()->nHeight, iNextSuperblock);
@@ -2163,6 +2164,15 @@ UniValue exec(const JSONRPCRequest& request)
 		uint256 uGovObjHash = uint256S("0x0");
 		uint256 uPAMHash = uint256S("0x0");
 		GetGSCGovObjByHeight(iNextSuperblock, uPAMHash, iVotes, uGovObjHash, sAddresses, sAmounts);
+		uint256 hPam = GetPAMHash(sAddresses, sAmounts);
+		results.push_back(Pair("pam_hash", hPam.GetHex()));
+		std::string sContract = GetGSCContract(iLastSuperblock);
+		uint256 hPAMHash2 = GetPAMHashByContract(sContract);
+		results.push_back(Pair("pam_hash_internal", hPAMHash2.GetHex()));
+		if (hPAMHash2 != hPam)
+		{
+			results.push_back(Pair("WARNING", "Our internal PAM hash disagrees with the network. "));
+		}
 		results.push_back(Pair("govobjhash", uGovObjHash.GetHex()));
 		int iRequiredVotes = GetRequiredQuorumLevel(iNextSuperblock);
 		results.push_back(Pair("Amounts", sAmounts));
