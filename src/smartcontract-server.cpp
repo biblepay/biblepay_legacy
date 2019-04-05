@@ -252,12 +252,18 @@ double CalculatePoints(std::string sCampaign, double nCoinAge, CAmount nDonation
 {
 	boost::to_upper(sCampaign);
 	double nPoints = 0;
+
 	if (sCampaign == "POG")
 	{
 		double nComponent1 = nCoinAge;
 		double nTithed = (double)nDonation / COIN;
 		double nComponent2 = cbrt(nTithed);
 		nPoints = nComponent1 * nComponent2;
+		return nPoints;
+	}
+	else if (sCampaign == "HEALING")
+	{
+		nPoints = nCoinAge;
 		return nPoints;
 	}
 	return 0;
@@ -352,7 +358,9 @@ std::string AssessBlocks(int nHeight)
 	CBlockIndex* pindex = FindBlockByHeight(nMinDepth);
 	const Consensus::Params& consensusParams = Params().GetConsensus();
 	std::map<std::string, CPK> mPoints;
-	std::map<std::string, CPK> mAllCPKs = GetGSCMap("cpk", "", true);
+	std::map<std::string, double> mCampaignPoints;
+	std::map<std::string, CPK> mCPKCampaignPoints;
+	std::map<std::string, double> mCampaigns;
 
 	while (pindex && pindex->nHeight < nMaxDepth)
 	{
@@ -377,14 +385,25 @@ std::string AssessBlocks(int nHeight)
 						double nPoints = CalculatePoints(sCampaignName, nCoinAge, nDonation);
 						if (nPoints > 0)
 						{
+							// CPK 
 							CPK c = mPoints[sCPK];
 							c.nPoints += nPoints;
 							c.sCampaign = sCampaignName;
 							c.sAddress = sCPK;
 							c.sNickName = localCPK.sNickName;
 							mPoints[sCPK] = c;
+							// Campaign Points
+							mCampaignPoints[sCampaignName] += nPoints;
+							// CPK-Campaign
+							CPK cCPKCampaignPoints = mCPKCampaignPoints[sCPK + sCampaignName];
+							cCPKCampaignPoints.sAddress = sCPK;
+							cCPKCampaignPoints.sNickName = c.sNickName;
+							cCPKCampaignPoints.nPoints += nPoints;
+							mCPKCampaignPoints[sCPK + sCampaignName] = cCPKCampaignPoints;
 							if (fDebugSpam)
-								LogPrintf("\nUser %s , Points %f, Campaign %s, coinage %f, donation %f, usertotal %f ", c.sAddress, (double)nPoints, c.sCampaign, (double)nCoinAge, 
+								LogPrintf("\nUser %s , nn %s, Points %f, Campaign %s, coinage %f, donation %f, usertotal %f ",
+								c.sAddress, localCPK.sNickName, 
+								(double)nPoints, c.sCampaign, (double)nCoinAge, 
 								(double)nDonation/COIN, (double)c.nPoints);
 						}
 					}
@@ -393,27 +412,44 @@ std::string AssessBlocks(int nHeight)
 		}
 	}
 
-	// Tally the Team Total 
-	double nTotalPoints = 0;
-	for (auto pts : mPoints)
-	{
-		nTotalPoints += pts.second.nPoints;
-	}
-	LogPrintf("\nTotal Points %f ",(double)nTotalPoints);
-	nTotalPoints++;
-
-	// Convert Team totals to Prominence levels
-	
-	for (auto Members : mPoints)
-	{
-		mPoints[Members.second.sAddress].nProminence = Members.second.nPoints / nTotalPoints;
-		LogPrintf("\nUser %s, Points %f, Prominence %f ", Members.second.sAddress, Members.second.nPoints, Members.second.nProminence);
-	}
-	// Create the daily contract
 	std::string sData;
+	std::string sGenData;
+	std::string sDetails;
+	double nTotalPoints = 0;
+
+	// Convert To Campaign-CPK-Prominence levels
+	for (auto myCampaign : mCampaignPoints)
+	{
+		std::string sCampaignName = myCampaign.first;
+		double nCampaignPercentage = GetSporkDouble(sCampaignName + "campaignpercentage", 0);
+		if (nCampaignPercentage < 0) nCampaignPercentage = 0;
+		double nCampaignPoints = mCampaignPoints[sCampaignName];
+		LogPrintf("\n SCS-AssessBlocks::Processing Campaign %s (%f), Payment Pctg [%f], TotalPoints %f ", 
+			myCampaign.first, myCampaign.second, nCampaignPercentage, nCampaignPoints);
+		nCampaignPoints += 1;
+		nTotalPoints += nCampaignPoints;
+		for (auto Members : mPoints)
+		{
+			std::string sKey = Members.second.sAddress + sCampaignName;
+			mCPKCampaignPoints[sKey].nProminence = (mCPKCampaignPoints[sKey].nPoints / nCampaignPoints) * nCampaignPercentage;
+			LogPrintf("\nUser %s, Campaign %s, Points %f, Prominence %f ", mCPKCampaignPoints[sKey].sAddress, sCampaignName, 
+				mCPKCampaignPoints[sKey].nPoints, mCPKCampaignPoints[sKey].nProminence);
+			std::string sRow = sCampaignName + "|" + Members.second.sAddress + "|" + RoundToString(mCPKCampaignPoints[sKey].nPoints, 0) + "|" 
+				+ RoundToString(mCPKCampaignPoints[sKey].nProminence, 8) + "|" + Members.second.sNickName + "|\n";
+			sDetails += sRow;
+	
+		}
+	}
+	// Grand Total for Smart Contract
+	for (auto Members : mCPKCampaignPoints)
+	{
+		///	mCPKCampaignPoints[Members.second.sAddress + sCampaignName].nProminence = (Members.second.nPoints / nCampaignPoints) * nCampaignPercentage;
+		mPoints[Members.second.sAddress].nProminence += Members.second.nProminence;
+	}
+	
+	// Create the Daily Contract
 	std::string sAddresses;
 	std::string sPayments;
-	std::string sGenData;
 	for (auto Members : mPoints)
 	{
 		CAmount nPayment = Members.second.nProminence * nPaymentsLimit;
@@ -421,8 +457,9 @@ std::string AssessBlocks(int nHeight)
 		if (cbaAddress.IsValid() && nPayment > (.25*COIN))
 		{
 			sAddresses += Members.second.sAddress + "|";
-			sPayments += RoundToString(nPayment/COIN, 2) + "|";
-			std::string sRow = Members.second.sAddress + "|" + RoundToString(Members.second.nPoints, 0) + "|" + RoundToString(Members.second.nProminence, 4) + "|" + Members.second.sNickName + "|\n";
+			sPayments += RoundToString(nPayment / COIN, 2) + "|";
+			CPK localCPK = GetCPK(Members.second.sAddress);
+			std::string sRow =  Members.second.sAddress + "|" + RoundToString(Members.second.nPoints, 0) + "|" + RoundToString(Members.second.nProminence, 4) + "|" + localCPK.sNickName + "|\n";
 			sGenData += sRow;
 		}
 	}
@@ -431,7 +468,8 @@ std::string AssessBlocks(int nHeight)
 	if (sAddresses.length() > 1)
 		sAddresses = sAddresses.substr(0, sAddresses.length() - 1);
 	
-	sData = "<PAYMENTS>" + sPayments + "</PAYMENTS><ADDRESSES>" + sAddresses + "</ADDRESSES><DATA>" + sGenData + "</DATA><LIMIT>" + RoundToString(nPaymentsLimit/COIN, 4) + "</LIMIT><TOTALPOINTS>" + RoundToString(nTotalPoints, 2) + "</TOTALPOINTS>";
+	sData = "<PAYMENTS>" + sPayments + "</PAYMENTS><ADDRESSES>" + sAddresses + "</ADDRESSES><DATA>" + sGenData + "</DATA><LIMIT>" 
+		+ RoundToString(nPaymentsLimit/COIN, 4) + "</LIMIT><TOTALPOINTS>" + RoundToString(nTotalPoints, 2) + "</TOTALPOINTS><DETAILS>" + sDetails + "</DETAILS>";
 
 	return sData;
 }
@@ -819,8 +857,35 @@ UniValue GetProminenceLevels(int nHeight)
 	CAmount nPaymentsLimit = CSuperblock::GetPaymentsLimit(nHeight);
 	std::string sContract = GetGSCContract(nHeight);
 	std::string sData = ExtractXML(sContract, "<DATA>", "</DATA>");
+	std::string sDetails = ExtractXML(sContract, "<DETAILS>", "</DETAILS>");
+
 	std::vector<std::string> vData = Split(sData.c_str(), "\n");
+	std::vector<std::string> vDetails = Split(sDetails.c_str(), "\n");
+	results.push_back(Pair("Prominence", "Details"));
+	// DETAIL ROW FORMAT: sCampaignName + "|" + Members.Address + "|" + nPoints + "|" + nProminence + "|" + NickName + "|\n";
+	// results.push_back(Pair("Prominence", sDetails)); // CRITICAL REMOVE
+
+	for (int i = 0; i < vDetails.size(); i++)
+	{
+		std::vector<std::string> vRow = Split(vDetails[i].c_str(), "|");
+		if (vRow.size() >= 4)
+		{
+			std::string sCampaignName = vRow[0];
+			std::string sCPK = vRow[1];
+			double nPoints = cdbl(vRow[2], 2);
+			double nProminence = cdbl(vRow[3], 8) * 100;
+			CPK oPrimary = GetCPKFromProject("cpk", sCPK);
+			std::string sNickName = oPrimary.sNickName;
+			if (sNickName.empty())
+				sNickName = "N/A";
+			std::string sNarr = sCPK + " [" + sNickName + "] - " + sCampaignName + ", Pts: " + RoundToString(nPoints, 2);
+			results.push_back(Pair(sNarr, RoundToString(nProminence, 2) + "%"));
+		}
+	}
+	
+
 	double dTotalPaid = 0;
+	results.push_back(Pair("Prominence", "Totals"));
 	for (int i = 0; i < vData.size(); i++)
 	{
 		std::vector<std::string> vRow = Split(vData[i].c_str(), "|");
@@ -947,14 +1012,20 @@ std::string ExecuteGenericSmartContractQuorumProcess()
 	
 	int iRequiredVotes = GetRequiredQuorumLevel(iNextSuperblock);
 	bool bPending = iVotes > iRequiredVotes;
-	// Regardless of having a pending superblock or not, let's forward our crown jewel to the network once every quorum - to ensure they have it
-	if (uGovObjHash != uint256S("0x0"))
+
+	bool fFeatureOff = true;
+	if (!fFeatureOff)
 	{
-		CGovernanceObject *myGov = governance.FindGovernanceObject(uGovObjHash);
-		if (myGov)
+		// R ANDREWS - We can remove this in the mandatory if our gobject syncing problem is resolved.
+		// Regardless of having a pending superblock or not, let's forward our crown jewel to the network once every quorum - to ensure they have it
+		if (uGovObjHash != uint256S("0x0"))
 		{
-			myGov->Relay(*g_connman);
-			LogPrintf(" Relaying crown jewel %s ", myGov->GetHash().GetHex());
+			CGovernanceObject *myGov = governance.FindGovernanceObject(uGovObjHash);
+			if (myGov)
+			{
+				myGov->Relay(*g_connman);
+				LogPrintf(" Relaying crown jewel %s ", myGov->GetHash().GetHex());
+			}
 		}
 	}
 

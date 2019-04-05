@@ -567,7 +567,8 @@ void CPrivateSend::CheckDSTXes(int nHeight)
             ++it;
         }
     }
-    LogPrint("privatesend", "CPrivateSend::CheckDSTXes -- mapDSTX.size()=%llu\n", mapDSTX.size());
+	if (fDebugSpam)
+		LogPrint("privatesend", "CPrivateSend::CheckDSTXes -- mapDSTX.size()=%llu\n", mapDSTX.size());
 }
 
 void CPrivateSend::UpdatedBlockTip(const CBlockIndex* pindex)

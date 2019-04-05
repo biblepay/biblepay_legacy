@@ -2365,7 +2365,8 @@ static bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockInd
 	{
 		MemorizeBlockChainPrayers(true, false, false, false);
 		std::string sStatus = ExecuteGenericSmartContractQuorumProcess();
-		LogPrintf("EGSCQP %f %s", (double)pindex->nHeight, sStatus);
+		if (fDebugSpam)
+			LogPrintf("EGSCQP %f %s", (double)pindex->nHeight, sStatus);
 	}
 	// END BIBLEPAY
 
@@ -3447,13 +3448,18 @@ bool LateBlock(const CBlock& block, const CBlockIndex* pindexPrev, int iMinutes)
 	return (nAge > (60 * iMinutes) || nAgeTip > (60 * iMinutes)) ? true : false;
 }
 
-bool AntiGPU(std::string CPK, CBlockIndex* pindexPrev)
+bool AntiGPU(const CBlock& block, const CBlockIndex* pindexPrev)
 {
+	if (!pindexPrev) return false;
+	std::string CPK;
+	CheckABNSignature(block, CPK);
 	if (CPK.empty()) return false;
+
 	int iCheckWindow = fProd ? 4 : 1;
-	CBlockIndex* pindex = pindexPrev;
 	int64_t headerAge = GetAdjustedTime() - pindexPrev->nTime;
 	if (headerAge > (60 * 60 * 1)) return false;
+
+	const CBlockIndex *pindex = pindexPrev;
 	const CChainParams& chainparams = Params();
  	for (int i = 0; i < iCheckWindow; i++)
 	{
@@ -3464,6 +3470,7 @@ bool AntiGPU(std::string CPK, CBlockIndex* pindexPrev)
 			{
 				std::string lastCPK;
 				CheckABNSignature(block, lastCPK);
+				LogPrintf(" AntiGPU i %f, CPK %s      ", (double)i, lastCPK);
 				if (!lastCPK.empty() && !CPK.empty() && lastCPK == CPK)
 				{
 					return true;
@@ -3536,7 +3543,7 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
 	//                               Additional Checks for GSC (Generic-Smart-Contracts) and for ABN (Anti-Bot-Net) rules                        //
 	//                                                                                                                                           //
 	double nMinRequiredABNWeight = GetSporkDouble("requiredabnweight", 0);
-	if (nHeight > consensusParams.ABNHeight && nMinRequiredABNWeight > 0 && !LateBlock(block, pindexPrev, 55))
+	if (nHeight > consensusParams.ABNHeight && nMinRequiredABNWeight > 0 && !LateBlock(block, pindexPrev, 60))
 	{
 		double nABNWeight = GetABNWeight(block, false);
 		if (nABNWeight < nMinRequiredABNWeight)
@@ -3548,6 +3555,17 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
 			{
 				return false; // return state.DoS(10, false, REJECT_INVALID, "low-abn-weight", false, "Insufficient ABN weight");
 			}
+		}
+	}
+
+	double nRequireAntiGPUCheck = GetSporkDouble("enforceantigpucheck", 0);
+	if (nRequireAntiGPUCheck == 1 && nHeight > consensusParams.ABNHeight && !LateBlock(block, pindexPrev, 60))
+	{
+		bool fAntiGPU = AntiGPU(block, pindexPrev);
+		if (fAntiGPU)
+		{
+			LogPrintf("\nContextualCheckBlock::AntiGPU ERROR!  Block %f does not meet anti-gpu guidelines for this CPK. ", (double)nHeight);
+			return false;
 		}
 	}
 

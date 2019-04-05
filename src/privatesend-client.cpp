@@ -1608,14 +1608,16 @@ void CPrivateSendClientSession::RelayIn(const CPrivateSendEntry& entry, CConnman
 
 void CPrivateSendClientSession::SetState(PoolState nStateNew)
 {
-    LogPrintf("CPrivateSendClientSession::SetState -- nState: %d, nStateNew: %d\n", nState, nStateNew);
+    if (fDebugSpam)
+		LogPrintf("CPrivateSendClientSession::SetState -- nState: %d, nStateNew: %d\n", nState, nStateNew);
     nState = nStateNew;
 }
 
 void CPrivateSendClientManager::UpdatedBlockTip(const CBlockIndex* pindex)
 {
     nCachedBlockHeight = pindex->nHeight;
-    LogPrint("privatesend", "CPrivateSendClientManager::UpdatedBlockTip -- nCachedBlockHeight: %d\n", nCachedBlockHeight);
+    if (fDebugSpam)
+		LogPrint("privatesend", "CPrivateSendClientManager::UpdatedBlockTip -- nCachedBlockHeight: %d\n", nCachedBlockHeight);
 }
 
 void CPrivateSendClientManager::DoMaintenance(CConnman& connman)

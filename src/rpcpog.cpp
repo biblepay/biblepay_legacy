@@ -854,7 +854,8 @@ std::string GetActiveProposals()
 		// First ensure the proposals gov height has not passed yet
 		bool bIsPaid = nEpochHeight < nLastSuperblock;
 		std::string sReport = DescribeProposal(bbpProposal);
-		LogPrintf("\nGetActiveProposals::Proposal %s , epochHeight %f, nLastSuperblock %f, IsPaid %f ", 
+		if (fDebugSpam)
+			LogPrintf("\nGetActiveProposals::Proposal %s , epochHeight %f, nLastSuperblock %f, IsPaid %f ", 
 					sReport, nEpochHeight, nLastSuperblock, (double)bIsPaid);
 		if (!bIsPaid)
 		{
@@ -865,7 +866,6 @@ std::string GetActiveProposals()
 			if (sCharityType.empty()) sCharityType = "N/A";
 			std::string sProposalTime = TimestampToHRDate(nStartEpoch);
 			if (id == 1) sURL += "&t=" + RoundToString(GetAdjustedTime(), 0);
-			// proposal_hashes
 			std::string sName;
 			validator.GetDataValue("name", sName);
 			double dCharityAmount = 0;

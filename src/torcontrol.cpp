@@ -189,7 +189,8 @@ void TorControlConnection::eventcb(struct bufferevent *bev, short what, void *ct
             if (fDebugSpam)
 				LogPrint("tor", "tor: Error connecting to Tor control socket\n");
         else
-            LogPrint("tor", "tor: End of stream\n");
+			if (fDebugSpam)
+				LogPrint("tor", "tor: End of stream\n");
         self->Disconnect();
         self->disconnected(*self);
     }
@@ -204,7 +205,8 @@ bool TorControlConnection::Connect(const std::string &target, const ConnectionCB
     int connect_to_addrlen = sizeof(connect_to_addr);
     if (evutil_parse_sockaddr_port(target.c_str(),
         (struct sockaddr*)&connect_to_addr, &connect_to_addrlen)<0) {
-        LogPrintf("tor: Error parsing socket address %s\n", target);
+        if (fDebugSpam)
+			LogPrintf("tor: Error parsing socket address %s\n", target);
         return false;
     }
 

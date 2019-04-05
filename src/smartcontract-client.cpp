@@ -216,8 +216,6 @@ bool Enrolled(std::string sCampaignName, std::string& sError)
 	return true;
 }
 
-static const double nDefaultCoinAgePercentage = .10;
-static const double nDefaultTithe = 7;
 
 bool CreateClientSideTransaction(bool fForce, std::string& sError)
 {
@@ -229,6 +227,9 @@ bool CreateClientSideTransaction(bool fForce, std::string& sError)
 	{
 		int64_t nLastGSC = (int64_t)ReadCacheDouble(s.first + "_lastclientgsc");
 		int64_t nAge = GetAdjustedTime() - nLastGSC;
+		double nDefaultCoinAgePercentage = GetSporkDouble(s.first + "defaultcoinagepercentage", .10);
+		double nDefaultTithe = GetSporkDouble(s.first + "defaulttitheamount", 0);
+
 		if (nAge > nTransmissionFrequency || fForce)
 		{
 			WriteCacheDouble(s.first + "_lastclientgsc", GetAdjustedTime());
@@ -243,7 +244,7 @@ bool CreateClientSideTransaction(bool fForce, std::string& sError)
 				double nCoinAgePercentage = UserSetting(s.first + "_coinagepercentage", nDefaultCoinAgePercentage);
 				CAmount nFoundationDonation = UserSetting(s.first + "_foundationdonation", nDefaultTithe) * COIN;
 				CWalletTx wtx = CreateGSCClientTransmission(s.first, chainActive.Tip(), nCoinAgePercentage, nFoundationDonation, reservekey, sXML, sError);
-				LogPrintf("\nCreated client side transmission - %s (Error) %s with txid %s ", sXML, sError, wtx.tx->GetHash().GetHex());
+				LogPrintf("\nCreated client side transmission - %s [%s] with txid %s ", sXML, sError, wtx.tx->GetHash().GetHex());
 				CValidationState state;
 
 				if (sError.empty())

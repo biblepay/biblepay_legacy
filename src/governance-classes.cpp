@@ -154,12 +154,16 @@ void CGovernanceTriggerManager::CleanAndRemove()
     if (fDebugSpam)
 		LogPrint("gobject", "CGovernanceTriggerManager::CleanAndRemove -- Start\n");
 
-    DBG(std::cout << "CGovernanceTriggerManager::CleanAndRemove: Start" << std::endl;);
+	if (fDebugSpam)
+		DBG(std::cout << "CGovernanceTriggerManager::CleanAndRemove: Start" << std::endl;);
     AssertLockHeld(governance.cs);
 
     // Remove triggers that are invalid or expired
-    DBG(std::cout << "CGovernanceTriggerManager::CleanAndRemove: mapTrigger.size() = " << mapTrigger.size() << std::endl;);
-    LogPrint("gobject", "CGovernanceTriggerManager::CleanAndRemove -- mapTrigger.size() = %d\n", mapTrigger.size());
+	if (fDebugSpam)
+		DBG(std::cout << "CGovernanceTriggerManager::CleanAndRemove: mapTrigger.size() = " << mapTrigger.size() << std::endl;);
+
+	if (fDebugSpam)
+		LogPrint("gobject", "CGovernanceTriggerManager::CleanAndRemove -- mapTrigger.size() = %d\n", mapTrigger.size());
 
     trigger_m_it it = mapTrigger.begin();
     while (it != mapTrigger.end()) {
@@ -175,12 +179,14 @@ void CGovernanceTriggerManager::CleanAndRemove()
             pObj = governance.FindGovernanceObject(it->first);
             if (!pObj || pObj->GetObjectType() != GOVERNANCE_OBJECT_TRIGGER) {
                 DBG(std::cout << "CGovernanceTriggerManager::CleanAndRemove: Unknown or non-trigger superblock" << std::endl;);
-                LogPrint("gobject", "CGovernanceTriggerManager::CleanAndRemove -- Unknown or non-trigger superblock\n");
+                if (fDebugSpam)
+					LogPrint("gobject", "CGovernanceTriggerManager::CleanAndRemove -- Unknown or non-trigger superblock\n");
                 pSuperblock->SetStatus(SEEN_OBJECT_ERROR_INVALID);
             }
 
             DBG(std::cout << "CGovernanceTriggerManager::CleanAndRemove: superblock status = " << pSuperblock->GetStatus() << std::endl;);
-            LogPrint("gobject", "CGovernanceTriggerManager::CleanAndRemove -- superblock status = %d\n", pSuperblock->GetStatus());
+            if (fDebugSpam)
+				LogPrint("gobject", "CGovernanceTriggerManager::CleanAndRemove -- superblock status = %d\n", pSuperblock->GetStatus());
             switch (pSuperblock->GetStatus()) {
             case SEEN_OBJECT_ERROR_INVALID:
             case SEEN_OBJECT_UNKNOWN:
@@ -207,7 +213,8 @@ void CGovernanceTriggerManager::CleanAndRemove()
                 std::cout << "CGovernanceTriggerManager::CleanAndRemove: Removing object: "
                           << strDataAsPlainString
                           << std::endl;);
-            LogPrint("gobject", "CGovernanceTriggerManager::CleanAndRemove -- Removing trigger object\n");
+            if (fDebugSpam)
+				LogPrint("gobject", "CGovernanceTriggerManager::CleanAndRemove -- Removing trigger object\n");
             // mark corresponding object for deletion
             if (pObj) {
                 pObj->fCachedDelete = true;
@@ -237,7 +244,8 @@ std::vector<CSuperblock_sptr> CGovernanceTriggerManager::GetActiveTriggers()
     AssertLockHeld(governance.cs);
     std::vector<CSuperblock_sptr> vecResults;
 
-    DBG(std::cout << "GetActiveTriggers: mapTrigger.size() = " << mapTrigger.size() << std::endl;);
+	if (fDebugSpam)
+		DBG(std::cout << "GetActiveTriggers: mapTrigger.size() = " << mapTrigger.size() << std::endl;);
 
     // LOOK AT THESE OBJECTS AND COMPILE A VALID LIST OF TRIGGERS
     for (const auto& pair : mapTrigger) {
@@ -248,7 +256,8 @@ std::vector<CSuperblock_sptr> CGovernanceTriggerManager::GetActiveTriggers()
         }
     }
 
-    DBG(std::cout << "GetActiveTriggers: vecResults.size() = " << vecResults.size() << std::endl;);
+	if (fDebugSpam)
+		DBG(std::cout << "GetActiveTriggers: vecResults.size() = " << vecResults.size() << std::endl;);
 
     return vecResults;
 }
@@ -292,7 +301,8 @@ bool CSuperblockManager::IsSuperblockTriggered(int nBlockHeight)
             continue;
         }
 
-        LogPrint("gobject", "CSuperblockManager::IsSuperblockTriggered -- data = %s\n", pObj->GetDataAsPlainString());
+		if (nBlockHeight == pSuperblock->GetBlockHeight())
+			LogPrint("gobject", "CSuperblockManager::IsSuperblockTriggered -- data = %s\n", pObj->GetDataAsPlainString());
 
         // note : 12.1 - is epoch calculation correct?
 

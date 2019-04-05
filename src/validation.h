@@ -367,6 +367,9 @@ double GuessVerificationProgress(const ChainTxData& data, CBlockIndex* pindex);
  */
 void FindFilesToPrune(std::set<int>& setFilesToPrune, uint64_t nPruneAfterHeight);
 
+// BiblePay - Make it hard on GPUs
+bool AntiGPU(const CBlock& block, const CBlockIndex* pindexPrev);
+
 /**
  *  Mark one block file as pruned.
  */

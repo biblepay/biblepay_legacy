@@ -2211,6 +2211,20 @@ UniValue exec(const JSONRPCRequest& request)
 		GetGovObjDataByPamHash(iNextSuperblock, hPAMHash, sData);
 		results.push_back(Pair("Data", sData));
 	}
+	else if (sItem == "antigpu")
+	{
+		if (request.params.size() != 2)
+			throw std::runtime_error("You must specify height.");
+		int nHeight = cdbl(request.params[1].get_str(), 0);
+		CBlockIndex* pblockindex = FindBlockByHeight(nHeight);
+		if (pblockindex==NULL)   
+			throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
+		CBlock block;
+		const Consensus::Params& consensusParams = Params().GetConsensus();
+		ReadBlockFromDisk(block, pblockindex, consensusParams);
+		bool fAntiGPU = AntiGPU(block, pblockindex->pprev);
+		results.push_back(Pair("anti-gpu", fAntiGPU));
+	}
 	else if (sItem == "datalist")
 	{
 		if (request.params.size() != 2 && request.params.size() != 3)

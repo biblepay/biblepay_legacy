@@ -1248,8 +1248,10 @@ void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParam
                     }
                 }
 
-                if (!push && inv.type == MSG_GOVERNANCE_OBJECT) {
-                    LogPrint("net", "ProcessGetData -- MSG_GOVERNANCE_OBJECT: inv = %s\n", inv.ToString());
+                if (!push && inv.type == MSG_GOVERNANCE_OBJECT) 
+				{
+					if (fDebugSpam)
+						LogPrint("net", "ProcessGetData -- MSG_GOVERNANCE_OBJECT: inv = %s\n", inv.ToString());
                     CDataStream ss(SER_NETWORK, pfrom->GetSendVersion());
                     bool topush = false;
                     {
@@ -1260,7 +1262,8 @@ void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParam
                             }
                         }
                     }
-                    LogPrint("net", "ProcessGetData -- MSG_GOVERNANCE_OBJECT: topush = %d, inv = %s\n", topush, inv.ToString());
+					if (fDebugSpam)
+						LogPrint("net", "ProcessGetData -- MSG_GOVERNANCE_OBJECT: topush = %d, inv = %s\n", topush, inv.ToString());
                     if(topush) {
                         connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::MNGOVERNANCEOBJECT, ss));
                         push = true;
@@ -1479,7 +1482,8 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         if ((nVersion < nMinPeerProtoVersion) || (!fProd && nVersion < MIN_PEER_TESTNET_PROTO_VERSION))
         {
             // disconnect from peers older than this proto version
-            LogPrintf("peer=%d using obsolete version %i; disconnecting\n", pfrom->id, nVersion);
+			if (fDebugSpam)
+				LogPrintf("peer=%d using obsolete version %i; disconnecting\n", pfrom->id, nVersion);
             connman.PushMessage(pfrom, CNetMsgMaker(INIT_PROTO_VERSION).Make(NetMsgType::REJECT, strCommand, REJECT_OBSOLETE,
                                strprintf("Version must be %d or greater", nMinPeerProtoVersion)));
             pfrom->fDisconnect = true;
