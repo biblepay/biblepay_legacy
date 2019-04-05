@@ -45,7 +45,7 @@ struct BiblePayProposal
 	int64_t nEndEpoch = 0;
 	std::string sURL;
 	std::string sExpenseType;
-	double nAmount;
+	double nAmount = 0;
 	std::string sAddress;
 	uint256 uHash = uint256S("0x0");
 	int nHeight = 0;
@@ -54,6 +54,9 @@ struct BiblePayProposal
 	int nYesVotes = 0;
 	int nNoVotes = 0;
 	int nAbstainVotes = 0;
+	int nMinPassing = 0;
+	int nLastSuperblock = 0;
+	bool fIsPaid = false;
 	std::string sProposalHRTime;
 };
 
@@ -181,6 +184,7 @@ std::string GetCPKData(std::string sProjectId, std::string sPK);
 CAmount GetRPCBalance();
 void GetGovSuperblockHeights(int& nNextSuperblock, int& nLastSuperblock);
 int GetHeightByEpochTime(int64_t nEpoch);
+bool CheckABNSignature(const CBlock& block, std::string& out_CPK);
 
 
 #endif

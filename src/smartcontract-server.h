@@ -9,10 +9,10 @@
 #include "hash.h"
 #include "net.h"
 #include "utilstrencodings.h"
+#include "rpcpog.h"
 #include <univalue.h>
 
 class CWallet;
-
 
 std::string AssessBlocks(int nHeight);
 int GetLastGSCSuperblockHeight(int nCurrentHeight, int& nNextSuperblock);
@@ -20,6 +20,7 @@ std::string GetGSCContract(int nHeight);
 bool SubmitGSCTrigger(std::string sHex, std::string& gobjecthash, std::string& sError);
 void GetGSCGovObjByHeight(int nHeight, uint256 uOptFilter, int& out_nVotes, uint256& out_uGovObjHash, std::string& out_PaymentAddresses, std::string& out_PaymentAmounts);
 uint256 GetPAMHashByContract(std::string sContract);
+uint256 GetPAMHash(std::string sAddresses, std::string sAmounts);
 bool VoteForGSCContract(int nHeight, std::string sMyContract, std::string& sError);
 std::string ExecuteGenericSmartContractQuorumProcess();
 UniValue GetProminenceLevels(int nHeight);
@@ -28,5 +29,10 @@ int GetRequiredQuorumLevel(int nHeight);
 double CalculatePoints(std::string sCampaign, double nCoinAge, CAmount nDonation);
 void GetTransactionPoints(CBlockIndex* pindex, CTransactionRef tx, double& nCoinAge, CAmount& nDonation);
 bool ChainSynced(CBlockIndex* pindex);
+std::string WatchmanOnTheWall(bool fForce, std::string& sContract);
+void GetGovObjDataByPamHash(int nHeight, uint256 hPamHash, std::string& out_Data);
+BiblePayProposal GetProposalByHash(uint256 govObj, int nLastSuperblock);
+std::string DescribeProposal(BiblePayProposal bbpProposal);
+bool CheckForValidGSC(int nHeight);
 
 #endif

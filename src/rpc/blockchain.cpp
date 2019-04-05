@@ -31,6 +31,7 @@
 #include "evo/cbtx.h"
 #include "smartcontract-client.h"
 #include "smartcontract-server.h"
+#include "masternode-sync.h"
 #include <stdint.h>
 
 #include <univalue.h>
@@ -1398,9 +1399,9 @@ struct CompareBlocksByHeight
 
 UniValue getchaintips(const JSONRPCRequest& request)
 {
-	    if (request.fHelp || request.params.size() > 2)
+	    if (request.fHelp || request.params.size() > 3)
         throw std::runtime_error(
-            "getchaintips ( count branchlen )\n"
+            "getchaintips ( count branchlen minimum_difficulty )\n"
             "Return information about all known tips in the block tree,"
             " including the main chain as well as orphaned branches.\n"
             "\nArguments:\n"
@@ -1471,6 +1472,10 @@ UniValue getchaintips(const JSONRPCRequest& request)
     if(request.params.size() == 2)
         nBranchMin = request.params[1].get_int();
 
+	double nMinDiff = 0;
+	if (request.params.size() == 3)
+		nMinDiff = cdbl(request.params[2].get_str(), 4);
+
     /* Construct the output array.  */
     UniValue res(UniValue::VARR);
     BOOST_FOREACH(const CBlockIndex* block, setTips)
@@ -1482,37 +1487,48 @@ UniValue getchaintips(const JSONRPCRequest& request)
         if(nCountMax-- < 1) break;
 
         UniValue obj(UniValue::VOBJ);
-        obj.push_back(Pair("height", block->nHeight));
-        obj.push_back(Pair("hash", block->phashBlock->GetHex()));
-        obj.push_back(Pair("difficulty", GetDifficulty(block)));
-        obj.push_back(Pair("chainwork", block->nChainWork.GetHex()));
-        obj.push_back(Pair("branchlen", branchLen));
-		obj.push_back(Pair("forkpoint", pindexFork->phashBlock->GetHex()));
-
-        std::string status;
-        if (chainActive.Contains(block)) 
+		bool bInclude = true;
+		
+		if (nMinDiff > 0 && GetDifficulty(block) < nMinDiff) 
+			bInclude = false;
+		
+		if (bInclude)
 		{
-            // This block is part of the currently active chain.
-            status = "active";
-        } else if (block->nStatus & BLOCK_FAILED_MASK) {
-            // This block or one of its ancestors is invalid.
-            status = "invalid";
-        } else if (block->nChainTx == 0) {
-            // This block cannot be connected because full block data for it or one of its parents is missing.
-            status = "headers-only";
-        } else if (block->IsValid(BLOCK_VALID_SCRIPTS)) {
-            // This block is fully validated, but no longer part of the active chain. It was probably the active block once, but was reorganized.
-            status = "valid-fork";
-        } else if (block->IsValid(BLOCK_VALID_TREE)) {
-            // The headers for this block are valid, but it has not been validated. It was probably never part of the most-work chain.
-            status = "valid-headers";
-        } else {
-            // No clue.
-            status = "unknown";
-        }
-        obj.push_back(Pair("status", status));
+			obj.push_back(Pair("height", block->nHeight));
+			bool bSuperblock = (CSuperblock::IsValidBlockHeight(block->nHeight) || CSuperblock::IsSmartContract(block->nHeight));
+			obj.push_back(Pair("superblock", bSuperblock));
+			obj.push_back(Pair("hash", block->phashBlock->GetHex()));
+			obj.push_back(Pair("difficulty", GetDifficulty(block)));
+			obj.push_back(Pair("chainwork", block->nChainWork.GetHex()));
+			obj.push_back(Pair("branchlen", branchLen));
+			obj.push_back(Pair("forkpoint", pindexFork->phashBlock->GetHex()));
+			obj.push_back(Pair("forkheight", pindexFork->nHeight));
 
-        res.push_back(obj);
+			std::string status;
+			if (chainActive.Contains(block)) 
+			{
+				// This block is part of the currently active chain.
+				status = "active";
+			} else if (block->nStatus & BLOCK_FAILED_MASK) {
+				// This block or one of its ancestors is invalid.
+				status = "invalid";
+			} else if (block->nChainTx == 0) {
+				// This block cannot be connected because full block data for it or one of its parents is missing.
+				status = "headers-only";
+			} else if (block->IsValid(BLOCK_VALID_SCRIPTS)) {
+				// This block is fully validated, but no longer part of the active chain. It was probably the active block once, but was reorganized.
+				status = "valid-fork";
+			} else if (block->IsValid(BLOCK_VALID_TREE)) {
+				// The headers for this block are valid, but it has not been validated. It was probably never part of the most-work chain.
+				status = "valid-headers";
+			} else {
+				// No clue.
+				status = "unknown";
+			}
+			obj.push_back(Pair("status", status));
+
+			res.push_back(obj);
+		}
     }
 
     return res;
@@ -1959,8 +1975,9 @@ UniValue exec(const JSONRPCRequest& request)
 		    CBlockIndex* pblockindex = mapBlockIndex[hashBlock];
 			if (!pblockindex) 
 				throw std::runtime_error("bad blockindex for this tx.");
-			double nPoints = CalculatePoints("POG", nCoinAge, nDonation);
 			GetTransactionPoints(pblockindex, tx, nCoinAge, nDonation);
+			double nPoints = CalculatePoints("POG", nCoinAge, nDonation);
+		
 			results.push_back(Pair("pog_points", nPoints));
 			results.push_back(Pair("coin_age", nCoinAge));
 			results.push_back(Pair("orphan_donation", (double)nDonation / COIN));
@@ -2134,6 +2151,65 @@ UniValue exec(const JSONRPCRequest& request)
 		if (!sError.empty())
 			results.push_back(Pair("Error!", sError));
 
+	}
+	else if (sItem == "health")
+	{
+		// This command pulls the best-superblock (the one with the highest votes for the next height)
+		bool bImpossible = (!masternodeSync.IsSynced() || fLiteMode);
+		int iNextSuperblock = 0;
+		int iLastSuperblock = GetLastGSCSuperblockHeight(chainActive.Tip()->nHeight, iNextSuperblock);
+		std::string sAddresses;
+		std::string sAmounts;
+		int iVotes = 0;
+		uint256 uGovObjHash = uint256S("0x0");
+		uint256 uPAMHash = uint256S("0x0");
+		GetGSCGovObjByHeight(iNextSuperblock, uPAMHash, iVotes, uGovObjHash, sAddresses, sAmounts);
+		uint256 hPam = GetPAMHash(sAddresses, sAmounts);
+		results.push_back(Pair("pam_hash", hPam.GetHex()));
+		std::string sContract = GetGSCContract(iLastSuperblock);
+		uint256 hPAMHash2 = GetPAMHashByContract(sContract);
+		results.push_back(Pair("pam_hash_internal", hPAMHash2.GetHex()));
+		if (hPAMHash2 != hPam)
+		{
+			results.push_back(Pair("WARNING", "Our internal PAM hash disagrees with the network. "));
+		}
+		results.push_back(Pair("govobjhash", uGovObjHash.GetHex()));
+		int iRequiredVotes = GetRequiredQuorumLevel(iNextSuperblock);
+		results.push_back(Pair("Amounts", sAmounts));
+		results.push_back(Pair("Addresses", sAddresses));
+		results.push_back(Pair("votes", iVotes));
+		results.push_back(Pair("required_votes", iRequiredVotes));
+		results.push_back(Pair("last_superblock", iLastSuperblock));
+		results.push_back(Pair("next_superblock", iNextSuperblock));
+		bool fTriggered = CSuperblockManager::IsSuperblockTriggered(iNextSuperblock);
+		results.push_back(Pair("next_superblock_triggered", fTriggered));
+		if (bImpossible)
+		{
+			results.push_back(Pair("WARNING", "Running in Lite Mode or Sanctuaries are not synced."));
+		}
+
+		bool fHealthy = (!sAmounts.empty() && !sAddresses.empty() && uGovObjHash != uint256S("0x0")) || bImpossible;
+		results.push_back(Pair("Healthy", fHealthy));
+		bool fPassing = (iVotes >= iRequiredVotes);
+	    results.push_back(Pair("GSC_Voted_In", fPassing));
+	}
+	else if (sItem == "watchman")
+	{
+		std::string sContract;
+		std::string sResponse = WatchmanOnTheWall(true, sContract);
+		results.push_back(Pair("Response", sResponse));
+		results.push_back(Pair("Contract", sContract));
+	}
+	else if (sItem == "getgschashes")
+	{
+		int iNextSuperblock = 0;
+		int iLastSuperblock = GetLastGSCSuperblockHeight(chainActive.Tip()->nHeight, iNextSuperblock);
+		std::string sContract = GetGSCContract(0); // As of iLastSuperblock height
+		results.push_back(Pair("Contract", sContract));
+		uint256 hPAMHash = GetPAMHashByContract(sContract);
+		std::string sData;
+		GetGovObjDataByPamHash(iNextSuperblock, hPAMHash, sData);
+		results.push_back(Pair("Data", sData));
 	}
 	else if (sItem == "datalist")
 	{

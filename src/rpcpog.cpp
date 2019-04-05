@@ -839,42 +839,46 @@ std::string GetActiveProposals()
     {
 		if (pGovObj->GetObjectType() != GOVERNANCE_OBJECT_PROPOSAL) continue;
 		int64_t nEpoch = 0;
+		int64_t nStartEpoch = 0;
 		CProposalValidator validator(pGovObj->GetDataAsHexString());
 		std::string sURL;
 		std::string sCharityType;
+		validator.GetDataValue("start_epoch", nStartEpoch);
 		validator.GetDataValue("end_epoch", nEpoch);
 		validator.GetDataValue("url", sURL);
 		validator.GetDataValue("expensetype", sCharityType);
 		if (sCharityType.empty()) sCharityType = "N/A";
+		BiblePayProposal bbpProposal = GetProposalByHash(pGovObj->GetHash(), nLastSuperblock);
+		std::string sHash = pGovObj->GetHash().GetHex();
+		int nEpochHeight = GetHeightByEpochTime(nStartEpoch);
+		// First ensure the proposals gov height has not passed yet
+		bool bIsPaid = nEpochHeight < nLastSuperblock;
+		std::string sReport = DescribeProposal(bbpProposal);
+		LogPrintf("\nGetActiveProposals::Proposal %s , epochHeight %f, nLastSuperblock %f, IsPaid %f ", 
+					sReport, nEpochHeight, nLastSuperblock, (double)bIsPaid);
+		if (!bIsPaid)
 		{
-			std::string sHash = pGovObj->GetHash().GetHex();
-			int nEpochHeight = GetHeightByEpochTime(nEpoch);
-			// First ensure the proposals gov height has not passed yet
-			bool bIsPaid = nEpochHeight < nLastSuperblock;
-			if (!bIsPaid)
-			{
-				int iYes = pGovObj->GetYesCount(VOTE_SIGNAL_FUNDING);
-				int iNo = pGovObj->GetNoCount(VOTE_SIGNAL_FUNDING);
-				int iAbstain = pGovObj->GetAbstainCount(VOTE_SIGNAL_FUNDING);
-				id++;
-				if (sCharityType.empty()) sCharityType = "N/A";
-				std::string sProposalTime = TimestampToHRDate(nEpoch);
-				if (id == 1) sURL += "&t=" + RoundToString(GetAdjustedTime(), 0);
-				// proposal_hashes
-				std::string sName;
-				validator.GetDataValue("name", sName);
-				double dCharityAmount = 0;
-				validator.GetDataValue("payment_amount", dCharityAmount);
-				std::string sRow = "<proposal>" + sHash + sDelim 
-					+ sName + sDelim 
-					+ RoundToString(dCharityAmount, 2) + sDelim
-					+ sCharityType + sDelim
-					+ sProposalTime + sDelim
+			int iYes = pGovObj->GetYesCount(VOTE_SIGNAL_FUNDING);
+			int iNo = pGovObj->GetNoCount(VOTE_SIGNAL_FUNDING);
+			int iAbstain = pGovObj->GetAbstainCount(VOTE_SIGNAL_FUNDING);
+			id++;
+			if (sCharityType.empty()) sCharityType = "N/A";
+			std::string sProposalTime = TimestampToHRDate(nStartEpoch);
+			if (id == 1) sURL += "&t=" + RoundToString(GetAdjustedTime(), 0);
+			// proposal_hashes
+			std::string sName;
+			validator.GetDataValue("name", sName);
+			double dCharityAmount = 0;
+			validator.GetDataValue("payment_amount", dCharityAmount);
+			std::string sRow = "<proposal>" + sHash + sDelim 
+				+ sName + sDelim 
+				+ RoundToString(dCharityAmount, 2) + sDelim
+				+ sCharityType + sDelim
+				+ sProposalTime + sDelim
 					+ RoundToString(iYes, 0) + sDelim
 					+ RoundToString(iNo, 0) + sDelim + RoundToString(iAbstain,0) 
 					+ sDelim + sURL;
 				sXML += sRow;
-			}
 		}
 	}
 	return sXML;
@@ -2805,4 +2809,15 @@ double GetABNWeight(const CBlock& block, bool fMining)
 	if (!pindex) return 0;
 	double dWeight = GetAntiBotNetWeight(pindex, tx);
 	return dWeight;
+}
+
+bool CheckABNSignature(const CBlock& block, std::string& out_CPK)
+{
+	if (block.vtx.size() < 1) return 0;
+	std::string sMsg = GetTransactionMessage(block.vtx[0]);
+	int nABNLocator = (int)cdbl(ExtractXML(sMsg, "<abnlocator>", "</abnlocator>"), 0);
+	if (block.vtx.size() < nABNLocator) return 0;
+	CTransactionRef tx = block.vtx[nABNLocator];
+	out_CPK = ExtractXML(tx->vout[0].sTxOutMessage, "<abncpk>", "</abncpk>");
+	return CheckAntiBotNetSignature(tx, "abn");
 }

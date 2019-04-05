@@ -3447,6 +3447,35 @@ bool LateBlock(const CBlock& block, const CBlockIndex* pindexPrev, int iMinutes)
 	return (nAge > (60 * iMinutes) || nAgeTip > (60 * iMinutes)) ? true : false;
 }
 
+bool AntiGPU(std::string CPK, CBlockIndex* pindexPrev)
+{
+	if (CPK.empty()) return false;
+	int iCheckWindow = fProd ? 4 : 1;
+	CBlockIndex* pindex = pindexPrev;
+	int64_t headerAge = GetAdjustedTime() - pindexPrev->nTime;
+	if (headerAge > (60 * 60 * 1)) return false;
+	const CChainParams& chainparams = Params();
+ 	for (int i = 0; i < iCheckWindow; i++)
+	{
+		if (pindex != NULL)
+		{
+			CBlock block;
+        	if (ReadBlockFromDisk(block, pindex, chainparams.GetConsensus()))
+			{
+				std::string lastCPK;
+				CheckABNSignature(block, lastCPK);
+				if (!lastCPK.empty() && !CPK.empty() && lastCPK == CPK)
+				{
+					return true;
+				}
+			}
+			pindex = pindexPrev->pprev;
+		}
+	}
+	return false;
+}
+
+
 bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Consensus::Params& consensusParams, const CBlockIndex* pindexPrev)
 {
     const int nHeight = pindexPrev == NULL ? 0 : pindexPrev->nHeight + 1;
@@ -3507,7 +3536,7 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
 	//                               Additional Checks for GSC (Generic-Smart-Contracts) and for ABN (Anti-Bot-Net) rules                        //
 	//                                                                                                                                           //
 	double nMinRequiredABNWeight = GetSporkDouble("requiredabnweight", 0);
-	if (nHeight > consensusParams.ABNHeight && nMinRequiredABNWeight > 0 && !LateBlock(block, pindexPrev, 60))
+	if (nHeight > consensusParams.ABNHeight && nMinRequiredABNWeight > 0 && !LateBlock(block, pindexPrev, 55))
 	{
 		double nABNWeight = GetABNWeight(block, false);
 		if (nABNWeight < nMinRequiredABNWeight)
@@ -3516,16 +3545,18 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
 				(double)nHeight, (double)nABNWeight, nMinRequiredABNWeight);
 			double nEnforce = GetSporkDouble("enforceabnweight", 0);
 			if (nEnforce == 1)
-				return state.DoS(10, false, REJECT_INVALID, "low-abn-weight", false, "Insufficient ABN weight");
+			{
+				return false; // return state.DoS(10, false, REJECT_INVALID, "low-abn-weight", false, "Insufficient ABN weight");
+			}
 		}
 	}
 
 	bool bIsSuperblock = CSuperblock::IsValidBlockHeight(nHeight) || CSuperblock::IsSmartContract(nHeight);
 	CAmount nPayments = block.vtx[0]->GetValueOut();
-	if (nHeight > consensusParams.EVOLUTION_CUTOVER_HEIGHT && bIsSuperblock && nPayments < ((MAX_BLOCK_SUBSIDY + 1) * COIN) && !LateBlock(block, pindexPrev, 30))
+	if (nHeight > consensusParams.EVOLUTION_CUTOVER_HEIGHT && bIsSuperblock && nPayments < ((MAX_BLOCK_SUBSIDY + 1) * COIN) && !LateBlock(block, pindexPrev, 15))
 	{
 		LogPrintf("\nContextualCheckBlock::CheckGSCSuperblock, Block Height %f, This superblock has no recipients!", (double)nHeight);
-		return state.DoS(1, false, REJECT_INVALID, "invalid-gsc-recipient-count", false, "Invalid GSC recipient count");
+		return false; // return state.DoS(1, false, REJECT_INVALID, "invalid-gsc-recipient-count", false, "Invalid GSC recipient count");
 	}
 
 	//                                                                                                                                           //
@@ -3557,7 +3588,7 @@ static bool AcceptBlockHeader(const CBlockHeader& block, CValidationState& state
 		CBlockIndex* pindexPrev = NULL;
         BlockMap::iterator mi = mapBlockIndex.find(block.hashPrevBlock);
         if (mi == mapBlockIndex.end())
-            return state.DoS(10, error("%s: prev block not found", __func__), 0, "bad-prevblk");
+            return state.DoS(1, error("%s: prev block not found", __func__), 0, "bad-prevblk");
 
 		pindexPrev = (*mi).second;
 		// R ANDREWS - Now we can check the block header:
@@ -3565,7 +3596,7 @@ static bool AcceptBlockHeader(const CBlockHeader& block, CValidationState& state
             return error("%s: Consensus::CheckBlockHeader: %s, %s", __func__, hash.ToString(), FormatStateMessage(state));
 
 		if (pindexPrev->nStatus & BLOCK_FAILED_MASK)
-            return state.DoS(100, error("%s: prev block invalid", __func__), REJECT_INVALID, "bad-prevblk");
+            return state.DoS(1, error("%s: prev block invalid", __func__), REJECT_INVALID, "bad-prevblk");
 
 
         assert(pindexPrev);
