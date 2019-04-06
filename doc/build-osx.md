@@ -41,8 +41,8 @@ NOTE: Building with Qt4 is still supported, however, could result in a broken UI
 
 1. Clone the GitHub tree to get the source code and go into the directory.
 
-        git clone https://github.com/Biblepaypay/Biblepay.git
-        cd Biblepay
+        git clone https://github.com/biblepaypay/biblepay.git
+        cd biblepay
 
 2.  Build Biblepay Core:
     This will configure and build the headless Biblepay binaries as well as the gui (if Qt is found).
@@ -97,13 +97,13 @@ bundle is packaged and signed to create the .dmg disk image that is distributed.
 Running
 -------
 
-It's now available at `./Biblepayd`, provided that you are still in the `src`
+It's now available at `./biblepayd`, provided that you are still in the `src`
 directory. We have to first create the RPC configuration file, though.
 
-Run `./Biblepayd` to get the filename where it should be put, or just try these
+Run `./biblepayd` to get the filename where it should be put, or just try these
 commands:
 
-    echo -e "rpcuser=Biblepayrpc\nrpcpassword=$(xxd -l 16 -p /dev/urandom)" > "/Users/${USER}/Library/Application Support/BiblepayCore/Biblepay.conf"
+    echo -e "rpcuser=biblepayrpc\nrpcpassword=$(xxd -l 16 -p /dev/urandom)" > "/Users/${USER}/Library/Application Support/BiblepayCore/biblepay.conf"
     chmod 600 "/Users/${USER}/Library/Application Support/BiblepayCore/Biblepay.conf"
 
 The next time you run it, it will start downloading the blockchain, but it won't
@@ -115,6 +115,6 @@ you can monitor its process by looking at the debug.log file, like this:
 Other commands:
 -------
 
-    ./Biblepayd -daemon # to start the Biblepay daemon.
-    ./Biblepay-cli --help  # for a list of command-line options.
-    ./Biblepay-cli help    # When the daemon is running, to get a list of RPC commands
+    ./biblepayd -daemon # to start the Biblepay daemon.
+    ./biblepay-cli --help  # for a list of command-line options.
+    ./biblepay-cli help    # When the daemon is running, to get a list of RPC commands
