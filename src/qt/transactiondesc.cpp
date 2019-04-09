@@ -331,6 +331,7 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionReco
 		}
 		sStripped = ExtractXML(sNetworkMessage, "<MV>", "</MV>");
 		sObjType = ExtractXML(sNetworkMessage, "<MT>", "</MT>");
+		std::string sDiary = ExtractXML(sNetworkMessage, "<diary>", "</diary>");
 
         strHTML += "<hr><br>" + tr("Debug information") + "<br><br>";
         BOOST_FOREACH(const CTxIn& txin, wtx.tx->vin)
@@ -372,7 +373,11 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionReco
 
         strHTML += "</ul>";
 		if (!sStripped.empty()) 
-			strHTML += "<br><br><b>"+ GUIUtil::TOQS(sObjType) + ":</b> " + GUIUtil::TOQS(sStripped);
+			strHTML += "<br><b>"+ GUIUtil::TOQS(sObjType) + ":</b> " + GUIUtil::TOQS(sStripped) + "<br>";
+
+		if (!sDiary.empty())
+			strHTML += "<br><b>Diary:</b> " + GUIUtil::TOQS(sDiary) + "<br>";
+
     }
 	
     strHTML += "</font></html>";

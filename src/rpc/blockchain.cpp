@@ -20,6 +20,7 @@
 #include "primitives/transaction.h"
 #include "rpc/server.h"
 #include "streams.h"
+#include "spork.h"
 #include "sync.h"
 #include "txdb.h"
 #include "txmempool.h"
@@ -179,10 +180,18 @@ UniValue blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool tx
 		uint256 hashWork = blockindex->GetBlockHash();
 		uint256 bibleHash = BibleHashClassic(hashWork, block.GetBlockTime(), blockindex->pprev->nTime, false, blockindex->pprev->nHeight, blockindex->pprev, false, f7000, f8000, f9000, fTitheBlocksActive, blockindex->nNonce, consensusParams);
 		bool bSatisfiesBibleHash = (UintToArith256(bibleHash) <= hashTarget);
-		// CRITICAL TODO: Remove satisfiesbiblehash in prod (spam)
-    	result.push_back(Pair("satisfiesbiblehash", bSatisfiesBibleHash ? "true" : "false"));
+		if (fDebugSpam)
+			result.push_back(Pair("satisfiesbiblehash", bSatisfiesBibleHash ? "true" : "false"));
 		result.push_back(Pair("biblehash", bibleHash.GetHex()));
 		result.push_back(Pair("chaindata", block.vtx[0]->vout[0].sTxOutMessage));
+		bool fEnabled = sporkManager.IsSporkActive(SPORK_20_QUANTITATIVE_TIGHTENING_ENABLED);
+		if (fEnabled)
+		{
+			double dPriorPrice = 0;
+			double dPriorPhase = 0;
+			double dQTPct = GetQTPhase(-1, blockindex->nHeight, dPriorPrice, dPriorPhase) / 100;
+			result.push_back(Pair("qt_pct", dQTPct));
+		}
 	}
     CBlockIndex *pnext = chainActive.Next(blockindex);
     if (pnext)
@@ -1864,10 +1873,6 @@ UniValue exec(const JSONRPCRequest& request)
 		std::string sReqPay = CSuperblockManager::GetRequiredPaymentsString(iNextSuperblock);
 		results.push_back(Pair("next_superblock_req_payments", sReqPay));
 
-		/*  QT (Reserved)
-		std::string sSig = SignPrice(".01");
-		bool fSigValid = VerifyDarkSendSigner(sSig);
-		*/
 		bool bRes = VoteForGSCContract(iNextSuperblock, sContract, sError);
 		results.push_back(Pair("vote_result", bRes));
 		results.push_back(Pair("vote_error", sError));
@@ -1960,7 +1965,7 @@ UniValue exec(const JSONRPCRequest& request)
 			results.push_back(Pair("total_required " + RoundToString(dMin, 2), nTotalReq/COIN));
 		}
 	}
-	else if (sItem == "getpogpoints")
+	else if (sItem == "getpoints")
 	{
 		if (request.params.size() < 2)
 			 throw std::runtime_error("You must specify the txid.");
@@ -1976,10 +1981,13 @@ UniValue exec(const JSONRPCRequest& request)
 			if (!pblockindex) 
 				throw std::runtime_error("bad blockindex for this tx.");
 			GetTransactionPoints(pblockindex, tx, nCoinAge, nDonation);
-			double nPoints = CalculatePoints("POG", nCoinAge, nDonation);
-		
+			std::string sDiary = ExtractXML(tx->GetTxMessage(), "<diary>", "</diary>");
+			std::string sCampaignName;
+			std::string sCPK = GetTxCPK(tx, sCampaignName);
+			double nPoints = CalculatePoints(sCampaignName, sDiary, nCoinAge, nDonation);
 			results.push_back(Pair("pog_points", nPoints));
 			results.push_back(Pair("coin_age", nCoinAge));
+			results.push_back(Pair("diary_entry", sDiary));
 			results.push_back(Pair("orphan_donation", (double)nDonation / COIN));
 		}
 		else
@@ -2086,13 +2094,16 @@ UniValue exec(const JSONRPCRequest& request)
 	}
 	else if (sItem == "prominence")
 	{
-		if (request.params.size() != 2 && request.params.size() != 1)
-			throw std::runtime_error("You must specify prominence height || prominence last || prominence future || prominence.  The default is future.");
+		if (request.params.size() != 1 && request.params.size() != 2 && request.params.size() != 3)
+			throw std::runtime_error("You must specify prominence [me_only=true/false] [height || prominence last || prominence future || prominence]. The default is exec prominence false future.");
 		int iNextSuperblock = 0;
 		int iLastSuperblock = GetLastGSCSuperblockHeight(chainActive.Tip()->nHeight, iNextSuperblock);
 		std::string sLHF;
+		bool fMeOnly = false;
 		if (request.params.size() > 1)
-			sLHF = request.params[1].get_str();
+			fMeOnly = request.params[1].get_str() == "true" ? true : false;
+		if (request.params.size() > 2)
+			sLHF = request.params[2].get_str();
 		int nHeight = 0;
 		if (sLHF == "last")
 		{
@@ -2110,7 +2121,7 @@ UniValue exec(const JSONRPCRequest& request)
 		if (nHeight == 0)
 			nHeight = iNextSuperblock;
 
-		UniValue p = GetProminenceLevels(nHeight);
+		UniValue p = GetProminenceLevels(nHeight, fMeOnly);
 		return p;
 	}
 	else if (sItem == "checkcpk")
@@ -2145,8 +2156,14 @@ UniValue exec(const JSONRPCRequest& request)
 	}
 	else if (sItem == "sendgscc")
 	{
+		if (request.params.size() > 2)
+			throw std::runtime_error("You must specify sendgscc [diary_entry]: IE 'exec sendgscc [prayed for Jane Doe who had broken ribs, this happened].");
+		std::string sDiary;
+		if (request.params.size() > 1)
+			sDiary = request.params[1].get_str();
+
 		std::string sError;
-		bool fCreated = CreateClientSideTransaction(true, sError);
+		bool fCreated = CreateClientSideTransaction(true, sDiary, sError);
 		results.push_back(Pair("results", (double)fCreated));
 		if (!sError.empty())
 			results.push_back(Pair("Error!", sError));
@@ -2217,13 +2234,35 @@ UniValue exec(const JSONRPCRequest& request)
 			throw std::runtime_error("You must specify height.");
 		int nHeight = cdbl(request.params[1].get_str(), 0);
 		CBlockIndex* pblockindex = FindBlockByHeight(nHeight);
-		if (pblockindex==NULL)   
+		if (pblockindex == NULL)   
 			throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
 		CBlock block;
 		const Consensus::Params& consensusParams = Params().GetConsensus();
 		ReadBlockFromDisk(block, pblockindex, consensusParams);
 		bool fAntiGPU = AntiGPU(block, pblockindex->pprev);
 		results.push_back(Pair("anti-gpu", fAntiGPU));
+	}
+	else if (sItem == "price")
+	{
+		double dPriorPrice = 0;
+		double dPriorPhase = 0;
+		double dCurPhase = GetQTPhase(-1, chainActive.Tip()->nHeight, dPriorPrice, dPriorPhase);
+		results.push_back(Pair("consensus_price", dPriorPrice));
+		results.push_back(Pair("qt_phase", dCurPhase));
+		results.push_back(Pair("qt_prior_phase", dPriorPhase));
+		bool fEnabled = sporkManager.IsSporkActive(SPORK_20_QUANTITATIVE_TIGHTENING_ENABLED);
+		results.push_back(Pair("qt_enabled", fEnabled));
+		double dPrice = GetPBase();
+		results.push_back(Pair("cur_price", RoundToString(dPrice, 12)));
+		double dBBP = GetCryptoPrice("bbp");
+		double dBTC = GetCryptoPrice("btc");
+		results.push_back(Pair("BBP/BTC", RoundToString(dBBP, 12)));
+		results.push_back(Pair("BTC/USD", dBTC));
+	}
+	else if (sItem == "sentgsc")
+	{
+		UniValue s = SentGSCCReport(0);
+		return s;
 	}
 	else if (sItem == "datalist")
 	{

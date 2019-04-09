@@ -126,6 +126,7 @@ struct Params {
 	std::string FoundationPODSAddress;
 	int nDCCSuperblockStartBlock;
 	int nDCCSuperblockCycle;
+	int QTHeight;
 	int F7000_CUTOVER_HEIGHT;
 	int F8000_CUTOVER_HEIGHT;
 	int F9000_CUTOVER_HEIGHT;

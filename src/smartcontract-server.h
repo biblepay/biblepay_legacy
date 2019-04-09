@@ -23,10 +23,9 @@ uint256 GetPAMHashByContract(std::string sContract);
 uint256 GetPAMHash(std::string sAddresses, std::string sAmounts);
 bool VoteForGSCContract(int nHeight, std::string sMyContract, std::string& sError);
 std::string ExecuteGenericSmartContractQuorumProcess();
-UniValue GetProminenceLevels(int nHeight);
+UniValue GetProminenceLevels(int nHeight, bool fMeOnly);
 bool NickNameExists(std::string sNickName);
 int GetRequiredQuorumLevel(int nHeight);
-double CalculatePoints(std::string sCampaign, double nCoinAge, CAmount nDonation);
 void GetTransactionPoints(CBlockIndex* pindex, CTransactionRef tx, double& nCoinAge, CAmount& nDonation);
 bool ChainSynced(CBlockIndex* pindex);
 std::string WatchmanOnTheWall(bool fForce, std::string& sContract);
@@ -34,5 +33,7 @@ void GetGovObjDataByPamHash(int nHeight, uint256 hPamHash, std::string& out_Data
 BiblePayProposal GetProposalByHash(uint256 govObj, int nLastSuperblock);
 std::string DescribeProposal(BiblePayProposal bbpProposal);
 bool CheckForValidGSC(int nHeight);
+std::string GetTxCPK(CTransactionRef tx, std::string& sCampaignName);
+double CalculatePoints(std::string sCampaign, std::string sDiary, double nCoinAge, CAmount nDonation);
 
 #endif

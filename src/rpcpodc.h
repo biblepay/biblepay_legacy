@@ -17,6 +17,7 @@ bool FilterFile(int iBufferSize, int iNextSuperblock, std::string& sError);
 double GetTaskWeight(std::string sCPID);
 double GetUTXOWeight(std::string sCPID);
 int GetBoincTaskCount();
+double GetCryptoPrice(std::string sURL);
 std::string RosettaDiagnostics(std::string sEmail, std::string sPass, std::string& sError);
 std::string FixRosetta(std::string sEmail, std::string sPass, std::string& sError);
 std::string AssociateDCAccount(std::string sProjectId, std::string sBoincEmail, std::string sBoincPassword, std::string sUnbankedPublicKey, bool fForce);
@@ -51,7 +52,7 @@ double GetTeamPercentage(double dUserTeam, double dProjectTeam, std::string sTea
 double VerifyTasks(std::string sCPID, std::string sTasks);
 std::string SerializeSanctuaryQuorumTrigger(int iContractAssessmentHeight, int nEventBlockHeight, std::string sContract);
 double GetQTPhase(double dPrice, int nEventHeight, double& out_PriorPrice, double& out_PriorPhase);
-bool VerifyDarkSendSigner(std::string sXML);
+bool VerifySigner(std::string sXML);
 double GetPBase();
 std::string VerifyManyWorkUnits(std::string sProjectId, std::string sTaskIds);
 int VerifySanctuarySignatures(std::string sSignatureData);

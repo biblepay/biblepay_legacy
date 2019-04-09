@@ -13,7 +13,7 @@
 #include "recentrequeststablemodel.h"
 #include "transactiontablemodel.h"
 #include "rpcpog.h"
-
+#include "smartcontract-client.h"
 #include "base58.h"
 #include "keystore.h"
 #include "validation.h"
@@ -236,7 +236,8 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
 
     QSet<QString> setAddress; // Used to detect duplicates
     int nAddresses = 0;
-	std::string sOptPrayer = "";
+	std::string sOptPrayer;
+	bool fDiaryEntry = false;
     const Consensus::Params& consensusParams = Params().GetConsensus();
 	CAmount nSundries = 0;
     // Pre-check input data for validity
@@ -244,6 +245,9 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
     {
         if (rcp.fSubtractFeeFromAmount)
             fSubtractFeeFromAmount = true;
+
+		if (rcp.fDiary)
+			fDiaryEntry = true;
 
         if (rcp.paymentRequest.IsInitialized())
         {   // PaymentRequest...
@@ -282,11 +286,15 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
             CScript scriptPubKey = GetScriptForDestination(CBitcoinAddress(rcp.address.toStdString()).Get());
             CRecipient recipient = {scriptPubKey, rcp.amount, rcp.fSubtractFeeFromAmount};
 			recipient.txtMessage = GUIUtil::FROMQS(rcp.txtMessage);
+			if (rcp.fDiary)
+			{
+				sOptPrayer = GUIUtil::FROMQS(rcp.txtMessage);
+			}
             if (rcp.fPrayer)
 			{
 				sOptPrayer += "<MT>PRAYER</MT><MK>OUT_TX</MK><MV>" + GUIUtil::FROMQS(rcp.txtMessage) + "</MV>";
 			}
-			else if (!rcp.txtMessage.isEmpty())
+			else if (!rcp.txtMessage.isEmpty() && !rcp.fPrayer && !rcp.fDiary)
 			{
 				sOptPrayer += "<MT>MESSAGE</MT><MK>OUT_TX</MK><MV>" + GUIUtil::FROMQS(rcp.txtMessage) + "</MV>";
 			}
@@ -309,6 +317,19 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
             total += rcp.amount;
         }
     }
+
+	if (fDiaryEntry)
+	{
+		LogPrintf("WalletModel::CreateDiaryEntry::Creating diary entry ... %s ", sOptPrayer);
+		// Create the client side transaction here
+		std::string sError;
+		bool fCreated = CreateClientSideTransaction(true, sOptPrayer, sError);
+		int iMsg = fCreated ? CClientUIInterface::MSG_INFORMATION : CClientUIInterface::MSG_ERROR;
+		std::string sNarr = fCreated ? "Created Diary Entry for GSC Transmission" : sError;
+	    Q_EMIT message(tr("Create Diary Entry"), QString::fromStdString(sNarr), iMsg);
+	    return SendCoinsReturn(TransactionCommitFailed, QString::fromStdString("GSC_SUCCESS"));
+	}
+
     if(setAddress.size() != nAddresses)
     {
         return DuplicateAddress;

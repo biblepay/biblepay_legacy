@@ -975,21 +975,6 @@ bool VoteManyForGobject(std::string govobj, std::string strVoteSignal, std::stri
 	return fResult;
 }
 
-
-/*
-bool AmIMasternode()
-{
-	 //if (!fMasterNode) return false;
-	 CMasternode mn;
-     if(mnodeman.Get(activeMasternode.vin, mn)) 
-	 {
-         CBitcoinAddress mnAddress(mn.pubKeyCollateralAddress.GetID());
-		 if (mnAddress.IsValid()) return true;
-     }
-	 return false;
-}
-*/
-
 std::string CreateGovernanceCollateral(uint256 GovObjHash, CAmount caFee, std::string& sError)
 {
 	CWalletTx wtx;
@@ -1962,37 +1947,11 @@ bool CopyFile(std::string sSrc, std::string sDest)
 	return true;
 }
 
-/*
-bool PODCEnabled(int nHeight)
-{
-	if (nHeight == 0)
-	{
-		return GetAdjustedTime() < 1553975345; // 3-30-2019
-	}
-	bool fDC = (fProd && nHeight > F11000_CUTOVER_HEIGHT_PROD && nHeight < _BLOCK_PROD) || (!fProd && nHeight > _CUTOVER_HEIGHT_PROD && nHeight < _BLOCK_TESTNET);
-	return fDC;
-}
-
-bool POGEnabled(int nHeight, int64_t nTime)
-{
-	bool fPOG = ((nHeight > OVER_HEIGHT_TESTNET && !fProd) || (fProd && nHeight > CUTOVER_HEIGHT_PROD));
-	if (nTime > 0)
-	{
-		int64_t nAge = GetAdjustedTime() - nTime;
-		bool fRecent = nAge < (60 * 60 * 2) ? true : false;
-		if (!fRecent) return false;
-	}
-	return fPOG;
-}
-*/
-
-
 std::string Caption(std::string sDefault)
 {
 	std::string sValue = ReadCache("message", sDefault);
 	return sValue.empty() ? sDefault : sValue;		
 }
-
 
 double GetBlockVersion(std::string sXML)
 {
@@ -2314,6 +2273,10 @@ bool TermPeekFound(std::string sData, int iBOEType)
 		if (sData.find("</results>") != std::string::npos) bFound = true;
 		if (sData.find("}}") != std::string::npos) bFound = true;
 	}
+	else if (iBOEType == 3)
+	{
+		if (sData.find("}") != std::string::npos) bFound = true;
+	}
 	return bFound;
 }
 
@@ -2339,6 +2302,7 @@ std::string PrepareHTTPPost(bool bPost, std::string sPage, std::string sHostHead
 std::string BiblepayHTTPSPost(bool bPost, int iThreadID, std::string sActionName, std::string sDistinctUser, std::string sPayload, std::string sBaseURL, std::string sPage, int iPort, 
 	std::string sSolution, int iTimeoutSecs, int iMaxSize, int iBOE)
 {
+	bool bDebugMode = false;
 	// The OpenSSL version of BiblepayHTTPSPost *only* works with SSL websites, hence the need for BiblePayHTTPPost(2) (using BOOST).  The dev team is working on cleaning this up before the end of 2019 to have one standard version with cleaner code and less internal parts. //
 	try
 	{
@@ -2383,6 +2347,8 @@ std::string BiblepayHTTPSPost(bool bPost, int iThreadID, std::string sActionName
   			return "<ERROR>DNS_ERROR</ERROR>"; 
 		}
 		std::string sPost = PrepareHTTPPost(bPost, sPage, sDomain, sPayload, mapRequestHeaders);
+		if (bDebugMode)
+			LogPrintf("Trying connection to %s ", sPost);
 		const char* write_buf = sPost.c_str();
 		if(BIO_write(bio, write_buf, strlen(write_buf)) <= 0)
 		{
@@ -2422,6 +2388,8 @@ std::string BiblepayHTTPSPost(bool bPost, int iThreadID, std::string sActionName
 		}
 		// R ANDREW - JAN 4 2018: Free bio resources
 		BIO_free_all(bio);
+		if (bDebugMode)
+			LogPrintf("Received %s ", sData);
 		return sData;
 	}
 	catch (std::exception &e)
@@ -2442,10 +2410,17 @@ std::string BiblePayHTTPSPost2(bool bPost, std::string sProtocol, std::string sD
 		// This version of BiblePayHTTPSPost has the advantage of working with both HTTP & HTTPS, and works from both QT and the daemon (++).  Our dev team is in the process of testing this across all use cases to ensure it is safe to replace V1.
 		std::map<std::string, std::string> mapRequestHeaders;
 		mapRequestHeaders["Agent"] = FormatFullVersion();
-		mapRequestHeaders["Filename"] = sFileName;
-		std::vector<char> v = ReadBytesAll(sFileName.c_str());
-		std::vector<unsigned char> uData(v.begin(), v.end());
-		std::string s64 = EncodeBase64(&uData[0], uData.size());
+		std::vector<char> v;
+		std::string s64;
+		if (!sFileName.empty())
+		{
+			mapRequestHeaders["Filename"] = sFileName;
+			v = ReadBytesAll(sFileName.c_str());
+			std::vector<unsigned char> uData(v.begin(), v.end());
+			s64 = EncodeBase64(&uData[0], uData.size());
+		}
+		/* mapRequestHeaders["Content-Type"] = "application/json"; */
+
 		std::string sPost = PrepareHTTPPost(bPost, sPage, sDomain, s64, mapRequestHeaders);
 		boost::asio::io_service io_service;
 		// Get a list of endpoints corresponding to the server name.

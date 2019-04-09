@@ -18,18 +18,19 @@ CSporkManager sporkManager;
 const std::string CSporkManager::SERIALIZATION_VERSION_STRING = "CSporkManager-Version-2";
 
 std::map<int, int64_t> mapSporkDefaults = {
-    {SPORK_2_INSTANTSEND_ENABLED,            0},             // ON
-    {SPORK_3_INSTANTSEND_BLOCK_FILTERING,    0},             // ON
-    {SPORK_5_INSTANTSEND_MAX_VALUE,          500000},        // 500,000 Biblepay
-    {SPORK_6_NEW_SIGS,                       4070908800ULL}, // OFF
-    {SPORK_8_MASTERNODE_PAYMENT_ENFORCEMENT, 4070908800ULL}, // OFF
-    {SPORK_9_SUPERBLOCKS_ENABLED,            4070908800ULL}, // OFF
-    {SPORK_10_MASTERNODE_PAY_UPDATED_NODES,  4070908800ULL}, // OFF
-    {SPORK_12_RECONSIDER_BLOCKS,             0},             // 0 BLOCKS
-    {SPORK_14_REQUIRE_SENTINEL_FLAG,         4070908800ULL}, // OFF
-    {SPORK_15_DETERMINISTIC_MNS_ENABLED,     4070908800ULL}, // OFF
-    {SPORK_16_INSTANTSEND_AUTOLOCKS,         4070908800ULL}, // OFF
-    {SPORK_17_QUORUM_DKG_ENABLED,            4070908800ULL}, // OFF
+    {SPORK_2_INSTANTSEND_ENABLED,              0},             // ON
+    {SPORK_3_INSTANTSEND_BLOCK_FILTERING,      0},             // ON
+    {SPORK_5_INSTANTSEND_MAX_VALUE,            500000},        // 500,000 Biblepay
+    {SPORK_6_NEW_SIGS,                         4070908800ULL}, // OFF
+    {SPORK_8_MASTERNODE_PAYMENT_ENFORCEMENT,   4070908800ULL}, // OFF
+    {SPORK_9_SUPERBLOCKS_ENABLED,              4070908800ULL}, // OFF
+    {SPORK_10_MASTERNODE_PAY_UPDATED_NODES,    4070908800ULL}, // OFF
+    {SPORK_12_RECONSIDER_BLOCKS,               0},             // 0 BLOCKS
+    {SPORK_14_REQUIRE_SENTINEL_FLAG,           4070908800ULL}, // OFF
+    {SPORK_15_DETERMINISTIC_MNS_ENABLED,       4070908800ULL}, // OFF
+    {SPORK_16_INSTANTSEND_AUTOLOCKS,           4070908800ULL}, // OFF
+    {SPORK_17_QUORUM_DKG_ENABLED,              4070908800ULL}, // OFF
+    {SPORK_20_QUANTITATIVE_TIGHTENING_ENABLED, 4070908800ULL}, // OFF
 };
 
 bool CSporkManager::SporkValueIsActive(int nSporkID, int64_t &nActiveValueRet) const
@@ -294,6 +295,7 @@ int CSporkManager::GetSporkIDByName(const std::string& strName)
     if (strName == "SPORK_15_DETERMINISTIC_MNS_ENABLED")        return SPORK_15_DETERMINISTIC_MNS_ENABLED;
     if (strName == "SPORK_16_INSTANTSEND_AUTOLOCKS")            return SPORK_16_INSTANTSEND_AUTOLOCKS;
     if (strName == "SPORK_17_QUORUM_DKG_ENABLED")               return SPORK_17_QUORUM_DKG_ENABLED;
+    if (strName == "SPORK_20_QUANTITATIVE_TIGHTENING_ENABLED")  return SPORK_20_QUANTITATIVE_TIGHTENING_ENABLED;
 
     LogPrint("spork", "CSporkManager::GetSporkIDByName -- Unknown Spork name '%s'\n", strName);
     return -1;
@@ -314,6 +316,7 @@ std::string CSporkManager::GetSporkNameByID(int nSporkID)
         case SPORK_15_DETERMINISTIC_MNS_ENABLED:        return "SPORK_15_DETERMINISTIC_MNS_ENABLED";
         case SPORK_16_INSTANTSEND_AUTOLOCKS:            return "SPORK_16_INSTANTSEND_AUTOLOCKS";
         case SPORK_17_QUORUM_DKG_ENABLED:               return "SPORK_17_QUORUM_DKG_ENABLED";
+        case SPORK_20_QUANTITATIVE_TIGHTENING_ENABLED:	return "SPORK_20_QUANTITATIVE_TIGHTENING_ENABLED";
         default:
             LogPrint("spork", "CSporkManager::GetSporkNameByID -- Unknown Spork ID %d\n", nSporkID);
             return "Unknown";

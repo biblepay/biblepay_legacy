@@ -352,14 +352,17 @@ bool CSuperblockManager::IsSuperblockTriggered(int nBlockHeight)
         }
     }
 
+	/*
+	CRITICAL TODO:  Remove this during mandatory
 	// BIBLEPAY - R ANDREWS - Before giving up on a GSC, check to see if the client itself thinks this is a superblock
 	bool fIsValidGSC = CheckForValidGSC(nBlockHeight);
 	if (fIsValidGSC) 
 		return true;
+	*/
+
 	if (CSuperblock::IsSmartContract(nBlockHeight)) 
-	{
 		LogPrintf("IsSuperblockTriggered::SmartContract -- WARNING: No GSC superblock triggered at this height %f. ", nBlockHeight);
-	}
+
     return false;
 }
 
@@ -409,6 +412,25 @@ bool CSuperblockManager::GetBestSuperblock(CSuperblock_sptr& pSuperblockRet, int
     return nYesCount > 0;
 }
 
+std::string GetQTPhaseXML(uint256 gObj)
+{
+	CGovernanceObject *myGov = governance.FindGovernanceObject(gObj);
+	if (myGov)
+	{
+		UniValue obj = myGov->GetJSONObject();
+		if (obj.size() > 0)
+		{
+			std::string sPrice = obj["price"].getValStr();
+			std::string sQTPhase = obj["qtphase"].getValStr();
+			std::string sDarkSig = obj["sig"].getValStr();
+			std::string sXML = "<price>" + sPrice + "</price><qtphase>" + sQTPhase + "</qtphase>" + sDarkSig;
+			return sXML;
+		}
+	}
+	return "<price>-0.00</price><qtphase>-0.00</qtphase>";
+}
+
+
 /**
 *   Get Superblock Payments
 *
@@ -442,6 +464,8 @@ bool CSuperblockManager::GetSuperblockPayments(int nBlockHeight, std::vector<CTx
     //       Consider at least following limits:
     //          - max coinbase tx size
     //          - max "budget" available
+    bool bQTPhaseEmitted = false;
+
     for (int i = 0; i < pSuperblock->CountPayments(); i++) {
         CGovernancePayment payment;
         DBG(std::cout << "CSuperblockManager::GetSuperblockPayments i = " << i << std::endl;);
@@ -450,6 +474,13 @@ bool CSuperblockManager::GetSuperblockPayments(int nBlockHeight, std::vector<CTx
             // SET COINBASE OUTPUT TO SUPERBLOCK SETTING
 
             CTxOut txout = CTxOut(payment.nAmount, payment.script);
+			// BiblePay - QT
+			if (!bQTPhaseEmitted) 
+			{
+				txout.sTxOutMessage = GetQTPhaseXML(pSuperblock->GetGovernanceObject()->GetHash());
+				bQTPhaseEmitted = true;
+			}
+    
             voutSuperblockRet.push_back(txout);
 
             // PRINT NICE LOG OUTPUT FOR SUPERBLOCK PAYMENT
@@ -902,15 +933,18 @@ bool CSuperblock::IsExpired()
     }
 
     int nExpirationBlock = nBlockHeight + nExpirationBlocks;
-
-    LogPrint("gobject", "CSuperblock::IsExpired -- nBlockHeight = %d, nExpirationBlock = %d\n", nBlockHeight, nExpirationBlock);
+	if (fDebugSpam)
+		LogPrint("gobject", "CSuperblock::IsExpired -- nBlockHeight = %d, nExpirationBlock = %d\n", nBlockHeight, nExpirationBlock);
 
     if (governance.GetCachedBlockHeight() > nExpirationBlock) {
-        LogPrint("gobject", "CSuperblock::IsExpired -- Outdated trigger found\n");
+        if (fDebugSpam)
+			LogPrint("gobject", "CSuperblock::IsExpired -- Outdated trigger found\n");
         fExpired = true;
         CGovernanceObject* pgovobj = GetGovernanceObject();
-        if (pgovobj) {
-            LogPrint("gobject", "CSuperblock::IsExpired -- Expiring outdated object: %s\n", pgovobj->GetHash().ToString());
+        if (pgovobj) 
+		{
+            if (fDebugSpam)
+				LogPrint("gobject", "CSuperblock::IsExpired -- Expiring outdated object: %s\n", pgovobj->GetHash().ToString());
             pgovobj->fExpired = true;
             pgovobj->nDeletionTime = GetAdjustedTime();
         }

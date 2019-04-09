@@ -252,8 +252,9 @@ void CGovernanceManager::ProcessMessage(CNode* pfrom, const std::string& strComm
         std::string strHash = nHash.ToString();
 
         if (!AcceptVoteMessage(nHash)) {
-            LogPrint("gobject", "MNGOVERNANCEOBJECTVOTE -- Received unrequested vote object: %s, hash: %s, peer = %d\n",
-                vote.ToString(), strHash, pfrom->GetId());
+			if (fDebugSpam)
+					LogPrint("gobject", "MNGOVERNANCEOBJECTVOTE -- Received unrequested vote object: %s, hash: %s, peer = %d\n",
+						vote.ToString(), strHash, pfrom->GetId());
             return;
         }
 
@@ -265,7 +266,8 @@ void CGovernanceManager::ProcessMessage(CNode* pfrom, const std::string& strComm
             masternodeSync.BumpAssetLastTime("MNGOVERNANCEOBJECTVOTE");
             vote.Relay(connman);
         } else {
-            LogPrint("gobject", "MNGOVERNANCEOBJECTVOTE -- Rejected vote, error = %s\n", exception.what());
+			if (fDebugSpam)
+				LogPrint("gobject", "MNGOVERNANCEOBJECTVOTE -- Rejected vote, error = %s\n", exception.what());
             if ((exception.GetNodePenalty() != 0) && masternodeSync.IsSynced()) {
                 LOCK(cs_main);
                 Misbehaving(pfrom->GetId(), exception.GetNodePenalty());
@@ -380,7 +382,8 @@ void CGovernanceManager::AddGovernanceObject(CGovernanceObject& govobj, CConnman
 
 void CGovernanceManager::UpdateCachesAndClean()
 {
-    LogPrint("gobject", "CGovernanceManager::UpdateCachesAndClean\n");
+    if (fDebugSpam)
+		LogPrint("gobject", "CGovernanceManager::UpdateCachesAndClean\n");
 
     std::vector<uint256> vecDirtyHashes = mnodeman.GetAndClearDirtyGovernanceObjectHashes();
 
@@ -466,8 +469,10 @@ void CGovernanceManager::UpdateCachesAndClean()
             // NOTE: triggers are handled via triggerman
             if (pObj->GetObjectType() == GOVERNANCE_OBJECT_PROPOSAL) {
                 CProposalValidator validator(pObj->GetDataAsHexString());
-                if (!validator.Validate()) {
-                    LogPrintf("CGovernanceManager::UpdateCachesAndClean -- set for deletion expired obj %s\n", (*it).first.ToString());
+                if (!validator.Validate()) 
+				{
+                    if (fDebugSpam)
+						LogPrintf("CGovernanceManager::UpdateCachesAndClean -- set for deletion expired obj %s\n", (*it).first.ToString());
                     pObj->fCachedDelete = true;
                     if (pObj->nDeletionTime == 0) {
                         pObj->nDeletionTime = nNow;
@@ -488,7 +493,8 @@ void CGovernanceManager::UpdateCachesAndClean()
         }
     }
 
-    LogPrintf("CGovernanceManager::UpdateCachesAndClean -- %s\n", ToString());
+	if (fDebugSpam)
+		LogPrintf("CGovernanceManager::UpdateCachesAndClean -- %s\n", ToString());
 }
 
 CGovernanceObject* CGovernanceManager::FindGovernanceObject(const uint256& nHash)
@@ -1249,7 +1255,8 @@ void CGovernanceManager::InitOnLoad()
 {
     LOCK(cs);
     int64_t nStart = GetTimeMillis();
-    LogPrintf("Preparing masternode indexes and governance triggers...\n");
+	if (fDebugSpam)
+		LogPrintf("Preparing masternode indexes and governance triggers...\n");
     RebuildIndexes();
     AddCachedTriggers();
     LogPrintf("Masternode indexes and governance triggers prepared  %dms\n", GetTimeMillis() - nStart);

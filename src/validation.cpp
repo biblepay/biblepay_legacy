@@ -1240,7 +1240,18 @@ CAmount GetBlockSubsidy(int nPrevBits, int nPrevHeight, const Consensus::Params&
 	{
         nSubsidy -= (nSubsidy * iDeflationRate);
     }
-		
+	// BIBLEPAY - QT
+	bool fEnabled = sporkManager.IsSporkActive(SPORK_20_QUANTITATIVE_TIGHTENING_ENABLED);
+	if (fEnabled && nPrevHeight > consensusParams.QTHeight)
+	{
+		double dPriorPrice = 0;
+		double dPriorPhase = 0;
+		double dQTPct = GetQTPhase(-1, nPrevHeight, dPriorPrice, dPriorPhase) / 100;
+		CAmount nQTAmount = nSubsidy * dQTPct;
+		nSubsidy -= nQTAmount;
+	}
+	// End of QT
+
     // Monthly Budget: 
 	// 10% to Charity budget, 5% for the IT budget, 2.5% PR, 2.5% P2P (this is 20% for Governance).  An additional 28.5% is held back for the generic superblock contract.  This equals 48.5% being escrowed.
 	// The remaining 50% is split between the miner and the sanctuary.
@@ -3765,9 +3776,8 @@ bool ProcessNewBlock(const CChainParams& chainparams, const std::shared_ptr<cons
     CValidationState state; // Only used to report errors, not invalidity - ignore it
     if (!ActivateBestChain(state, chainparams, pblock))
         return error("%s: ActivateBestChain failed: %s", __func__, FormatStateMessage(state));
-
-    LogPrintf("%s : ACCEPTED\n", __func__);
-    return true;
+	LogPrintf("{PNB}: %s ", "ACC ");
+	return true;
 }
 
 bool TestBlockValidity(CValidationState& state, const CChainParams& chainparams, const CBlock& block, CBlockIndex* pindexPrev, bool fCheckPOW, bool fCheckMerkleRoot)
@@ -4773,21 +4783,24 @@ void DumpMempool(void)
 void SetOverviewStatus()
 {
 	double dDiff = GetDifficulty(chainActive.Tip());
-	// QuantitativeTightening - QT - RANDREWS - BIBLEPAY
-	// double dPriorPrice = 0;
-	// double dPriorPhase = 0;
-	// GetQTPhase(-1, chainActive.Tip()->nHeight-1, dPriorPrice, dPriorPhase);
-	// std::string sQT = "QT: " + RoundToString(dPriorPhase, 0) + "%";
-	// std::string sQTColor = (dPriorPhase == 0) ? "<font color=blue>" : "<font color=green>";
-	// End of QT
+	// QuantitativeTightening - QT - R ANDREWS - BIBLEPAY
+	double dPriorPrice = 0;
+	double dPriorPhase = 0;
+	std::string sQT;
+    if (sporkManager.IsSporkActive(SPORK_20_QUANTITATIVE_TIGHTENING_ENABLED)) 
+	{
+		GetQTPhase(-1, chainActive.Tip()->nHeight, dPriorPrice, dPriorPhase);
+		std::string sQTColor = (dPriorPhase == 0) ? "" : "<font color=green>";
+		sQT = "Price: " + RoundToString(dPriorPrice, 8) + "; QT: " + sQTColor + RoundToString(dPriorPhase, 0) + "%" + "</font>";
+	}
 	std::string sPrayer = "N/A";
 	GetDataList("PRAYER", 30, miGlobalPrayerIndex, "", sPrayer);
 	msGlobalStatus = "Blocks: " + RoundToString((double)chainActive.Tip()->nHeight, 0);
 	msGlobalStatus += "<br>Difficulty: " + RoundToString(GetDifficulty(chainActive.Tip()), 2);
+	msGlobalStatus += "<br>" + sQT;
     
 	std::string sVersionAlert = GetVersionAlert();
 	if (!sVersionAlert.empty()) msGlobalStatus += " <font color=purple>" + sVersionAlert + "</font> ;";
-	// if (false) msGlobalStatus += " " + sQTColor + sQT + "</font>;<font color=green> Price: " + RoundToString(dPriorPrice, 8) + "</font>;";
 	std::string sPrayers = FormatHTML(sPrayer, 12, "<br>");
 	msGlobalStatus2 = "<font color=maroon><b>" + sPrayer + "</font></b><br>&nbsp;";
 }

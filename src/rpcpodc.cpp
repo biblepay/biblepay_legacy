@@ -10,6 +10,7 @@
 #include "masternodeman.h"
 #include "governance-classes.h"
 #include "masternode-sync.h"
+#include "smartcontract-server.h"
 #include "rpcpog.h"
 #include <boost/lexical_cast.hpp>
 #include <boost/algorithm/string/case_conv.hpp> // for to_lower()
@@ -175,169 +176,88 @@ std::string GetGithubVersion()
 	return sResponse;
 }
 
-
-/*
-bool SubmitDistributedComputingTrigger(std::string sHex, std::string& gobjecthash, std::string& sError)
+double GetCryptoPrice(std::string sSymbol)
 {
-	  if(!masternodeSync.IsBlockchainSynced()) 
-	  {
-			sError = "Must wait for client to sync with masternode network. Try again in a minute or so.";
-			return false;
-      }
-      CMasternode mn;
-      bool fMnFound = mnodeman.Get(activeMasternode.vin, mn);
-
-      DBG( cout << "gobject: submit activeMasternode.pubKeyMasternode = " << activeMasternode.pubKeyMasternode.GetHash().ToString()
-             << ", vin = " << activeMasternode.vin.prevout.ToStringShort()
-             << ", params.size() = " << params.size()
-             << ", fMnFound = " << fMnFound << endl; );
-
-      uint256 txidFee;
-      uint256 hashParent = uint256();
-      int nRevision = 1;
-      int nTime = GetAdjustedTime();
-	  std::string strData = sHex;
-	  CGovernanceObject govobj(hashParent, nRevision, nTime, txidFee, strData);
-
-      DBG( cout << "gobject: submit "
-             << " strData = " << govobj.GetDataAsString()
-             << ", hash = " << govobj.GetHash().GetHex()
-             << ", txidFee = " << txidFee.GetHex()
-             << endl; );
-
-      // Attempt to sign triggers if we are a MN
-      if((govobj.GetObjectType() == GOVERNANCE_OBJECT_TRIGGER)) 
-	  {
-            if(fMnFound) 
-			{
-                govobj.SetMasternodeInfo(mn.vin);
-                govobj.Sign(activeMasternode.keyMasternode, activeMasternode.pubKeyMasternode);
-            }
-            else 
-			{
-                sError = "Only valid masternodes can submit this type of object";
-				return false;
-            }
-      }
-
-      std::string strHash = govobj.GetHash().ToString();
-      if(!govobj.IsValidLocally(sError, true)) 
-	  {
-            LogPrintf("SubmitDistributedComputingContract::Object submission rejected because object is not valid - hash = %s, strError = %s\n", strHash, sError);
-			sError += "Governance object is not valid - " + strHash;
-			return false;
-      }
-
-      // RELAY THIS OBJECT 2/8/2018
-	  int64_t nAge = GetAdjustedTime() - nLastDCContractSubmitted;
-	  if (nAge < (60*15))
-	  {
-            sError = "Local Creation rate limit exceeded (0208)";
-			return false;
-	  }
-
-      governance.AddSeenGovernanceObject(govobj.GetHash(), SEEN_OBJECT_IS_VALID);
-      govobj.Relay();
-      LogPrintf("gobject(submit) -- Adding locally created governance object - %s\n", strHash);
-      bool fAddToSeen = true;
-      governance.AddGovernanceObject(govobj, fAddToSeen);
-	  gobjecthash = govobj.GetHash().ToString();
-	  nLastDCContractSubmitted = GetAdjustedTime();
-
-	  return true;
+	int SSL_PORT = 443;
+	int CONNECTION_TIMEOUT = 15;
+	int TRANSMISSION_TIMEOUT = 15000;
+	int TERM_TYPE = 1;
+	std::string sC1 = BiblepayHTTPSPost(false, 0, "", "", "api", GetSporkValue("pool"), GetSporkValue("getcryptoprice" + sSymbol), SSL_PORT, "", CONNECTION_TIMEOUT, TRANSMISSION_TIMEOUT, TERM_TYPE);
+	std::string sPrice = ExtractXML(sC1, "<MIDPOINT>", "</MIDPOINT>");
+	double dMid = cdbl(sPrice, 12);
+	return dMid;
 }
-*/
 
-/*
 double GetPBase()
 {
-	std::string sBase1 = DecodeBase64(GetSporkValue("pbase1"));
-	std::string sBase2 = DecodeBase64(GetSporkValue("pbase2"));
-	std::string sBase3 = DecodeBase64(GetSporkValue("pbase3"));
-	std::string sError = "";
-	std::string sRes = BiblepayHTTPSPost(false, 0, "", "", "", sBase1, sBase2, 443, "", 15, 35000, 3);
-	double dBase1 = cdbl(ExtractXML(sRes, sBase3 + "\":", "}"), 12);
-    return dBase1;
+	// Get the BiblePay market price based on midpoint of bid-ask in Satoshi * BTC price in USD
+	double dBBP = GetCryptoPrice("bbp");
+	double dBTC = GetCryptoPrice("btc");
+	double dPriceUSD = dBTC * dBBP;
+	return dPriceUSD;
 }
 
-bool VerifyDarkSendSigner(std::string sXML)
+bool VerifySigner(std::string sXML)
 {
 	std::string sSignature = ExtractXML(sXML, "<sig>", "</sig>");
 	std::string sSigner = ExtractXML(sXML, "<signer>", "</signer>");
 	std::string sMessage = ExtractXML(sXML, "<message>", "</message>");
-	std::string sError = "";
+	std::string sError;
 	bool fValid = CheckStakeSignature(sSigner, sSignature, sMessage, sError);
 	return fValid;
 }
-*/
 
-/*
 double GetQTPhase(double dPrice, int nEventHeight, double& out_PriorPrice, double& out_PriorPhase)
 {
 	// If -1 is passed in, the caller wants the prior days QT level and price.
     double nMaximumTighteningPercentage = GetSporkDouble("qtmaxpercentage", 0);
-	// If feature is off return 0:
-	if (nMaximumTighteningPercentage == 0) return 0;
+	bool fEnabled = sporkManager.IsSporkActive(SPORK_20_QUANTITATIVE_TIGHTENING_ENABLED);
+	if (nMaximumTighteningPercentage == 0 || !fEnabled)
+		return 0;
 	double nPriceThreshhold = GetSporkDouble("qtpricethreshhold", 0);
-	
-	// Step 1:  If our price is > QTPriceThreshhold (initially .01), we are in phase 0
-	if (dPrice >= nPriceThreshhold) return 0;
-	// Step 2: If price is 0, something is wrong.
-	if (dPrice == 0) return 0;
-	
+	if (dPrice == 0)
+		return 0;
 	// Step 3: Get yesterdays phase
-	// Find the last superblock height before this height
-	
 	const Consensus::Params& consensusParams = Params().GetConsensus();
 	int iNextSuperblock = 0;
-	nEventHeight -= 1;
-	int nTotalSamples = 3;
+	int nTotalSamples = 5;
 	// Check N Samples for the first valid price and phase
 	for (int iDay = 0; iDay < nTotalSamples; iDay++)
 	{
-		int iLastSuperblock = GetLastDCSuperblockHeight(nEventHeight-1, iNextSuperblock);
-		//LogPrintf(" Looking for superblock before %f at %f ", nEventHeight, iLastSuperblock);
-		if (iLastSuperblock > chainActive.Tip()->nHeight)
-		{
-			LogPrintf(" Last Superblock %f, tip %f ", iLastSuperblock, chainActive.Tip()->nHeight);
-		}
-		if (nEventHeight < 1000 || iLastSuperblock < 1000 || iLastSuperblock > chainActive.Tip()->nHeight) return 0;
-		std::string sXML = "";
-		CBlockIndex* pindex = FindBlockByHeight(iLastSuperblock);
-		if (pindex != NULL)
-		{
-			CBlock block;
-			if (ReadBlockFromDisk(block, pindex, consensusParams)) 
-			{
-				for (unsigned int i = 0; i < block.vtx[0].vout.size(); i++)
-				{
-					sXML += block.vtx[0].vout[i].sTxOutMessage;
-				}		
-			}
-			bool bValid = VerifyDarkSendSigner(sXML);
-			if (bValid)
-			{
-				out_PriorPhase = cdbl(ExtractXML(sXML, "<qtphase>", "</qtphase>"), 0);
-				out_PriorPrice = cdbl(ExtractXML(sXML, "<price>", "</price>"), 12);
-				break;
-			}
-			else
-			{
-				// LogPrintf(" unable to verify price %s for height %f ",sXML.c_str(), iLastSuperblock);
-			}
-		}
-		else
-		{
+		int iLastSuperblock = GetLastGSCSuperblockHeight(nEventHeight, iNextSuperblock);
+		if (nEventHeight < consensusParams.nSuperblockStartBlock || iLastSuperblock < consensusParams.nSuperblockStartBlock || iLastSuperblock > chainActive.Tip()->nHeight) 
 			return 0;
+		std::string sXML;
+		CBlockIndex* pindex = FindBlockByHeight(iLastSuperblock);
+		if (pindex == NULL) return 0;
+		CBlock block;
+		if (ReadBlockFromDisk(block, pindex, consensusParams)) 
+		{
+			for (unsigned int i = 0; i < block.vtx[0]->vout.size(); i++)
+			{
+				sXML += block.vtx[0]->vout[i].sTxOutMessage;
+			}		
 		}
+		out_PriorPhase = cdbl(ExtractXML(sXML, "<qtphase>", "</qtphase>"), 0);
+		out_PriorPrice = cdbl(ExtractXML(sXML, "<price>", "</price>"), 12);
+		std::string sSig = ExtractXML(sXML, "<sig>", "</sig>");
+		bool fSigned = VerifySigner(sXML);
+		if (out_PriorPrice > 0 && out_PriorPhase > 0 && fSigned) 
+			break;
 		nEventHeight -= consensusParams.nDCCSuperblockCycle;
-		if (nEventHeight < 1000) break;
+		if (nEventHeight < consensusParams.nSuperblockStartBlock) 
+			break;
 	}
-	double dPhase = out_PriorPhase + 1;
+
+	// Calculate new phase
+	double dModifier = (dPrice >= nPriceThreshhold) ? -1 : 1;
+	double dPhase = out_PriorPhase + dModifier;
 	if (dPhase > nMaximumTighteningPercentage) dPhase = nMaximumTighteningPercentage; 
+	if (dPhase <  0) dPhase = 0;
+	if (dPhase > 90) dPhase = 90;
 	return dPhase;
 }
-*/
+
 
 bool GetTransactionTimeAndAmount(uint256 txhash, int nVout, int64_t& nTime, CAmount& nAmount)
 {

@@ -1053,7 +1053,8 @@ recover:
 				{ 
 					nLastReadyToMine = GetAdjustedTime();
 					fPoolMiningMode = GetPoolMiningMode(iThreadID, iFailCount, sPoolMiningAddress, hashTargetPool, sMinerGuid, sWorkID);
-					LogPrint("pool", "Checking with Pool: Pool Address %s \r\n", sPoolMiningAddress.c_str());
+					if (fDebugSpam && !sPoolMiningAddress.empty())
+						LogPrint("pool", "Checking with Pool: Pool Address %s \r\n", sPoolMiningAddress.c_str());
 				}
 			}
 		    
@@ -1071,7 +1072,7 @@ recover:
 			{
 				nLastGSC = GetAdjustedTime();
 				std::string sError;
-				bool fCreated = CreateClientSideTransaction(false, sError);
+				bool fCreated = CreateClientSideTransaction(false, "", sError);
 				if (!fCreated)
 				{
 					LogPrintf("\nBibleMiner::Unable to create client side GSC transaction. (See Log [%s]). %f", sError, iThreadID);
@@ -1095,7 +1096,8 @@ recover:
 			nHashesDone++;
 			UpdateHashesPerSec(nHashesDone);
 			std::string sPoolNarr = GetPoolMiningNarr(sPoolMiningAddress);
-			LogPrint("miner", "BiblepayMiner -- Running miner %s with %u transactions in block (%u bytes)\n", sPoolNarr.c_str(), pblock->vtx.size(), ::GetSerializeSize(*pblock, SER_NETWORK, PROTOCOL_VERSION));
+			if (fDebugSpam)
+				LogPrint("miner", "BiblepayMiner -- Running miner %s with %u transactions in block (%u bytes)\n", sPoolNarr.c_str(), pblock->vtx.size(), ::GetSerializeSize(*pblock, SER_NETWORK, PROTOCOL_VERSION));
 			// Clear errors
 			WriteCache("poolthread" + RoundToString(iThreadID,0), "poolinfo1", "", GetAdjustedTime());
             //

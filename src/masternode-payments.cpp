@@ -219,7 +219,8 @@ bool IsBlockPayeeValid(const CTransaction& txNew, int nBlockHeight, CAmount bloc
         }
 		else 
 		{
-            LogPrint("gobject", "%s -- No triggered superblock detected at height %d\n", __func__, nBlockHeight);
+            if (fDebugSpam)
+				LogPrint("gobject", "%s -- No triggered superblock detected at height %d\n", __func__, nBlockHeight);
         }
     }
 	else 
@@ -390,7 +391,8 @@ bool CMasternodePayments::GetMasternodeTxOuts(int nBlockHeight, CAmount blockRew
 
     if(!GetBlockTxOuts(nBlockHeight, blockReward, voutMasternodePaymentsRet)) {
         if (deterministicMNManager->IsDeterministicMNsSporkActive(nBlockHeight)) {
-            LogPrintf("CMasternodePayments::%s -- deterministic masternode lists enabled and no payee\n", __func__);
+			if (fDebugSpam)
+				LogPrintf("CMasternodePayments::%s -- deterministic masternode lists enabled and no payee\n", __func__);
             return false;
         }
 
@@ -1255,8 +1257,10 @@ void CMasternodePayments::RequestLowDataPaymentBlocks(CNode* pnode, CConnman& co
             // We have no idea about this block height, let's ask
             vToFetch.push_back(CInv(MSG_MASTERNODE_PAYMENT_BLOCK, pindex->GetBlockHash()));
             // We should not violate GETDATA rules
-            if(vToFetch.size() == MAX_INV_SZ) {
-                LogPrintf("CMasternodePayments::%s -- asking peer=%d for %d blocks\n", __func__, pnode->id, MAX_INV_SZ);
+            if(vToFetch.size() == MAX_INV_SZ) 
+			{
+                if (fDebugSpam)
+					LogPrintf("CMasternodePayments::%s -- asking peer=%d for %d blocks\n", __func__, pnode->id, MAX_INV_SZ);
                 connman.PushMessage(pnode, msgMaker.Make(NetMsgType::GETDATA, vToFetch));
                 // Start filling new batch
                 vToFetch.clear();
@@ -1301,8 +1305,10 @@ void CMasternodePayments::RequestLowDataPaymentBlocks(CNode* pnode, CConnman& co
             vToFetch.push_back(CInv(MSG_MASTERNODE_PAYMENT_BLOCK, hash));
         }
         // We should not violate GETDATA rules
-        if(vToFetch.size() == MAX_INV_SZ) {
-            LogPrintf("CMasternodePayments::%s -- asking peer=%d for %d payment blocks\n", __func__, pnode->id, MAX_INV_SZ);
+        if(vToFetch.size() == MAX_INV_SZ) 
+		{
+            if (fDebugSpam)
+				LogPrintf("CMasternodePayments::%s -- asking peer=%d for %d payment blocks\n", __func__, pnode->id, MAX_INV_SZ);
             connman.PushMessage(pnode, msgMaker.Make(NetMsgType::GETDATA, vToFetch));
             // Start filling new batch
             vToFetch.clear();
@@ -1310,7 +1316,8 @@ void CMasternodePayments::RequestLowDataPaymentBlocks(CNode* pnode, CConnman& co
     }
     // Ask for the rest of it
     if(!vToFetch.empty()) {
-        LogPrintf("CMasternodePayments::%s -- asking peer=%d for %d payment blocks\n", __func__, pnode->id, vToFetch.size());
+        if (fDebugSpam)
+			LogPrintf("CMasternodePayments::%s -- asking peer=%d for %d payment blocks\n", __func__, pnode->id, vToFetch.size());
         connman.PushMessage(pnode, msgMaker.Make(NetMsgType::GETDATA, vToFetch));
     }
 }
