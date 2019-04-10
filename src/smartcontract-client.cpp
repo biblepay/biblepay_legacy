@@ -288,6 +288,7 @@ bool CreateClientSideTransaction(bool fForce, bool fDiaryProjectsOnly, std::stri
 	std::map<std::string, std::string> mCampaigns = GetSporkMap("spork", "gsccampaigns");
 	// CRITICAL TODO - Change this to 12 hours before we go to prod
 	double nTransmissionFrequency = GetSporkDouble("gscclienttransmissionfrequency", (60 * 60 * 1));
+	if (sDiary.length() < 10) 
 		sDiary = "";
 
 	// List of Campaigns
