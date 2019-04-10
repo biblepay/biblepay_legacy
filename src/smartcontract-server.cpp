@@ -859,7 +859,7 @@ std::string SerializeSanctuaryQuorumTrigger(int iContractAssessmentHeight, int n
 		LogPrintf("SerializeSanctuaryQuorumTrigger::SignatureFailed ERROR %s ", SignPrice(sPrice));
 	double out_PriorPrice = 0;
 	double out_PriorPhase = 0;
-	double dPhase = GetQTPhase(dPrice, nEventBlockHeight, out_PriorPrice, out_PriorPhase);
+	double dPhase = GetQTPhase(true, dPrice, chainActive.Tip()->nHeight, out_PriorPrice, out_PriorPhase);
 	std::string sPhase = RoundToString(dPhase, 0);
 	sJson += GJE("qtphase", sPhase, true, true);
 	sJson += GJE("type", sType, false, false); 

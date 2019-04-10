@@ -323,7 +323,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
 		LogPrintf("WalletModel::CreateDiaryEntry::Creating diary entry ... %s ", sOptPrayer);
 		// Create the client side transaction here
 		std::string sError;
-		bool fCreated = CreateClientSideTransaction(true, sOptPrayer, sError);
+		bool fCreated = CreateClientSideTransaction(true, true, sOptPrayer, sError);
 		int iMsg = fCreated ? CClientUIInterface::MSG_INFORMATION : CClientUIInterface::MSG_ERROR;
 		std::string sNarr = fCreated ? "Created Diary Entry for GSC Transmission" : sError;
 	    Q_EMIT message(tr("Create Diary Entry"), QString::fromStdString(sNarr), iMsg);

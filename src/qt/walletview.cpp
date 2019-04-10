@@ -21,6 +21,7 @@
 #include "transactionview.h"
 #include "walletmodel.h"
 #include "proposaladddialog.h"
+#include "businessobjectlist.h"
 #include "ui_interface.h"
 #include <QAction>
 #include <QActionGroup>
@@ -73,6 +74,7 @@ WalletView::WalletView(const PlatformStyle *_platformStyle, QWidget *parent):
     receiveCoinsPage = new ReceiveCoinsDialog(platformStyle);
 	proposalAddPage = new ProposalAddDialog(platformStyle);
 	proposalListPage = new Proposals(platformStyle);
+    businessObjectListPage = new BusinessObjectList(platformStyle);
     
     sendCoinsPage = new SendCoinsDialog(platformStyle);
 
@@ -85,6 +87,7 @@ WalletView::WalletView(const PlatformStyle *_platformStyle, QWidget *parent):
     addWidget(sendCoinsPage);
 	addWidget(proposalAddPage);
 	addWidget(proposalListPage);
+	addWidget(businessObjectListPage);
 
     QSettings settings;
     if (!fLiteMode && settings.value("fShowMasternodesTab").toBool()) {
@@ -164,6 +167,7 @@ void WalletView::setWalletModel(WalletModel *_walletModel)
     sendCoinsPage->setModel(_walletModel);
 	proposalAddPage->setModel(_walletModel);
 	proposalListPage->setModel(_walletModel);
+	businessObjectListPage->setModel(_walletModel);
 
     usedReceivingAddressesPage->setModel(_walletModel->getAddressTableModel());
     usedSendingAddressesPage->setModel(_walletModel->getAddressTableModel());
@@ -237,6 +241,12 @@ void WalletView::gotoMasternodePage()
     if (!fLiteMode && settings.value("fShowMasternodesTab").toBool()) {
         setCurrentWidget(masternodeListPage);
     }
+}
+
+void WalletView::gotoBusinessObjectListPage()
+{
+	setCurrentWidget(businessObjectListPage);
+	businessObjectListPage->UpdateObject("pog_leaderboard");
 }
 
 void WalletView::gotoProposalAddPage()

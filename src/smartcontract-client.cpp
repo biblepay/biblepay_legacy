@@ -283,11 +283,13 @@ bool Enrolled(std::string sCampaignName, std::string& sError)
 	return true;
 }
 
-bool CreateClientSideTransaction(bool fForce, std::string sDiary, std::string& sError)
+bool CreateClientSideTransaction(bool fForce, bool fDiaryProjectsOnly, std::string sDiary, std::string& sError)
 {
 	std::map<std::string, std::string> mCampaigns = GetSporkMap("spork", "gsccampaigns");
 	// CRITICAL TODO - Change this to 12 hours before we go to prod
 	double nTransmissionFrequency = GetSporkDouble("gscclienttransmissionfrequency", (60 * 60 * 1));
+		sDiary = "";
+
 	// List of Campaigns
 	for (auto s : mCampaigns)
 	{
@@ -304,6 +306,9 @@ bool CreateClientSideTransaction(bool fForce, std::string sDiary, std::string& s
 			bool fPreCheckPassed = true;
 			if (s.first == "HEALING" && sDiary.empty())
 				fPreCheckPassed = false;
+			if (fDiaryProjectsOnly && CalculatePoints(s.first, "", 1000, 1000) > 0) 
+				fPreCheckPassed = false;
+				
 			if (Enrolled(s.first, sError) && fPreCheckPassed)
 			{
 				LogPrintf("\nSmartContract-Client::Creating Client side transaction for campaign %s ", s.first);

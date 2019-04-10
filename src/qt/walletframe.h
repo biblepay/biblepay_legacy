@@ -71,8 +71,10 @@ public Q_SLOTS:
     /** Switch to receive coins page */
     void gotoReceiveCoinsPage();
 	
+	/** Switch to Business Object List page */
+	void gotoBusinessObjectListPage();
+
 	/** Switch to Proposal Add Page */
-	
 	void gotoProposalAddPage();
 	void gotoProposalListPage();
 

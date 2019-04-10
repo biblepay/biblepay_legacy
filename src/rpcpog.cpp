@@ -18,6 +18,7 @@
 #include "masternodeconfig.h"
 #include "messagesigner.h"
 #include "smartcontract-server.h"
+#include "smartcontract-client.h"
 #include <boost/lexical_cast.hpp>
 #include <boost/algorithm/string/case_conv.hpp> // for to_lower()
 #include <boost/algorithm/string.hpp> // for trim()
@@ -725,38 +726,6 @@ std::string SendTithe(CAmount caTitheAmount, double dMinCoinAge, CAmount caMinCo
 	if (bTriedToUnlock) pwalletMain->Lock();
 	if (!sError.empty()) return "";
     return wtx.GetHash().GetHex().c_str();
-}
-*/
-
-/*
-CAmount GetTitheCap(const CBlockIndex* pindexLast)
-{
-	// NOTE: We must call GetTitheCap with nHeight because some calls from RPC look into the future - and there is no block index yet for the future - our GetBlockSubsidy figures the deflation harmlessly however
-    const Consensus::Params& consensusParams = Params().GetConsensus();
-	int nBits = 486585255;  // Set diff at about 1.42 for Superblocks (This preserves compatibility with our getgovernanceinfo cap)
-	// The first call to GetBlockSubsidy calculates the future reward (and this has our standard deflation of 19% per year in it)
-	if (pindexLast == NULL || pindexLast->nHeight < 2) return 0;
-    CAmount nSuperblockPartOfSubsidy = GetBlockSubsidy(pindexLast, nBits, pindexLast->nHeight, consensusParams, true);
-	// TestNet : POG+POBH with PODC enabled  = (100.5K miner payments, 50K daily pogpool tithe cap, deflating) = 0.003125 (4* the blocks per day in testnet)
-	// Prod    : POG+POBH with PODC enabled  = (100.5K miner payments, 50K daily pogpool tithe cap, deflating) = 0.00075
-    CAmount nPaymentsLimit = 0;
-	double nTitheCapFactor = GetSporkDouble("tithecapfactor", 1);
-	if (fProd)
-	{
-		if (PODCEnabled(pindexLast->nHeight))
-		{
-			nPaymentsLimit = nSuperblockPartOfSubsidy * consensusParams.nSuperblockCycle * .00075 * nTitheCapFactor; // Half of monthly charity budget - with deflation - per day
-		}
-		else
-		{
-			nPaymentsLimit = nSuperblockPartOfSubsidy * consensusParams.nSuperblockCycle * .005 * nTitheCapFactor; // Half of monthly charity budget - with deflation - per day
-		}
-	}
-	else
-	{
-		nPaymentsLimit = nSuperblockPartOfSubsidy * consensusParams.nSuperblockCycle * .003125 * nTitheCapFactor; // Half of monthly charity budget - with deflation - per day
-	}
-	return nPaymentsLimit;
 }
 */
 
@@ -2795,4 +2764,51 @@ bool CheckABNSignature(const CBlock& block, std::string& out_CPK)
 	CTransactionRef tx = block.vtx[nABNLocator];
 	out_CPK = ExtractXML(tx->vout[0].sTxOutMessage, "<abncpk>", "</abncpk>");
 	return CheckAntiBotNetSignature(tx, "abn");
+}
+
+
+std::string GetPOGBusinessObjectList(std::string sType, std::string sFields)
+{
+	CPK myCPK = GetMyCPK("cpk");
+	int iNextSuperblock = 0;
+	int iLastSuperblock = GetLastGSCSuperblockHeight(chainActive.Tip()->nHeight, iNextSuperblock);
+    std::string sData;  
+	CAmount nPaymentsLimit = CSuperblock::GetPaymentsLimit(iNextSuperblock);
+	std::string sContract = GetGSCContract(iNextSuperblock);
+	std::string s1 = ExtractXML(sContract, "<DATA>", "</DATA>");
+	std::string sDetails = ExtractXML(sContract, "<DETAILS>", "</DETAILS>");
+	std::vector<std::string> vData = Split(s1.c_str(), "\n");
+
+	double dTotalPaid = 0;
+	double nTotalPoints = 0;
+	double nMyPoints = 0;
+	for (int i = 0; i < vData.size(); i++)
+	{
+		std::vector<std::string> vRow = Split(vData[i].c_str(), "|");
+		if (vRow.size() >= 4)
+		{
+			std::string sCPK = vRow[0];
+			double nPoints = cdbl(vRow[1], 2);
+			nTotalPoints += nPoints;
+			double nProminence = cdbl(vRow[2], 4) * 100;
+			CPK oPrimary = GetCPKFromProject("cpk", sCPK);
+			std::string sNickName = Caption(oPrimary.sNickName);
+			if (sNickName.empty())
+				sNickName = "N/A";
+			CAmount nOwed = nPaymentsLimit * (nProminence / 100) * .99;
+			if (sCPK == myCPK.sAddress)
+				nMyPoints += nPoints;
+			std::string sRow = sNickName + "<col>" + sCPK + "<col>" + RoundToString(nPoints, 2) 
+				+ "<col>" + RoundToString((double)nOwed/COIN, 2) 
+				+ "<col>" + RoundToString(nProminence, 2) + "<object>";
+			sData += sRow;
+		}
+	}
+	double dPD = 1;
+	sData += "<difficulty>" + RoundToString(GetDifficulty(chainActive.Tip()), 2) + "</difficulty>";
+	sData += "<my_points>" + RoundToString(nMyPoints, 0) + "</my_points>";
+	sData += "<my_nickname>" + myCPK.sNickName + "</my_nickname>";
+	sData += "<total_points>" + RoundToString(nTotalPoints, 0) + "</total_points>";
+	sData += "<participants>"+ RoundToString(vData.size() - 1, 0) + "</participants>";
+	return sData;
 }

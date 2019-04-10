@@ -51,7 +51,7 @@ std::vector<std::string> GetListOfDCCS(std::string sSearch, bool fRequireSig);
 double GetTeamPercentage(double dUserTeam, double dProjectTeam, std::string sTeamBlacklist, double dNonBiblepayTeamPercentage);
 double VerifyTasks(std::string sCPID, std::string sTasks);
 std::string SerializeSanctuaryQuorumTrigger(int iContractAssessmentHeight, int nEventBlockHeight, std::string sContract);
-double GetQTPhase(double dPrice, int nEventHeight, double& out_PriorPrice, double& out_PriorPhase);
+double GetQTPhase(bool fInFuture, double dPrice, int nEventHeight, double& out_PriorPrice, double& out_PriorPhase);
 bool VerifySigner(std::string sXML);
 double GetPBase();
 std::string VerifyManyWorkUnits(std::string sProjectId, std::string sTaskIds);

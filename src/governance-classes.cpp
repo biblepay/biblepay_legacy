@@ -712,7 +712,12 @@ CAmount CSuperblock::GetPaymentsLimit(int nBlockHeight)
 
 	// Note at block 98400, our budget is 13518421, deflating.
 	// The first call to GetBlockSubsidy calculates the future reward (and this has our standard deflation of 19% per year in it)
-    CAmount nSuperblockPartOfSubsidy = GetBlockSubsidy(nBits, nBlockHeight - 1, consensusParams, true);
+
+	//QT - Get reference block subsidy from last months subsidy
+	int nAssessmentHeight = nBlockHeight - 1;
+	if (nBlockHeight > consensusParams.QTHeight)
+		nAssessmentHeight -= (BLOCKS_PER_DAY * 32);
+    CAmount nSuperblockPartOfSubsidy = GetBlockSubsidy(nBits, nAssessmentHeight, consensusParams, true);
     CAmount nPaymentsLimit = nSuperblockPartOfSubsidy * nSuperblockCycle * nBudgetFactor;
 	CAmount nAbsoluteMaxMonthlyBudget = MAX_BLOCK_SUBSIDY * BLOCKS_PER_DAY * 30 * .20 * COIN; // Ensure monthly budget is never > 20% of avg monthly total block emission regardless of low difficulty in PODC
 	if (nPaymentsLimit > nAbsoluteMaxMonthlyBudget) nPaymentsLimit = nAbsoluteMaxMonthlyBudget;

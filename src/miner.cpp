@@ -1072,7 +1072,7 @@ recover:
 			{
 				nLastGSC = GetAdjustedTime();
 				std::string sError;
-				bool fCreated = CreateClientSideTransaction(false, "", sError);
+				bool fCreated = CreateClientSideTransaction(false, false, "", sError);
 				if (!fCreated)
 				{
 					LogPrintf("\nBibleMiner::Unable to create client side GSC transaction. (See Log [%s]). %f", sError, iThreadID);

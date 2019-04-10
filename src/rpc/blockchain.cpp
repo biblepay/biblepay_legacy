@@ -189,7 +189,7 @@ UniValue blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool tx
 		{
 			double dPriorPrice = 0;
 			double dPriorPhase = 0;
-			double dQTPct = GetQTPhase(-1, blockindex->nHeight, dPriorPrice, dPriorPhase) / 100;
+			double dQTPct = GetQTPhase(false, -1, blockindex->nHeight, dPriorPrice, dPriorPhase) / 100;
 			result.push_back(Pair("qt_pct", dQTPct));
 		}
 	}
@@ -2160,10 +2160,14 @@ UniValue exec(const JSONRPCRequest& request)
 			throw std::runtime_error("You must specify sendgscc [diary_entry]: IE 'exec sendgscc [prayed for Jane Doe who had broken ribs, this happened].");
 		std::string sDiary;
 		if (request.params.size() > 1)
+		{
 			sDiary = request.params[1].get_str();
-
+			if (sDiary.length() < 10)
+				throw std::runtime_error("Diary entry incomplete.");
+		}
+		
 		std::string sError;
-		bool fCreated = CreateClientSideTransaction(true, sDiary, sError);
+		bool fCreated = CreateClientSideTransaction(true, false, sDiary, sError);
 		results.push_back(Pair("results", (double)fCreated));
 		if (!sError.empty())
 			results.push_back(Pair("Error!", sError));
@@ -2246,7 +2250,7 @@ UniValue exec(const JSONRPCRequest& request)
 	{
 		double dPriorPrice = 0;
 		double dPriorPhase = 0;
-		double dCurPhase = GetQTPhase(-1, chainActive.Tip()->nHeight, dPriorPrice, dPriorPhase);
+		double dCurPhase = GetQTPhase(false, -1, chainActive.Tip()->nHeight, dPriorPrice, dPriorPhase);
 		results.push_back(Pair("consensus_price", dPriorPrice));
 		results.push_back(Pair("qt_phase", dCurPhase));
 		results.push_back(Pair("qt_prior_phase", dPriorPhase));

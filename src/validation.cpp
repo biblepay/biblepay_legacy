@@ -1190,6 +1190,7 @@ double ConvertBitsToDouble(unsigned int nBits)
     return dDiff;
 }
 
+
 /*
 NOTE:   unlike bitcoin we are using PREVIOUS block height here,
         might be a good idea to change this to use prev bits
@@ -1246,7 +1247,7 @@ CAmount GetBlockSubsidy(int nPrevBits, int nPrevHeight, const Consensus::Params&
 	{
 		double dPriorPrice = 0;
 		double dPriorPhase = 0;
-		double dQTPct = GetQTPhase(-1, nPrevHeight, dPriorPrice, dPriorPhase) / 100;
+		double dQTPct = GetQTPhase(false, -1, nPrevHeight, dPriorPrice, dPriorPhase) / 100;
 		CAmount nQTAmount = nSubsidy * dQTPct;
 		nSubsidy -= nQTAmount;
 	}
@@ -3095,18 +3096,25 @@ bool ResetBlockFailureFlags(CBlockIndex *pindex) {
 
     // Remove the invalidity flag from this block and all its descendants.
     BlockMap::iterator it = mapBlockIndex.begin();
-    while (it != mapBlockIndex.end()) {
-        if (!it->second->IsValid() && it->second->GetAncestor(nHeight) == pindex) {
-            it->second->nStatus &= ~BLOCK_FAILED_MASK;
-            setDirtyBlockIndex.insert(it->second);
-            if (it->second->IsValid(BLOCK_VALID_TRANSACTIONS) && it->second->nChainTx && setBlockIndexCandidates.value_comp()(chainActive.Tip(), it->second)) {
-                setBlockIndexCandidates.insert(it->second);
-            }
-            if (it->second == pindexBestInvalid) {
-                // Reset invalid block marker if it was pointing to one of those.
-                pindexBestInvalid = NULL;
-            }
-        }
+    while (it != mapBlockIndex.end()) 
+	{
+		if (it->second != NULL)
+		{
+	        if (!it->second->IsValid() && it->second->GetAncestor(nHeight) == pindex) 
+			{
+				it->second->nStatus &= ~BLOCK_FAILED_MASK;
+				setDirtyBlockIndex.insert(it->second);
+				if (it->second->IsValid(BLOCK_VALID_TRANSACTIONS) && it->second->nChainTx && setBlockIndexCandidates.value_comp()(chainActive.Tip(), it->second)) 
+				{
+					setBlockIndexCandidates.insert(it->second);
+				}
+				if (it->second == pindexBestInvalid) 
+				{
+					// Reset invalid block marker if it was pointing to one of those.
+					pindexBestInvalid = NULL;
+				}
+			}
+		}
         it++;
     }
 
@@ -4789,7 +4797,7 @@ void SetOverviewStatus()
 	std::string sQT;
     if (sporkManager.IsSporkActive(SPORK_20_QUANTITATIVE_TIGHTENING_ENABLED)) 
 	{
-		GetQTPhase(-1, chainActive.Tip()->nHeight, dPriorPrice, dPriorPhase);
+		GetQTPhase(false, -1, chainActive.Tip()->nHeight, dPriorPrice, dPriorPhase);
 		std::string sQTColor = (dPriorPhase == 0) ? "" : "<font color=green>";
 		sQT = "Price: " + RoundToString(dPriorPrice, 8) + "; QT: " + sQTColor + RoundToString(dPriorPhase, 0) + "%" + "</font>";
 	}

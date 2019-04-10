@@ -23,6 +23,7 @@
 #include "platformstyle.h"
 #include "rpcconsole.h"
 #include "utilitydialog.h"
+#include "businessobjectlist.h"
 
 #ifdef ENABLE_WALLET
 #include "walletframe.h"
@@ -118,7 +119,8 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *_platformStyle, const NetworkStyle *
     ReadBibleAction(0),
     TheTenCommandmentsAction(0),
     JesusConciseCommandmentsAction(0),
-	receiveCoinsAction(0),
+	businessObjectListMenuAction(0),
+    receiveCoinsAction(0),
     receiveCoinsMenuAction(0),
     optionsAction(0),
     toggleHideAction(0),
@@ -494,6 +496,11 @@ void BitcoinGUI::createActions()
     openPeersAction->setEnabled(false);
     openRepairAction->setEnabled(false);
 
+	// Business Object List Menu Item
+    businessObjectListMenuAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("Leaderboa&rd"), this);
+    businessObjectListMenuAction->setStatusTip(tr("Leaderboard"));
+    businessObjectListMenuAction->setEnabled(true);
+
     // Add submenu for Proposal Add
     proposalAddMenuAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("Proposal &Add"), this);
     proposalAddMenuAction->setStatusTip(tr("Add Proposal"));
@@ -534,7 +541,8 @@ void BitcoinGUI::createActions()
     connect(JesusConciseCommandmentsAction, SIGNAL(triggered()), this, SLOT(JesusConciseCommandmentsClicked()));
 	connect(proposalListAction, SIGNAL(triggered()), this, SLOT(gotoProposalListPage()));
 	connect(proposalAddMenuAction, SIGNAL(triggered()), this, SLOT(gotoProposalAddPage()));
-
+	connect(businessObjectListMenuAction, SIGNAL(triggered()), this, SLOT(gotoBusinessObjectListPage()));
+    
     // Jump directly to tabs in RPC-console
     connect(openInfoAction, SIGNAL(triggered()), this, SLOT(showInfo()));
     connect(openRPCConsoleAction, SIGNAL(triggered()), this, SLOT(showConsole()));
@@ -643,7 +651,9 @@ void BitcoinGUI::createMenuBar()
 		QMenu *proposals = appMenuBar->addMenu(tr("&Proposals"));
 		proposals->addAction(proposalListAction);
 		proposals->addAction(proposalAddMenuAction);
-		
+		QMenu *businessObjects = appMenuBar->addMenu(tr("&Leaderboard"));
+		businessObjects->addAction(businessObjectListMenuAction);
+  	
 		QMenu *help = appMenuBar->addMenu(tr("&Help"));
 		help->addAction(showHelpMessageAction);
 		help->addAction(showPrivateSendHelpAction);
@@ -844,6 +854,7 @@ void BitcoinGUI::setWalletActionsEnabled(bool enabled)
     proposalListAction->setEnabled(enabled);
     proposalAddMenuAction->setEnabled(enabled);
 	OneClickMiningAction->setEnabled(enabled);
+	businessObjectListMenuAction->setEnabled(enabled);
 }
 
 void BitcoinGUI::createTrayIcon(const NetworkStyle *networkStyle)
@@ -988,7 +999,6 @@ void BitcoinGUI::showAccountability()
 	QDesktopServices::openUrl(QUrl("http://accountability.biblepay.org/"));
 }
 
-
 void BitcoinGUI::gotoProposalAddPage()
 {
 	if (!clientModel) 
@@ -997,7 +1007,6 @@ void BitcoinGUI::gotoProposalAddPage()
     if (walletFrame) walletFrame->gotoProposalAddPage();
 }
 
-
 void BitcoinGUI::gotoProposalListPage()
 {
 	if (!clientModel) return;
@@ -1005,6 +1014,11 @@ void BitcoinGUI::gotoProposalListPage()
     if (walletFrame) walletFrame->gotoProposalListPage();
 }
 
+void BitcoinGUI::gotoBusinessObjectListPage()
+{
+    businessObjectListMenuAction->setChecked(true);
+    if (walletFrame) walletFrame->gotoBusinessObjectListPage();
+}
 
 void BitcoinGUI::aboutClicked()
 {

@@ -116,6 +116,7 @@ private:
 	QAction *JesusConciseCommandmentsAction;
 	QAction *proposalAddMenuAction;
 	QAction *proposalListAction;
+	QAction *businessObjectListMenuAction;
 	// Note: Any orphaned Action results in a crash (pun intended)
 	
 	// END OF BIBLEPAY
@@ -255,7 +256,8 @@ private Q_SLOTS:
 	void gotoProposalAddPage();
 	void gotoProposalListPage();
 	void OneClickMiningClicked();
-	
+	void gotoBusinessObjectListPage();
+
 
 #endif // ENABLE_WALLET
 

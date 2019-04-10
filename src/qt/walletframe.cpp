@@ -137,6 +137,13 @@ void WalletFrame::gotoProposalListPage()
         i.value()->gotoProposalListPage();
 }
 
+void WalletFrame::gotoBusinessObjectListPage()
+{
+    QMap<QString, WalletView*>::const_iterator i;
+    for (i = mapWalletViews.constBegin(); i != mapWalletViews.constEnd(); ++i)
+        i.value()->gotoBusinessObjectListPage();
+}
+
 void WalletFrame::gotoProposalAddPage()
 {
     QMap<QString, WalletView*>::const_iterator i;

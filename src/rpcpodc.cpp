@@ -207,9 +207,10 @@ bool VerifySigner(std::string sXML)
 	return fValid;
 }
 
-double GetQTPhase(double dPrice, int nEventHeight, double& out_PriorPrice, double& out_PriorPhase)
+double GetQTPhase(bool fInFuture, double dPrice, int nEventHeight, double& out_PriorPrice, double& out_PriorPhase)
 {
-	// If -1 is passed in, the caller wants the prior days QT level and price.
+	// fInFuture is required to calculate tomorrow's qt phase.  (Otherwise, return the historical value).
+	// If a -1 dPrice is passed in, the caller wants the prior days QT level and price.
     double nMaximumTighteningPercentage = GetSporkDouble("qtmaxpercentage", 0);
 	bool fEnabled = sporkManager.IsSporkActive(SPORK_20_QUANTITATIVE_TIGHTENING_ENABLED);
 	if (nMaximumTighteningPercentage == 0 || !fEnabled)
@@ -225,7 +226,7 @@ double GetQTPhase(double dPrice, int nEventHeight, double& out_PriorPrice, doubl
 	for (int iDay = 0; iDay < nTotalSamples; iDay++)
 	{
 		int iLastSuperblock = GetLastGSCSuperblockHeight(nEventHeight, iNextSuperblock);
-		if (nEventHeight < consensusParams.nSuperblockStartBlock || iLastSuperblock < consensusParams.nSuperblockStartBlock || iLastSuperblock > chainActive.Tip()->nHeight) 
+		if (nEventHeight < consensusParams.QTHeight || iLastSuperblock < consensusParams.QTHeight || iLastSuperblock > chainActive.Tip()->nHeight) 
 			return 0;
 		std::string sXML;
 		CBlockIndex* pindex = FindBlockByHeight(iLastSuperblock);
@@ -238,6 +239,10 @@ double GetQTPhase(double dPrice, int nEventHeight, double& out_PriorPrice, doubl
 				sXML += block.vtx[0]->vout[i].sTxOutMessage;
 			}		
 		}
+		else
+		{
+			return 0;
+		}
 		out_PriorPhase = cdbl(ExtractXML(sXML, "<qtphase>", "</qtphase>"), 0);
 		out_PriorPrice = cdbl(ExtractXML(sXML, "<price>", "</price>"), 12);
 		std::string sSig = ExtractXML(sXML, "<sig>", "</sig>");
@@ -249,7 +254,12 @@ double GetQTPhase(double dPrice, int nEventHeight, double& out_PriorPrice, doubl
 			break;
 	}
 
-	// Calculate new phase
+	if (!fInFuture)
+	{
+		return out_PriorPhase;
+	}
+
+	// Otherwise, Calculate the new phase
 	double dModifier = (dPrice >= nPriceThreshhold) ? -1 : 1;
 	double dPhase = out_PriorPhase + dModifier;
 	if (dPhase > nMaximumTighteningPercentage) dPhase = nMaximumTighteningPercentage; 
