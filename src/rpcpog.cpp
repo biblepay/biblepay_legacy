@@ -1918,6 +1918,8 @@ bool CopyFile(std::string sSrc, std::string sDest)
 
 std::string Caption(std::string sDefault)
 {
+	if (sDefault.length() > 10)
+		sDefault = sDefault.substr(0, 10);
 	std::string sValue = ReadCache("message", sDefault);
 	return sValue.empty() ? sDefault : sValue;		
 }
@@ -2565,6 +2567,12 @@ bool AdvertiseChristianPublicKeypair(std::string sProjectId, std::string sNickNa
 			sError = "Sorry, NickName is already taken.";
 			return false;
 		}
+	}
+
+	if (sNickName.length() > 10)
+	{
+		sError = "Sorry, nickname length must be 10 characters or less.";
+		return false;
 	}
 
 	double nLastCPK = ReadCacheDouble(sProjectId);
