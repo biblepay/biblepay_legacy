@@ -712,7 +712,7 @@ std::string PoolRequest(int iThreadID, std::string sAction, std::string sPoolURL
 	{
 		// Notify User of Mining Problem with Pool (for example, if they entered an invalid workerid in conf file)
 		WriteCache("poolthread" + RoundToString(iThreadID,0), "poolinfo3", sError, GetAdjustedTime());
-		return "";
+		return std::string();
 	}
 	return sResponse;
 }

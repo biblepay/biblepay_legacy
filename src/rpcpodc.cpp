@@ -158,7 +158,8 @@ std::string SendBlockchainMessage(std::string sType, std::string sPrimaryKey, st
 	bool fInstantSend = false;
 	bool fSent = RPCSendMoney(sError, address.Get(), nAmount, fSubtractFee, wtx, fInstantSend, s1);
 
-	if (!sError.empty()) return "";
+	if (!sError.empty())
+		return std::string();
     return wtx.GetHash().GetHex().c_str();
 }
 

@@ -11,6 +11,8 @@
 #include "governance-classes.h"
 #include "governance-validators.h"
 #include "init.h"
+#include "rpcpog.h"
+#include "smartcontract-server.h"
 #include "validation.h"
 #include "masternode.h"
 #include "masternode-sync.h"
@@ -1237,6 +1239,46 @@ UniValue getgovernanceinfo(const JSONRPCRequest& request)
     return obj;
 }
 
+UniValue leaderboard(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() != 0 && request.params.size() != 1 && request.params.size() != 2) 
+	{
+        throw std::runtime_error(
+            "leaderboard\n"
+            "Returns an object containing the campaign participants prominence levels per project, and global totals.\n"
+			"\nYou must specify leaderboard [me_only=true/false] [height || prominence last || prominence future || prominence]. The default is exec prominence false future."
+            + HelpExampleCli("leaderboard", "")
+            );
+    }
+
+	int iNextSuperblock = 0;
+	int iLastSuperblock = GetLastGSCSuperblockHeight(chainActive.Tip()->nHeight, iNextSuperblock);
+	std::string sLHF;
+	bool fMeOnly = false;
+	if (request.params.size() > 0)
+		fMeOnly = request.params[0].get_str() == "true" ? true : false;
+	if (request.params.size() > 1)
+		sLHF = request.params[1].get_str();
+	int nHeight = 0;
+	if (sLHF == "last")
+	{
+		nHeight = iLastSuperblock;
+	}
+	else if (sLHF == "future")
+	{
+		nHeight = iNextSuperblock;
+	}
+	else if (cdbl(sLHF, 0) > 0)
+	{
+		nHeight = cdbl(sLHF, 0);
+	}
+		
+	if (nHeight == 0)
+		nHeight = iNextSuperblock;
+	UniValue p = GetProminenceLevels(nHeight, fMeOnly);
+	return p;
+}
+
 UniValue getsuperblockbudget(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() != 1) {
@@ -1271,6 +1313,7 @@ static const CRPCCommand commands[] =
     { "biblepay",               "getgovernanceinfo",      &getgovernanceinfo,      true,  {} },
     { "biblepay",               "getsuperblockbudget",    &getsuperblockbudget,    true,  {"index"} },
     { "biblepay",               "gobject",                &gobject,                true,  {} },
+    { "biblepay",               "leaderboard",            &leaderboard,            true,  {} },
     { "biblepay",               "voteraw",                &voteraw,                true,  {} },
 
 };

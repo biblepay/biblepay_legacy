@@ -13,7 +13,6 @@
 #include "masternodeman.h"
 #include "governance-classes.h"
 #include "governance.h"
-#include "governance-validators.h"
 #include "masternode-sync.h"
 #include "masternode-payments.h"
 #include "masternodeconfig.h"

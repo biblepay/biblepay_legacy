@@ -139,7 +139,7 @@ void SetOverviewStatus();
 static const std::string BUSINESS_OBJECTS = "BUSINESS_OBJECTS";
 static const int MINIMUM_EMAIL_LENGTH = 5; 
 static const int BLOCKS_PER_DAY = 205;
-static const int SANCTUARY_COLLATERAL = 1550001;
+static const int SANCTUARY_COLLATERAL = 4500001;
 static int64_t MAX_BLOCK_SUBSIDY = 20000;
 static const int SPORK8_HEIGHT = 23000;
 // The highest value in a daily superblock to trigger a daily payment icon
@@ -240,9 +240,7 @@ extern bool fLargeWorkForkFound;
 extern bool fLargeWorkInvalidChainFound;
 
 extern std::map<uint256, int64_t> mapRejectedBlocks;
-extern std::map<std::string, std::string> mvApplicationCache;
-extern std::map<std::string, int64_t> mvApplicationCacheTimestamp;
-
+extern std::map<std::pair<std::string, std::string>, std::pair<std::string, int64_t>> mvApplicationCache;
 extern std::atomic<bool> fDIP0001ActiveAtTip;
 
 /** Block hash whose ancestors we will assume to have valid scripts without checking them. */

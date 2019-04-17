@@ -28,6 +28,7 @@
 #ifdef ENABLE_WALLET
 extern UniValue signrawtransaction(const JSONRPCRequest& request);
 extern UniValue sendrawtransaction(const JSONRPCRequest& request);
+extern UniValue protx_register(const JSONRPCRequest& request);
 #endif//ENABLE_WALLET
 
 std::string GetHelpString(int nParamNum, std::string strParamName)
@@ -206,7 +207,7 @@ static void FundSpecialTx(CMutableTransaction& tx, const SpecialTxPayload& paylo
     }
 
     if (!coinControl.HasSelected()) {
-        throw JSONRPCError(RPC_INTERNAL_ERROR, "No funds at specified address");
+        throw JSONRPCError(RPC_INTERNAL_ERROR, "No funds at specified address (special transaction error)");
     }
 
     CWalletTx wtx;

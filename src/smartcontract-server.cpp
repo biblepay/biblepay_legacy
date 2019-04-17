@@ -8,13 +8,11 @@
 #include "rpcpog.h"
 #include "rpcpodc.h"
 #include "smartcontract-client.h"
-#include "governance-validators.h"
 #include "init.h"
 #include "activemasternode.h"
 #include "masternodeman.h"
 #include "governance-classes.h"
 #include "governance.h"
-#include "governance-validators.h"
 #include "masternode-sync.h"
 #include "masternode-payments.h"
 #include "masternodeconfig.h"
@@ -39,7 +37,7 @@ extern CWallet* pwalletMain;
 
 void GetTransactionPoints(CBlockIndex* pindex, CTransactionRef tx, double& nCoinAge, CAmount& nDonation)
 {
-	nCoinAge = GetVINCoinAge(pindex, tx);
+	nCoinAge = GetVINCoinAge(pindex->GetBlockTime(), tx);
 	bool fSigned = CheckAntiBotNetSignature(tx, "gsc");
 	nDonation = GetTitheAmount(tx);
 	if (!fSigned) 
@@ -69,15 +67,15 @@ BiblePayProposal GetProposalByHash(uint256 govObj, int nLastSuperblock)
 	int nMinPassing = nSancCount * .10;
 	if (nMinPassing < 1) nMinPassing = 1;
 	CGovernanceObject* myGov = governance.FindGovernanceObject(govObj);
-	CProposalValidator validator(myGov->GetDataAsHexString());
+	UniValue obj = myGov->GetJSONObject();
 	BiblePayProposal bbpProposal;
-	validator.GetDataValue("name", bbpProposal.sName);
-	validator.GetDataValue("start_epoch", bbpProposal.nStartEpoch);
-	validator.GetDataValue("end_epoch", bbpProposal.nEndEpoch);
-	validator.GetDataValue("url", bbpProposal.sURL);
-	validator.GetDataValue("expensetype", bbpProposal.sExpenseType);
-	validator.GetDataValue("payment_amount", bbpProposal.nAmount);
-	validator.GetDataValue("payment_address", bbpProposal.sAddress);
+	bbpProposal.sName = obj["name"].getValStr();
+	bbpProposal.nStartEpoch = cdbl(obj["start_epoch"].getValStr(), 0);
+	bbpProposal.nEndEpoch = cdbl(obj["end_epoch"].getValStr(), 0);
+	bbpProposal.sURL = obj["url"].getValStr();
+	bbpProposal.sExpenseType = obj["expensetype"].getValStr();
+	bbpProposal.nAmount = cdbl(obj["payment_amount"].getValStr(), 2);
+	bbpProposal.sAddress = obj["payment_address"].getValStr();
 	bbpProposal.uHash = myGov->GetHash();
 	bbpProposal.nHeight = GetHeightByEpochTime(bbpProposal.nStartEpoch);
 	bbpProposal.nMinPassing = nMinPassing;
@@ -352,14 +350,14 @@ std::string AssessBlocks(int nHeight)
 	CAmount nPaymentsLimit = CSuperblock::GetPaymentsLimit(nHeight);
 	nPaymentsLimit -= MAX_BLOCK_SUBSIDY * COIN;
 	if (!chainActive.Tip()) 
-		return "";
+		return std::string();
 	if (nHeight > chainActive.Tip()->nHeight)
 		nHeight = chainActive.Tip()->nHeight - 1;
 
 	int nMaxDepth = nHeight;
 	int nMinDepth = nMaxDepth - BLOCKS_PER_DAY;
 	if (nMinDepth < 1) 
-		return "";
+		return std::string();
 	CBlockIndex* pindex = FindBlockByHeight(nMinDepth);
 	const Consensus::Params& consensusParams = Params().GetConsensus();
 	std::map<std::string, CPK> mPoints;
@@ -825,7 +823,7 @@ std::string SignPrice(std::string sValue)
 			}
 		 }
 	 }
-	 return "";
+	 return std::string();
 }
 
 std::string SerializeSanctuaryQuorumTrigger(int iContractAssessmentHeight, int nEventBlockHeight, std::string sContract)
@@ -835,7 +833,8 @@ std::string SerializeSanctuaryQuorumTrigger(int iContractAssessmentHeight, int n
 	std::string sPaymentAmounts;
 	std::string sHashes = ExtractXML(sContract, "<PROPOSALS>", "</PROPOSALS>");
 	bool bStatus = GetContractPaymentData(sContract, iContractAssessmentHeight, sPaymentAddresses, sPaymentAmounts);
-	if (!bStatus) return "";
+	if (!bStatus) 
+		return std::string();
 	std::string sVoteData = ExtractXML(sContract, "<VOTEDATA>", "</VOTEDATA>");
 	std::string sProposalHashes = GetPAMHashByContract(sContract).GetHex();
 	if (!sHashes.empty()) sProposalHashes = sHashes;

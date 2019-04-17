@@ -110,8 +110,7 @@ CTxMemPool mempool(::minRelayTxFee);
 std::map<uint256, int64_t> mapRejectedBlocks GUARDED_BY(cs_main);
 
 // BIBLEPAY
-std::map<std::string, std::string> mvApplicationCache;
-std::map<std::string, int64_t> mvApplicationCacheTimestamp;
+std::map<std::pair<std::string, std::string>, std::pair<std::string, int64_t>> mvApplicationCache;
 std::string msGithubVersion;
 std::string sOS;
 int PRAYER_MODULUS = 0;
@@ -3484,11 +3483,11 @@ bool AntiGPU(const CBlock& block, const CBlockIndex* pindexPrev)
 	{
 		if (pindex != NULL)
 		{
-			CBlock block;
-        	if (ReadBlockFromDisk(block, pindex, chainparams.GetConsensus()))
+			CBlock prevBlock;
+        	if (ReadBlockFromDisk(prevBlock, pindex, chainparams.GetConsensus()))
 			{
 				std::string lastCPK;
-				CheckABNSignature(block, lastCPK);
+				CheckABNSignature(prevBlock, lastCPK);
 				LogPrintf(" AntiGPU i %f, CPK %s      ", (double)i, lastCPK);
 				if (!lastCPK.empty() && !CPK.empty() && lastCPK == CPK)
 				{
