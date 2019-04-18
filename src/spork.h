@@ -30,8 +30,11 @@ static const int SPORK_15_DETERMINISTIC_MNS_ENABLED                     = 10014;
 static const int SPORK_16_INSTANTSEND_AUTOLOCKS                         = 10015;
 static const int SPORK_17_QUORUM_DKG_ENABLED                            = 10016;
 
+// BIBLEPAY - Start at 10090 to leave room for future Dash Sporks
+static const int SPORK_20_QUANTITATIVE_TIGHTENING_ENABLED               = 10090;
+
 static const int SPORK_START                                            = SPORK_2_INSTANTSEND_ENABLED;
-static const int SPORK_END                                              = SPORK_17_QUORUM_DKG_ENABLED;
+static const int SPORK_END                                              = SPORK_20_QUANTITATIVE_TIGHTENING_ENABLED;
 
 extern std::map<int, int64_t> mapSporkDefaults;
 extern CSporkManager sporkManager;

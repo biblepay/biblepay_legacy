@@ -87,20 +87,13 @@ int GetNextSuperblock();
 std::string StoreBusinessObjectWithPK(UniValue& oBusinessObject, std::string& sError);
 std::string StoreBusinessObject(UniValue& oBusinessObject, std::string& sError);
 bool is_email_valid(const std::string& e);
-UniValue GetBusinessObjectList(std::string sType);
-UniValue GetBusinessObjectByFieldValue(std::string sType, std::string sFieldName, std::string sSearchValue);
-double GetBusinessObjectTotal(std::string sType, std::string sFieldName, int iAggregationType);
-std::string GetBusinessObjectList(std::string sType, std::string sFields);
-UniValue GetBusinessObject(std::string sType, std::string sPrimaryKey, std::string& sError);
 double GetSporkDouble(std::string sName, double nDefault);
 int64_t GetFileSize(std::string sPath);
 std::string AddBlockchainMessages(std::string sAddress, std::string sType, std::string sPrimaryKey, 
 	std::string sHTML, CAmount nAmount, double minCoinAge, std::string& sError);
 std::string ReadCache(std::string sSection, std::string sKey);
 void ClearCache(std::string sSection);
-std::string ReadCacheWithMaxAge(std::string sSection, std::string sKey, int64_t nMaxAge);
 void WriteCache(std::string sSection, std::string sKey, std::string sValue, int64_t locktime, bool IgnoreCase=true);
-void PurgeCacheAsOfExpiration(std::string sSection, int64_t nExpiration);
 std::string GetSporkValue(std::string sKey);
 std::string TimestampToHRDate(double dtm);
 std::string GetArrayElement(std::string s, std::string delim, int iPos);
@@ -170,14 +163,14 @@ bool WriteKey(std::string sKey, std::string sValue);
 std::string GetTransactionMessage(CTransactionRef tx);
 bool AdvertiseChristianPublicKeypair(std::string sProjectId, std::string sNickName, bool fUnJoin, bool fForce, std::string &sError);
 CWalletTx CreateAntiBotNetTx(CBlockIndex* pindexLast, double nMinCoinAge, CReserveKey& reservekey, std::string& sXML, std::string& sError);
-double GetAntiBotNetWeight(CBlockIndex* pindex, CTransactionRef tx);
+double GetAntiBotNetWeight(int64_t nBlockTime, CTransactionRef tx);
 double GetABNWeight(const CBlock& block, bool fMining);
 std::map<std::string, std::string> GetSporkMap(std::string sPrimaryKey, std::string sSecondaryKey);
 std::map<std::string, CPK> GetGSCMap(std::string sGSCObjType, std::string sSearch, bool fRequireSig);
 void WriteCacheDouble(std::string sKey, double dValue);
 double ReadCacheDouble(std::string sKey);
 bool CheckAntiBotNetSignature(CTransactionRef tx, std::string sType);
-double GetVINCoinAge(CBlockIndex* pindex, CTransactionRef tx);
+double GetVINCoinAge(int64_t nBlockTime, CTransactionRef tx);
 CAmount GetTitheAmount(CTransactionRef ctx);
 CPK GetCPK(std::string sData);
 std::string GetCPKData(std::string sProjectId, std::string sPK);
@@ -185,6 +178,8 @@ CAmount GetRPCBalance();
 void GetGovSuperblockHeights(int& nNextSuperblock, int& nLastSuperblock);
 int GetHeightByEpochTime(int64_t nEpoch);
 bool CheckABNSignature(const CBlock& block, std::string& out_CPK);
-
+std::string GetPOGBusinessObjectList(std::string sType, std::string sFields);
+std::string SignMessageEvo(std::string strAddress, std::string strMessage, std::string& sError);
+const CBlockIndex* GetBlockIndexByTransactionHash(const uint256 &hash);
 
 #endif

@@ -63,6 +63,7 @@ public:
 	bool fDonate;
 	bool fPrayer;
 	bool fTithe;
+	bool fDiary;
 	// End of BiblePay
     // If from a payment request, paymentRequest.IsInitialized() will be true
     PaymentRequestPlus paymentRequest;

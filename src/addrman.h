@@ -512,7 +512,10 @@ public:
         fRet |= Add_(addr, source, nTimePenalty);
         Check();
         if (fRet)
-            LogPrint("addrman", "Added %s from %s: %i tried, %i new\n", addr.ToStringIPPort(), source.ToString(), nTried, nNew);
+		{
+            if (fDebugSpam)
+				LogPrint("addrman", "addrman::Added %s from %s: %i tried, %i new\n", addr.ToStringIPPort(), source.ToString(), nTried, nNew);
+		}
         return fRet;
     }
 
@@ -526,7 +529,10 @@ public:
             nAdd += Add_(*it, source, nTimePenalty) ? 1 : 0;
         Check();
         if (nAdd)
-            LogPrint("addrman", "Added %i addresses from %s: %i tried, %i new\n", nAdd, source.ToString(), nTried, nNew);
+		{
+            if (fDebugSpam)
+				LogPrint("addrman", "addrman_multiple::Added %i addresses from %s: %i tried, %i new\n", nAdd, source.ToString(), nTried, nNew);
+		}
         return nAdd > 0;
     }
 

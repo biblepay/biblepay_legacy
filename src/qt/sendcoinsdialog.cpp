@@ -318,6 +318,13 @@ void SendCoinsDialog::send(QList<SendCoinsRecipient> recipients, QString strFee,
 
     prepareStatus = model->prepareTransaction(currentTransaction, &ctrl);
 
+	// BIBLEPAY - If this was a diary entry, dont send real BBP after the entry is stored.
+	if (prepareStatus.status == WalletModel::TransactionCommitFailed && prepareStatus.reasonCommitFailed == "GSC_SUCCESS")
+	{
+		clear();
+		return;
+	}
+
     // process prepareStatus and on error generate message shown to user
     processSendCoinsReturn(prepareStatus,
         BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(), currentTransaction.getTransactionFee()));

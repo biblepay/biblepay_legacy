@@ -20,6 +20,7 @@ class SendCoinsRecipient;
 class TransactionView;
 class WalletModel;
 class AddressBookPage;
+class BusinessObjectList;
 class ProposalAddDialog;
 class Proposals;
 
@@ -73,6 +74,8 @@ private:
 
 	ProposalAddDialog *proposalAddPage;
 	Proposals *proposalListPage;
+	BusinessObjectList *businessObjectListPage;
+
     QProgressDialog *progressDialog;
     QLabel *transactionSum;
     const PlatformStyle *platformStyle;
@@ -92,6 +95,8 @@ public Q_SLOTS:
 	/** Switch to Proposal Add Page */
 	void gotoProposalAddPage();
 	void gotoProposalListPage();
+	/** Switch to Business Object List Page */
+	void gotoBusinessObjectListPage();
 
     /** Show Sign/Verify Message dialog and switch to sign message tab */
     void gotoSignMessageTab(QString addr = "");

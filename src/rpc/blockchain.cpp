@@ -20,6 +20,7 @@
 #include "primitives/transaction.h"
 #include "rpc/server.h"
 #include "streams.h"
+#include "spork.h"
 #include "sync.h"
 #include "txdb.h"
 #include "txmempool.h"
@@ -53,6 +54,9 @@ static CUpdatedBlock latestblock;
 
 extern void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry);
 void ScriptPubKeyToJSON(const CScript& scriptPubKey, UniValue& out, bool fIncludeHex);
+UniValue protx_register(const JSONRPCRequest& request);
+UniValue protx(const JSONRPCRequest& request);
+UniValue _bls(const JSONRPCRequest& request);
 
 double GetDifficulty(const CBlockIndex* blockindex)
 {
@@ -157,6 +161,11 @@ UniValue blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool tx
     result.push_back(Pair("chainwork", blockindex->nChainWork.GetHex()));
 	result.push_back(Pair("subsidy", block.vtx[0]->vout[0].nValue/COIN));
 	result.push_back(Pair("anti-botnet-weight", GetABNWeight(block, false)));
+	std::string sCPK;
+	CheckABNSignature(block, sCPK);
+	if (!sCPK.empty())
+		result.push_back(Pair("cpk", sCPK));
+
 	result.push_back(Pair("blockversion", GetBlockVersion(block.vtx[0]->vout[0].sTxOutMessage)));
 	if (block.vtx.size() > 1)
 		result.push_back(Pair("sanctuary_reward", block.vtx[0]->vout[1].nValue/COIN));
@@ -179,10 +188,18 @@ UniValue blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool tx
 		uint256 hashWork = blockindex->GetBlockHash();
 		uint256 bibleHash = BibleHashClassic(hashWork, block.GetBlockTime(), blockindex->pprev->nTime, false, blockindex->pprev->nHeight, blockindex->pprev, false, f7000, f8000, f9000, fTitheBlocksActive, blockindex->nNonce, consensusParams);
 		bool bSatisfiesBibleHash = (UintToArith256(bibleHash) <= hashTarget);
-		// CRITICAL TODO: Remove satisfiesbiblehash in prod (spam)
-    	result.push_back(Pair("satisfiesbiblehash", bSatisfiesBibleHash ? "true" : "false"));
+		if (fDebugSpam)
+			result.push_back(Pair("satisfiesbiblehash", bSatisfiesBibleHash ? "true" : "false"));
 		result.push_back(Pair("biblehash", bibleHash.GetHex()));
 		result.push_back(Pair("chaindata", block.vtx[0]->vout[0].sTxOutMessage));
+		bool fEnabled = sporkManager.IsSporkActive(SPORK_20_QUANTITATIVE_TIGHTENING_ENABLED);
+		if (fEnabled)
+		{
+			double dPriorPrice = 0;
+			double dPriorPhase = 0;
+			double dQTPct = GetQTPhase(false, -1, blockindex->nHeight, dPriorPrice, dPriorPhase) / 100;
+			result.push_back(Pair("qt_pct", dQTPct));
+		}
 	}
     CBlockIndex *pnext = chainActive.Next(blockindex);
     if (pnext)
@@ -1656,6 +1673,66 @@ uint256 Sha256001(int nType, int nVersion, std::string data)
     return result;
 }
 
+std::string ScanSanctuaryConfigFile(std::string sName)
+{
+    int linenumber = 1;
+    boost::filesystem::path pathMasternodeConfigFile = GetMasternodeConfigFile();
+    boost::filesystem::ifstream streamConfig(pathMasternodeConfigFile);
+    if (!streamConfig.good()) 
+		return std::string();
+	for(std::string line; std::getline(streamConfig, line); linenumber++)
+    {
+        if(line.empty()) continue;
+        std::istringstream iss(line);
+        std::string comment, alias, ip, privKey, txHash, outputIndex;
+        if (iss >> comment) 
+		{
+            if(comment.at(0) == '#') continue;
+            iss.str(line);
+            iss.clear();
+        }
+
+		if (comment == sName)
+		{
+			streamConfig.close();
+			return line;
+		}
+    }
+    streamConfig.close();
+    return std::string();
+}
+
+boost::filesystem::path GetGenericFilePath(std::string sPath)
+{
+    boost::filesystem::path pathConfigFile(sPath);
+    if (!pathConfigFile.is_complete())
+        pathConfigFile = GetDataDir() / pathConfigFile;
+    return pathConfigFile;
+}
+
+void AppendSanctuaryFile(std::string sFile, std::string sData)
+{
+    boost::filesystem::path pathDeterministicConfigFile = GetGenericFilePath(sFile);
+    boost::filesystem::ifstream streamConfig(pathDeterministicConfigFile);
+	bool fReadable = streamConfig.good();
+	if (fReadable)
+		streamConfig.close();
+    FILE* configFile = fopen(pathDeterministicConfigFile.string().c_str(), "a");
+    if (configFile != nullptr) 
+	{
+	    if (!fReadable) 
+		{
+            std::string strHeader = "# Deterministic Sanctuary Configuration File\n"
+				"# Format: Sanctuary_Name IP:port(40000=prod,40001=testnet) BLS_Public_Key BLS_Private_Key Collateral_output_txid Collateral_output_index Pro-Registration-TxId Pro-Reg-Collateral-Address Pro-Reg-Sent-TxId\n";
+            fwrite(strHeader.c_str(), std::strlen(strHeader.c_str()), 1, configFile);
+        }
+    }
+	fwrite(sData.c_str(), std::strlen(sData.c_str()), 1, configFile);
+    fclose(configFile);
+}
+
+
+
 static std::map<std::string, double> mvBlockVersion;
 void ScanBlockChainVersion(int nLookback)
 {
@@ -1864,10 +1941,6 @@ UniValue exec(const JSONRPCRequest& request)
 		std::string sReqPay = CSuperblockManager::GetRequiredPaymentsString(iNextSuperblock);
 		results.push_back(Pair("next_superblock_req_payments", sReqPay));
 
-		/*  QT (Reserved)
-		std::string sSig = SignPrice(".01");
-		bool fSigValid = VerifyDarkSendSigner(sSig);
-		*/
 		bool bRes = VoteForGSCContract(iNextSuperblock, sContract, sError);
 		results.push_back(Pair("vote_result", bRes));
 		results.push_back(Pair("vote_error", sError));
@@ -1960,7 +2033,7 @@ UniValue exec(const JSONRPCRequest& request)
 			results.push_back(Pair("total_required " + RoundToString(dMin, 2), nTotalReq/COIN));
 		}
 	}
-	else if (sItem == "getpogpoints")
+	else if (sItem == "getpoints")
 	{
 		if (request.params.size() < 2)
 			 throw std::runtime_error("You must specify the txid.");
@@ -1976,10 +2049,13 @@ UniValue exec(const JSONRPCRequest& request)
 			if (!pblockindex) 
 				throw std::runtime_error("bad blockindex for this tx.");
 			GetTransactionPoints(pblockindex, tx, nCoinAge, nDonation);
-			double nPoints = CalculatePoints("POG", nCoinAge, nDonation);
-		
+			std::string sDiary = ExtractXML(tx->GetTxMessage(), "<diary>", "</diary>");
+			std::string sCampaignName;
+			std::string sCPK = GetTxCPK(tx, sCampaignName);
+			double nPoints = CalculatePoints(sCampaignName, sDiary, nCoinAge, nDonation);
 			results.push_back(Pair("pog_points", nPoints));
 			results.push_back(Pair("coin_age", nCoinAge));
+			results.push_back(Pair("diary_entry", sDiary));
 			results.push_back(Pair("orphan_donation", (double)nDonation / COIN));
 		}
 		else
@@ -1999,7 +2075,7 @@ UniValue exec(const JSONRPCRequest& request)
 		{
 		    CBlockIndex* pblockindex = mapBlockIndex[hashBlock];
 			if (!pblockindex) pblockindex = chainActive.Tip();
-			double nAuditedWeight = GetAntiBotNetWeight(pblockindex, tx);
+			double nAuditedWeight = GetAntiBotNetWeight(pblockindex->GetBlockTime(), tx);
 			results.push_back(Pair("audited_weight", nAuditedWeight));
 		}
 		else
@@ -2024,7 +2100,7 @@ UniValue exec(const JSONRPCRequest& request)
 			if (pwalletMain->CommitTransaction(wtx, reserveKey, g_connman.get(), state, NetMsgType::TX))
 			{
 				results.push_back(Pair("success", wtx.GetHash().GetHex()));
-				double nAuditedWeight = GetAntiBotNetWeight(chainActive.Tip(), wtx.tx);
+				double nAuditedWeight = GetAntiBotNetWeight(chainActive.Tip()->GetBlockTime(), wtx.tx);
 				results.push_back(Pair("audited_weight", nAuditedWeight));
 			}
 			else
@@ -2071,6 +2147,7 @@ UniValue exec(const JSONRPCRequest& request)
 		if (request.params.size() != 2)
 			throw std::runtime_error("You must specify the project_name.");
 		std::string sProject = request.params[1].get_str();
+		boost::to_lower(sProject);
 		std::string sError;
 		if (!CheckCampaign(sProject))
 			throw std::runtime_error("Campaign does not exist.");
@@ -2078,40 +2155,17 @@ UniValue exec(const JSONRPCRequest& request)
 		results.push_back(Pair("Results", fAdv));
 		if (!fAdv)
 			results.push_back(Pair("Error", sError));
+		if (fAdv && sProject == "healing")
+		{
+			std::string sURL = "https://wiki.biblepay.org/BiblePay_Healing_Campaign";
+			std::string sNarr = "Please read this guide: " + sURL + " with critical instructions before attempting Spiritual Warfare or Street Healing.  Thank you for joining the BiblePay Healing campaign. ";
+			results.push_back(Pair("Warning!", sNarr));
+		}
 	}
 	else if (sItem == "getcampaigns")
 	{
 		UniValue c = GetCampaigns();
 		return c;
-	}
-	else if (sItem == "prominence")
-	{
-		if (request.params.size() != 2 && request.params.size() != 1)
-			throw std::runtime_error("You must specify prominence height || prominence last || prominence future || prominence.  The default is future.");
-		int iNextSuperblock = 0;
-		int iLastSuperblock = GetLastGSCSuperblockHeight(chainActive.Tip()->nHeight, iNextSuperblock);
-		std::string sLHF;
-		if (request.params.size() > 1)
-			sLHF = request.params[1].get_str();
-		int nHeight = 0;
-		if (sLHF == "last")
-		{
-			nHeight = iLastSuperblock;
-		}
-		else if (sLHF == "future")
-		{
-			nHeight = iNextSuperblock;
-		}
-		else if (cdbl(sLHF, 0) > 0)
-		{
-			nHeight = cdbl(sLHF, 0);
-		}
-		
-		if (nHeight == 0)
-			nHeight = iNextSuperblock;
-
-		UniValue p = GetProminenceLevels(nHeight);
-		return p;
 	}
 	else if (sItem == "checkcpk")
 	{
@@ -2145,8 +2199,18 @@ UniValue exec(const JSONRPCRequest& request)
 	}
 	else if (sItem == "sendgscc")
 	{
+		if (request.params.size() > 2)
+			throw std::runtime_error("You must specify sendgscc [diary_entry]: IE 'exec sendgscc [prayed for Jane Doe who had broken ribs, this happened].");
+		std::string sDiary;
+		if (request.params.size() > 1)
+		{
+			sDiary = request.params[1].get_str();
+			if (sDiary.length() < 10)
+				throw std::runtime_error("Diary entry incomplete.");
+		}
+		
 		std::string sError;
-		bool fCreated = CreateClientSideTransaction(true, sError);
+		bool fCreated = CreateClientSideTransaction(true, false, sDiary, sError);
 		results.push_back(Pair("results", (double)fCreated));
 		if (!sError.empty())
 			results.push_back(Pair("Error!", sError));
@@ -2210,6 +2274,167 @@ UniValue exec(const JSONRPCRequest& request)
 		std::string sData;
 		GetGovObjDataByPamHash(iNextSuperblock, hPAMHash, sData);
 		results.push_back(Pair("Data", sData));
+	}
+	else if (sItem == "antigpu")
+	{
+		if (request.params.size() != 2)
+			throw std::runtime_error("You must specify height.");
+		int nHeight = cdbl(request.params[1].get_str(), 0);
+		CBlockIndex* pblockindex = FindBlockByHeight(nHeight);
+		if (pblockindex == NULL)   
+			throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
+		CBlock block;
+		const Consensus::Params& consensusParams = Params().GetConsensus();
+		if (ReadBlockFromDisk(block, pblockindex, consensusParams))
+		{
+			std::string sMsg = GetTransactionMessage(block.vtx[0]);
+			int nABNLocator = (int)cdbl(ExtractXML(sMsg, "<abnlocator>", "</abnlocator>"), 0);
+			if (block.vtx.size() >= nABNLocator) 
+			{
+				CTransactionRef tx = block.vtx[nABNLocator];
+
+				std::string sCPK = ExtractXML(tx->GetTxMessage(), "<abncpk>", "</abncpk>");
+				results.push_back(Pair("anti_gpu_xml", tx->GetTxMessage()));
+				results.push_back(Pair("cpk", sCPK));
+				bool fValid = CheckAntiBotNetSignature(tx, "abn");
+				results.push_back(Pair("sig_valid", fValid));
+				bool fAntiGPU = AntiGPU(block, pblockindex->pprev);
+				results.push_back(Pair("anti-gpu", fAntiGPU));
+			}
+		}
+		else
+		{
+			results.push_back(Pair("error", "Unable to read block."));
+		}
+	}
+	else if (sItem == "price")
+	{
+		double dPriorPrice = 0;
+		double dPriorPhase = 0;
+		double dCurPhase = GetQTPhase(false, -1, chainActive.Tip()->nHeight, dPriorPrice, dPriorPhase);
+		results.push_back(Pair("consensus_price", dPriorPrice));
+		results.push_back(Pair("qt_phase", dCurPhase));
+		results.push_back(Pair("qt_prior_phase", dPriorPhase));
+		bool fEnabled = sporkManager.IsSporkActive(SPORK_20_QUANTITATIVE_TIGHTENING_ENABLED);
+		results.push_back(Pair("qt_enabled", fEnabled));
+		double dPrice = GetPBase();
+		results.push_back(Pair("cur_price", RoundToString(dPrice, 12)));
+		double dBBP = GetCryptoPrice("bbp");
+		double dBTC = GetCryptoPrice("btc");
+		results.push_back(Pair("BBP/BTC", RoundToString(dBBP, 12)));
+		results.push_back(Pair("BTC/USD", dBTC));
+	}
+	else if (sItem == "sentgsc")
+	{
+		UniValue s = SentGSCCReport(0);
+		return s;
+	}
+	else if (sItem == "upgradesanc")
+	{
+		if (request.params.size() != 3)
+			throw std::runtime_error("You must specify exec upgradesanc sanctuary_name (where the sanctuary_name matches the name in the masternode.conf file) 0/1 (where 0=dry-run, 1=real).");
+
+		std::string sSearch = request.params[1].get_str();
+		int iDryRun = cdbl(request.params[2].get_str(), 0);
+		std::string sSanc = ScanSanctuaryConfigFile(sSearch);
+		if (sSanc.empty())
+			throw std::runtime_error("Unable to find sanctuary " + sSearch + " in masternode.conf file.");
+		// Legacy Sanc (masternode.conf) data format: sanc_name, ip, mnp, collat, collat ordinal
+
+		std::vector<std::string> vSanc = Split(sSanc.c_str(), " ");
+		if (vSanc.size() < 5)
+			throw std::runtime_error("Sanctuary entry in masternode.conf corrupted (does not contain 5 parts.)");
+
+		std::string sSancName = vSanc[0];
+		std::string sSancIP = vSanc[1];
+		std::string sMNP = vSanc[2];
+		std::string sCollateralTXID = vSanc[3];
+		std::string sCollateralTXIDOrdinal = vSanc[4];
+		std::string sSummary = "Creating protx_register command for Sanctuary " + sSancName + " with IP " + sSancIP + " with TXID " + sCollateralTXID;
+		// Step 1: Fund the protx fee
+		// 1a. Create the new deterministic-sanctuary reward address
+		std::string sPayAddress = DefaultRecAddress(sSancName + "-d"); //d means deterministic
+		CBitcoinAddress baPayAddress(sPayAddress);
+		std::string sVotingAddress = DefaultRecAddress(sSancName + "-v"); //v means voting
+		CBitcoinAddress baVotingAddress(sVotingAddress);
+
+		std::string sError;
+		std::string sData = "<protx></protx>";  // Reserved for future use
+
+	    CWalletTx wtx;
+		bool fSubtractFee = false;
+		bool fInstantSend = false;
+		// 1b. We must send 1BBP to ourself first here, as the deterministic sanctuaries future fund receiving address must be prefunded with enough funds to cover the non-financial transaction transmission below
+		bool fSent = RPCSendMoney(sError, baPayAddress.Get(), 1 * COIN, fSubtractFee, wtx, fInstantSend, sData);
+
+		if (!sError.empty() || !fSent)
+			throw std::runtime_error("Unable to fund protx_register fee: " + sError);
+
+		results.push_back(Pair("Summary", sSummary));
+		// Generate BLS keypair (This is the keypair for the sanctuary - the BLS public key goes in the chain, the private key goes into the Sanctuaries biblepay.conf file like this:  blsprivkey=nnnnn
+		JSONRPCRequest myBLS;
+		myBLS.params.setArray();
+		myBLS.params.push_back("generate");
+		UniValue myBLSPair = _bls(myBLS);
+		std::string myBLSPublic = myBLSPair["public"].getValStr();
+		std::string myBLSPrivate = myBLSPair["secret"].getValStr();
+		
+	    JSONRPCRequest newRequest;
+		newRequest.params.setArray();
+		// Pro-tx-register_prepare preparation format: protx register_prepare 1.55mm_collateralHash 1.55mm_index_collateralIndex ipv4:port_ipAndPort home_voting_address_ownerKeyAddr blsPubKey_operatorPubKey delegate_or_home_votingKeyAddr 0_pctOf_operatorReward payout_address_payoutAddress optional_(feeSourceAddress_of_Pro_tx_fee)
+
+		newRequest.params.push_back("register_prepare");
+		newRequest.params.push_back(sCollateralTXID);
+		newRequest.params.push_back(sCollateralTXIDOrdinal);
+		newRequest.params.push_back(sSancIP);
+		
+		newRequest.params.push_back(sVotingAddress);  // Home Voting Address
+		newRequest.params.push_back(myBLSPublic);     // Remote Sanctuary Public Key (Private and public keypair is stored in deterministicsanctuary.conf on the controller wallet)
+		newRequest.params.push_back(sVotingAddress);  // Delegates Voting address (This is a person that can vote for you if you want) - in our case its the same 
+
+		newRequest.params.push_back("0");             // Pct of rewards to share with Operator (This is the amount of reward we want to share with a Sanc Operator - IE a hosting company)
+		newRequest.params.push_back(sPayAddress);     // Rewards Pay To Address (This can be changed to be a wallet outside of your wallet, maybe a hardware wallet)
+		// 1c.  First send the pro-tx-register_prepare command, and look for the tx, collateralAddress and signMessage response:
+		UniValue rProReg = protx(newRequest);
+		std::string sProRegTxId = rProReg["tx"].getValStr();
+		std::string sProCollAddr = rProReg["collateralAddress"].getValStr();
+		std::string sProSignMessage = rProReg["signMessage"].getValStr();
+		if (sProSignMessage.empty() || sProRegTxId.empty())
+			throw std::runtime_error("Failed to create pro reg tx.");
+		// Step 2: Sign the Pro-Reg Tx
+		JSONRPCRequest newSig;
+		newSig.params.setArray();
+		newSig.params.push_back(sProCollAddr);
+		newSig.params.push_back(sProSignMessage);
+		std::string sProSignature = SignMessageEvo(sProCollAddr, sProSignMessage, sError);
+		if (!sError.empty())
+			throw std::runtime_error("Unable to sign pro-reg-tx: " + sError);
+
+		std::string sSentTxId;
+		if (iDryRun == 1)
+		{
+			// Note: If this is Not a dry-run, go ahead and submit the non-financial transaction to the network here:
+			JSONRPCRequest newSend;
+			newSend.params.setArray();
+			newSend.params.push_back("register_submit");
+			newSend.params.push_back(sProRegTxId);
+			newSend.params.push_back(sProSignature);
+			UniValue rProReg = protx(newSend);
+			results.push_back(rProReg);
+			sSentTxId = rProReg.getValStr();
+		}
+		// Step 3: Report this info back to the user
+		results.push_back(Pair("bls_public_key", myBLSPublic));
+		results.push_back(Pair("bls_private_key", myBLSPrivate));
+		results.push_back(Pair("pro_reg_txid", sProRegTxId));
+		results.push_back(Pair("pro_reg_collateral_address", sProCollAddr));
+		results.push_back(Pair("pro_reg_signed_message", sProSignMessage));
+		results.push_back(Pair("pro_reg_signature", sProSignature));
+		results.push_back(Pair("sent_txid", sSentTxId));
+	    // Step 4: Store the new deterministic sanctuary in deterministicsanc.conf
+		std::string sDSD = sSancName + " " + sSancIP + " " + myBLSPublic + " " + myBLSPrivate + " " + sCollateralTXID + " " + sCollateralTXIDOrdinal + " " + sProRegTxId + " " + sProCollAddr + " " + sSentTxId + "\n";
+		if (iDryRun == 1)
+			AppendSanctuaryFile("deterministic.conf", sDSD);
 	}
 	else if (sItem == "datalist")
 	{

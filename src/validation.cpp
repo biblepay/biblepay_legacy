@@ -110,8 +110,7 @@ CTxMemPool mempool(::minRelayTxFee);
 std::map<uint256, int64_t> mapRejectedBlocks GUARDED_BY(cs_main);
 
 // BIBLEPAY
-std::map<std::string, std::string> mvApplicationCache;
-std::map<std::string, int64_t> mvApplicationCacheTimestamp;
+std::map<std::pair<std::string, std::string>, std::pair<std::string, int64_t>> mvApplicationCache;
 std::string msGithubVersion;
 std::string sOS;
 int PRAYER_MODULUS = 0;
@@ -1190,6 +1189,7 @@ double ConvertBitsToDouble(unsigned int nBits)
     return dDiff;
 }
 
+
 /*
 NOTE:   unlike bitcoin we are using PREVIOUS block height here,
         might be a good idea to change this to use prev bits
@@ -1240,7 +1240,18 @@ CAmount GetBlockSubsidy(int nPrevBits, int nPrevHeight, const Consensus::Params&
 	{
         nSubsidy -= (nSubsidy * iDeflationRate);
     }
-		
+	// BIBLEPAY - QT
+	bool fEnabled = sporkManager.IsSporkActive(SPORK_20_QUANTITATIVE_TIGHTENING_ENABLED);
+	if (fEnabled && nPrevHeight > consensusParams.QTHeight)
+	{
+		double dPriorPrice = 0;
+		double dPriorPhase = 0;
+		double dQTPct = GetQTPhase(false, -1, nPrevHeight, dPriorPrice, dPriorPhase) / 100;
+		CAmount nQTAmount = nSubsidy * dQTPct;
+		nSubsidy -= nQTAmount;
+	}
+	// End of QT
+
     // Monthly Budget: 
 	// 10% to Charity budget, 5% for the IT budget, 2.5% PR, 2.5% P2P (this is 20% for Governance).  An additional 28.5% is held back for the generic superblock contract.  This equals 48.5% being escrowed.
 	// The remaining 50% is split between the miner and the sanctuary.
@@ -2365,7 +2376,8 @@ static bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockInd
 	{
 		MemorizeBlockChainPrayers(true, false, false, false);
 		std::string sStatus = ExecuteGenericSmartContractQuorumProcess();
-		LogPrintf("EGSCQP %f %s", (double)pindex->nHeight, sStatus);
+		if (fDebugSpam)
+			LogPrintf("EGSCQP %f %s", (double)pindex->nHeight, sStatus);
 	}
 	// END BIBLEPAY
 
@@ -3083,18 +3095,25 @@ bool ResetBlockFailureFlags(CBlockIndex *pindex) {
 
     // Remove the invalidity flag from this block and all its descendants.
     BlockMap::iterator it = mapBlockIndex.begin();
-    while (it != mapBlockIndex.end()) {
-        if (!it->second->IsValid() && it->second->GetAncestor(nHeight) == pindex) {
-            it->second->nStatus &= ~BLOCK_FAILED_MASK;
-            setDirtyBlockIndex.insert(it->second);
-            if (it->second->IsValid(BLOCK_VALID_TRANSACTIONS) && it->second->nChainTx && setBlockIndexCandidates.value_comp()(chainActive.Tip(), it->second)) {
-                setBlockIndexCandidates.insert(it->second);
-            }
-            if (it->second == pindexBestInvalid) {
-                // Reset invalid block marker if it was pointing to one of those.
-                pindexBestInvalid = NULL;
-            }
-        }
+    while (it != mapBlockIndex.end()) 
+	{
+		if (it->second != NULL)
+		{
+	        if (!it->second->IsValid() && it->second->GetAncestor(nHeight) == pindex) 
+			{
+				it->second->nStatus &= ~BLOCK_FAILED_MASK;
+				setDirtyBlockIndex.insert(it->second);
+				if (it->second->IsValid(BLOCK_VALID_TRANSACTIONS) && it->second->nChainTx && setBlockIndexCandidates.value_comp()(chainActive.Tip(), it->second)) 
+				{
+					setBlockIndexCandidates.insert(it->second);
+				}
+				if (it->second == pindexBestInvalid) 
+				{
+					// Reset invalid block marker if it was pointing to one of those.
+					pindexBestInvalid = NULL;
+				}
+			}
+		}
         it++;
     }
 
@@ -3447,23 +3466,29 @@ bool LateBlock(const CBlock& block, const CBlockIndex* pindexPrev, int iMinutes)
 	return (nAge > (60 * iMinutes) || nAgeTip > (60 * iMinutes)) ? true : false;
 }
 
-bool AntiGPU(std::string CPK, CBlockIndex* pindexPrev)
+bool AntiGPU(const CBlock& block, const CBlockIndex* pindexPrev)
 {
+	if (!pindexPrev) return false;
+	std::string CPK;
+	CheckABNSignature(block, CPK);
 	if (CPK.empty()) return false;
+
 	int iCheckWindow = fProd ? 4 : 1;
-	CBlockIndex* pindex = pindexPrev;
 	int64_t headerAge = GetAdjustedTime() - pindexPrev->nTime;
 	if (headerAge > (60 * 60 * 1)) return false;
+
+	const CBlockIndex *pindex = pindexPrev;
 	const CChainParams& chainparams = Params();
  	for (int i = 0; i < iCheckWindow; i++)
 	{
 		if (pindex != NULL)
 		{
-			CBlock block;
-        	if (ReadBlockFromDisk(block, pindex, chainparams.GetConsensus()))
+			CBlock prevBlock;
+        	if (ReadBlockFromDisk(prevBlock, pindex, chainparams.GetConsensus()))
 			{
 				std::string lastCPK;
-				CheckABNSignature(block, lastCPK);
+				CheckABNSignature(prevBlock, lastCPK);
+				LogPrintf(" AntiGPU i %f, CPK %s      ", (double)i, lastCPK);
 				if (!lastCPK.empty() && !CPK.empty() && lastCPK == CPK)
 				{
 					return true;
@@ -3536,7 +3561,7 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
 	//                               Additional Checks for GSC (Generic-Smart-Contracts) and for ABN (Anti-Bot-Net) rules                        //
 	//                                                                                                                                           //
 	double nMinRequiredABNWeight = GetSporkDouble("requiredabnweight", 0);
-	if (nHeight > consensusParams.ABNHeight && nMinRequiredABNWeight > 0 && !LateBlock(block, pindexPrev, 55))
+	if (nHeight > consensusParams.ABNHeight && nMinRequiredABNWeight > 0 && !LateBlock(block, pindexPrev, 60))
 	{
 		double nABNWeight = GetABNWeight(block, false);
 		if (nABNWeight < nMinRequiredABNWeight)
@@ -3548,6 +3573,17 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
 			{
 				return false; // return state.DoS(10, false, REJECT_INVALID, "low-abn-weight", false, "Insufficient ABN weight");
 			}
+		}
+	}
+
+	double nRequireAntiGPUCheck = GetSporkDouble("enforceantigpucheck", 0);
+	if (nRequireAntiGPUCheck == 1 && nHeight > consensusParams.ABNHeight && !LateBlock(block, pindexPrev, 60))
+	{
+		bool fAntiGPU = AntiGPU(block, pindexPrev);
+		if (fAntiGPU)
+		{
+			LogPrintf("\nContextualCheckBlock::AntiGPU ERROR!  Block %f does not meet anti-gpu guidelines for this CPK. ", (double)nHeight);
+			return false;
 		}
 	}
 
@@ -3747,9 +3783,8 @@ bool ProcessNewBlock(const CChainParams& chainparams, const std::shared_ptr<cons
     CValidationState state; // Only used to report errors, not invalidity - ignore it
     if (!ActivateBestChain(state, chainparams, pblock))
         return error("%s: ActivateBestChain failed: %s", __func__, FormatStateMessage(state));
-
-    LogPrintf("%s : ACCEPTED\n", __func__);
-    return true;
+	LogPrintf("{PNB}: %s ", "ACC ");
+	return true;
 }
 
 bool TestBlockValidity(CValidationState& state, const CChainParams& chainparams, const CBlock& block, CBlockIndex* pindexPrev, bool fCheckPOW, bool fCheckMerkleRoot)
@@ -4755,21 +4790,24 @@ void DumpMempool(void)
 void SetOverviewStatus()
 {
 	double dDiff = GetDifficulty(chainActive.Tip());
-	// QuantitativeTightening - QT - RANDREWS - BIBLEPAY
-	// double dPriorPrice = 0;
-	// double dPriorPhase = 0;
-	// GetQTPhase(-1, chainActive.Tip()->nHeight-1, dPriorPrice, dPriorPhase);
-	// std::string sQT = "QT: " + RoundToString(dPriorPhase, 0) + "%";
-	// std::string sQTColor = (dPriorPhase == 0) ? "<font color=blue>" : "<font color=green>";
-	// End of QT
+	// QuantitativeTightening - QT - R ANDREWS - BIBLEPAY
+	double dPriorPrice = 0;
+	double dPriorPhase = 0;
+	std::string sQT;
+    if (sporkManager.IsSporkActive(SPORK_20_QUANTITATIVE_TIGHTENING_ENABLED)) 
+	{
+		GetQTPhase(false, -1, chainActive.Tip()->nHeight, dPriorPrice, dPriorPhase);
+		std::string sQTColor = (dPriorPhase == 0) ? "" : "<font color=green>";
+		sQT = "Price: " + RoundToString(dPriorPrice, 8) + "; QT: " + sQTColor + RoundToString(dPriorPhase, 0) + "%" + "</font>";
+	}
 	std::string sPrayer = "N/A";
 	GetDataList("PRAYER", 30, miGlobalPrayerIndex, "", sPrayer);
 	msGlobalStatus = "Blocks: " + RoundToString((double)chainActive.Tip()->nHeight, 0);
 	msGlobalStatus += "<br>Difficulty: " + RoundToString(GetDifficulty(chainActive.Tip()), 2);
+	msGlobalStatus += "<br>" + sQT;
     
 	std::string sVersionAlert = GetVersionAlert();
 	if (!sVersionAlert.empty()) msGlobalStatus += " <font color=purple>" + sVersionAlert + "</font> ;";
-	// if (false) msGlobalStatus += " " + sQTColor + sQT + "</font>;<font color=green> Price: " + RoundToString(dPriorPrice, 8) + "</font>;";
 	std::string sPrayers = FormatHTML(sPrayer, 12, "<br>");
 	msGlobalStatus2 = "<font color=maroon><b>" + sPrayer + "</font></b><br>&nbsp;";
 }

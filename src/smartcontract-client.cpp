@@ -3,6 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "smartcontract-client.h"
+#include "smartcontract-server.h"
 #include "util.h"
 #include "utilmoneystr.h"
 #include "rpcpodc.h"
@@ -12,7 +13,6 @@
 #include "masternodeman.h"
 #include "governance-classes.h"
 #include "governance.h"
-#include "governance-validators.h"
 #include "masternode-sync.h"
 #include "masternode-payments.h"
 #include "masternodeconfig.h"
@@ -63,7 +63,7 @@ UniValue GetCampaigns()
 	{
 		// CRITICAL TODO: Figure out why nickname is missing from GSCMap but not from GetCPKFromProject
 		CPK oPrimary = GetCPKFromProject("cpk", a.second.sAddress);
-		results.push_back(Pair("member [" + oPrimary.sNickName + "]", a.second.sAddress));
+		results.push_back(Pair("member [" + Caption(oPrimary.sNickName) + "]", a.second.sAddress));
 	}
 
 	results.push_back(Pair("List Of", "Campaign Participants"));
@@ -75,7 +75,7 @@ UniValue GetCampaigns()
 		for (std::pair<std::string, CPK> a : cp1)
 		{
 			CPK oPrimary = GetCPKFromProject("cpk", a.second.sAddress);
-			results.push_back(Pair("campaign-" + sCampaign + "-member [" + oPrimary.sNickName + "]", oPrimary.sAddress));
+			results.push_back(Pair("campaign-" + sCampaign + "-member [" + Caption(oPrimary.sNickName) + "]", oPrimary.sAddress));
 		}
 	}
 	
@@ -105,12 +105,77 @@ bool CheckCampaign(std::string sName)
 	return false;
 }
 
-CWalletTx CreateGSCClientTransmission(std::string sCampaign, CBlockIndex* pindexLast, double nCoinAgePercentage, CAmount nFoundationDonation, CReserveKey& reservekey, std::string& sXML, std::string& sError)
+
+UniValue SentGSCCReport(int nHeight)
+{
+	UniValue results(UniValue::VOBJ);
+	
+	if (!chainActive.Tip()) 
+		return NullUniValue;
+
+	if (nHeight == 0) 
+		nHeight = chainActive.Tip()->nHeight - 1;
+
+	if (nHeight > chainActive.Tip()->nHeight - 1)
+		nHeight = chainActive.Tip()->nHeight - 1;
+
+	int nMaxDepth = nHeight;
+	int nMinDepth = nMaxDepth - BLOCKS_PER_DAY;
+	if (nMinDepth < 1) 
+		return NullUniValue;
+
+	CBlockIndex* pindex = FindBlockByHeight(nMinDepth);
+	const Consensus::Params& consensusParams = Params().GetConsensus();
+	std::string sMyCPK = DefaultRecAddress("Christian-Public-Key");
+	double nTotalPoints = 0;
+	if (sMyCPK.empty())
+		return NullUniValue;
+
+	while (pindex && pindex->nHeight < nMaxDepth)
+	{
+		if (pindex->nHeight < chainActive.Tip()->nHeight) 
+			pindex = chainActive.Next(pindex);
+		CBlock block;
+		if (ReadBlockFromDisk(block, pindex, consensusParams)) 
+		{
+			for (unsigned int n = 0; n < block.vtx.size(); n++)
+			{
+				if (block.vtx[n]->IsGSCTransmission() && CheckAntiBotNetSignature(block.vtx[n], "gsc"))
+				{
+					std::string sCampaignName;
+					std::string sCPK = GetTxCPK(block.vtx[n], sCampaignName);
+					double nCoinAge = 0;
+					CAmount nDonation = 0;
+					GetTransactionPoints(pindex, block.vtx[n], nCoinAge, nDonation);
+					std::string sDiary = ExtractXML(block.vtx[n]->GetTxMessage(), "<diary>", "</diary>");
+					if (CheckCampaign(sCampaignName) && !sCPK.empty() && sMyCPK == sCPK)
+					{
+						double nPoints = CalculatePoints(sCampaignName, sDiary, nCoinAge, nDonation);
+						std::string sReport = "Points: " + RoundToString(nPoints, 0) + ", Campaign: "+ sCampaignName 
+							+ ", CoinAge: "+ RoundToString(nCoinAge, 0) + ", Donation: "+ RoundToString((double)nDonation/COIN, 2);
+						nTotalPoints += nPoints;
+						results.push_back(Pair(block.vtx[n]->GetHash().GetHex(), sReport));
+					}
+				}
+			}
+		}
+	}
+	results.push_back(Pair("Total", nTotalPoints));
+	return results;
+}
+
+CWalletTx CreateGSCClientTransmission(std::string sCampaign, std::string sDiary, CBlockIndex* pindexLast, double nCoinAgePercentage, CAmount nFoundationDonation, CReserveKey& reservekey, std::string& sXML, std::string& sError)
 {
 	CWalletTx wtx;
 	if (pwalletMain->IsLocked())
 	{
 		sError = "Sorry, wallet must be unlocked.";
+		return wtx;
+	}
+
+	if (sCampaign == "HEALING" && sDiary.empty())
+	{
+		sError = "Sorry, Diary entry must be populated to create a Healing transmission.";
 		return wtx;
 	}
 
@@ -164,7 +229,7 @@ CWalletTx CreateGSCClientTransmission(std::string sCampaign, CBlockIndex* pindex
 		sError = "SmartContractClient::CreateGSCTransmission::Failed to sign.";
 		return wtx;
 	}
-	sXML += "<gscsig>" + sSignature + "</gscsig><abncpk>" + sCPK + "</abncpk><gsccampaign>" + sCampaign + "</gsccampaign><abnwgt>" + RoundToString(nTargetCoinAge, 0) + "</abnwgt>";
+	sXML += "<gscsig>" + sSignature + "</gscsig><abncpk>" + sCPK + "</abncpk><gsccampaign>" + sCampaign + "</gsccampaign><abnwgt>" + RoundToString(nTargetCoinAge, 0) + "</abnwgt><diary>" + sDiary + "</diary>";
 	std::string strError;
 	CAmount nBuffer = 10 * COIN;
 	bool fCreated = pwalletMain->CreateTransaction(vecSend, wtx, reservekey, nFeeRequired, nChangePosRet, strError, NULL, true, ALL_COINS, false, 0, sXML, nTargetCoinAge, nTargetSpend + nBuffer);
@@ -186,6 +251,7 @@ CWalletTx CreateGSCClientTransmission(std::string sCampaign, CBlockIndex* pindex
 
 double UserSetting(std::string sName, double dDefault)
 {
+	boost::to_lower(sName);
 	double dConfigSetting = cdbl(GetArg("-" + sName, "0"), 4);
 	if (dConfigSetting == 0) dConfigSetting = dDefault;
 	return dConfigSetting;
@@ -216,25 +282,34 @@ bool Enrolled(std::string sCampaignName, std::string& sError)
 	return true;
 }
 
-static const double nDefaultCoinAgePercentage = .10;
-static const double nDefaultTithe = 7;
-
-bool CreateClientSideTransaction(bool fForce, std::string& sError)
+bool CreateClientSideTransaction(bool fForce, bool fDiaryProjectsOnly, std::string sDiary, std::string& sError)
 {
 	std::map<std::string, std::string> mCampaigns = GetSporkMap("spork", "gsccampaigns");
 	// CRITICAL TODO - Change this to 12 hours before we go to prod
 	double nTransmissionFrequency = GetSporkDouble("gscclienttransmissionfrequency", (60 * 60 * 1));
+	if (sDiary.length() < 10) 
+		sDiary = "";
+
 	// List of Campaigns
 	for (auto s : mCampaigns)
 	{
 		int64_t nLastGSC = (int64_t)ReadCacheDouble(s.first + "_lastclientgsc");
 		int64_t nAge = GetAdjustedTime() - nLastGSC;
+		double nDefaultCoinAgePercentage = GetSporkDouble(s.first + "defaultcoinagepercentage", .10);
+		double nDefaultTithe = GetSporkDouble(s.first + "defaulttitheamount", 0);
+
 		if (nAge > nTransmissionFrequency || fForce)
 		{
 			WriteCacheDouble(s.first + "_lastclientgsc", GetAdjustedTime());
 			// This particular campaign needs a transaction sent (if the user is in good standing and enrolled in this project)
 			std::string sError;
-			if (Enrolled(s.first, sError))
+			bool fPreCheckPassed = true;
+			if (s.first == "HEALING" && sDiary.empty())
+				fPreCheckPassed = false;
+			if (fDiaryProjectsOnly && CalculatePoints(s.first, "", 1000, 1000) > 0) 
+				fPreCheckPassed = false;
+				
+			if (Enrolled(s.first, sError) && fPreCheckPassed)
 			{
 				LogPrintf("\nSmartContract-Client::Creating Client side transaction for campaign %s ", s.first);
 				sError = "";
@@ -242,8 +317,10 @@ bool CreateClientSideTransaction(bool fForce, std::string& sError)
 				CReserveKey reservekey(pwalletMain);
 				double nCoinAgePercentage = UserSetting(s.first + "_coinagepercentage", nDefaultCoinAgePercentage);
 				CAmount nFoundationDonation = UserSetting(s.first + "_foundationdonation", nDefaultTithe) * COIN;
-				CWalletTx wtx = CreateGSCClientTransmission(s.first, chainActive.Tip(), nCoinAgePercentage, nFoundationDonation, reservekey, sXML, sError);
-				LogPrintf("\nCreated client side transmission - %s (Error) %s with txid %s ", sXML, sError, wtx.tx->GetHash().GetHex());
+				CWalletTx wtx = CreateGSCClientTransmission(s.first, sDiary, chainActive.Tip(), nCoinAgePercentage, nFoundationDonation, reservekey, sXML, sError);
+				LogPrintf("\nCreated client side transmission - %s [%s] with txid %s ", sXML, sError, wtx.tx->GetHash().GetHex());
+				// Bubble any error to getmininginfo - or clear the error
+				WriteCache("gsc", "errors", s.first + ": " + sError, GetAdjustedTime(), false);
 				CValidationState state;
 
 				if (sError.empty())
@@ -251,6 +328,7 @@ bool CreateClientSideTransaction(bool fForce, std::string& sError)
 					if (!pwalletMain->CommitTransaction(wtx, reservekey, g_connman.get(), state,  NetMsgType::TX))
 					{
 						LogPrint("GSC", "\nUnable to Commit transaction %s", wtx.tx->GetHash().GetHex());
+						WriteCache("gsc", "errors", "GSC Commit Client Transmission failed " + s.first, GetAdjustedTime(), false);
 						return false;
 					}
 				}

@@ -181,6 +181,7 @@ struct CRecipient
 	bool fTithe;
 	bool fDonate;
 	bool fPrayer;
+	bool fDiary;
 	std::string txtMessage;
 	// END OF BIBLEPAY
 };

@@ -188,55 +188,46 @@ public:
 		consensus.F11000_CUTOVER_HEIGHT = 33440;
 		consensus.F12000_CUTOVER_HEIGHT = 35110;
 		consensus.F13000_CUTOVER_HEIGHT = 57700; 
-	
 		consensus.LAST_TITHE_BLOCK = 21565;
 		consensus.ABNHeight = 125000;
-
 		consensus.nSubsidyHalvingInterval = BLOCKS_PER_DAY * 365; // We produce approx 74,825 blocks per year (205 per day)
 		consensus.nInstantSendKeepLock = 7;
 		consensus.nMasternodePaymentsIncreasePeriod = BLOCKS_PER_DAY * 30; 
-
 		consensus.nMasternodePaymentsStartBlock = 21600;
 		consensus.nMasternodePaymentsIncreaseBlock = 21601;
 		consensus.nBudgetPaymentsStartBlock = 21551; // This is when we change our block distribution to include PR, P2P, IT expenses
 		consensus.nRuleChangeActivationThreshold = 21600; // Same as Masternode Payments Start block
-
 		consensus.nBudgetPaymentsCycleBlocks = BLOCKS_PER_DAY * 30; // Monthly
 		consensus.nBudgetPaymentsWindowBlocks = 100;
 		//  RANDREWS:  This is removed in Evo - consensus.nBudgetProposalEstablishingTime = 60 * 60 * 24;  // One Day
-
-        consensus.nInstantSendConfirmationsRequired = 6;
+		consensus.nInstantSendConfirmationsRequired = 6;
 		consensus.nSuperblockStartBlock = 21710; // The first superblock
 		consensus.nSuperblockCycle = BLOCKS_PER_DAY * 30; // Monthly
 		consensus.nDCCSuperblockStartBlock = 33451; //F11000 CUTOVER HEIGHT + 11
 		consensus.nDCCSuperblockCycle = BLOCKS_PER_DAY; // Daily
 		consensus.nGovernanceMinQuorum = 10;
 		consensus.nGovernanceFilterElements = 20000;
-
 		consensus.nSuperblockStartHash = uint256(); 
 		consensus.nMasternodeMinimumConfirmations = 7;
-
 		consensus.BIP34Height = 120000;
-        consensus.BIP34Hash = uint256();
-	    consensus.BIP65Height = 120000; // 00000000000076d8fcea02ec0963de4abfd01e771fec0863f960c2c64fe6f357
-        consensus.BIP66Height = 120000; // 00000000000b1fa2dfa312863570e13fae9ca7b5566cb27e55422620b469aefa
-        consensus.DIP0001Height = 220000;
-
-        consensus.powLimit = uint256S("0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"); 
-
+		consensus.BIP34Hash = uint256();
+		consensus.BIP65Height = 120000; // 00000000000076d8fcea02ec0963de4abfd01e771fec0863f960c2c64fe6f357
+		consensus.BIP66Height = 120000; // 00000000000b1fa2dfa312863570e13fae9ca7b5566cb27e55422620b469aefa
+		consensus.DIP0001Height = 220000;
+		consensus.QTHeight = 145000;  // Note to future forkers of BiblePay!  This height must be > (BLOCKS_PER_DAY * 32)!  Thank you for forking biblepay and thank you for your support!
+		consensus.powLimit = uint256S("0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"); 
 		consensus.FoundationAddress = "BB2BwSbDCqCqNsfc7FgWFJn4sRgnUt4tsM";
 		consensus.FoundationPODSAddress = "BScSypUZVEEY4TMz1ehyyPcS5wrnMM7WPB";
 		consensus.nPowTargetTimespan = 24 * 60 * 60; // Biblepay: 1 day
 		consensus.nPowTargetSpacing = 7 * 60; // Biblepay: 7 minutes
-		
-        consensus.fPowAllowMinDifficultyBlocks = false;
-        consensus.fPowNoRetargeting = false;
-        consensus.nPowKGWHeight = 0;
-        consensus.nPowDGWHeight = 1;
-        consensus.nMinerConfirmationWindow = 2016; // nPowTargetTimespan / nPowTargetSpacing
-        consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].bit = 28;
-        consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nStartTime = 1199145601; // January 1, 2008
-        consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nTimeout = 1230767999; // December 31, 2008
+		consensus.fPowAllowMinDifficultyBlocks = false;
+		consensus.fPowNoRetargeting = false;
+		consensus.nPowKGWHeight = 0;
+		consensus.nPowDGWHeight = 1;
+		consensus.nMinerConfirmationWindow = 2016; // nPowTargetTimespan / nPowTargetSpacing
+		consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].bit = 28;
+		consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nStartTime = 1199145601; // January 1, 2008
+		consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nTimeout = 1230767999; // December 31, 2008
 
         // Deployment of BIP68, BIP112, and BIP113.
         consensus.vDeployments[Consensus::DEPLOYMENT_CSV].bit = 0;
@@ -380,22 +371,23 @@ public:
 		consensus.EVOLUTION_CUTOVER_HEIGHT = 1000;
 		consensus.nSubsidyHalvingInterval = 365 * BLOCKS_PER_DAY;
 		consensus.nMasternodePaymentsStartBlock = 2001;
-        consensus.nMasternodePaymentsIncreaseBlock = 2001;
-        consensus.nMasternodePaymentsIncreasePeriod = BLOCKS_PER_DAY * 30;
-        consensus.nInstantSendConfirmationsRequired = 6;
-        consensus.nInstantSendKeepLock = 6;
-        consensus.nBudgetPaymentsStartBlock = 2002;
-        consensus.nBudgetPaymentsCycleBlocks = 50;
-        consensus.nBudgetPaymentsWindowBlocks = 10;
-        consensus.nSuperblockStartBlock = 4007; // NOTE: Should satisfy nSuperblockStartBlock > nBudgetPaymentsStartBlock
-        consensus.nSuperblockStartHash = uint256(); // Do not check this on testnet
+		consensus.nMasternodePaymentsIncreaseBlock = 2001;
+		consensus.nMasternodePaymentsIncreasePeriod = BLOCKS_PER_DAY * 30;
+		consensus.nInstantSendConfirmationsRequired = 6;
+		consensus.nInstantSendKeepLock = 6;
+		consensus.nBudgetPaymentsStartBlock = 2002;
+		consensus.QTHeight = 25500;
+		consensus.nBudgetPaymentsCycleBlocks = 50;
+		consensus.nBudgetPaymentsWindowBlocks = 10;
+		consensus.nSuperblockStartBlock = 4007; // NOTE: Should satisfy nSuperblockStartBlock > nBudgetPaymentsStartBlock
+		consensus.nSuperblockStartHash = uint256(); // Do not check this on testnet
 		consensus.nSuperblockCycle = BLOCKS_PER_DAY * 7; // Weekly in TestNet
-        consensus.nGovernanceMinQuorum = 1;
-        consensus.nGovernanceFilterElements = 500;
-        consensus.nMasternodeMinimumConfirmations = 1;
-        consensus.FoundationAddress = "yTrEKf8XQ7y7tychC2gWuGw1hsLqBybnEN";
-        consensus.FoundationPODSAddress = "yTrEKf8XQ7y7tychC2gWuGw1hsLqBybnEN";
-        consensus.nDCCSuperblockStartBlock = 4504; 
+		consensus.nGovernanceMinQuorum = 1;
+		consensus.nGovernanceFilterElements = 500;
+		consensus.nMasternodeMinimumConfirmations = 1;
+		consensus.FoundationAddress = "yTrEKf8XQ7y7tychC2gWuGw1hsLqBybnEN";
+		consensus.FoundationPODSAddress = "yTrEKf8XQ7y7tychC2gWuGw1hsLqBybnEN";
+		consensus.nDCCSuperblockStartBlock = 4504; 
         consensus.nDCCSuperblockCycle = BLOCKS_PER_DAY; // Daily
         consensus.BIP34Height = 76;
         consensus.BIP34Hash = uint256S("0x000008ebb1db2598e897d17275285767717c6acfeac4c73def49fbea1ddcbcb6");
@@ -603,7 +595,7 @@ public:
         pchMessageStart[2] = 0xff;
         pchMessageStart[3] = 0xce;
         vAlertPubKey = ParseHex("04517d8a699cb43d3938d7b24faaff7cda448ca4ea267723ba614784de661949bf632d6304316b244646dea079735b9a6fc4af804efb4752075b9fe2245e14e412");
-        nDefaultPort = 19999;
+        nDefaultPort = 40002;
         nPruneAfterHeight = 1000;
 
         genesis = CreateGenesisBlock(1417713337, 1096447, 0x207fffff, 1, 50 * COIN);

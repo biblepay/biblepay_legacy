@@ -27,7 +27,7 @@
 QString TransactionDesc::FormatTxStatus(const CWalletTx& wtx)
 {
     AssertLockHeld(cs_main);
-    if (!CheckFinalTx(wtx))
+	if (!CheckFinalTx(wtx))
     {
         if (wtx.tx->nLockTime < LOCKTIME_THRESHOLD)
             return tr("Open for %n more block(s)", "", wtx.tx->nLockTime - chainActive.Height());
@@ -329,8 +329,30 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionReco
 		{
 			sNetworkMessage += wtx.tx->vout[i1].sTxOutMessage;
 		}
+
+		// Biblepay - Read actual block, so we can give the user even more information
+		int nDepth = wtx.GetDepthInMainChain();
+    
+		if (nDepth > 0)
+		{
+			const CBlockIndex* pindexTxList = GetBlockIndexByTransactionHash(wtx.GetHash());
+			const Consensus::Params& consensusParams = Params().GetConsensus();
+			if (pindexTxList != NULL)
+			{
+				CBlock blockTxList;
+				if (ReadBlockFromDisk(blockTxList, pindexTxList, consensusParams)) 
+				{
+					strHTML += "<br><span>Height: " + QString::fromStdString(RoundToString((double)pindexTxList->nHeight,0)) + "</span></b>";
+					strHTML += "<br><span>Difficulty: " + QString::fromStdString(RoundToString(GetDifficulty(pindexTxList), 2)) + "</span></b>";
+					strHTML += "<br><span>Time: " + QString::fromStdString(TimestampToHRDate(blockTxList.GetBlockTime())) + "</span></b>";
+					strHTML += "<br><span>Subsidy: " + QString::fromStdString(RoundToString((double)blockTxList.vtx[0]->vout[0].nValue / COIN, 4)) + "</span></b>";
+				}
+			}
+		}
+
 		sStripped = ExtractXML(sNetworkMessage, "<MV>", "</MV>");
 		sObjType = ExtractXML(sNetworkMessage, "<MT>", "</MT>");
+		std::string sDiary = ExtractXML(sNetworkMessage, "<diary>", "</diary>");
 
         strHTML += "<hr><br>" + tr("Debug information") + "<br><br>";
         BOOST_FOREACH(const CTxIn& txin, wtx.tx->vin)
@@ -372,7 +394,11 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionReco
 
         strHTML += "</ul>";
 		if (!sStripped.empty()) 
-			strHTML += "<br><br><b>"+ GUIUtil::TOQS(sObjType) + ":</b> " + GUIUtil::TOQS(sStripped);
+			strHTML += "<br><b>"+ GUIUtil::TOQS(sObjType) + ":</b> " + GUIUtil::TOQS(sStripped) + "<br>";
+
+		if (!sDiary.empty())
+			strHTML += "<br><b>Diary:</b> " + GUIUtil::TOQS(sDiary) + "<br>";
+
     }
 	
     strHTML += "</font></html>";

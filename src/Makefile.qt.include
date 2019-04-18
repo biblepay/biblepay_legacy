@@ -33,6 +33,7 @@ QT_TS = \
 QT_FORMS_UI = \
   qt/forms/addressbookpage.ui \
   qt/forms/askpassphrasedialog.ui \
+  qt/forms/businessobjectlist.ui \
   qt/forms/coincontroldialog.ui \
   qt/forms/editaddressdialog.ui \
   qt/forms/helpmessagedialog.ui \
@@ -59,6 +60,7 @@ QT_MOC_CPP = \
   qt/moc_addresstablemodel.cpp \
   qt/moc_askpassphrasedialog.cpp \
   qt/moc_bantablemodel.cpp \
+  qt/moc_businessobjectlist.cpp \
   qt/moc_bitcoinaddressvalidator.cpp \
   qt/moc_bitcoinamountfield.cpp \
   qt/moc_bitcoingui.cpp \
@@ -131,6 +133,7 @@ BITCOIN_QT_H = \
   qt/addresstablemodel.h \
   qt/askpassphrasedialog.h \
   qt/bantablemodel.h \
+  qt/businessobjectlist.h \
   qt/bitcoinaddressvalidator.h \
   qt/bitcoinamountfield.h \
   qt/bitcoingui.h \
@@ -494,6 +497,7 @@ BITCOIN_QT_WALLET_CPP = \
   qt/addressbookpage.cpp \
   qt/addresstablemodel.cpp \
   qt/askpassphrasedialog.cpp \
+  qt/businessobjectlist.cpp \
   qt/coincontroldialog.cpp \
   qt/coincontroltreewidget.cpp \
   qt/editaddressdialog.cpp \

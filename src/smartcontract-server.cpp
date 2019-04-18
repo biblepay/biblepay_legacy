@@ -8,13 +8,11 @@
 #include "rpcpog.h"
 #include "rpcpodc.h"
 #include "smartcontract-client.h"
-#include "governance-validators.h"
 #include "init.h"
 #include "activemasternode.h"
 #include "masternodeman.h"
 #include "governance-classes.h"
 #include "governance.h"
-#include "governance-validators.h"
 #include "masternode-sync.h"
 #include "masternode-payments.h"
 #include "masternodeconfig.h"
@@ -39,7 +37,7 @@ extern CWallet* pwalletMain;
 
 void GetTransactionPoints(CBlockIndex* pindex, CTransactionRef tx, double& nCoinAge, CAmount& nDonation)
 {
-	nCoinAge = GetVINCoinAge(pindex, tx);
+	nCoinAge = GetVINCoinAge(pindex->GetBlockTime(), tx);
 	bool fSigned = CheckAntiBotNetSignature(tx, "gsc");
 	nDonation = GetTitheAmount(tx);
 	if (!fSigned) 
@@ -51,7 +49,6 @@ void GetTransactionPoints(CBlockIndex* pindex, CTransactionRef tx, double& nCoin
 	}
 	return;
 }
-
 
 std::string GetTxCPK(CTransactionRef tx, std::string& sCampaignName)
 {
@@ -70,15 +67,15 @@ BiblePayProposal GetProposalByHash(uint256 govObj, int nLastSuperblock)
 	int nMinPassing = nSancCount * .10;
 	if (nMinPassing < 1) nMinPassing = 1;
 	CGovernanceObject* myGov = governance.FindGovernanceObject(govObj);
-	CProposalValidator validator(myGov->GetDataAsHexString());
+	UniValue obj = myGov->GetJSONObject();
 	BiblePayProposal bbpProposal;
-	validator.GetDataValue("name", bbpProposal.sName);
-	validator.GetDataValue("start_epoch", bbpProposal.nStartEpoch);
-	validator.GetDataValue("end_epoch", bbpProposal.nEndEpoch);
-	validator.GetDataValue("url", bbpProposal.sURL);
-	validator.GetDataValue("expensetype", bbpProposal.sExpenseType);
-	validator.GetDataValue("payment_amount", bbpProposal.nAmount);
-	validator.GetDataValue("payment_address", bbpProposal.sAddress);
+	bbpProposal.sName = obj["name"].getValStr();
+	bbpProposal.nStartEpoch = cdbl(obj["start_epoch"].getValStr(), 0);
+	bbpProposal.nEndEpoch = cdbl(obj["end_epoch"].getValStr(), 0);
+	bbpProposal.sURL = obj["url"].getValStr();
+	bbpProposal.sExpenseType = obj["expensetype"].getValStr();
+	bbpProposal.nAmount = cdbl(obj["payment_amount"].getValStr(), 2);
+	bbpProposal.sAddress = obj["payment_address"].getValStr();
 	bbpProposal.uHash = myGov->GetHash();
 	bbpProposal.nHeight = GetHeightByEpochTime(bbpProposal.nStartEpoch);
 	bbpProposal.nMinPassing = nMinPassing;
@@ -182,6 +179,7 @@ std::string WatchmanOnTheWall(bool fForce, std::string& sContract)
 	std::string sAddresses;
 	std::string sPayments;
 	std::string sHashes;
+	std::string sVotes;
 	for (auto item : vProposalsInBudget)
     {
 		BiblePayProposal p = GetProposalByHash(item.second, nLastSuperblock);
@@ -191,6 +189,7 @@ std::string WatchmanOnTheWall(bool fForce, std::string& sContract)
 			sAddresses += p.sAddress + "|";
 			sPayments += RoundToString(p.nAmount, 2) + "|";
 			sHashes += p.uHash.GetHex() + "|";
+			sVotes += RoundToString(p.nNetYesVotes, 0) + "|";
 		}
 	}
 	if (sPayments.length() > 1) 
@@ -199,6 +198,9 @@ std::string WatchmanOnTheWall(bool fForce, std::string& sContract)
 		sAddresses = sAddresses.substr(0, sAddresses.length() - 1);
 	if (sHashes.length() > 1)
 		sHashes = sHashes.substr(0, sHashes.length() - 1);
+	if (sVotes.length() > 1)
+		sVotes = sVotes.substr(0, sVotes.length() -1);
+
 	sContract = "<ADDRESSES>" + sAddresses + "</ADDRESSES><PAYMENTS>" + sPayments + "</PAYMENTS><PROPOSALS>" + sHashes + "</PROPOSALS>";
 
 	uint256 uGovObjHash = uint256S("0x0");
@@ -212,7 +214,7 @@ std::string WatchmanOnTheWall(bool fForce, std::string& sContract)
 		return "EMPTY_CONTRACT";
 	}
 	sContract += "<VOTES>" + RoundToString(iTriggerVotes, 0) + "</VOTES><METRICS><HASH>" + uGovObjHash.GetHex() + "</HASH><PAMHASH>" 
-		+ uPamHash.GetHex() + "</PAMHASH><SANCTUARYCOUNT>" + RoundToString(nSancCount, 0) + "</SANCTUARYCOUNT></METRICS>";
+		+ uPamHash.GetHex() + "</PAMHASH><SANCTUARYCOUNT>" + RoundToString(nSancCount, 0) + "</SANCTUARYCOUNT></METRICS><VOTEDATA>" + sVotes + "</VOTEDATA>";
 
 	if (uGovObjHash == uint256S("0x0"))
 	{
@@ -248,16 +250,23 @@ std::string GetGSCContract(int nHeight)
 	return sContract;
 }
 
-double CalculatePoints(std::string sCampaign, double nCoinAge, CAmount nDonation)
+double CalculatePoints(std::string sCampaign, std::string sDiary, double nCoinAge, CAmount nDonation)
 {
 	boost::to_upper(sCampaign);
 	double nPoints = 0;
+
 	if (sCampaign == "POG")
 	{
 		double nComponent1 = nCoinAge;
 		double nTithed = (double)nDonation / COIN;
 		double nComponent2 = cbrt(nTithed);
 		nPoints = nComponent1 * nComponent2;
+		return nPoints;
+	}
+	else if (sCampaign == "HEALING")
+	{
+		double nMultiplier = sDiary.empty() ? 0 : 1;
+		nPoints = nCoinAge * nMultiplier;
 		return nPoints;
 	}
 	return 0;
@@ -341,18 +350,20 @@ std::string AssessBlocks(int nHeight)
 	CAmount nPaymentsLimit = CSuperblock::GetPaymentsLimit(nHeight);
 	nPaymentsLimit -= MAX_BLOCK_SUBSIDY * COIN;
 	if (!chainActive.Tip()) 
-		return "";
+		return std::string();
 	if (nHeight > chainActive.Tip()->nHeight)
 		nHeight = chainActive.Tip()->nHeight - 1;
 
 	int nMaxDepth = nHeight;
 	int nMinDepth = nMaxDepth - BLOCKS_PER_DAY;
 	if (nMinDepth < 1) 
-		return "";
+		return std::string();
 	CBlockIndex* pindex = FindBlockByHeight(nMinDepth);
 	const Consensus::Params& consensusParams = Params().GetConsensus();
 	std::map<std::string, CPK> mPoints;
-	std::map<std::string, CPK> mAllCPKs = GetGSCMap("cpk", "", true);
+	std::map<std::string, double> mCampaignPoints;
+	std::map<std::string, CPK> mCPKCampaignPoints;
+	std::map<std::string, double> mCampaigns;
 
 	while (pindex && pindex->nHeight < nMaxDepth)
 	{
@@ -374,17 +385,29 @@ std::string AssessBlocks(int nHeight)
 					GetTransactionPoints(pindex, block.vtx[n], nCoinAge, nDonation);
 					if (CheckCampaign(sCampaignName) && !sCPK.empty())
 					{
-						double nPoints = CalculatePoints(sCampaignName, nCoinAge, nDonation);
+						std::string sDiary = ExtractXML(block.vtx[n]->GetTxMessage(), "<diary>","</diary>");
+						double nPoints = CalculatePoints(sCampaignName, sDiary, nCoinAge, nDonation);
 						if (nPoints > 0)
 						{
+							// CPK 
 							CPK c = mPoints[sCPK];
 							c.nPoints += nPoints;
 							c.sCampaign = sCampaignName;
 							c.sAddress = sCPK;
 							c.sNickName = localCPK.sNickName;
 							mPoints[sCPK] = c;
+							// Campaign Points
+							mCampaignPoints[sCampaignName] += nPoints;
+							// CPK-Campaign
+							CPK cCPKCampaignPoints = mCPKCampaignPoints[sCPK + sCampaignName];
+							cCPKCampaignPoints.sAddress = sCPK;
+							cCPKCampaignPoints.sNickName = c.sNickName;
+							cCPKCampaignPoints.nPoints += nPoints;
+							mCPKCampaignPoints[sCPK + sCampaignName] = cCPKCampaignPoints;
 							if (fDebugSpam)
-								LogPrintf("\nUser %s , Points %f, Campaign %s, coinage %f, donation %f, usertotal %f ", c.sAddress, (double)nPoints, c.sCampaign, (double)nCoinAge, 
+								LogPrintf("\nUser %s , nn %s, Points %f, Campaign %s, coinage %f, donation %f, usertotal %f ",
+								c.sAddress, localCPK.sNickName, 
+								(double)nPoints, c.sCampaign, (double)nCoinAge, 
 								(double)nDonation/COIN, (double)c.nPoints);
 						}
 					}
@@ -393,27 +416,45 @@ std::string AssessBlocks(int nHeight)
 		}
 	}
 
-	// Tally the Team Total 
-	double nTotalPoints = 0;
-	for (auto pts : mPoints)
-	{
-		nTotalPoints += pts.second.nPoints;
-	}
-	LogPrintf("\nTotal Points %f ",(double)nTotalPoints);
-	nTotalPoints++;
-
-	// Convert Team totals to Prominence levels
-	
-	for (auto Members : mPoints)
-	{
-		mPoints[Members.second.sAddress].nProminence = Members.second.nPoints / nTotalPoints;
-		LogPrintf("\nUser %s, Points %f, Prominence %f ", Members.second.sAddress, Members.second.nPoints, Members.second.nProminence);
-	}
-	// Create the daily contract
 	std::string sData;
+	std::string sGenData;
+	std::string sDetails;
+	double nTotalPoints = 0;
+
+	// Convert To Campaign-CPK-Prominence levels
+	for (auto myCampaign : mCampaignPoints)
+	{
+		std::string sCampaignName = myCampaign.first;
+		double nCampaignPercentage = GetSporkDouble(sCampaignName + "campaignpercentage", 0);
+		if (nCampaignPercentage < 0) nCampaignPercentage = 0;
+		double nCampaignPoints = mCampaignPoints[sCampaignName];
+		if (fDebugSpam)
+			LogPrintf("\n SCS-AssessBlocks::Processing Campaign %s (%f), Payment Pctg [%f], TotalPoints %f ", 
+			myCampaign.first, myCampaign.second, nCampaignPercentage, nCampaignPoints);
+		nCampaignPoints += 1;
+		nTotalPoints += nCampaignPoints;
+		for (auto Members : mPoints)
+		{
+			std::string sKey = Members.second.sAddress + sCampaignName;
+			mCPKCampaignPoints[sKey].nProminence = (mCPKCampaignPoints[sKey].nPoints / nCampaignPoints) * nCampaignPercentage;
+			if (fDebugSpam)
+				LogPrintf("\nUser %s, Campaign %s, Points %f, Prominence %f ", mCPKCampaignPoints[sKey].sAddress, sCampaignName, 
+				mCPKCampaignPoints[sKey].nPoints, mCPKCampaignPoints[sKey].nProminence);
+			std::string sRow = sCampaignName + "|" + Members.second.sAddress + "|" + RoundToString(mCPKCampaignPoints[sKey].nPoints, 0) + "|" 
+				+ RoundToString(mCPKCampaignPoints[sKey].nProminence, 8) + "|" + Members.second.sNickName + "|\n";
+			sDetails += sRow;
+	
+		}
+	}
+	// Grand Total for Smart Contract
+	for (auto Members : mCPKCampaignPoints)
+	{
+		mPoints[Members.second.sAddress].nProminence += Members.second.nProminence;
+	}
+	
+	// Create the Daily Contract
 	std::string sAddresses;
 	std::string sPayments;
-	std::string sGenData;
 	for (auto Members : mPoints)
 	{
 		CAmount nPayment = Members.second.nProminence * nPaymentsLimit;
@@ -421,8 +462,9 @@ std::string AssessBlocks(int nHeight)
 		if (cbaAddress.IsValid() && nPayment > (.25*COIN))
 		{
 			sAddresses += Members.second.sAddress + "|";
-			sPayments += RoundToString(nPayment/COIN, 2) + "|";
-			std::string sRow = Members.second.sAddress + "|" + RoundToString(Members.second.nPoints, 0) + "|" + RoundToString(Members.second.nProminence, 4) + "|" + Members.second.sNickName + "|\n";
+			sPayments += RoundToString(nPayment / COIN, 2) + "|";
+			CPK localCPK = GetCPK(Members.second.sAddress);
+			std::string sRow =  Members.second.sAddress + "|" + RoundToString(Members.second.nPoints, 0) + "|" + RoundToString(Members.second.nProminence, 4) + "|" + localCPK.sNickName + "|\n";
 			sGenData += sRow;
 		}
 	}
@@ -431,7 +473,8 @@ std::string AssessBlocks(int nHeight)
 	if (sAddresses.length() > 1)
 		sAddresses = sAddresses.substr(0, sAddresses.length() - 1);
 	
-	sData = "<PAYMENTS>" + sPayments + "</PAYMENTS><ADDRESSES>" + sAddresses + "</ADDRESSES><DATA>" + sGenData + "</DATA><LIMIT>" + RoundToString(nPaymentsLimit/COIN, 4) + "</LIMIT><TOTALPOINTS>" + RoundToString(nTotalPoints, 2) + "</TOTALPOINTS>";
+	sData = "<PAYMENTS>" + sPayments + "</PAYMENTS><ADDRESSES>" + sAddresses + "</ADDRESSES><DATA>" + sGenData + "</DATA><LIMIT>" 
+		+ RoundToString(nPaymentsLimit/COIN, 4) + "</LIMIT><TOTALPOINTS>" + RoundToString(nTotalPoints, 2) + "</TOTALPOINTS><DETAILS>" + sDetails + "</DETAILS>";
 
 	return sData;
 }
@@ -760,6 +803,29 @@ uint256 GetGSCHash(std::string sContract)
 	return uint256S("0x" + sHash);
 }
 
+std::string SignPrice(std::string sValue)
+{
+	 masternode_info_t infoMn;
+ 	 bool fFound = mnodeman.GetMasternodeInfo(activeMasternodeInfo.outpoint, infoMn);
+     if (fFound) 
+	 {
+         CBitcoinAddress mnAddress(infoMn.keyIDCollateralAddress);
+		 if (mnAddress.IsValid()) 
+		 {
+			std::string sNonceValue = RoundToString(GetAdjustedTime(), 0);
+			std::string sError;
+			std::string sSignature;
+			bool bSigned = SignStake(mnAddress.ToString(), sValue + sNonceValue, sError, sSignature);
+			if (bSigned) 
+			{
+				std::string sSig = "<signer>" + mnAddress.ToString() + "</signer><sig>" + sSignature + "</sig><message>" + sValue + sNonceValue + "</message>";
+				return sSig;
+			}
+		 }
+	 }
+	 return std::string();
+}
+
 std::string SerializeSanctuaryQuorumTrigger(int iContractAssessmentHeight, int nEventBlockHeight, std::string sContract)
 {
 	std::string sEventBlockHeight = RoundToString(nEventBlockHeight, 0);
@@ -767,8 +833,9 @@ std::string SerializeSanctuaryQuorumTrigger(int iContractAssessmentHeight, int n
 	std::string sPaymentAmounts;
 	std::string sHashes = ExtractXML(sContract, "<PROPOSALS>", "</PROPOSALS>");
 	bool bStatus = GetContractPaymentData(sContract, iContractAssessmentHeight, sPaymentAddresses, sPaymentAmounts);
-	if (!bStatus) return "";
-
+	if (!bStatus) 
+		return std::string();
+	std::string sVoteData = ExtractXML(sContract, "<VOTEDATA>", "</VOTEDATA>");
 	std::string sProposalHashes = GetPAMHashByContract(sContract).GetHex();
 	if (!sHashes.empty()) sProposalHashes = sHashes;
 
@@ -780,25 +847,23 @@ std::string SerializeSanctuaryQuorumTrigger(int iContractAssessmentHeight, int n
 	sJson += GJE("payment_addresses", sPaymentAddresses,  true, true);
 	sJson += GJE("payment_amounts",   sPaymentAmounts,    true, true);
 	sJson += GJE("proposal_hashes",   sProposalHashes,    true, true);
-	/*
+	if (!sVoteData.empty())
+		sJson += GJE("vote_data", sVoteData, true, true);
 	// QT - Quantitative Tightening - R ANDREWS
 	double dPrice = GetPBase();
 	std::string sPrice = RoundToString(dPrice, 12);
 	sJson += GJE("price", sPrice, true, true);
+	sJson += GJE("sig", SignPrice(sPrice), true, true);
+	if (!VerifySigner(SignPrice(sPrice)))
+		LogPrintf("SerializeSanctuaryQuorumTrigger::SignatureFailed ERROR %s ", SignPrice(sPrice));
 	double out_PriorPrice = 0;
 	double out_PriorPhase = 0;
-	double dPhase = GetQTPhase(dPrice, nEventBlockHeight, out_PriorPrice, out_PriorPhase);
+	double dPhase = GetQTPhase(true, dPrice, chainActive.Tip()->nHeight, out_PriorPrice, out_PriorPhase);
 	std::string sPhase = RoundToString(dPhase, 0);
 	sJson += GJE("qtphase", sPhase, true, true);
-	std::string sSig = SignPrice(sPrice);
-	sJson += GJE("sig", sSig, true, true);
-	bool fSigValid = VerifyDarkSendSigner(sSig);
-	LogPrintf("Creating Contract Sig %s  sigvalid %f ",sSig.c_str(),(double)fSigValid);
-	*/
-
 	sJson += GJE("type", sType, false, false); 
 	sJson += "}]]";
-	LogPrintf(" Creating object %s ", sJson);
+	LogPrintf("\nSerializeSanctuaryQuorumTrigger:Creating New Object %s ", sJson);
 	std::vector<unsigned char> vchJson = std::vector<unsigned char>(sJson.begin(), sJson.end());
 	std::string sHex = HexStr(vchJson.begin(), vchJson.end());
 	return sHex;
@@ -810,7 +875,7 @@ bool ChainSynced(CBlockIndex* pindex)
 	return (nAge > (60 * 60)) ? false : true;
 }
 
-UniValue GetProminenceLevels(int nHeight)
+UniValue GetProminenceLevels(int nHeight, bool fMeOnly)
 {
 	UniValue results(UniValue::VOBJ);
 	if (nHeight == 0) 
@@ -819,8 +884,36 @@ UniValue GetProminenceLevels(int nHeight)
 	CAmount nPaymentsLimit = CSuperblock::GetPaymentsLimit(nHeight);
 	std::string sContract = GetGSCContract(nHeight);
 	std::string sData = ExtractXML(sContract, "<DATA>", "</DATA>");
+	std::string sDetails = ExtractXML(sContract, "<DETAILS>", "</DETAILS>");
 	std::vector<std::string> vData = Split(sData.c_str(), "\n");
+	std::vector<std::string> vDetails = Split(sDetails.c_str(), "\n");
+	results.push_back(Pair("Prominence", "Details"));
+	// DETAIL ROW FORMAT: sCampaignName + "|" + Members.Address + "|" + nPoints + "|" + nProminence + "|" + NickName + "|\n";
+	std::string sMyCPK = DefaultRecAddress("Christian-Public-Key");
+
+	for (int i = 0; i < vDetails.size(); i++)
+	{
+		std::vector<std::string> vRow = Split(vDetails[i].c_str(), "|");
+		if (vRow.size() >= 4)
+		{
+			std::string sCampaignName = vRow[0];
+			std::string sCPK = vRow[1];
+			double nPoints = cdbl(vRow[2], 2);
+			double nProminence = cdbl(vRow[3], 8) * 100;
+			CPK oPrimary = GetCPKFromProject("cpk", sCPK);
+			std::string sNickName = Caption(oPrimary.sNickName);
+			if (sNickName.empty())
+				sNickName = "N/A";
+			std::string sNarr = sCPK + " [" + sNickName + "] - " + sCampaignName + ", Pts: " + RoundToString(nPoints, 2);
+
+			if ((fMeOnly && sCPK == sMyCPK) || (!fMeOnly))
+				results.push_back(Pair(sNarr, RoundToString(nProminence, 2) + "%"));
+		}
+	}
+	
+
 	double dTotalPaid = 0;
+	results.push_back(Pair("Prominence", "Totals"));
 	for (int i = 0; i < vData.size(); i++)
 	{
 		std::vector<std::string> vRow = Split(vData[i].c_str(), "|");
@@ -830,12 +923,13 @@ UniValue GetProminenceLevels(int nHeight)
 			double nPoints = cdbl(vRow[1], 2);
 			double nProminence = cdbl(vRow[2], 4) * 100;
 			CPK oPrimary = GetCPKFromProject("cpk", sCPK);
-			std::string sNickName = oPrimary.sNickName;
+			std::string sNickName = Caption(oPrimary.sNickName);
 			if (sNickName.empty())
 				sNickName = "N/A";
 			CAmount nOwed = nPaymentsLimit * (nProminence / 100) * .99;
 			std::string sNarr = sCPK + " [" + sNickName + "]" + ", Pts: " + RoundToString(nPoints, 2) + ", Reward: " + RoundToString((double)nOwed / COIN, 2);
-			results.push_back(Pair(sNarr, RoundToString(nProminence, 2) + "%"));
+			if ((fMeOnly && sCPK == sMyCPK) || (!fMeOnly))
+				results.push_back(Pair(sNarr, RoundToString(nProminence, 2) + "%"));
 		}
 	}
 
@@ -947,14 +1041,20 @@ std::string ExecuteGenericSmartContractQuorumProcess()
 	
 	int iRequiredVotes = GetRequiredQuorumLevel(iNextSuperblock);
 	bool bPending = iVotes > iRequiredVotes;
-	// Regardless of having a pending superblock or not, let's forward our crown jewel to the network once every quorum - to ensure they have it
-	if (uGovObjHash != uint256S("0x0"))
+
+	bool fFeatureOff = true;
+	if (!fFeatureOff)
 	{
-		CGovernanceObject *myGov = governance.FindGovernanceObject(uGovObjHash);
-		if (myGov)
+		// R ANDREWS - We can remove this in the mandatory if our gobject syncing problem is resolved.
+		// Regardless of having a pending superblock or not, let's forward our crown jewel to the network once every quorum - to ensure they have it
+		if (uGovObjHash != uint256S("0x0"))
 		{
-			myGov->Relay(*g_connman);
-			LogPrintf(" Relaying crown jewel %s ", myGov->GetHash().GetHex());
+			CGovernanceObject *myGov = governance.FindGovernanceObject(uGovObjHash);
+			if (myGov)
+			{
+				myGov->Relay(*g_connman);
+				LogPrintf(" Relaying crown jewel %s ", myGov->GetHash().GetHex());
+			}
 		}
 	}
 

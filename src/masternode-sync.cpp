@@ -118,7 +118,7 @@ std::string CMasternodeSync::GetSyncStatus()
         case MASTERNODE_SYNC_GOVERNANCE:    return _("Synchronizing governance objects...");
         case MASTERNODE_SYNC_FAILED:        return _("Synchronization failed");
         case MASTERNODE_SYNC_FINISHED:      return _("Synchronization finished");
-        default:                            return "";
+		default:                            return std::string();
     }
 }
 
@@ -146,7 +146,8 @@ void CMasternodeSync::ProcessTick(CConnman& connman)
     // reset the sync process if the last call to this function was more than 60 minutes ago (client was in sleep mode)
     static int64_t nTimeLastProcess = GetTime();
     if(GetTime() - nTimeLastProcess > 60*60) {
-        LogPrintf("CMasternodeSync::ProcessTick -- WARNING: no actions for too long, restarting sync...\n");
+		if (fDebugSpam)
+			LogPrintf("CMasternodeSync::ProcessTick -- WARNING: no actions for too long, restarting sync...\n");
         Reset();
         SwitchToNextAsset(connman);
         nTimeLastProcess = GetTime();
@@ -163,7 +164,8 @@ void CMasternodeSync::ProcessTick(CConnman& connman)
     // reset sync status in case of any other sync failure
     if(IsFailed()) {
         if(nTimeLastFailure + (1*60) < GetTime()) { // 1 minute cooldown after failed sync
-            LogPrintf("CMasternodeSync::ProcessTick -- WARNING: failed to sync, trying again...\n");
+			if (fDebugSpam)
+				LogPrintf("CMasternodeSync::ProcessTick -- WARNING: failed to sync, trying again...\n");
             Reset();
             SwitchToNextAsset(connman);
         }
@@ -180,7 +182,8 @@ void CMasternodeSync::ProcessTick(CConnman& connman)
 
     // Calculate "progress" for LOG reporting / GUI notification
     double nSyncProgress = double(nTriedPeerCount + (nCurrentAsset - 1) * 8) / (8*4);
-    LogPrintf("CMasternodeSync::ProcessTick -- nTick %d nCurrentAsset %d nTriedPeerCount %d nSyncProgress %f\n", nTick, nCurrentAsset, nTriedPeerCount, nSyncProgress);
+	if (fDebugSpam)
+		LogPrintf("CMasternodeSync::ProcessTick -- nTick %d nCurrentAsset %d nTriedPeerCount %d nSyncProgress %f\n", nTick, nCurrentAsset, nTriedPeerCount, nSyncProgress);
     uiInterface.NotifyAdditionalDataSyncProgressChanged(nSyncProgress);
 
     std::vector<CNode*> vNodesCopy = connman.CopyNodeVector(CConnman::FullyConnectedOnly);
@@ -225,7 +228,8 @@ void CMasternodeSync::ProcessTick(CConnman& connman)
                 // We already fully synced from this node recently,
                 // disconnect to free this connection slot for another peer.
                 pnode->fDisconnect = true;
-                LogPrintf("CMasternodeSync::ProcessTick -- disconnecting from recently synced peer=%d\n", pnode->id);
+				if (fDebugSpam)
+					LogPrintf("CMasternodeSync::ProcessTick -- disconnecting from recently synced peer=%d\n", pnode->id);
                 continue;
             }
 
@@ -265,12 +269,15 @@ void CMasternodeSync::ProcessTick(CConnman& connman)
                     return;
                 }
 
-                LogPrint("masternode", "CMasternodeSync::ProcessTick -- nTick %d nCurrentAsset %d nTimeLastBumped %lld GetTime() %lld diff %lld\n", nTick, nCurrentAsset, nTimeLastBumped, GetTime(), GetTime() - nTimeLastBumped);
+				if (fDebugSpam)
+					LogPrint("masternode", "CMasternodeSync::ProcessTick -- nTick %d nCurrentAsset %d nTimeLastBumped %lld GetTime() %lld diff %lld\n", nTick, nCurrentAsset, nTimeLastBumped, GetTime(), GetTime() - nTimeLastBumped);
                 // check for timeout first
                 if(GetTime() - nTimeLastBumped > MASTERNODE_SYNC_TIMEOUT_SECONDS) {
-                    LogPrintf("CMasternodeSync::ProcessTick -- nTick %d nCurrentAsset %d -- timeout\n", nTick, nCurrentAsset);
+					if (fDebugSpam)
+						LogPrintf("CMasternodeSync::ProcessTick -- nTick %d nCurrentAsset %d -- timeout\n", nTick, nCurrentAsset);
                     if (nTriedPeerCount == 0) {
-                        LogPrintf("CMasternodeSync::ProcessTick -- ERROR: failed to sync %s\n", GetAssetName());
+						if (fDebugSpam)
+							LogPrintf("CMasternodeSync::ProcessTick -- ERROR: failed to sync %s\n", GetAssetName());
                         // there is no way we can continue without masternode list, fail here and try later
                         Fail();
                         connman.ReleaseNodeVector(vNodesCopy);
@@ -309,14 +316,19 @@ void CMasternodeSync::ProcessTick(CConnman& connman)
                     return;
                 }
 
-                LogPrint("mnpayments", "CMasternodeSync::ProcessTick -- nTick %d nCurrentAsset %d nTimeLastBumped %lld GetTime() %lld diff %lld\n", nTick, nCurrentAsset, nTimeLastBumped, GetTime(), GetTime() - nTimeLastBumped);
+				if (fDebugSpam)
+					LogPrint("mnpayments", "CMasternodeSync::ProcessTick -- nTick %d nCurrentAsset %d nTimeLastBumped %lld GetTime() %lld diff %lld\n", nTick, nCurrentAsset, nTimeLastBumped, GetTime(), GetTime() - nTimeLastBumped);
                 // check for timeout first
                 // This might take a lot longer than MASTERNODE_SYNC_TIMEOUT_SECONDS due to new blocks,
                 // but that should be OK and it should timeout eventually.
-                if(GetTime() - nTimeLastBumped > MASTERNODE_SYNC_TIMEOUT_SECONDS) {
-                    LogPrintf("CMasternodeSync::ProcessTick -- nTick %d nCurrentAsset %d -- timeout\n", nTick, nCurrentAsset);
-                    if (nTriedPeerCount == 0) {
-                        LogPrintf("CMasternodeSync::ProcessTick -- ERROR: failed to sync %s\n", GetAssetName());
+                if(GetTime() - nTimeLastBumped > MASTERNODE_SYNC_TIMEOUT_SECONDS) 
+				{
+					if (fDebugSpam)
+						LogPrintf("CMasternodeSync::ProcessTick -- nTick %d nCurrentAsset %d -- timeout\n", nTick, nCurrentAsset);
+                    if (nTriedPeerCount == 0) 
+					{
+						if (fDebugSpam)
+							LogPrintf("CMasternodeSync::ProcessTick -- ERROR: failed to sync %s\n", GetAssetName());
                         // probably not a good idea to proceed without winner list
                         Fail();
                         connman.ReleaseNodeVector(vNodesCopy);
@@ -362,13 +374,18 @@ void CMasternodeSync::ProcessTick(CConnman& connman)
             // GOVOBJ : SYNC GOVERNANCE ITEMS FROM OUR PEERS
 
             if(nCurrentAsset == MASTERNODE_SYNC_GOVERNANCE) {
-                LogPrint("gobject", "CMasternodeSync::GovObjects::ProcessTick -- nTick %d nCurrentAsset %d nTimeLastBumped %lld GetTime() %lld diff %lld\n", nTick, nCurrentAsset, nTimeLastBumped, GetTime(), GetTime() - nTimeLastBumped);
+				if (fDebugSpam)
+					LogPrint("gobject", "CMasternodeSync::GovObjects::ProcessTick -- nTick %d nCurrentAsset %d nTimeLastBumped %lld GetTime() %lld diff %lld\n", nTick, nCurrentAsset, nTimeLastBumped, GetTime(), GetTime() - nTimeLastBumped);
 
                 // check for timeout first
-                if(GetTime() - nTimeLastBumped > MASTERNODE_SYNC_TIMEOUT_SECONDS) {
-                    LogPrintf("CMasternodeSync::ProcessTick -- nTick %d nCurrentAsset %d -- timeout\n", nTick, nCurrentAsset);
-                    if(nTriedPeerCount == 0) {
-                        LogPrintf("CMasternodeSync::ProcessTick -- WARNING: failed to sync %s\n", GetAssetName());
+                if(GetTime() - nTimeLastBumped > MASTERNODE_SYNC_TIMEOUT_SECONDS) 
+				{
+					if (fDebugSpam)
+						LogPrintf("CMasternodeSync::ProcessTick -- nTick %d nCurrentAsset %d -- timeout\n", nTick, nCurrentAsset);
+                    if(nTriedPeerCount == 0) 
+					{
+						if (fDebugSpam)
+							LogPrintf("CMasternodeSync::ProcessTick -- WARNING: failed to sync %s\n", GetAssetName());
                         // it's kind of ok to skip this for now, hopefully we'll catch up later?
                     }
                     SwitchToNextAsset(connman);
@@ -397,7 +414,8 @@ void CMasternodeSync::ProcessTick(CConnman& connman)
                             // after that and less then 0.01% or MASTERNODE_SYNC_TICK_SECONDS
                             // (i.e. 1 per second) votes were recieved during the last tick.
                             // We can be pretty sure that we are done syncing.
-                            LogPrintf("CMasternodeSync::ProcessTick -- nTick %d nCurrentAsset %d -- asked for all objects, nothing to do\n", nTick, nCurrentAsset);
+							if (fDebugSpam)
+								LogPrintf("CMasternodeSync::ProcessTick -- nTick %d nCurrentAsset %d -- asked for all objects, nothing to do\n", nTick, nCurrentAsset);
                             // reset nTimeNoObjectsLeft to be able to use the same condition on resync
                             nTimeNoObjectsLeft = 0;
                             SwitchToNextAsset(connman);

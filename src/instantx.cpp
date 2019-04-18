@@ -61,8 +61,10 @@ void CInstantSend::ProcessMessage(CNode* pfrom, const std::string& strCommand, C
     // NOTE: NetMsgType::TXLOCKREQUEST is handled via ProcessMessage() in net_processing.cpp
 
     if (strCommand == NetMsgType::TXLOCKVOTE) { // InstantSend Transaction Lock Consensus Votes
-        if(pfrom->nVersion < MIN_INSTANTSEND_PROTO_VERSION) {
-            LogPrint("instantsend", "TXLOCKVOTE -- peer=%d using obsolete version %i\n", pfrom->id, pfrom->nVersion);
+        if(pfrom->nVersion < MIN_INSTANTSEND_PROTO_VERSION) 
+		{
+			if (fDebugSpam)
+				LogPrint("instantsend", "TXLOCKVOTE -- peer=%d using obsolete version %i\n", pfrom->id, pfrom->nVersion);
             connman.PushMessage(pfrom, CNetMsgMaker(pfrom->GetSendVersion()).Make(NetMsgType::REJECT, strCommand, REJECT_OBSOLETE,
                                strprintf("Version must be %d or greater", MIN_INSTANTSEND_PROTO_VERSION)));
             return;
@@ -676,8 +678,10 @@ void CInstantSend::CheckAndRemove()
     while (itLockCandidate != mapTxLockCandidates.end()) {
         CTxLockCandidate &txLockCandidate = itLockCandidate->second;
         uint256 txHash = txLockCandidate.GetHash();
-        if (txLockCandidate.IsExpired(nCachedBlockHeight)) {
-            LogPrintf("CInstantSend::CheckAndRemove -- Removing expired Transaction Lock Candidate: txid=%s\n", txHash.ToString());
+        if (txLockCandidate.IsExpired(nCachedBlockHeight)) 
+		{
+			if (fDebugSpam)
+				LogPrintf("CInstantSend::CheckAndRemove -- Removing expired Transaction Lock Candidate: txid=%s\n", txHash.ToString());
 
             for (const auto& pair : txLockCandidate.mapOutPointLocks) {
                 mapLockedOutpoints.erase(pair.first);
@@ -694,8 +698,10 @@ void CInstantSend::CheckAndRemove()
     // remove expired votes
     std::map<uint256, CTxLockVote>::iterator itVote = mapTxLockVotes.begin();
     while (itVote != mapTxLockVotes.end()) {
-        if (itVote->second.IsExpired(nCachedBlockHeight)) {
-            LogPrint("instantsend", "CInstantSend::CheckAndRemove -- Removing expired vote: txid=%s  masternode=%s\n",
+        if (itVote->second.IsExpired(nCachedBlockHeight)) 
+		{
+			if (fDebugSpam)
+				LogPrint("instantsend", "CInstantSend::CheckAndRemove -- Removing expired vote: txid=%s  masternode=%s\n",
                     itVote->second.GetTxHash().ToString(), itVote->second.GetMasternodeOutpoint().ToStringShort());
             mapTxLockVotes.erase(itVote++);
         } else {
@@ -706,8 +712,10 @@ void CInstantSend::CheckAndRemove()
     // remove timed out orphan votes
     std::map<uint256, CTxLockVote>::iterator itOrphanVote = mapTxLockVotesOrphan.begin();
     while (itOrphanVote != mapTxLockVotesOrphan.end()) {
-        if (itOrphanVote->second.IsTimedOut()) {
-            LogPrint("instantsend", "CInstantSend::CheckAndRemove -- Removing timed out orphan vote: txid=%s  masternode=%s\n",
+        if (itOrphanVote->second.IsTimedOut()) 
+		{
+			if (fDebugSpam)
+				LogPrint("instantsend", "CInstantSend::CheckAndRemove -- Removing timed out orphan vote: txid=%s  masternode=%s\n",
                     itOrphanVote->second.GetTxHash().ToString(), itOrphanVote->second.GetMasternodeOutpoint().ToStringShort());
             mapTxLockVotes.erase(itOrphanVote->first);
             mapTxLockVotesOrphan.erase(itOrphanVote++);
@@ -731,15 +739,18 @@ void CInstantSend::CheckAndRemove()
     // remove timed out masternode orphan votes (DOS protection)
     std::map<COutPoint, int64_t>::iterator itMasternodeOrphan = mapMasternodeOrphanVotes.begin();
     while (itMasternodeOrphan != mapMasternodeOrphanVotes.end()) {
-        if (itMasternodeOrphan->second < GetTime()) {
-            LogPrint("instantsend", "CInstantSend::CheckAndRemove -- Removing timed out orphan masternode vote: masternode=%s\n",
+        if (itMasternodeOrphan->second < GetTime()) 
+		{
+			if (fDebugSpam)
+				LogPrint("instantsend", "CInstantSend::CheckAndRemove -- Removing timed out orphan masternode vote: masternode=%s\n",
                     itMasternodeOrphan->first.ToStringShort());
             mapMasternodeOrphanVotes.erase(itMasternodeOrphan++);
         } else {
             ++itMasternodeOrphan;
         }
     }
-    LogPrintf("CInstantSend::CheckAndRemove -- %s\n", ToString());
+	if (fDebugSpam)
+		LogPrintf("CInstantSend::CheckAndRemove -- %s\n", ToString());
 }
 
 bool CInstantSend::AlreadyHave(const uint256& hash)

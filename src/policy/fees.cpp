@@ -398,7 +398,8 @@ void CBlockPolicyEstimator::processBlock(unsigned int nBlockHeight,
     // Update all exponential averages with the current block state
     feeStats.UpdateMovingAverages();
 
-    LogPrint("estimatefee", "Blockpolicy after updating estimates for %u of %u txs in block, since last block %u of %u tracked, new mempool map size %u\n",
+    if (fDebugSpam)
+		LogPrint("estimatefee", "Blockpolicy after updating estimates for %u of %u txs in block, since last block %u of %u tracked, new mempool map size %u\n",
              countedTxs, entries.size(), trackedTxs, trackedTxs + untrackedTxs, mapMemPoolTxs.size());
 
     trackedTxs = 0;

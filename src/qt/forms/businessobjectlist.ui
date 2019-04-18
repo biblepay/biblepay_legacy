@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>BusinessObjectList</class>
+ <widget class="QWidget" name="BusinessObjectList">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1085</width>
+    <height>722</height>
+   </rect>
+  </property>
+  <property name="sizePolicy">
+   <sizepolicy hsizetype="Maximum" vsizetype="Maximum">
+    <horstretch>0</horstretch>
+    <verstretch>0</verstretch>
+   </sizepolicy>
+  </property>
+  <property name="windowTitle">
+   <string>Form</string>
+  </property>
+  <widget class="QTableWidget" name="tableWidget">
+   <property name="geometry">
+    <rect>
+     <x>9</x>
+     <y>10</y>
+     <width>1061</width>
+     <height>701</height>
+    </rect>
+   </property>
+   <property name="verticalScrollBarPolicy">
+    <enum>Qt::ScrollBarAlwaysOn</enum>
+   </property>
+   <property name="horizontalScrollBarPolicy">
+    <enum>Qt::ScrollBarAlwaysOn</enum>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label_debug">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>10</y>
+     <width>741</width>
+     <height>16</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Debug label</string>
+   </property>
+  </widget>
+  <zorder>label_debug</zorder>
+  <zorder>tableWidget</zorder>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
