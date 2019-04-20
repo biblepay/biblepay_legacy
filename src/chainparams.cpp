@@ -218,6 +218,7 @@ public:
 		consensus.powLimit = uint256S("0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"); 
 		consensus.FoundationAddress = "BB2BwSbDCqCqNsfc7FgWFJn4sRgnUt4tsM";
 		consensus.FoundationPODSAddress = "BScSypUZVEEY4TMz1ehyyPcS5wrnMM7WPB";
+		consensus.FoundationQTAddress = "BDcNYc8tGXmwD7QmLXbR1rk1qteTDVEjUD";
 		consensus.nPowTargetTimespan = 24 * 60 * 60; // Biblepay: 1 day
 		consensus.nPowTargetSpacing = 7 * 60; // Biblepay: 7 minutes
 		consensus.fPowAllowMinDifficultyBlocks = false;
@@ -376,7 +377,7 @@ public:
 		consensus.nInstantSendConfirmationsRequired = 6;
 		consensus.nInstantSendKeepLock = 6;
 		consensus.nBudgetPaymentsStartBlock = 2002;
-		consensus.QTHeight = 25500;
+		consensus.QTHeight = 40000;
 		consensus.nBudgetPaymentsCycleBlocks = 50;
 		consensus.nBudgetPaymentsWindowBlocks = 10;
 		consensus.nSuperblockStartBlock = 4007; // NOTE: Should satisfy nSuperblockStartBlock > nBudgetPaymentsStartBlock
@@ -387,6 +388,7 @@ public:
 		consensus.nMasternodeMinimumConfirmations = 1;
 		consensus.FoundationAddress = "yTrEKf8XQ7y7tychC2gWuGw1hsLqBybnEN";
 		consensus.FoundationPODSAddress = "yTrEKf8XQ7y7tychC2gWuGw1hsLqBybnEN";
+		consensus.FoundationQTAddress = "ygGKQR4bYwjGaEnX8KCyzEJhht4paYCiuo";
 		consensus.nDCCSuperblockStartBlock = 4504; 
         consensus.nDCCSuperblockCycle = BLOCKS_PER_DAY; // Daily
         consensus.BIP34Height = 76;

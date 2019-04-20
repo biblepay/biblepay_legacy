@@ -240,13 +240,13 @@ std::string WatchmanOnTheWall(bool fForce, std::string& sContract)
 //////////////////////////////////////////////////////////////////////////////// GSC Server side Abstraction Interface ////////////////////////////////////////////////////////////////////////////////////////////////
 
 
-std::string GetGSCContract(int nHeight)
+std::string GetGSCContract(int nHeight, bool fCreating)
 {
 	int nNextSuperblock = 0;
 	int nLast = GetLastGSCSuperblockHeight(chainActive.Tip()->nHeight, nNextSuperblock);
 	if (nHeight != 0) 
 		nLast = nHeight;
-	std::string sContract = AssessBlocks(nLast);
+	std::string sContract = AssessBlocks(nLast, fCreating);
 	return sContract;
 }
 
@@ -345,7 +345,7 @@ bool NickNameExists(std::string sNickName)
 	return false;
 }
 
-std::string AssessBlocks(int nHeight)
+std::string AssessBlocks(int nHeight, bool fCreatingContract)
 {
 	CAmount nPaymentsLimit = CSuperblock::GetPaymentsLimit(nHeight);
 	nPaymentsLimit -= MAX_BLOCK_SUBSIDY * COIN;
@@ -468,13 +468,31 @@ std::string AssessBlocks(int nHeight)
 			sGenData += sRow;
 		}
 	}
+
+	std::string QTData;
+	if (fCreatingContract)
+	{
+		// Add the QT Phase
+		double out_PriorPrice = 0;
+		double out_PriorPhase = 0;
+		double out_BTC = 0;
+		double dPrice = GetPBase(out_BTC);
+		double dPhase = GetQTPhase(true, dPrice, chainActive.Tip()->nHeight, out_PriorPrice, out_PriorPhase);
+		if (dPhase > 0 && !consensusParams.FoundationQTAddress.empty())
+		{
+			sAddresses += consensusParams.FoundationQTAddress + "|";
+			sPayments += RoundToString(dPhase / 100, 4) + "|";
+		}
+		QTData = "<QTDATA><PRICE>" + RoundToString(dPrice, 12) + "</PRICE><BTCPRICE>" + RoundToString(out_BTC, 2) + "</BTCPRICE><QTPHASE>" + RoundToString(dPhase, 0) + "</QTPHASE></QTDATA>";
+	}
+	
 	if (sPayments.length() > 1) 
 		sPayments = sPayments.substr(0, sPayments.length() - 1);
 	if (sAddresses.length() > 1)
 		sAddresses = sAddresses.substr(0, sAddresses.length() - 1);
 	
 	sData = "<PAYMENTS>" + sPayments + "</PAYMENTS><ADDRESSES>" + sAddresses + "</ADDRESSES><DATA>" + sGenData + "</DATA><LIMIT>" 
-		+ RoundToString(nPaymentsLimit/COIN, 4) + "</LIMIT><TOTALPOINTS>" + RoundToString(nTotalPoints, 2) + "</TOTALPOINTS><DETAILS>" + sDetails + "</DETAILS>";
+		+ RoundToString(nPaymentsLimit/COIN, 4) + "</LIMIT><TOTALPOINTS>" + RoundToString(nTotalPoints, 2) + "</TOTALPOINTS><DETAILS>" + sDetails + "</DETAILS>" + QTData;
 
 	return sData;
 }
@@ -569,8 +587,8 @@ bool VoteForGSCContract(int nHeight, std::string sMyContract, std::string& sErro
 		break;
 	}
 	// Phase 2: Vote against contracts at this height that do not match our hash
-	bool bFeatureOff = true;
-	if (!bFeatureOff)
+	bool bFeatureOff = false;
+	if (!bFeatureOff && uPamHash != uint256S("0x0"))
 	{
 		vPropByGov = GetGSCSortedByGov(nHeight, uPamHash, true);
 		for (int i = 0; i < vPropByGov.size(); i++)
@@ -581,6 +599,7 @@ bool VoteForGSCContract(int nHeight, std::string sMyContract, std::string& sErro
 			LogPrintf("\nSmartContract-Server::VoteDownBadGCCContracts::Voting %s for govHash %s, with pre-existing-votes %f (created %f)",
 				sAction, myGovForRemoval->GetHash().GetHex(), iVotes, myGovForRemoval->GetCreationTime());
 			VoteForGobject(myGovForRemoval->GetHash(), sAction, sError);
+			break;
 		}
 	}
 
@@ -803,42 +822,21 @@ uint256 GetGSCHash(std::string sContract)
 	return uint256S("0x" + sHash);
 }
 
-std::string SignPrice(std::string sValue)
-{
-	 masternode_info_t infoMn;
- 	 bool fFound = mnodeman.GetMasternodeInfo(activeMasternodeInfo.outpoint, infoMn);
-     if (fFound) 
-	 {
-         CBitcoinAddress mnAddress(infoMn.keyIDCollateralAddress);
-		 if (mnAddress.IsValid()) 
-		 {
-			std::string sNonceValue = RoundToString(GetAdjustedTime(), 0);
-			std::string sError;
-			std::string sSignature;
-			bool bSigned = SignStake(mnAddress.ToString(), sValue + sNonceValue, sError, sSignature);
-			if (bSigned) 
-			{
-				std::string sSig = "<signer>" + mnAddress.ToString() + "</signer><sig>" + sSignature + "</sig><message>" + sValue + sNonceValue + "</message>";
-				return sSig;
-			}
-		 }
-	 }
-	 return std::string();
-}
-
 std::string SerializeSanctuaryQuorumTrigger(int iContractAssessmentHeight, int nEventBlockHeight, std::string sContract)
 {
 	std::string sEventBlockHeight = RoundToString(nEventBlockHeight, 0);
 	std::string sPaymentAddresses;
 	std::string sPaymentAmounts;
+	// For Evo compatibility and security purposes, we move the QT Phase into the GSC contract so all sancs must agree on the phase
+	std::string sQTData = ExtractXML(sContract, "<QTDATA>", "</QTDATA>");
 	std::string sHashes = ExtractXML(sContract, "<PROPOSALS>", "</PROPOSALS>");
 	bool bStatus = GetContractPaymentData(sContract, iContractAssessmentHeight, sPaymentAddresses, sPaymentAmounts);
 	if (!bStatus) 
 		return std::string();
 	std::string sVoteData = ExtractXML(sContract, "<VOTEDATA>", "</VOTEDATA>");
 	std::string sProposalHashes = GetPAMHashByContract(sContract).GetHex();
-	if (!sHashes.empty()) sProposalHashes = sHashes;
-
+	if (!sHashes.empty())
+		sProposalHashes = sHashes;
 	std::string sType = "2"; // GSC Trigger is always 2
 	std::string sQ = "\"";
 	std::string sJson = "[[" + sQ + "trigger" + sQ + ",{";
@@ -849,18 +847,12 @@ std::string SerializeSanctuaryQuorumTrigger(int iContractAssessmentHeight, int n
 	sJson += GJE("proposal_hashes",   sProposalHashes,    true, true);
 	if (!sVoteData.empty())
 		sJson += GJE("vote_data", sVoteData, true, true);
-	// QT - Quantitative Tightening - R ANDREWS
-	double dPrice = GetPBase();
-	std::string sPrice = RoundToString(dPrice, 12);
-	sJson += GJE("price", sPrice, true, true);
-	sJson += GJE("sig", SignPrice(sPrice), true, true);
-	if (!VerifySigner(SignPrice(sPrice)))
-		LogPrintf("SerializeSanctuaryQuorumTrigger::SignatureFailed ERROR %s ", SignPrice(sPrice));
-	double out_PriorPrice = 0;
-	double out_PriorPhase = 0;
-	double dPhase = GetQTPhase(true, dPrice, chainActive.Tip()->nHeight, out_PriorPrice, out_PriorPhase);
-	std::string sPhase = RoundToString(dPhase, 0);
-	sJson += GJE("qtphase", sPhase, true, true);
+	if (!sQTData.empty())
+	{
+		sJson += GJE("price", ExtractXML(sQTData, "<PRICE>", "</PRICE>"), true, true);
+		sJson += GJE("qtphase", ExtractXML(sQTData, "<QTPHASE>", "</QTPHASE>"), true, true);
+		sJson += GJE("btcprice", ExtractXML(sQTData,"<BTCPRICE>", "</BTCPRICE>"), true, true);
+	}
 	sJson += GJE("type", sType, false, false); 
 	sJson += "}]]";
 	LogPrintf("\nSerializeSanctuaryQuorumTrigger:Creating New Object %s ", sJson);
@@ -882,7 +874,7 @@ UniValue GetProminenceLevels(int nHeight, bool fMeOnly)
 		return NullUniValue;
       
 	CAmount nPaymentsLimit = CSuperblock::GetPaymentsLimit(nHeight);
-	std::string sContract = GetGSCContract(nHeight);
+	std::string sContract = GetGSCContract(nHeight, false);
 	std::string sData = ExtractXML(sContract, "<DATA>", "</DATA>");
 	std::string sDetails = ExtractXML(sContract, "<DETAILS>", "</DETAILS>");
 	std::vector<std::string> vData = Split(sData.c_str(), "\n");
@@ -974,27 +966,6 @@ void CheckGSCHealth()
 	}
 }
 
-bool CheckForValidGSC(int nHeight)
-{
-	if (!CSuperblock::IsSmartContract(nHeight))
-		return false;
-
-	// Reconstruct contract
-	std::string sContract = GetGSCContract(nHeight);
-	std::string sPayments = ExtractXML(sContract, "<PAYMENTS>", "</PAYMENTS>");
-	if (!sPayments.empty())
-	{
-		LogPrintf("SmartContract-Server::CheckForValidGSC::Contains Payments %s, Node contains empty GSC govobj", sPayments);
-		// At this point, we can not assume our local contract is the correct one, but we can assume that our nodes gobjects need synced, and it cannot refuse the superblock (we don't have enough data to make that call which would result in a fork)
-		// Trigger a resync
-		masternodeSync.Reset();
-		masternodeSync.SwitchToNextAsset(*g_connman);
-		return true;
-	}
-	// We don't see a superblock at this height... 
-	return false;
-}
-
 
 std::string ExecuteGenericSmartContractQuorumProcess()
 {
@@ -1033,7 +1004,7 @@ std::string ExecuteGenericSmartContractQuorumProcess()
 	std::string sAddresses;
 	std::string sAmounts;
 	std::string sError;
-	std::string sContract = GetGSCContract(0);
+	std::string sContract = GetGSCContract(0, true);
 	uint256 uGovObjHash = uint256S("0x0");
 	uint256 uPamHash = GetPAMHashByContract(sContract);
 	

@@ -189,11 +189,12 @@ double GetCryptoPrice(std::string sSymbol)
 	return dMid;
 }
 
-double GetPBase()
+double GetPBase(double& out_BTC)
 {
 	// Get the BiblePay market price based on midpoint of bid-ask in Satoshi * BTC price in USD
 	double dBBP = GetCryptoPrice("bbp");
 	double dBTC = GetCryptoPrice("btc");
+	out_BTC = dBTC;
 	double dPriceUSD = dBTC * dBBP;
 	return dPriceUSD;
 }
@@ -233,10 +234,18 @@ double GetQTPhase(bool fInFuture, double dPrice, int nEventHeight, double& out_P
 		CBlockIndex* pindex = FindBlockByHeight(iLastSuperblock);
 		if (pindex == NULL) return 0;
 		CBlock block;
+		out_PriorPhase = 0;
 		if (ReadBlockFromDisk(block, pindex, consensusParams)) 
 		{
 			for (unsigned int i = 0; i < block.vtx[0]->vout.size(); i++)
 			{
+				std::string sRecipient = PubKeyToAddress(block.vtx[0]->vout[i].scriptPubKey);
+				if (sRecipient == consensusParams.FoundationQTAddress)
+				{
+					out_PriorPhase = (block.vtx[0]->vout[i].nValue / COIN) * 100;
+					if (out_PriorPhase > 100) out_PriorPhase = 0;
+					if (out_PriorPhase < 000) out_PriorPhase = 0;
+				}
 				sXML += block.vtx[0]->vout[i].sTxOutMessage;
 			}		
 		}
@@ -244,11 +253,8 @@ double GetQTPhase(bool fInFuture, double dPrice, int nEventHeight, double& out_P
 		{
 			return 0;
 		}
-		out_PriorPhase = cdbl(ExtractXML(sXML, "<qtphase>", "</qtphase>"), 0);
 		out_PriorPrice = cdbl(ExtractXML(sXML, "<price>", "</price>"), 12);
-		std::string sSig = ExtractXML(sXML, "<sig>", "</sig>");
-		bool fSigned = VerifySigner(sXML);
-		if (out_PriorPrice > 0 && out_PriorPhase > 0 && fSigned) 
+		if (out_PriorPhase > 0) 
 			break;
 		nEventHeight -= consensusParams.nDCCSuperblockCycle;
 		if (nEventHeight < consensusParams.nSuperblockStartBlock) 
