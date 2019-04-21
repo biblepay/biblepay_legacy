@@ -53,7 +53,7 @@ double VerifyTasks(std::string sCPID, std::string sTasks);
 std::string SerializeSanctuaryQuorumTrigger(int iContractAssessmentHeight, int nEventBlockHeight, std::string sContract);
 double GetQTPhase(bool fInFuture, double dPrice, int nEventHeight, double& out_PriorPrice, double& out_PriorPhase);
 bool VerifySigner(std::string sXML);
-double GetPBase();
+double GetPBase(double& out_BTC);
 std::string VerifyManyWorkUnits(std::string sProjectId, std::string sTaskIds);
 int VerifySanctuarySignatures(std::string sSignatureData);
 bool IsStakeSigned(std::string sXML);

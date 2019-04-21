@@ -124,6 +124,7 @@ struct Params {
 	// BiblePay Settings
 	std::string FoundationAddress;
 	std::string FoundationPODSAddress;
+	std::string FoundationQTAddress;
 	int nDCCSuperblockStartBlock;
 	int nDCCSuperblockCycle;
 	int QTHeight;

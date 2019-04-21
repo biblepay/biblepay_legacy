@@ -352,14 +352,6 @@ bool CSuperblockManager::IsSuperblockTriggered(int nBlockHeight)
         }
     }
 
-	/*
-	CRITICAL TODO:  Remove this during mandatory
-	// BIBLEPAY - R ANDREWS - Before giving up on a GSC, check to see if the client itself thinks this is a superblock
-	bool fIsValidGSC = CheckForValidGSC(nBlockHeight);
-	if (fIsValidGSC) 
-		return true;
-	*/
-
 	if (CSuperblock::IsSmartContract(nBlockHeight)) 
 		LogPrintf("IsSuperblockTriggered::SmartContract -- WARNING: No GSC superblock triggered at this height %f. ", nBlockHeight);
 
@@ -422,12 +414,13 @@ std::string GetQTPhaseXML(uint256 gObj)
 		{
 			std::string sPrice = obj["price"].getValStr();
 			std::string sQTPhase = obj["qtphase"].getValStr();
-			std::string sDarkSig = obj["sig"].getValStr();
-			std::string sXML = "<price>" + sPrice + "</price><qtphase>" + sQTPhase + "</qtphase>" + sDarkSig;
+			std::string sBTC = obj["btcprice"].getValStr();
+			// This is just for informational purposes when auditing txoutinfo
+			std::string sXML = "<price>" + sPrice + "</price><qtphase>" + sQTPhase + "</qtphase><btcprice>" + sBTC + "</btcprice>";
 			return sXML;
 		}
 	}
-	return "<price>-0.00</price><qtphase>-0.00</qtphase>";
+	return "<price>-0.00</price><qtphase>-0.00</qtphase><btcprice>-0</btcprice>";
 }
 
 

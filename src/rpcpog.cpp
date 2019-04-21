@@ -2329,7 +2329,7 @@ std::string GetPOGBusinessObjectList(std::string sType, std::string sFields)
 	int iLastSuperblock = GetLastGSCSuperblockHeight(chainActive.Tip()->nHeight, iNextSuperblock);
     std::string sData;  
 	CAmount nPaymentsLimit = CSuperblock::GetPaymentsLimit(iNextSuperblock);
-	std::string sContract = GetGSCContract(iNextSuperblock);
+	std::string sContract = GetGSCContract(iNextSuperblock, false);
 	std::string s1 = ExtractXML(sContract, "<DATA>", "</DATA>");
 	std::string sDetails = ExtractXML(sContract, "<DETAILS>", "</DETAILS>");
 	std::vector<std::string> vData = Split(s1.c_str(), "\n");

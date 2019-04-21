@@ -14,9 +14,9 @@
 
 class CWallet;
 
-std::string AssessBlocks(int nHeight);
+std::string AssessBlocks(int nHeight, bool fCreating);
 int GetLastGSCSuperblockHeight(int nCurrentHeight, int& nNextSuperblock);
-std::string GetGSCContract(int nHeight);
+std::string GetGSCContract(int nHeight, bool fCreating);
 bool SubmitGSCTrigger(std::string sHex, std::string& gobjecthash, std::string& sError);
 void GetGSCGovObjByHeight(int nHeight, uint256 uOptFilter, int& out_nVotes, uint256& out_uGovObjHash, std::string& out_PaymentAddresses, std::string& out_PaymentAmounts);
 uint256 GetPAMHashByContract(std::string sContract);
@@ -32,7 +32,6 @@ std::string WatchmanOnTheWall(bool fForce, std::string& sContract);
 void GetGovObjDataByPamHash(int nHeight, uint256 hPamHash, std::string& out_Data);
 BiblePayProposal GetProposalByHash(uint256 govObj, int nLastSuperblock);
 std::string DescribeProposal(BiblePayProposal bbpProposal);
-bool CheckForValidGSC(int nHeight);
 std::string GetTxCPK(CTransactionRef tx, std::string& sCampaignName);
 double CalculatePoints(std::string sCampaign, std::string sDiary, double nCoinAge, CAmount nDonation);
 

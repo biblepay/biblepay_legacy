@@ -215,6 +215,13 @@ void WalletView::processNewTransaction(const QModelIndex& parent, int start, int
             nType == TransactionRecord::PrivateSendMakeCollaterals ||
             nType == TransactionRecord::PrivateSendCreateDenominations) return;
     }
+	// BiblePay - Nuisance 1 - Don't inundate UI with massive quantity of balloons until chain is synced
+	static int64_t nLastPopup = 0;
+	static int64_t nPopupThreshhold = 7;
+	int64_t nAge = GetTime() - nLastPopup;
+	nLastPopup = GetTime();
+	if (nAge < nPopupThreshhold) return;
+	// End of BiblePay - Nuisance 1
 
     QString date = ttm->index(start, TransactionTableModel::Date, parent).data().toString();
     qint64 amount = ttm->index(start, TransactionTableModel::Amount, parent).data(Qt::EditRole).toULongLong();

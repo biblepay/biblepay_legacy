@@ -1899,7 +1899,7 @@ UniValue exec(const JSONRPCRequest& request)
 	{
 		int iNextSuperblock = 0;
 		int iLastSuperblock = GetLastGSCSuperblockHeight(chainActive.Tip()->nHeight, iNextSuperblock);
-		std::string sContract = GetGSCContract(0); // As of iLastSuperblock height
+		std::string sContract = GetGSCContract(0, true); // As of iLastSuperblock height
 		results.push_back(Pair("contract", sContract));
 		std::string sAddresses;
 		std::string sAmounts;
@@ -2230,7 +2230,7 @@ UniValue exec(const JSONRPCRequest& request)
 		GetGSCGovObjByHeight(iNextSuperblock, uPAMHash, iVotes, uGovObjHash, sAddresses, sAmounts);
 		uint256 hPam = GetPAMHash(sAddresses, sAmounts);
 		results.push_back(Pair("pam_hash", hPam.GetHex()));
-		std::string sContract = GetGSCContract(iLastSuperblock);
+		std::string sContract = GetGSCContract(iLastSuperblock, true);
 		uint256 hPAMHash2 = GetPAMHashByContract(sContract);
 		results.push_back(Pair("pam_hash_internal", hPAMHash2.GetHex()));
 		if (hPAMHash2 != hPam)
@@ -2268,7 +2268,7 @@ UniValue exec(const JSONRPCRequest& request)
 	{
 		int iNextSuperblock = 0;
 		int iLastSuperblock = GetLastGSCSuperblockHeight(chainActive.Tip()->nHeight, iNextSuperblock);
-		std::string sContract = GetGSCContract(0); // As of iLastSuperblock height
+		std::string sContract = GetGSCContract(0, true); // As of iLastSuperblock height
 		results.push_back(Pair("Contract", sContract));
 		uint256 hPAMHash = GetPAMHashByContract(sContract);
 		std::string sData;
@@ -2317,7 +2317,8 @@ UniValue exec(const JSONRPCRequest& request)
 		results.push_back(Pair("qt_prior_phase", dPriorPhase));
 		bool fEnabled = sporkManager.IsSporkActive(SPORK_20_QUANTITATIVE_TIGHTENING_ENABLED);
 		results.push_back(Pair("qt_enabled", fEnabled));
-		double dPrice = GetPBase();
+		double out_BTC = 0;
+		double dPrice = GetPBase(out_BTC);
 		results.push_back(Pair("cur_price", RoundToString(dPrice, 12)));
 		double dBBP = GetCryptoPrice("bbp");
 		double dBTC = GetCryptoPrice("btc");
