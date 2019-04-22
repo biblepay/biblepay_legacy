@@ -377,7 +377,7 @@ public:
 		consensus.nInstantSendConfirmationsRequired = 6;
 		consensus.nInstantSendKeepLock = 6;
 		consensus.nBudgetPaymentsStartBlock = 2002;
-		consensus.QTHeight = 40000;
+		consensus.QTHeight = 31000;
 		consensus.nBudgetPaymentsCycleBlocks = 50;
 		consensus.nBudgetPaymentsWindowBlocks = 10;
 		consensus.nSuperblockStartBlock = 4007; // NOTE: Should satisfy nSuperblockStartBlock > nBudgetPaymentsStartBlock
