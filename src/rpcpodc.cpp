@@ -245,6 +245,7 @@ double GetQTPhase(bool fInFuture, double dPrice, int nEventHeight, double& out_P
 		}
 		else
 		{
+			LogPrintf("GetQtPhase::ERROR Unable to read block from disk %f ", iLastSuperblock);
 			return 0;
 		}
 		out_PriorPrice = cdbl(ExtractXML(sXML, "<price>", "</price>"), 12);

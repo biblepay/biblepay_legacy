@@ -2315,10 +2315,12 @@ UniValue exec(const JSONRPCRequest& request)
 		results.push_back(Pair("consensus_price", dPriorPrice));
 		results.push_back(Pair("qt_phase", dCurPhase));
 		results.push_back(Pair("qt_prior_phase", dPriorPhase));
-		bool fEnabled = sporkManager.IsSporkActive(SPORK_20_QUANTITATIVE_TIGHTENING_ENABLED);
-		results.push_back(Pair("qt_enabled", fEnabled));
 		double out_BTC = 0;
 		double dPrice = GetPBase(out_BTC);
+		double dFuturePhase = GetQTPhase(true, dPrice, chainActive.Tip()->nHeight, dPriorPrice, dPriorPhase);
+		results.push_back(Pair("qt_future_phase", dFuturePhase));
+		bool fEnabled = sporkManager.IsSporkActive(SPORK_20_QUANTITATIVE_TIGHTENING_ENABLED);
+		results.push_back(Pair("qt_enabled", fEnabled));
 		results.push_back(Pair("cur_price", RoundToString(dPrice, 12)));
 		double dBBP = GetCryptoPrice("bbp");
 		double dBTC = GetCryptoPrice("btc");

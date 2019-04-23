@@ -3571,7 +3571,11 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
 			double nEnforce = GetSporkDouble("enforceabnweight", 0);
 			if (nEnforce == 1)
 			{
-				return false; // return state.DoS(10, false, REJECT_INVALID, "low-abn-weight", false, "Insufficient ABN weight");
+				return false;
+			}
+			else if (nEnforce == 2)
+			{
+				return state.DoS(1, false, REJECT_INVALID, "low-abn-weight", false, "Insufficient ABN weight");
 			}
 		}
 	}
