@@ -4816,6 +4816,22 @@ void SetOverviewStatus()
 	msGlobalStatus2 = "<font color=maroon><b>" + sPrayer + "</font></b><br>&nbsp;";
 }
 
+void KillBlockchainFiles()
+{
+    boost::filesystem::path pathBlocks = GetDataDir() / "blocks";
+	boost::filesystem::remove_all(pathBlocks);
+	boost::filesystem::path pathChainstate = GetDataDir() / "chainstate";
+	boost::filesystem::remove_all(pathChainstate);
+	boost::filesystem::path pathEvo = GetDataDir() / "evodb";
+	boost::filesystem::remove_all(pathEvo);
+	boost::filesystem::path pathMnpayments = GetDataDir() / "mnpayments.dat";
+	if(boost::filesystem::exists(pathMnpayments)) boost::filesystem::remove(pathMnpayments); 
+	boost::filesystem::path pathGov = GetDataDir() / "governance.dat";
+	if(boost::filesystem::exists(pathGov)) boost::filesystem::remove(pathGov); 
+	boost::filesystem::path pathMncache = GetDataDir() / "mncache.dat";
+	if(boost::filesystem::exists(pathMncache)) boost::filesystem::remove(pathMncache); 
+}  
+
 // END OF BIBLEPAY
 
 //! Guess how far we are in the verification process at the given block index

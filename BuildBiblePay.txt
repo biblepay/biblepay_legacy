@@ -1,5 +1,14 @@
 Build BiblePay Evolution - Ubuntu
 
+/* Optional:  How to increase swap space on a machine with 1gb of ram:
+free #check if swap is 0
+dd if=/dev/zero of=/var/swap.img bs=1024k count=1000
+mkswap /var/swap.img
+swapon /var/swap.img
+free #check if swap is 1024
+*/
+
+
 First install Ubuntu dependencies:
 apt-get install build-essential libtool autotools-dev automake pkg-config libssl-dev libevent-dev bsdmainutils
 apt-get install libboost-system-dev libboost-filesystem-dev libboost-chrono-dev libboost-program-options-dev libboost-test-dev libboost-thread-dev
@@ -19,7 +28,8 @@ cd depends
 make -j4 # Choose a good -j value, depending on the number of CPU cores available
 cd ..
 ./autogen.sh
-./configure --prefix {pwd}/depends/x86_64-pc-linux-gnu
+#Note: if echo `pwd` does not return your current working directory, replace it with your working directory such as /biblepay-evolution/
+./configure --prefix `pwd`/depends/x86_64-pc-linux-gnu
 make
 See more here:
 https://github.com/biblepay/biblepay-evolution/blob/master/doc/build-unix.md
