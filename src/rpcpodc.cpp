@@ -208,7 +208,8 @@ double GetQTPhase(bool fInFuture, double dPrice, int nEventHeight, double& out_P
 	// fInFuture is required to calculate tomorrow's qt phase.  (Otherwise, return the historical value).
 	// If a -1 dPrice is passed in, the caller wants the prior days QT level and price.
     double nMaximumTighteningPercentage = GetSporkDouble("qtmaxpercentage", 0);
-	bool fEnabled = sporkManager.IsSporkActive(SPORK_20_QUANTITATIVE_TIGHTENING_ENABLED);
+	double nQTStartHeight = GetSporkDouble("qtheight", 0);
+	bool fEnabled = sporkManager.IsSporkActive(SPORK_20_QUANTITATIVE_TIGHTENING_ENABLED) && nQTStartHeight > 0 && nEventHeight > nQTStartHeight;
 	if (nMaximumTighteningPercentage == 0 || !fEnabled)
 		return 0;
 	double nPriceThreshhold = GetSporkDouble("qtpricethreshhold", 0);
@@ -236,7 +237,7 @@ double GetQTPhase(bool fInFuture, double dPrice, int nEventHeight, double& out_P
 				std::string sRecipient = PubKeyToAddress(block.vtx[0]->vout[i].scriptPubKey);
 				if (sRecipient == consensusParams.FoundationQTAddress)
 				{
-					out_PriorPhase = (block.vtx[0]->vout[i].nValue / COIN) * 100;
+					out_PriorPhase = ((double)block.vtx[0]->vout[i].nValue / COIN) * 100;
 					if (out_PriorPhase > 100) out_PriorPhase = 0;
 					if (out_PriorPhase < 000) out_PriorPhase = 0;
 				}

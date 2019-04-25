@@ -134,6 +134,7 @@ static const int64_t MAX_FEE_ESTIMATION_TIP_AGE = 3 * 60 * 60;
 
 /** BiblePay extern functions **/
 void SetOverviewStatus();
+void KillBlockchainFiles();
 
 /** Biblepay-Classic Settings **/
 static const std::string BUSINESS_OBJECTS = "BUSINESS_OBJECTS";

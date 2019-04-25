@@ -1137,7 +1137,7 @@ bool AppInitParameterInteraction()
 
     if (nMaxConnections < nUserMaxConnections)
         InitWarning(strprintf(_("Reducing -maxconnections from %d to %d, because of system limitations."), nUserMaxConnections, nMaxConnections));
-
+	
     // ********************************************************* Step 2.1: Extra BiblePay init settings
 	if (chainparams.NetworkIDString() == "main")
 	{
@@ -1729,6 +1729,14 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
             return InitError(_("Failed to load sporks cache from") + "\n" + (GetDataDir() / "sporks.dat").string());
         }
     }
+	// BiblePay - Erase Chain
+	bool fEraseChain = GetBoolArg("-erasechain", false);
+	if (fEraseChain)
+	{
+		LogPrintf(" Killing blockchain files ... \n");
+		KillBlockchainFiles();
+		LogPrintf(" Blockchain files erased. \n");
+	}
 
     // ********************************************************* Step 7b: load block chain
 
