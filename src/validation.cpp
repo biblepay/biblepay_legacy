@@ -3466,6 +3466,12 @@ bool LateBlock(const CBlock& block, const CBlockIndex* pindexPrev, int iMinutes)
 	return (nAgeTip > (60 * iMinutes)) ? true : false;
 }
 
+int64_t LateBlockIndex(const CBlockIndex* pindexPrev, int iMinutes)
+{
+	int64_t nAge = GetAdjustedTime() - pindexPrev->nTime;
+	return (nAge > (60 * iMinutes)) ? true : false;
+}
+
 bool AntiGPU(const CBlock& block, const CBlockIndex* pindexPrev)
 {
 	if (!pindexPrev) return false;
@@ -3599,7 +3605,7 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
 
 	bool bIsSuperblock = CSuperblock::IsValidBlockHeight(nHeight) || CSuperblock::IsSmartContract(nHeight);
 	CAmount nPayments = block.vtx[0]->GetValueOut();
-	if (nHeight > consensusParams.EVOLUTION_CUTOVER_HEIGHT && bIsSuperblock && nPayments < ((MAX_BLOCK_SUBSIDY + 1) * COIN) && !LateBlock(block, pindexPrev, 15))
+	if (nHeight > consensusParams.EVOLUTION_CUTOVER_HEIGHT && bIsSuperblock && nPayments < ((MAX_BLOCK_SUBSIDY + 1) * COIN) && !LateBlockIndex(pindexPrev, 15))
 	{
 		LogPrintf("\nContextualCheckBlock::CheckGSCSuperblock, Block Height %f, This superblock has no recipients!", (double)nHeight);
 		return false; // return state.DoS(1, false, REJECT_INVALID, "invalid-gsc-recipient-count", false, "Invalid GSC recipient count");
