@@ -248,7 +248,7 @@ bool CheckStakeSignature(std::string sBitcoinAddress, std::string sSignature, st
 
 CPK GetCPK(std::string sData)
 {
-	// CPK DATA FORMAT: sCPK + "|" + Sanitized NickName + "|" + LockTime + "|" + SecurityHash + "|" + CPK Signature;
+	// CPK DATA FORMAT: sCPK + "|" + Sanitized NickName + "|" + LockTime + "|" + SecurityHash + "|" + CPK Signature + "|" + Email + "|" + VendorType
 	CPK k;
 	std::vector<std::string> vDec = Split(sData.c_str(), "|");
 	if (vDec.size() < 5) return k;
@@ -256,6 +256,10 @@ CPK GetCPK(std::string sData)
 	std::string sSig = vDec[4];
 	std::string sCPK = vDec[0];
 	if (sCPK.empty()) return k;
+	if (vDec.size() >= 6)
+		k.sEmail = vDec[5];
+	if (vDec.size() >= 7)
+		k.sVendorType = vDec[6];
 
 	k.fValid = CheckStakeSignature(sCPK, sSig, sSecurityHash, k.sError);
 	if (!k.fValid) 
@@ -2098,7 +2102,7 @@ std::string GetCPKData(std::string sProjectId, std::string sPK)
 	return ReadCache(sProjectId, sPK);
 }
 
-bool AdvertiseChristianPublicKeypair(std::string sProjectId, std::string sNickName, bool fUnJoin, bool fForce, std::string &sError)
+bool AdvertiseChristianPublicKeypair(std::string sProjectId, std::string sNickName, std::string sEmail, std::string sVendorType, bool fUnJoin, bool fForce, std::string &sError)
 {	
 	std::string sCPK = DefaultRecAddress("Christian-Public-Key");
 	std::string sRec = GetCPKData(sProjectId, sCPK);
@@ -2158,7 +2162,7 @@ bool AdvertiseChristianPublicKeypair(std::string sProjectId, std::string sNickNa
 	// Only append the signature after we prove they can sign...
 	if (bSigned)
 	{
-		sData += "|" + sSignature;
+		sData += "|" + sSignature + "|" + sEmail + "|" + sVendorType;
 	}
 	else
 	{

@@ -268,16 +268,18 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     pblock->nNonce         = 0;
     pblocktemplate->nPrevBits = pindexPrev->nBits;
     pblocktemplate->vTxSigOps[0] = GetLegacySigOpCount(*pblock->vtx[0]);
-
+	
     CValidationState state;
-    if (!TestBlockValidity(state, chainparams, *pblock, pindexPrev, false, false)) 
+    if (!TestBlockValidity(state, chainparams, *pblock, pindexPrev, false, false, true)) 
 	{
-		LogPrint("miner", "BibleMiner failed to create new block\n");
+		if (fDebugSpam)
+			LogPrint("miner", "BibleMiner failed to create new block\n");
         return NULL;
     }
     int64_t nTime2 = GetTimeMicros();
 
-    LogPrint("bench", "CreateNewBlock() packages: %.2fms (%d packages, %d updated descendants), validity: %.2fms (total %.2fms)\n", 0.001 * (nTime1 - nTimeStart), nPackagesSelected, nDescendantsUpdated, 0.001 * (nTime2 - nTime1), 0.001 * (nTime2 - nTimeStart));
+	if (fDebugSpam)
+		LogPrint("bench", "CreateNewBlock() packages: %.2fms (%d packages, %d updated descendants), validity: %.2fms (total %.2fms)\n", 0.001 * (nTime1 - nTimeStart), nPackagesSelected, nDescendantsUpdated, 0.001 * (nTime2 - nTime1), 0.001 * (nTime2 - nTimeStart));
 
     return std::move(pblocktemplate);
 }
@@ -959,18 +961,18 @@ bool PeersExist()
 bool LateBlock(CBlock block, CBlockIndex* pindexPrev, int iMinutes)
 {
 	// After 60 minutes, we no longer require the anti-bot-net weight (prevent the chain from freezing)
+	// Note we use two hard times to make this rule fork-proof
 	int64_t nAgeTip = block.GetBlockTime() - pindexPrev->nTime;
-	int64_t nAge = GetAdjustedTime() - pindexPrev->nTime;
-	return (nAge > (60 * iMinutes) || nAgeTip > (60 * iMinutes)) ? true : false;
+	return (nAgeTip > (60 * iMinutes)) ? true : false;
 }
 
 bool IsMyABNSufficient(CBlock block, CBlockIndex* pindexPrev, int nHeight)
 {
 	const Consensus::Params& consensusParams = Params().GetConsensus();
 	double nMinRequiredABNWeight = GetSporkDouble("requiredabnweight", 0);
-	double nEnforceABNWeight = GetSporkDouble("enforceabnweight", 0);
+	double nABNHeight = GetSporkDouble("anbheight", 0);
 	// Rule #1 - Resist generating blocks with low ABN weight
-	if (nEnforceABNWeight == 1 && nHeight > consensusParams.ABNHeight && nMinRequiredABNWeight > 0 && !LateBlock(block, pindexPrev, 60))
+	if (nABNHeight > 0 && nHeight > consensusParams.ABNHeight && nHeight > nABNHeight && nMinRequiredABNWeight > 0 && !LateBlock(block, pindexPrev, 60))
 	{
 		double nABNWeight = GetABNWeight(block, true);
 		if (nABNWeight < nMinRequiredABNWeight) return false;
@@ -1318,9 +1320,8 @@ void GenerateBiblecoins(bool fGenerate, int nThreads, const CChainParams& chainp
 	int iBibleNumber = 0;			
     for (int i = 0; i < nThreads; i++)
 	{
-		ClearCache("poolthread" + RoundToString(i,0));
+		ClearCache("poolthread" + RoundToString(i, 0));
 	    minerThreads->create_thread(boost::bind(&BibleMiner, boost::cref(chainparams), boost::cref(i), boost::cref(iBibleNumber)));
-		LogPrintf(" Starting Thread #%f with Bible #%f      ",(double)i,(double)iBibleNumber);
 	    MilliSleep(100); 
 	}
 	iMinerThreadCount = nThreads;

@@ -2118,13 +2118,23 @@ UniValue exec(const JSONRPCRequest& request)
 	else if (sItem == "cpk")
 	{
 		std::string sError;
-		if (request.params.size() != 2 && request.params.size() != 3)
-			throw std::runtime_error("You must specify exec cpk nickname [optional: force=true/false].");
+		if (request.params.size() != 2 && request.params.size() != 3 && request.params.size() != 4 && request.params.size() != 5)
+			throw std::runtime_error("You must specify exec cpk nickname [optional e-mail address] [optional vendortype=church/user/vendor] [optional: force=true/false].");
 		std::string sNickName = request.params[1].get_str();
 		bool fForce = false;
-		if (request.params.size() == 3)
-			fForce = request.params[2].get_str() == "true" ? true : false;
-		bool fAdv = AdvertiseChristianPublicKeypair("cpk", sNickName, false, fForce, sError);
+		std::string sEmail;
+		std::string sVendorType;
+
+		if (request.params.size() >= 3)
+			sEmail = request.params[2].get_str();
+		
+		if (request.params.size() >= 4)
+			sVendorType = request.params[3].get_str();
+
+		if (request.params.size() >= 5)
+			fForce = request.params[4].get_str() == "true" ? true : false;
+
+		bool fAdv = AdvertiseChristianPublicKeypair("cpk", sNickName, sEmail, sVendorType, false, fForce, sError);
 		results.push_back(Pair("Results", fAdv));
 		if (!fAdv)
 			results.push_back(Pair("Error", sError));
@@ -2137,7 +2147,7 @@ UniValue exec(const JSONRPCRequest& request)
 		std::string sError;
 		if (!CheckCampaign(sProject))
 			throw std::runtime_error("Campaign does not exist.");
-		bool fAdv = AdvertiseChristianPublicKeypair("cpk-" + sProject, "", true, false, sError);
+		bool fAdv = AdvertiseChristianPublicKeypair("cpk-" + sProject, "", "", "", true, false, sError);
 		results.push_back(Pair("Results", fAdv));
 		if (!fAdv)
 			results.push_back(Pair("Error", sError));
@@ -2151,7 +2161,7 @@ UniValue exec(const JSONRPCRequest& request)
 		std::string sError;
 		if (!CheckCampaign(sProject))
 			throw std::runtime_error("Campaign does not exist.");
-		bool fAdv = AdvertiseChristianPublicKeypair("cpk-" + sProject, "", false, false, sError);
+		bool fAdv = AdvertiseChristianPublicKeypair("cpk-" + sProject, "", "", "", false, false, sError);
 		results.push_back(Pair("Results", fAdv));
 		if (!fAdv)
 			results.push_back(Pair("Error", sError));
