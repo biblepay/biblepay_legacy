@@ -344,7 +344,8 @@ void SendCoinsDialog::send(QList<SendCoinsRecipient> recipients, QString strFee,
         // generate bold amount string
         QString amount = "<b>" + BitcoinUnits::formatHtmlWithUnit(model->getOptionsModel()->getDisplayUnit(), rcp.amount);
         amount.append("</b> ").append(strFunds);
-		nTitheAmount += rcp.amount * .10;
+		if (rcp.fTithe)
+			nTitheAmount += rcp.amount * .10;
     
         // generate monospace address string
         QString address = "<span style='font-family: monospace;'>" + rcp.address;

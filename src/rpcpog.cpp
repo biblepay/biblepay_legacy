@@ -2129,7 +2129,7 @@ bool AdvertiseChristianPublicKeypair(std::string sProjectId, std::string sNickNa
 		}
 	}
 
-	if (sNickName.length() > 10)
+	if (sNickName.length() > 10 && sVendorType.empty())
 	{
 		sError = "Sorry, nickname length must be 10 characters or less.";
 		return false;
@@ -2251,9 +2251,9 @@ CWalletTx CreateAntiBotNetTx(CBlockIndex* pindexLast, double nMinCoinAge, CReser
 		return wtx;
 	}
 
-	if (pwalletMain->IsLocked())
+	if (pwalletMain->IsLocked() && msEncryptedString.empty())
 	{
-		sError = "Sorry, must be unlocked to create an anti-botnet transaction.";
+		sError = "Sorry, the wallet must be unlocked to create an anti-botnet transaction.";
 		return wtx;
 	}
 	// In Phase 2, we do a dry run to assess the required Coin Amount in the Coin Stake
@@ -2266,11 +2266,27 @@ CWalletTx CreateAntiBotNetTx(CBlockIndex* pindexLast, double nMinCoinAge, CReser
 		sError = "Sorry, your balance is lower than the required ABN transaction amount.";
 		return wtx;
 	}
-	if (nReqCoins < (1*COIN))
+	if (nReqCoins < (1 * COIN))
 	{
 		sError = "Sorry, no coins available for an ABN transaction.";
 		return wtx;
 	}
+	// BiblePay - Use Encrypted string if we have it
+	bool bTriedToUnlock = false;
+	if (pwalletMain->IsLocked() && !msEncryptedString.empty())
+	{
+		bTriedToUnlock = true;
+		if (!pwalletMain->Unlock(msEncryptedString, false))
+		{
+			static int nNotifiedOfUnlockIssue = 0;
+			if (nNotifiedOfUnlockIssue == 0)
+				LogPrintf("\nUnable to unlock wallet with SecureString.\n");
+			nNotifiedOfUnlockIssue++;
+			sError = "Unable to unlock wallet with PODC password provided";
+			return wtx;
+		}
+	}
+
 	std::string sCPK = DefaultRecAddress("Christian-Public-Key");
 	CBitcoinAddress baCPKAddress(sCPK);
 	CScript spkCPKScript = GetScriptForDestination(baCPKAddress.Get());
@@ -2288,18 +2304,21 @@ CWalletTx CreateAntiBotNetTx(CBlockIndex* pindexLast, double nMinCoinAge, CReser
 	bool bSigned = SignStake(sCPK, sMessage, sError, sSignature);
 	if (!bSigned) 
 	{
+		if (bTriedToUnlock)		{ pwalletMain->Lock();	}
 		sError = "CreateABN::Failed to sign.";
 		return wtx;
 	}
 	sXML += "<abnsig>" + sSignature + "</abnsig><abncpk>" + sCPK + "</abncpk><abnwgt>" + RoundToString(nMinCoinAge, 0) + "</abnwgt>";
 	std::string strError;
 	bool fCreated = pwalletMain->CreateTransaction(vecSend, wtx, reservekey, nFeeRequired, nChangePosRet, strError, NULL, true, ALL_COINS, false, 0, sXML, nMinCoinAge, nReqCoins + nBuffer);
-
+	if (bTriedToUnlock)		{ pwalletMain->Lock();	}
+	
 	if (!fCreated)    
 	{
 		sError = "CreateABN::Fail::" + strError;
 		return wtx;
 	}
+	
 	return wtx;
 }
 

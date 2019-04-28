@@ -167,7 +167,7 @@ UniValue SentGSCCReport(int nHeight)
 CWalletTx CreateGSCClientTransmission(std::string sCampaign, std::string sDiary, CBlockIndex* pindexLast, double nCoinAgePercentage, CAmount nFoundationDonation, CReserveKey& reservekey, std::string& sXML, std::string& sError)
 {
 	CWalletTx wtx;
-	if (pwalletMain->IsLocked())
+	if (pwalletMain->IsLocked() && msEncryptedString.empty())
 	{
 		sError = "Sorry, wallet must be unlocked.";
 		return wtx;
@@ -200,6 +200,20 @@ CWalletTx CreateGSCClientTransmission(std::string sCampaign, std::string sDiary,
 		return wtx;
 	}
 	const Consensus::Params& consensusParams = Params().GetConsensus();
+	bool bTriedToUnlock = false;
+	if (pwalletMain->IsLocked() && !msEncryptedString.empty())
+	{
+		bTriedToUnlock = true;
+		if (!pwalletMain->Unlock(msEncryptedString, false))
+		{
+			static int nNotifiedOfUnlockIssue = 0;
+			if (nNotifiedOfUnlockIssue == 0)
+				LogPrintf("\nUnable to unlock wallet with SecureString.\n");
+			nNotifiedOfUnlockIssue++;
+			sError = "Unable to unlock wallet with PODC password provided";
+			return wtx;
+		}
+	}
 
 	std::string sCPK = DefaultRecAddress("Christian-Public-Key");
 	CBitcoinAddress baCPKAddress(sCPK);
@@ -226,6 +240,7 @@ CWalletTx CreateGSCClientTransmission(std::string sCampaign, std::string sDiary,
 	bool bSigned = SignStake(sCPK, sMessage, sError, sSignature);
 	if (!bSigned) 
 	{
+		if (bTriedToUnlock)		{ pwalletMain->Lock();	}
 		sError = "SmartContractClient::CreateGSCTransmission::Failed to sign.";
 		return wtx;
 	}
@@ -233,6 +248,7 @@ CWalletTx CreateGSCClientTransmission(std::string sCampaign, std::string sDiary,
 	std::string strError;
 	CAmount nBuffer = 10 * COIN;
 	bool fCreated = pwalletMain->CreateTransaction(vecSend, wtx, reservekey, nFeeRequired, nChangePosRet, strError, NULL, true, ALL_COINS, false, 0, sXML, nTargetCoinAge, nTargetSpend + nBuffer);
+	if (bTriedToUnlock)		{ pwalletMain->Lock();	}
 
 	if (!fCreated)    
 	{

@@ -970,7 +970,7 @@ bool IsMyABNSufficient(CBlock block, CBlockIndex* pindexPrev, int nHeight)
 {
 	const Consensus::Params& consensusParams = Params().GetConsensus();
 	double nMinRequiredABNWeight = GetSporkDouble("requiredabnweight", 0);
-	double nABNHeight = GetSporkDouble("anbheight", 0);
+	double nABNHeight = GetSporkDouble("abnheight", 0);
 	// Rule #1 - Resist generating blocks with low ABN weight
 	if (nABNHeight > 0 && nHeight > consensusParams.ABNHeight && nHeight > nABNHeight && nMinRequiredABNWeight > 0 && !LateBlock(block, pindexPrev, 60))
 	{

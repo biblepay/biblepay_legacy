@@ -70,20 +70,17 @@ bool SignStake(std::string sBitcoinAddress, std::string strMessage, std::string&
 	{	
 		// Unlock wallet if SecureKey is available
 		bool bTriedToUnlock = false;
-		if (pwalletMain->IsLocked())
+		if (pwalletMain->IsLocked() && !msEncryptedString.empty())
 		{
-			if (!msEncryptedString.empty())
+			bTriedToUnlock = true;
+			if (!pwalletMain->Unlock(msEncryptedString, false))
 			{
-				bTriedToUnlock = true;
-				if (!pwalletMain->Unlock(msEncryptedString, false))
-				{
-					static int nNotifiedOfUnlockIssue = 0;
-					if (nNotifiedOfUnlockIssue == 0)
-						LogPrintf("\nUnable to unlock wallet with SecureString.\n");
-					nNotifiedOfUnlockIssue++;
-					sError = "Unable to unlock wallet with PODC password provided";
-					return false;
-				}
+				static int nNotifiedOfUnlockIssue = 0;
+				if (nNotifiedOfUnlockIssue == 0)
+					LogPrintf("\nUnable to unlock wallet with SecureString.\n");
+				nNotifiedOfUnlockIssue++;
+				sError = "Unable to unlock wallet with PODC password provided";
+				return false;
 			}
 		}
 

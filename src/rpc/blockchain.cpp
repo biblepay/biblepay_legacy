@@ -1416,7 +1416,7 @@ struct CompareBlocksByHeight
 
 UniValue getchaintips(const JSONRPCRequest& request)
 {
-	    if (request.fHelp || request.params.size() > 3)
+	    if (request.fHelp || request.params.size() > 4)
         throw std::runtime_error(
             "getchaintips ( count branchlen minimum_difficulty )\n"
             "Return information about all known tips in the block tree,"
@@ -1424,6 +1424,8 @@ UniValue getchaintips(const JSONRPCRequest& request)
             "\nArguments:\n"
             "1. count       (numeric, optional) only show this much of latest tips\n"
             "2. branchlen   (numeric, optional) only show tips that have equal or greater length of branch\n"
+			"3. minimum_diff(numeric, optional) only show tips that have equal or greater difficulty\n"
+			"4. minimum_branch_length(numeric, optional) only show tips that have equal or greater branch length\n"
             "\nResult:\n"
             "[\n"
             "  {\n"
@@ -1493,6 +1495,10 @@ UniValue getchaintips(const JSONRPCRequest& request)
 	if (request.params.size() == 3)
 		nMinDiff = cdbl(request.params[2].get_str(), 4);
 
+	double nMinBranchLen = 0;
+	if (request.params.size() == 4)
+		nMinBranchLen = cdbl(request.params[3].get_str(), 0);
+
     /* Construct the output array.  */
     UniValue res(UniValue::VARR);
     BOOST_FOREACH(const CBlockIndex* block, setTips)
@@ -1509,6 +1515,12 @@ UniValue getchaintips(const JSONRPCRequest& request)
 		if (nMinDiff > 0 && GetDifficulty(block) < nMinDiff) 
 			bInclude = false;
 		
+		if (block->nHeight < (chainActive.Tip()->nHeight * .65))
+			bInclude = false;
+
+		if (nMinBranchLen > 0 && branchLen < nMinBranchLen)
+			bInclude = false;
+
 		if (bInclude)
 		{
 			obj.push_back(Pair("height", block->nHeight));
@@ -1830,14 +1842,6 @@ UniValue exec(const JSONRPCRequest& request)
 			uint256 hash2 = BibleHashV2(blockHash, nBlockTime, nPrevBlockTime, true, nHeight);
 			results.push_back(Pair("BibleHashV2", hash2.GetHex()));
 		}
-	}
-	else if (sItem == "setautounlockpassword")
-	{
-		if (request.params.size() != 2) 
-			throw std::runtime_error("You must specify headless podc wallet password.");
-		msEncryptedString.reserve(400);
-		msEncryptedString = request.params[1].get_str().c_str();
-		results.push_back(Pair("Length", (double)msEncryptedString.size()));
 	}
 	else if (sItem == "versioncheck")
 	{

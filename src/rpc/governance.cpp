@@ -1239,6 +1239,26 @@ UniValue getgovernanceinfo(const JSONRPCRequest& request)
     return obj;
 }
 
+UniValue setautounlockpassword(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() != 1) 
+	{
+        throw std::runtime_error(
+            "setautounlockpassword password\n"
+			"Sets the internal encrypted string with your password.  This allows biblepay to automatically unlock the wallet for GSC transmissions (approx. once per day) and for ABN Mining (when you create a POBH block). \n"
+			"Note: When BiblePay core needs the password for one of these two uses only, if this password is set, it will unlock the wallet with that password, create the stake type transaction and immediately lock the wallet again (only if it was locked). \n"
+            + HelpExampleCli("setautounlockpassword", "")
+            );
+    }
+
+	msEncryptedString.reserve(400);
+	msEncryptedString = request.params[0].get_str().c_str();
+    UniValue obj(UniValue::VOBJ);
+	obj.push_back(Pair("Length", (double)msEncryptedString.size()));
+	return obj;
+}
+
+
 UniValue leaderboard(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() != 0 && request.params.size() != 1 && request.params.size() != 2) 
@@ -1314,6 +1334,7 @@ static const CRPCCommand commands[] =
     { "biblepay",               "getsuperblockbudget",    &getsuperblockbudget,    true,  {"index"} },
     { "biblepay",               "gobject",                &gobject,                true,  {} },
     { "biblepay",               "leaderboard",            &leaderboard,            true,  {} },
+    { "biblepay",               "setautounlockpassword",  &setautounlockpassword,  true,  {} },
     { "biblepay",               "voteraw",                &voteraw,                true,  {} },
 
 };

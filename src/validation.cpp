@@ -3500,6 +3500,10 @@ bool AntiGPU(const CBlock& block, const CBlockIndex* pindexPrev)
 					return true;
 				}
 			}
+			else
+			{
+				return false;
+			}
 			pindex = pindexPrev->pprev;
 		}
 	}
@@ -3567,8 +3571,8 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
 	//                               Additional Checks for GSC (Generic-Smart-Contracts) and for ABN (Anti-Bot-Net) rules                        //
 	//                                                                                                                                           //
 	double nMinRequiredABNWeight = GetSporkDouble("requiredabnweight", 0);
-	double nABNHeight = GetSporkDouble("anbheight", 0);
-	if (nABNHeight > 0 && nHeight > consensusParams.ABNHeight && nHeight > nABNHeight && nMinRequiredABNWeight > 0 && !LateBlock(block, pindexPrev, 60))
+	double nABNHeight = GetSporkDouble("abnheight", 0);
+	if (nABNHeight > 0 && nHeight > consensusParams.ABNHeight && nHeight > nABNHeight && nMinRequiredABNWeight > 0 && !LateBlock(block, pindexPrev, 60) && !LateBlockIndex(pindexPrev, 60))
 	{
 		double nABNWeight = GetABNWeight(block, false);
 		if (nABNWeight < nMinRequiredABNWeight)
@@ -3579,19 +3583,17 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
 			}
 			else
 			{
-				LogPrintf("\nContextualCheckBlock::ABN ERROR!  Block %f does not meet anti-bot-net-minimum required guidelines: BlockWeight %f, RequiredWeight %f", 
-						(double)nHeight, (double)nABNWeight, nMinRequiredABNWeight);
+				LogPrintf("\nContextualCheckBlock::ABN ERROR!  Block %f does not meet anti-bot-net-minimum required guidelines: ReqABNHeight %f, BlockWeight %f, RequiredWeight %f", 
+						(double)nHeight, (double)nABNHeight, (double)nABNWeight, nMinRequiredABNWeight);
 				double nEnforce = GetSporkDouble("enforceabnweight", 0);
 				if (nEnforce == 1)
 					return false;
-				else if (nEnforce == 2)
-					return state.DoS(1, false, REJECT_INVALID, "low-abn-weight", false, "Insufficient ABN weight");
 			}
 		}
 	}
 
 	double nAntiGPUHeight = GetSporkDouble("antigpuheight", 0);
-	if (nAntiGPUHeight > 0 && nHeight > consensusParams.ABNHeight && nHeight > nAntiGPUHeight && !LateBlock(block, pindexPrev, 60))
+	if (nAntiGPUHeight > 0 && nHeight > consensusParams.ABNHeight && nHeight > nABNHeight && nHeight > nAntiGPUHeight && !LateBlock(block, pindexPrev, 60) && !LateBlockIndex(pindexPrev, 60))
 	{
 		bool fAntiGPU = AntiGPU(block, pindexPrev);
 		if (fAntiGPU)
