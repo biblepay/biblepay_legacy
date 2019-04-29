@@ -2282,7 +2282,7 @@ CWalletTx CreateAntiBotNetTx(CBlockIndex* pindexLast, double nMinCoinAge, CReser
 			if (nNotifiedOfUnlockIssue == 0)
 				LogPrintf("\nUnable to unlock wallet with SecureString.\n");
 			nNotifiedOfUnlockIssue++;
-			sError = "Unable to unlock wallet with PODC password provided";
+			sError = "Unable to unlock wallet with autounlock password provided";
 			return wtx;
 		}
 	}

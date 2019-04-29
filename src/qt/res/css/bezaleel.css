@@ -8,8 +8,10 @@ padding:0;
 
 QWidget#header {
 background-image: url(':/images/bezaleel/biblepay_logo');
-min-width:217px;
-min-height:170px;
+xmin-width:217px;
+xmin-height:170px;
+min-width:50px;
+min-height:35px;
 margin:0;
 padding:0;
 }

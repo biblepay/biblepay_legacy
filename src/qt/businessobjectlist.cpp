@@ -106,6 +106,8 @@ void BusinessObjectList::createUI(const QStringList &headers, const QString &pSt
     QString s;
 	double dGrandTotal = 0;
 	int iHighlighted = 0;
+	//	Leaderboard fields = "nickname,cpk,points,owed,prominence";
+
     for (int i = 0; i < rows; i++)
 	{
 		bool bHighlighted = (pMatrix[i][iNameCol] == GUIUtil::TOQS(msNickName));
@@ -113,10 +115,13 @@ void BusinessObjectList::createUI(const QStringList &headers, const QString &pSt
         for(int j = 0; j < cols; j++)
 		{
             QTableWidgetItem* q;
-            if (j == iAmountCol) {
+			bool bNumeric = (j == 2 || j == 3 || j == 4);
+            if (bNumeric) 
+			{
                 q = new NumericTableWidgetItem(pMatrix[i][j]);
             }
-            else {
+            else 
+			{
                 q = new QTableWidgetItem(pMatrix[i][j]);
             }
 			ui->tableWidget->setItem(i, j, q);
@@ -139,13 +144,13 @@ void BusinessObjectList::createUI(const QStringList &headers, const QString &pSt
 	if (fLeaderboard)
 	{
         // Sort by ShareWeight descending (unless there is already a different one)
-        int default_order = 4;
-        int current_order = ui->tableWidget->horizontalHeader()->sortIndicatorSection();
-        Qt::SortOrder default_indicator = Qt::DescendingOrder;
-        Qt::SortOrder current_indicator = ui->tableWidget->horizontalHeader()->sortIndicatorOrder();
-        if (default_order==current_order && default_indicator==current_indicator)   
+        int default_sort_column = 4;
+        int iSortColumn = ui->tableWidget->horizontalHeader()->sortIndicatorSection();
+        Qt::SortOrder soDefaultOrder = Qt::DescendingOrder;
+        Qt::SortOrder soCurrentOrder = ui->tableWidget->horizontalHeader()->sortIndicatorOrder();
+        if (soDefaultOrder == soCurrentOrder && iSortColumn == default_sort_column)   
 		{
-            ui->tableWidget->sortByColumn(default_order, default_indicator);
+            ui->tableWidget->sortByColumn(default_sort_column, soDefaultOrder);
         }
 		ui->tableWidget->setSortingEnabled(true);
 		addFooterRow(rows, iFooterRow, "Difficulty:", ExtractXML(sXML, "<difficulty>","</difficulty>"));

@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>976</width>
-    <height>690</height>
+    <width>814</width>
+    <height>461</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -24,8 +24,8 @@
     <rect>
      <x>9</x>
      <y>0</y>
-     <width>961</width>
-     <height>681</height>
+     <width>805</width>
+     <height>460</height>
     </rect>
    </property>
    <property name="verticalScrollBarPolicy">

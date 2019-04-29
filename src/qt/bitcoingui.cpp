@@ -500,6 +500,7 @@ void BitcoinGUI::createActions()
     businessObjectListMenuAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("Leaderboa&rd"), this);
     businessObjectListMenuAction->setStatusTip(tr("Leaderboard"));
     businessObjectListMenuAction->setEnabled(true);
+	tabGroup->addAction(businessObjectListMenuAction);
 
     // Add submenu for Proposal Add
     proposalAddMenuAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("Proposal &Add"), this);
@@ -651,9 +652,10 @@ void BitcoinGUI::createMenuBar()
 		QMenu *proposals = appMenuBar->addMenu(tr("&Proposals"));
 		proposals->addAction(proposalListAction);
 		proposals->addAction(proposalAddMenuAction);
+
 		QMenu *businessObjects = appMenuBar->addMenu(tr("&Leaderboard"));
 		businessObjects->addAction(businessObjectListMenuAction);
-  	
+		  	
 		QMenu *help = appMenuBar->addMenu(tr("&Help"));
 		help->addAction(showHelpMessageAction);
 		help->addAction(showPrivateSendHelpAction);
@@ -681,7 +683,9 @@ void BitcoinGUI::createToolBars()
         }
 
 		toolbar->addAction(proposalListAction);
+		toolbar->addAction(businessObjectListMenuAction);
 		toolbar->addAction(orphanAction);
+		
 
 		toolbar->setOrientation(Qt::Vertical);
         toolbar->setMovable(false); // remove unused icon in upper left corner
