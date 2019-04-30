@@ -2253,6 +2253,7 @@ CWalletTx CreateAntiBotNetTx(CBlockIndex* pindexLast, double nMinCoinAge, CReser
 
 	if (pwalletMain->IsLocked() && msEncryptedString.empty())
 	{
+		WriteCache("poolthread0", "poolinfo3", "Unable to create abn tx (wallet locked)", GetAdjustedTime());
 		sError = "Sorry, the wallet must be unlocked to create an anti-botnet transaction.";
 		return wtx;
 	}
@@ -2292,33 +2293,53 @@ CWalletTx CreateAntiBotNetTx(CBlockIndex* pindexLast, double nMinCoinAge, CReser
 	CScript spkCPKScript = GetScriptForDestination(baCPKAddress.Get());
 	CAmount nFeeRequired;
 	CAmount nBuffer = (10 * COIN);
-	std::vector<CRecipient> vecSend;
-	int nChangePosRet = -1;
-	LogPrintf("-Creating ABN Tx in amount of %f ",(double)nReqCoins/COIN);
-	bool fSubtractFeeFromAmount = false;
-	CRecipient recipient = {spkCPKScript, nReqCoins, false, fSubtractFeeFromAmount};
-	vecSend.push_back(recipient);
 	std::string sMessage = GetRandHash().GetHex();
 	sXML += "<MT>ABN</MT><abnmsg>" + sMessage + "</abnmsg>";
 	std::string sSignature;
+	std::string strError;
 	bool bSigned = SignStake(sCPK, sMessage, sError, sSignature);
 	if (!bSigned) 
 	{
-		if (bTriedToUnlock)		{ pwalletMain->Lock();	}
+		if (bTriedToUnlock)
+			pwalletMain->Lock();
 		sError = "CreateABN::Failed to sign.";
 		return wtx;
 	}
 	sXML += "<abnsig>" + sSignature + "</abnsig><abncpk>" + sCPK + "</abncpk><abnwgt>" + RoundToString(nMinCoinAge, 0) + "</abnwgt>";
-	std::string strError;
-	bool fCreated = pwalletMain->CreateTransaction(vecSend, wtx, reservekey, nFeeRequired, nChangePosRet, strError, NULL, true, ALL_COINS, false, 0, sXML, nMinCoinAge, nReqCoins + nBuffer);
-	if (bTriedToUnlock)		{ pwalletMain->Lock();	}
-	
+	bool fCreated = false;		
+	// Feedback Loop here ensures we successfully create a good ABN that other miners will not disagree with:
+	int MAX_FEEDBACK_ITERATIONS = 20;
+	double INCREMENTOR = .50;
+	int nChangePosRet = -1;
+	bool fSubtractFeeFromAmount = false;
+
+	for (double i = 1; i < MAX_FEEDBACK_ITERATIONS; i += INCREMENTOR)
+	{
+		CAmount nUsed = 0;
+		double nTargetABNWeight = pwalletMain->GetAntiBotNetWalletWeight(nMinCoinAge * i, nUsed);
+		CRecipient recipient = {spkCPKScript, nUsed, false, fSubtractFeeFromAmount};
+		std::vector<CRecipient> vecSend;
+		vecSend.push_back(recipient);
+		CAmount nAllocated = nUsed + nBuffer;
+		if (i > (MAX_FEEDBACK_ITERATIONS * .75))
+			nAllocated = nAllocated * 2;
+		fCreated = pwalletMain->CreateTransaction(vecSend, wtx, reservekey, nFeeRequired, nChangePosRet, strError, NULL, true, ALL_COINS, false, 0, sXML, nMinCoinAge * i, nAllocated);
+		double nTest = GetAntiBotNetWeight(chainActive.Tip()->GetBlockTime(), wtx.tx);
+		if (fDebug)
+		{
+			LogPrintf("-Creating ABN Tx with weight %f using %f  BBP iteration %f, Needed %f, Got %f ", nTargetABNWeight, (double)nUsed/COIN, i, nMinCoinAge, nTest);
+		}
+		if (fCreated && nTest >= nMinCoinAge) 
+			break;
+	}
+
+	if (bTriedToUnlock)
+		pwalletMain->Lock();
 	if (!fCreated)    
 	{
 		sError = "CreateABN::Fail::" + strError;
 		return wtx;
 	}
-	
 	return wtx;
 }
 

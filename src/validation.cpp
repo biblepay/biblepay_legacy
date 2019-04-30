@@ -3494,9 +3494,9 @@ bool AntiGPU(const CBlock& block, const CBlockIndex* pindexPrev)
 			{
 				std::string lastCPK;
 				CheckABNSignature(prevBlock, lastCPK);
-				LogPrintf(" AntiGPU i %f, CPK %s      ", (double)i, lastCPK);
 				if (!lastCPK.empty() && !CPK.empty() && lastCPK == CPK)
 				{
+					LogPrintf("\n AntiGPU ERROR: CPK %s, height %f ", lastCPK, (double)pindexPrev->nHeight);
 					return true;
 				}
 			}
@@ -3540,7 +3540,10 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
         if (!IsFinalTx(*tx, nHeight, nLockTimeCutoff)) {
             return state.DoS(10, false, REJECT_INVALID, "bad-txns-nonfinal", false, "non-final transaction");
         }
-        if (!ContextualCheckTransaction(*tx, state, consensusParams, pindexPrev)) {
+        if (!ContextualCheckTransaction(*tx, state, consensusParams, pindexPrev)) 
+		{
+			if (fMining)
+				WriteCache("gsc", "errors", "bad transaction found in memmory pool", GetAdjustedTime());
             return false;
         }
         nSigOps += GetLegacySigOpCount(*tx);
@@ -3579,6 +3582,7 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
 		{
 			if (fMining)
 			{
+				WriteCache("gsc", "errors", "low abn weight " + RoundToString(nABNWeight, 0), GetAdjustedTime());
 				return false;
 			}
 			else
@@ -3599,7 +3603,10 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
 		if (fAntiGPU)
 		{
 			if (fMining)
+			{
+				WriteCache("gsc", "errors", "anti-gpu triggered on my CPK", GetAdjustedTime());
 				return false;
+			}
 			LogPrintf("\nContextualCheckBlock::AntiGPU ERROR!  Block %f does not meet anti-gpu guidelines for this CPK. ", (double)nHeight);
 			return false;
 		}

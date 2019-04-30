@@ -258,7 +258,7 @@ UniValue getgenerate(const JSONRPCRequest& request)
 
 UniValue getmininginfo(const JSONRPCRequest& request)
 {
-    if (request.fHelp || request.params.size() != 0)
+    if (request.fHelp || request.params.size() > 0)
         throw std::runtime_error(
             "getmininginfo\n"
             "\nReturns a json object containing mining-related information."
@@ -273,15 +273,14 @@ UniValue getmininginfo(const JSONRPCRequest& request)
             "  \"pooledtx\": n              (numeric) The size of the mempool\n"
             "  \"chain\": \"xxxx\",           (string) current network name as defined in BIP70 (main, test, regtest)\n"
             "}\n"
-            "\nExamples:\n"
+		    "\nExamples:\n"
             + HelpExampleCli("getmininginfo", "")
             + HelpExampleRpc("getmininginfo", "")
         );
 
 
     LOCK(cs_main);
-
-    UniValue obj(UniValue::VOBJ);
+	UniValue obj(UniValue::VOBJ);
 	obj.push_back(Pair("blocks",           (int)chainActive.Height()));	
 	obj.push_back(Pair("currentblocksize", (uint64_t)nLastBlockSize));
 	obj.push_back(Pair("currentblocktx",   (uint64_t)nLastBlockTx));
@@ -304,9 +303,7 @@ UniValue getmininginfo(const JSONRPCRequest& request)
 	obj.push_back(Pair("poolmining",       fPoolMiningMode));
 	obj.push_back(Pair("pool_url",         sGlobalPoolURL));
 	obj.push_back(Pair("required_abn_weight", GetSporkDouble("requiredabnweight", 0)));
-
-    return obj;
-
+	return obj;
 }
 
 
@@ -1055,7 +1052,7 @@ static const CRPCCommand commands[] =
 { //  category              name                      actor (function)         okSafeMode
   //  --------------------- ------------------------  -----------------------  ----------
     { "mining",             "getnetworkhashps",       &getnetworkhashps,       true,  {"nblocks","height"} },
-    { "mining",             "getmininginfo",          &getmininginfo,          true,  {} },
+    { "mining",             "getmininginfo",          &getmininginfo,          true,  {"details"} },
     { "mining",             "prioritisetransaction",  &prioritisetransaction,  true,  {"txid","priority_delta","fee_delta"} },
     { "mining",             "getblocktemplate",       &getblocktemplate,       true,  {"template_request"} },
     { "mining",             "submitblock",            &submitblock,            true,  {"hexdata","parameters"} },

@@ -1093,7 +1093,10 @@ recover:
 			CBlock *pblock = &pblocktemplate->block;
 			bool bABNOK = IsMyABNSufficient(pblocktemplate->block, pindexPrev, pindexPrev->nHeight + 1);
 			LogPrintf(" ABN OK: %f ", (double)bABNOK);
-
+			if (!bABNOK)
+			{
+				WriteCache("poolthread" + RoundToString(iThreadID, 0), "poolinfo2", "ABN weight is too low to mine", GetAdjustedTime());
+			}
             IncrementExtraNonce(pblock, pindexPrev, nExtraNonce);
 			nHashesDone++;
 			UpdateHashesPerSec(nHashesDone);
@@ -1230,7 +1233,8 @@ recover:
 					WriteCache("poolcache", "pooladdress", "", GetAdjustedTime());
 					ClearCache("poolcache");
 					ClearCache("poolthread" + RoundToString(iThreadID, 0));
-					WriteCache("pool" + RoundToString(iThreadID, 0),"communication","0",GetAdjustedTime());
+					WriteCache("pool" + RoundToString(iThreadID, 0), "communication", "0", GetAdjustedTime());
+					WriteCache("gsc", "errors", "", GetAdjustedTime());
 				}
 
 				if ((sPoolMiningAddress.empty() && ((GetAdjustedTime() - nLastReadyToMine) > (10*60))))

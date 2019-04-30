@@ -2031,7 +2031,8 @@ UniValue exec(const JSONRPCRequest& request)
 		if (dMin > 0)
 		{
 			dABN = pwalletMain->GetAntiBotNetWalletWeight(dMin, nTotalReq);
-			if (fDebug) results.push_back(Pair("coin_age_data", ReadCache("coin", "age")));
+			if (fDebug)
+				results.push_back(Pair("coin_age_data", ReadCache("coin", "age")));
 
 			results.push_back(Pair("weight " + RoundToString(dMin, 2), dABN));
 			results.push_back(Pair("total_required " + RoundToString(dMin, 2), nTotalReq/COIN));

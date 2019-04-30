@@ -336,7 +336,7 @@ bool CreateClientSideTransaction(bool fForce, bool fDiaryProjectsOnly, std::stri
 				CWalletTx wtx = CreateGSCClientTransmission(s.first, sDiary, chainActive.Tip(), nCoinAgePercentage, nFoundationDonation, reservekey, sXML, sError);
 				LogPrintf("\nCreated client side transmission - %s [%s] with txid %s ", sXML, sError, wtx.tx->GetHash().GetHex());
 				// Bubble any error to getmininginfo - or clear the error
-				WriteCache("gsc", "errors", s.first + ": " + sError, GetAdjustedTime(), false);
+				WriteCache("gsc", "errors", s.first + ": " + sError, GetAdjustedTime());
 				CValidationState state;
 
 				if (sError.empty())
@@ -344,7 +344,7 @@ bool CreateClientSideTransaction(bool fForce, bool fDiaryProjectsOnly, std::stri
 					if (!pwalletMain->CommitTransaction(wtx, reservekey, g_connman.get(), state,  NetMsgType::TX))
 					{
 						LogPrint("GSC", "\nUnable to Commit transaction %s", wtx.tx->GetHash().GetHex());
-						WriteCache("gsc", "errors", "GSC Commit Client Transmission failed " + s.first, GetAdjustedTime(), false);
+						WriteCache("gsc", "errors", "GSC Commit Client Transmission failed " + s.first, GetAdjustedTime());
 						return false;
 					}
 				}
