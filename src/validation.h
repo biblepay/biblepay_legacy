@@ -156,6 +156,7 @@ static const int GSC_MIN_CONFIRMS = 5;
 static const double GSC_DUST = .01;
 extern int PRAYER_MODULUS;
 extern int miGlobalPrayerIndex;
+extern int miGlobalDiaryIndex;
 extern SecureString msEncryptedString;
 extern std::string sOS;
 extern std::string msGithubVersion;

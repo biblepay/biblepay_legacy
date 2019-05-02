@@ -677,8 +677,8 @@
          </property>
          <property name="minimumSize">
           <size>
-           <width>100</width>
-           <height>200</height>
+           <width>200</width>
+           <height>100</height>
           </size>
          </property>
          <property name="maximumSize">
@@ -716,8 +716,8 @@
          </property>
          <property name="minimumSize">
           <size>
-           <width>255</width>
-           <height>25</height>
+           <width>200</width>
+           <height>100</height>
           </size>
          </property>
          <property name="maximumSize">
@@ -725,6 +725,14 @@
            <width>16777215</width>
            <height>1677777</height>
           </size>
+         </property>
+         <property name="font">
+          <font>
+           <pointsize>9</pointsize>
+           <weight>75</weight>
+           <italic>true</italic>
+           <bold>true</bold>
+          </font>
          </property>
          <property name="text">
           <string>                                                                                            .</string>

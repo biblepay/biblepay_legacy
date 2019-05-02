@@ -500,6 +500,7 @@ void BitcoinGUI::createActions()
     businessObjectListMenuAction = new QAction(QIcon(":/icons/" + theme + "/address-book"), tr("Leaderboa&rd"), this);
     businessObjectListMenuAction->setStatusTip(tr("Leaderboard"));
     businessObjectListMenuAction->setEnabled(true);
+	businessObjectListMenuAction->setCheckable(true);
 	tabGroup->addAction(businessObjectListMenuAction);
 
     // Add submenu for Proposal Add
@@ -1020,6 +1021,7 @@ void BitcoinGUI::gotoProposalListPage()
 
 void BitcoinGUI::gotoBusinessObjectListPage()
 {
+	if (!clientModel) return;
     businessObjectListMenuAction->setChecked(true);
     if (walletFrame) walletFrame->gotoBusinessObjectListPage();
 }

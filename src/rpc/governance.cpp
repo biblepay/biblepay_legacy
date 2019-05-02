@@ -1258,6 +1258,14 @@ UniValue setautounlockpassword(const JSONRPCRequest& request)
 	return obj;
 }
 
+UniValue autounlockpasswordlength(const JSONRPCRequest& request)
+{
+	if (request.fHelp)
+		throw std::runtime_error("Use this to retrieve the length of the auto-unlock password.");
+	UniValue obj(UniValue::VOBJ);
+	obj.push_back(Pair("Length", (double)msEncryptedString.size()));
+	return obj;
+}
 
 UniValue leaderboard(const JSONRPCRequest& request)
 {
@@ -1330,12 +1338,13 @@ static const CRPCCommand commands[] =
 { //  category              name                      actor (function)         okSafe argNames
   //  --------------------- ------------------------  -----------------------  ------ ----------
     /* Biblepay features */
-    { "biblepay",               "getgovernanceinfo",      &getgovernanceinfo,      true,  {} },
-    { "biblepay",               "getsuperblockbudget",    &getsuperblockbudget,    true,  {"index"} },
-    { "biblepay",               "gobject",                &gobject,                true,  {} },
-    { "biblepay",               "leaderboard",            &leaderboard,            true,  {} },
-    { "biblepay",               "setautounlockpassword",  &setautounlockpassword,  true,  {} },
-    { "biblepay",               "voteraw",                &voteraw,                true,  {} },
+    { "biblepay",               "getgovernanceinfo",       &getgovernanceinfo,       true,  {} },
+    { "biblepay",               "getsuperblockbudget",     &getsuperblockbudget,     true,  {"index"} },
+    { "biblepay",               "gobject",                 &gobject,                 true,  {} },
+	{ "biblepay",               "autounlockpasswordlength",&autounlockpasswordlength,true,  {} },
+    { "biblepay",               "leaderboard",             &leaderboard,             true,  {} },
+    { "biblepay",               "setautounlockpassword",   &setautounlockpassword,   true,  {} },
+    { "biblepay",               "voteraw",                 &voteraw,                 true,  {} },
 
 };
 

@@ -115,6 +115,7 @@ std::string msGithubVersion;
 std::string sOS;
 int PRAYER_MODULUS = 0;
 int miGlobalPrayerIndex = 0;
+int miGlobalDiaryIndex = 0;
 int iMinerThreadCount = 0;
 int nProposalPrepareHeight = 0;
 int nHashCounter = 0;
@@ -4834,7 +4835,12 @@ void SetOverviewStatus()
 	std::string sVersionAlert = GetVersionAlert();
 	if (!sVersionAlert.empty()) msGlobalStatus += " <font color=purple>" + sVersionAlert + "</font> ;";
 	std::string sPrayers = FormatHTML(sPrayer, 12, "<br>");
-	msGlobalStatus2 = "<font color=maroon><b>" + sPrayer + "</font></b><br>&nbsp;";
+	msGlobalStatus2 = "<br>Prayer Requests:<br><font color=maroon><b>" + sPrayer + "</font></b><br>&nbsp;";
+	// Diary entries (Healing campaign)
+	std::string sDiary;
+	GetDataList("DIARY", 30, miGlobalDiaryIndex, "", sDiary);
+	std::string sDiaries = FormatHTML(sDiary, 12, "<br>");
+	msGlobalStatus3 = "Healing Campaign Results:<br><font color=maroon><b>" + sDiaries + "</font></b><br>&nbsp;";
 }
 
 void KillBlockchainFiles()

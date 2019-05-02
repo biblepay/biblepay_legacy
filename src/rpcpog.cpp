@@ -1610,12 +1610,18 @@ TxMessage GetTxMessage(std::string sMessage, int64_t nTime, int iPosition, std::
 	return t;
 }
 
-
-
 void MemorizePrayer(std::string sMessage, int64_t nTime, double dAmount, int iPosition, std::string sTxID, int nHeight, double dFoundationDonation, double dAge, double dMinCoinAge)
 {
 	if (sMessage.empty()) return;
 	TxMessage t = GetTxMessage(sMessage, nTime, iPosition, sTxID, dAmount, dFoundationDonation, nHeight);
+	std::string sDiary = ExtractXML(sMessage, "<diary>", "</diary>");
+	if (!sDiary.empty())
+	{
+		std::string sNickName = ExtractXML(sMessage, "<nickname>", "</nickname>");
+		if (sNickName.empty()) sNickName = "NA";
+		std::string sEntry = sDiary + " [" + sNickName + "]";
+		WriteCache("diary", RoundToString(nTime, 0), sEntry, nTime);
+	}
 	if (!t.sIPFSHash.empty())
 	{
 		WriteCache("IPFS", t.sIPFSHash, RoundToString(nHeight, 0), nTime, false);
@@ -2376,7 +2382,9 @@ std::string GetPOGBusinessObjectList(std::string sType, std::string sFields)
 	std::string sContract = GetGSCContract(iNextSuperblock, false);
 	std::string s1 = ExtractXML(sContract, "<DATA>", "</DATA>");
 	std::string sDetails = ExtractXML(sContract, "<DETAILS>", "</DETAILS>");
-	std::vector<std::string> vData = Split(s1.c_str(), "\n");
+	std::vector<std::string> vData = Split(sType =="pog" ? s1.c_str() : sDetails.c_str(), "\n");
+	//	Detail Row Format: sCampaignName + "|" + CPKAddress + "|" + nPoints + "|" + nProminence + "|" + Members.second.sNickName 
+	//	Leaderboard Fields: "campaign,nickname,cpk,points,owed,prominence";
 
 	double dTotalPaid = 0;
 	double nTotalPoints = 0;
@@ -2386,18 +2394,19 @@ std::string GetPOGBusinessObjectList(std::string sType, std::string sFields)
 		std::vector<std::string> vRow = Split(vData[i].c_str(), "|");
 		if (vRow.size() >= 4)
 		{
-			std::string sCPK = vRow[0];
-			double nPoints = cdbl(vRow[1], 2);
+			std::string sCampaign = vRow[0];
+			std::string sCPK = vRow[1];
+			double nPoints = cdbl(vRow[2], 2);
 			nTotalPoints += nPoints;
-			double nProminence = cdbl(vRow[2], 4) * 100;
+			double nProminence = cdbl(vRow[3], 4) * 100;
 			CPK oPrimary = GetCPKFromProject("cpk", sCPK);
 			std::string sNickName = Caption(oPrimary.sNickName);
 			if (sNickName.empty())
 				sNickName = "N/A";
-			CAmount nOwed = nPaymentsLimit * (nProminence / 100) * .99;
+			CAmount nOwed = nPaymentsLimit * (nProminence / 100) * .98;
 			if (sCPK == myCPK.sAddress)
 				nMyPoints += nPoints;
-			std::string sRow = sNickName + "<col>" + sCPK + "<col>" + RoundToString(nPoints, 2) 
+			std::string sRow = sCampaign + "<col>" + sNickName + "<col>" + sCPK + "<col>" + RoundToString(nPoints, 2) 
 				+ "<col>" + RoundToString((double)nOwed/COIN, 2) 
 				+ "<col>" + RoundToString(nProminence, 2) + "<object>";
 			sData += sRow;

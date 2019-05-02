@@ -1136,17 +1136,13 @@ recover:
 						if (UintToArith256(hash) <= hashTargetPool)
 						{
 							bool fNonce = CheckNonce(f9000, pblock->nNonce, pindexPrev->nHeight, pindexPrev->nTime, pblock->GetBlockTime(), consensusParams);
-							if (UintToArith256(hash) <= hashTargetPool && fNonce)
+							if (UintToArith256(hash) <= hashTargetPool && fNonce && hashTargetPool > 0)
 							{
-								if ((GetAdjustedTime() - nLastShareSubmitted) > (2*60))
-								{
-									nLastShareSubmitted = GetAdjustedTime();
-									UpdatePoolProgress(pblock, sPoolMiningAddress, hashTargetPool, pindexPrev, sMinerGuid, sWorkID, iThreadID, nThreadWork, nThreadStart, pblock->nNonce);
-									hashTargetPool = UintToArith256(uint256S("0x0"));
-									nThreadStart = GetTimeMillis();
-									nThreadWork = 0;
-									break;
-     							}
+								nLastShareSubmitted = GetAdjustedTime();
+								UpdatePoolProgress(pblock, sPoolMiningAddress, hashTargetPool, pindexPrev, sMinerGuid, sWorkID, iThreadID, nThreadWork, nThreadStart, pblock->nNonce);
+								hashTargetPool = UintToArith256(uint256S("0x0"));
+								nThreadStart = GetTimeMillis();
+								nThreadWork = 0;
 							}
 						}
 					}
@@ -1157,7 +1153,6 @@ recover:
 						if (fNonce)
 						{
 							// Found a solution
-
 					        std::shared_ptr<const CBlock> shared_pblock = std::make_shared<const CBlock>(*pblock);
 							if (bABNOK)
 							{

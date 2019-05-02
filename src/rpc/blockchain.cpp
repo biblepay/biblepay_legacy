@@ -1859,6 +1859,10 @@ UniValue exec(const JSONRPCRequest& request)
 		UniValue aDataList = GetDataList("SIN", 7, iSpecificEntry, "", sEntry);
 		return aDataList;
 	}
+	else if (sItem == "autounlockpasswordlength")
+	{
+		results.push_back(Pair("Length", (double)msEncryptedString.size()));
+	}
 	else if (sItem == "readverse")
 	{
 		if (request.params.size() != 3 && request.params.size() != 4)
@@ -2221,12 +2225,11 @@ UniValue exec(const JSONRPCRequest& request)
 		{
 			sDiary = request.params[1].get_str();
 			if (sDiary.length() < 10)
-				throw std::runtime_error("Diary entry incomplete.");
+				throw std::runtime_error("Diary entry incomplete (must be 10 chars or more).");
 		}
 		
 		std::string sError;
 		bool fCreated = CreateClientSideTransaction(true, false, sDiary, sError);
-		results.push_back(Pair("results", (double)fCreated));
 		if (!sError.empty())
 			results.push_back(Pair("Error!", sError));
 

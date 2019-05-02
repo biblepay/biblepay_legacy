@@ -16,12 +16,13 @@
 #include <boost/algorithm/string/case_conv.hpp> // for to_lower()
 
 bool bSlotsCreated = false;
+std::string sMode;
 
 QStringList BusinessObjectList::GetHeaders(std::string sFields)
 {
 	QStringList pHeaders;
 
-	sFields = "nickname,cpk,points,owed,prominence";
+	sFields = "campaign,nickname,cpk,points,owed,prominence";
 	sHeaderFields = sFields;
 
 	std::vector<std::string> vFields = Split(sFields.c_str(), ",");
@@ -35,6 +36,7 @@ QStringList BusinessObjectList::GetHeaders(std::string sFields)
 
 BusinessObjectList::BusinessObjectList(const PlatformStyle *platformStyle, QWidget *parent) : ui(new Ui::BusinessObjectList)
 {
+	sMode = "pog";
     ui->setupUi(this);
 }
 
@@ -61,8 +63,8 @@ void BusinessObjectList::UpdateObject(std::string objType)
     QString pString;
 	if (masternodeSync.IsBlockchainSynced())
 	{
-		sFields = "nickname,cpk,points,owed,prominence";
-		pString = GUIUtil::TOQS(GetPOGBusinessObjectList("pog", sFields));
+		sFields = "campaign,nickname,cpk,points,owed,prominence";
+		pString = GUIUtil::TOQS(GetPOGBusinessObjectList(sMode, sFields));
         // Update once per five minutes
         QTimer::singleShot(300000, this, SLOT(RefreshPogLeaderboard()));
 	}
@@ -82,6 +84,7 @@ void BusinessObjectList::createUI(const QStringList &headers, const QString &pSt
     ui->tableWidget->setShowGrid(true);
 	ui->tableWidget->setRowCount(0);
 	ui->tableWidget->setSortingEnabled(false);
+	
 
 
     ui->tableWidget->setSelectionMode(QAbstractItemView::SingleSelection);
@@ -111,11 +114,12 @@ void BusinessObjectList::createUI(const QStringList &headers, const QString &pSt
     for (int i = 0; i < rows; i++)
 	{
 		bool bHighlighted = (pMatrix[i][iNameCol] == GUIUtil::TOQS(msNickName));
-	
+		// sFields = "campaign,nickname,cpk,points,owed,prominence";
+
         for(int j = 0; j < cols; j++)
 		{
             QTableWidgetItem* q;
-			bool bNumeric = (j == 2 || j == 3 || j == 4);
+			bool bNumeric = (j == 3 || j == 4 || j == 5);
             if (bNumeric) 
 			{
                 q = new NumericTableWidgetItem(pMatrix[i][j]);
@@ -144,7 +148,7 @@ void BusinessObjectList::createUI(const QStringList &headers, const QString &pSt
 	if (fLeaderboard)
 	{
         // Sort by ShareWeight descending (unless there is already a different one)
-        int default_sort_column = 4;
+        int default_sort_column = 5;
         int iSortColumn = ui->tableWidget->horizontalHeader()->sortIndicatorSection();
         Qt::SortOrder soDefaultOrder = Qt::DescendingOrder;
         Qt::SortOrder soCurrentOrder = ui->tableWidget->horizontalHeader()->sortIndicatorOrder();
@@ -181,6 +185,8 @@ void BusinessObjectList::createUI(const QStringList &headers, const QString &pSt
 	if (!bSlotsCreated)
 	{
 		connect(ui->tableWidget, SIGNAL(customContextMenuRequested(QPoint)), this, SLOT(slotCustomMenuRequested(QPoint)));
+	    connect(ui->btnSummary, SIGNAL(clicked()), this, SLOT(showSummary()));
+		connect(ui->btnDetails, SIGNAL(clicked()), this, SLOT(showDetails()));
 		bSlotsCreated = true;
 	}
 }
@@ -226,6 +232,18 @@ void BusinessObjectList::slotList()
 			UpdateObject(sTarget);
 		}
     }
+}
+
+void BusinessObjectList::showSummary()
+{
+	sMode = "pog";
+	UpdateObject("leaderboard");
+}
+
+void BusinessObjectList::showDetails()
+{
+	sMode = "pogdetails";
+	UpdateObject("leaderboard");
 }
 
 void BusinessObjectList::slotNavigateTo()
