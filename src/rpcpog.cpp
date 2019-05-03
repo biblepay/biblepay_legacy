@@ -248,7 +248,7 @@ bool CheckStakeSignature(std::string sBitcoinAddress, std::string sSignature, st
 
 CPK GetCPK(std::string sData)
 {
-	// CPK DATA FORMAT: sCPK + "|" + Sanitized NickName + "|" + LockTime + "|" + SecurityHash + "|" + CPK Signature;
+	// CPK DATA FORMAT: sCPK + "|" + Sanitized NickName + "|" + LockTime + "|" + SecurityHash + "|" + CPK Signature + "|" + Email + "|" + VendorType
 	CPK k;
 	std::vector<std::string> vDec = Split(sData.c_str(), "|");
 	if (vDec.size() < 5) return k;
@@ -256,6 +256,10 @@ CPK GetCPK(std::string sData)
 	std::string sSig = vDec[4];
 	std::string sCPK = vDec[0];
 	if (sCPK.empty()) return k;
+	if (vDec.size() >= 6)
+		k.sEmail = vDec[5];
+	if (vDec.size() >= 7)
+		k.sVendorType = vDec[6];
 
 	k.fValid = CheckStakeSignature(sCPK, sSig, sSecurityHash, k.sError);
 	if (!k.fValid) 
@@ -1606,12 +1610,18 @@ TxMessage GetTxMessage(std::string sMessage, int64_t nTime, int iPosition, std::
 	return t;
 }
 
-
-
 void MemorizePrayer(std::string sMessage, int64_t nTime, double dAmount, int iPosition, std::string sTxID, int nHeight, double dFoundationDonation, double dAge, double dMinCoinAge)
 {
 	if (sMessage.empty()) return;
 	TxMessage t = GetTxMessage(sMessage, nTime, iPosition, sTxID, dAmount, dFoundationDonation, nHeight);
+	std::string sDiary = ExtractXML(sMessage, "<diary>", "</diary>");
+	if (!sDiary.empty())
+	{
+		std::string sNickName = ExtractXML(sMessage, "<nickname>", "</nickname>");
+		if (sNickName.empty()) sNickName = "NA";
+		std::string sEntry = sDiary + " [" + sNickName + "]";
+		WriteCache("diary", RoundToString(nTime, 0), sEntry, nTime);
+	}
 	if (!t.sIPFSHash.empty())
 	{
 		WriteCache("IPFS", t.sIPFSHash, RoundToString(nHeight, 0), nTime, false);
@@ -2098,7 +2108,7 @@ std::string GetCPKData(std::string sProjectId, std::string sPK)
 	return ReadCache(sProjectId, sPK);
 }
 
-bool AdvertiseChristianPublicKeypair(std::string sProjectId, std::string sNickName, bool fUnJoin, bool fForce, std::string &sError)
+bool AdvertiseChristianPublicKeypair(std::string sProjectId, std::string sNickName, std::string sEmail, std::string sVendorType, bool fUnJoin, bool fForce, std::string &sError)
 {	
 	std::string sCPK = DefaultRecAddress("Christian-Public-Key");
 	std::string sRec = GetCPKData(sProjectId, sCPK);
@@ -2125,7 +2135,7 @@ bool AdvertiseChristianPublicKeypair(std::string sProjectId, std::string sNickNa
 		}
 	}
 
-	if (sNickName.length() > 10)
+	if (sNickName.length() > 10 && sVendorType.empty())
 	{
 		sError = "Sorry, nickname length must be 10 characters or less.";
 		return false;
@@ -2158,7 +2168,7 @@ bool AdvertiseChristianPublicKeypair(std::string sProjectId, std::string sNickNa
 	// Only append the signature after we prove they can sign...
 	if (bSigned)
 	{
-		sData += "|" + sSignature;
+		sData += "|" + sSignature + "|" + sEmail + "|" + sVendorType;
 	}
 	else
 	{
@@ -2247,9 +2257,10 @@ CWalletTx CreateAntiBotNetTx(CBlockIndex* pindexLast, double nMinCoinAge, CReser
 		return wtx;
 	}
 
-	if (pwalletMain->IsLocked())
+	if (pwalletMain->IsLocked() && msEncryptedString.empty())
 	{
-		sError = "Sorry, must be unlocked to create an anti-botnet transaction.";
+		WriteCache("poolthread0", "poolinfo3", "Unable to create abn tx (wallet locked)", GetAdjustedTime());
+		sError = "Sorry, the wallet must be unlocked to create an anti-botnet transaction.";
 		return wtx;
 	}
 	// In Phase 2, we do a dry run to assess the required Coin Amount in the Coin Stake
@@ -2262,35 +2273,74 @@ CWalletTx CreateAntiBotNetTx(CBlockIndex* pindexLast, double nMinCoinAge, CReser
 		sError = "Sorry, your balance is lower than the required ABN transaction amount.";
 		return wtx;
 	}
-	if (nReqCoins < (1*COIN))
+	if (nReqCoins < (1 * COIN))
 	{
 		sError = "Sorry, no coins available for an ABN transaction.";
 		return wtx;
 	}
+	// BiblePay - Use Encrypted string if we have it
+	bool bTriedToUnlock = false;
+	if (pwalletMain->IsLocked() && !msEncryptedString.empty())
+	{
+		bTriedToUnlock = true;
+		if (!pwalletMain->Unlock(msEncryptedString, false))
+		{
+			static int nNotifiedOfUnlockIssue = 0;
+			if (nNotifiedOfUnlockIssue == 0)
+				LogPrintf("\nUnable to unlock wallet with SecureString.\n");
+			nNotifiedOfUnlockIssue++;
+			sError = "Unable to unlock wallet with autounlock password provided";
+			return wtx;
+		}
+	}
+
 	std::string sCPK = DefaultRecAddress("Christian-Public-Key");
 	CBitcoinAddress baCPKAddress(sCPK);
 	CScript spkCPKScript = GetScriptForDestination(baCPKAddress.Get());
 	CAmount nFeeRequired;
 	CAmount nBuffer = (10 * COIN);
-	std::vector<CRecipient> vecSend;
-	int nChangePosRet = -1;
-	LogPrintf("-Creating ABN Tx in amount of %f ",(double)nReqCoins/COIN);
-	bool fSubtractFeeFromAmount = false;
-	CRecipient recipient = {spkCPKScript, nReqCoins, false, fSubtractFeeFromAmount};
-	vecSend.push_back(recipient);
 	std::string sMessage = GetRandHash().GetHex();
 	sXML += "<MT>ABN</MT><abnmsg>" + sMessage + "</abnmsg>";
 	std::string sSignature;
+	std::string strError;
 	bool bSigned = SignStake(sCPK, sMessage, sError, sSignature);
 	if (!bSigned) 
 	{
+		if (bTriedToUnlock)
+			pwalletMain->Lock();
 		sError = "CreateABN::Failed to sign.";
 		return wtx;
 	}
 	sXML += "<abnsig>" + sSignature + "</abnsig><abncpk>" + sCPK + "</abncpk><abnwgt>" + RoundToString(nMinCoinAge, 0) + "</abnwgt>";
-	std::string strError;
-	bool fCreated = pwalletMain->CreateTransaction(vecSend, wtx, reservekey, nFeeRequired, nChangePosRet, strError, NULL, true, ALL_COINS, false, 0, sXML, nMinCoinAge, nReqCoins + nBuffer);
+	bool fCreated = false;		
+	// Feedback Loop here ensures we successfully create a good ABN that other miners will not disagree with:
+	int MAX_FEEDBACK_ITERATIONS = 20;
+	double INCREMENTOR = .50;
+	int nChangePosRet = -1;
+	bool fSubtractFeeFromAmount = false;
 
+	for (double i = 1; i < MAX_FEEDBACK_ITERATIONS; i += INCREMENTOR)
+	{
+		CAmount nUsed = 0;
+		double nTargetABNWeight = pwalletMain->GetAntiBotNetWalletWeight(nMinCoinAge * i, nUsed);
+		CRecipient recipient = {spkCPKScript, nUsed, false, fSubtractFeeFromAmount};
+		std::vector<CRecipient> vecSend;
+		vecSend.push_back(recipient);
+		CAmount nAllocated = nUsed + nBuffer;
+		if (i > (MAX_FEEDBACK_ITERATIONS * .75))
+			nAllocated = nAllocated * 2;
+		fCreated = pwalletMain->CreateTransaction(vecSend, wtx, reservekey, nFeeRequired, nChangePosRet, strError, NULL, true, ALL_COINS, false, 0, sXML, nMinCoinAge * i, nAllocated);
+		double nTest = GetAntiBotNetWeight(chainActive.Tip()->GetBlockTime(), wtx.tx);
+		if (fDebug)
+		{
+			LogPrintf("-Creating ABN Tx with weight %f using %f  BBP iteration %f, Needed %f, Got %f ", nTargetABNWeight, (double)nUsed/COIN, i, nMinCoinAge, nTest);
+		}
+		if (fCreated && nTest >= nMinCoinAge) 
+			break;
+	}
+
+	if (bTriedToUnlock)
+		pwalletMain->Lock();
 	if (!fCreated)    
 	{
 		sError = "CreateABN::Fail::" + strError;
@@ -2332,7 +2382,9 @@ std::string GetPOGBusinessObjectList(std::string sType, std::string sFields)
 	std::string sContract = GetGSCContract(iNextSuperblock, false);
 	std::string s1 = ExtractXML(sContract, "<DATA>", "</DATA>");
 	std::string sDetails = ExtractXML(sContract, "<DETAILS>", "</DETAILS>");
-	std::vector<std::string> vData = Split(s1.c_str(), "\n");
+	std::vector<std::string> vData = Split(sType =="pog" ? s1.c_str() : sDetails.c_str(), "\n");
+	//	Detail Row Format: sCampaignName + "|" + CPKAddress + "|" + nPoints + "|" + nProminence + "|" + Members.second.sNickName 
+	//	Leaderboard Fields: "campaign,nickname,cpk,points,owed,prominence";
 
 	double dTotalPaid = 0;
 	double nTotalPoints = 0;
@@ -2342,18 +2394,19 @@ std::string GetPOGBusinessObjectList(std::string sType, std::string sFields)
 		std::vector<std::string> vRow = Split(vData[i].c_str(), "|");
 		if (vRow.size() >= 4)
 		{
-			std::string sCPK = vRow[0];
-			double nPoints = cdbl(vRow[1], 2);
+			std::string sCampaign = vRow[0];
+			std::string sCPK = vRow[1];
+			double nPoints = cdbl(vRow[2], 2);
 			nTotalPoints += nPoints;
-			double nProminence = cdbl(vRow[2], 4) * 100;
+			double nProminence = cdbl(vRow[3], 4) * 100;
 			CPK oPrimary = GetCPKFromProject("cpk", sCPK);
 			std::string sNickName = Caption(oPrimary.sNickName);
 			if (sNickName.empty())
 				sNickName = "N/A";
-			CAmount nOwed = nPaymentsLimit * (nProminence / 100) * .99;
+			CAmount nOwed = nPaymentsLimit * (nProminence / 100) * .98;
 			if (sCPK == myCPK.sAddress)
 				nMyPoints += nPoints;
-			std::string sRow = sNickName + "<col>" + sCPK + "<col>" + RoundToString(nPoints, 2) 
+			std::string sRow = sCampaign + "<col>" + sNickName + "<col>" + sCPK + "<col>" + RoundToString(nPoints, 2) 
 				+ "<col>" + RoundToString((double)nOwed/COIN, 2) 
 				+ "<col>" + RoundToString(nProminence, 2) + "<object>";
 			sData += sRow;

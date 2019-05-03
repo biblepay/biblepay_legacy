@@ -1416,7 +1416,7 @@ struct CompareBlocksByHeight
 
 UniValue getchaintips(const JSONRPCRequest& request)
 {
-	    if (request.fHelp || request.params.size() > 3)
+	    if (request.fHelp || request.params.size() > 4)
         throw std::runtime_error(
             "getchaintips ( count branchlen minimum_difficulty )\n"
             "Return information about all known tips in the block tree,"
@@ -1424,6 +1424,8 @@ UniValue getchaintips(const JSONRPCRequest& request)
             "\nArguments:\n"
             "1. count       (numeric, optional) only show this much of latest tips\n"
             "2. branchlen   (numeric, optional) only show tips that have equal or greater length of branch\n"
+			"3. minimum_diff(numeric, optional) only show tips that have equal or greater difficulty\n"
+			"4. minimum_branch_length(numeric, optional) only show tips that have equal or greater branch length\n"
             "\nResult:\n"
             "[\n"
             "  {\n"
@@ -1493,6 +1495,10 @@ UniValue getchaintips(const JSONRPCRequest& request)
 	if (request.params.size() == 3)
 		nMinDiff = cdbl(request.params[2].get_str(), 4);
 
+	double nMinBranchLen = 0;
+	if (request.params.size() == 4)
+		nMinBranchLen = cdbl(request.params[3].get_str(), 0);
+
     /* Construct the output array.  */
     UniValue res(UniValue::VARR);
     BOOST_FOREACH(const CBlockIndex* block, setTips)
@@ -1509,6 +1515,12 @@ UniValue getchaintips(const JSONRPCRequest& request)
 		if (nMinDiff > 0 && GetDifficulty(block) < nMinDiff) 
 			bInclude = false;
 		
+		if (block->nHeight < (chainActive.Tip()->nHeight * .65))
+			bInclude = false;
+
+		if (nMinBranchLen > 0 && branchLen < nMinBranchLen)
+			bInclude = false;
+
 		if (bInclude)
 		{
 			obj.push_back(Pair("height", block->nHeight));
@@ -1831,14 +1843,6 @@ UniValue exec(const JSONRPCRequest& request)
 			results.push_back(Pair("BibleHashV2", hash2.GetHex()));
 		}
 	}
-	else if (sItem == "setautounlockpassword")
-	{
-		if (request.params.size() != 2) 
-			throw std::runtime_error("You must specify headless podc wallet password.");
-		msEncryptedString.reserve(400);
-		msEncryptedString = request.params[1].get_str().c_str();
-		results.push_back(Pair("Length", (double)msEncryptedString.size()));
-	}
 	else if (sItem == "versioncheck")
 	{
 		std::string sNarr = GetVersionAlert();
@@ -1854,6 +1858,10 @@ UniValue exec(const JSONRPCRequest& request)
 		int iSpecificEntry = 0;
 		UniValue aDataList = GetDataList("SIN", 7, iSpecificEntry, "", sEntry);
 		return aDataList;
+	}
+	else if (sItem == "autounlockpasswordlength")
+	{
+		results.push_back(Pair("Length", (double)msEncryptedString.size()));
 	}
 	else if (sItem == "readverse")
 	{
@@ -2027,7 +2035,8 @@ UniValue exec(const JSONRPCRequest& request)
 		if (dMin > 0)
 		{
 			dABN = pwalletMain->GetAntiBotNetWalletWeight(dMin, nTotalReq);
-			if (fDebug) results.push_back(Pair("coin_age_data", ReadCache("coin", "age")));
+			if (fDebug)
+				results.push_back(Pair("coin_age_data", ReadCache("coin", "age")));
 
 			results.push_back(Pair("weight " + RoundToString(dMin, 2), dABN));
 			results.push_back(Pair("total_required " + RoundToString(dMin, 2), nTotalReq/COIN));
@@ -2118,13 +2127,23 @@ UniValue exec(const JSONRPCRequest& request)
 	else if (sItem == "cpk")
 	{
 		std::string sError;
-		if (request.params.size() != 2 && request.params.size() != 3)
-			throw std::runtime_error("You must specify exec cpk nickname [optional: force=true/false].");
+		if (request.params.size() != 2 && request.params.size() != 3 && request.params.size() != 4 && request.params.size() != 5)
+			throw std::runtime_error("You must specify exec cpk nickname [optional e-mail address] [optional vendortype=church/user/vendor] [optional: force=true/false].");
 		std::string sNickName = request.params[1].get_str();
 		bool fForce = false;
-		if (request.params.size() == 3)
-			fForce = request.params[2].get_str() == "true" ? true : false;
-		bool fAdv = AdvertiseChristianPublicKeypair("cpk", sNickName, false, fForce, sError);
+		std::string sEmail;
+		std::string sVendorType;
+
+		if (request.params.size() >= 3)
+			sEmail = request.params[2].get_str();
+		
+		if (request.params.size() >= 4)
+			sVendorType = request.params[3].get_str();
+
+		if (request.params.size() >= 5)
+			fForce = request.params[4].get_str() == "true" ? true : false;
+
+		bool fAdv = AdvertiseChristianPublicKeypair("cpk", sNickName, sEmail, sVendorType, false, fForce, sError);
 		results.push_back(Pair("Results", fAdv));
 		if (!fAdv)
 			results.push_back(Pair("Error", sError));
@@ -2137,7 +2156,7 @@ UniValue exec(const JSONRPCRequest& request)
 		std::string sError;
 		if (!CheckCampaign(sProject))
 			throw std::runtime_error("Campaign does not exist.");
-		bool fAdv = AdvertiseChristianPublicKeypair("cpk-" + sProject, "", true, false, sError);
+		bool fAdv = AdvertiseChristianPublicKeypair("cpk-" + sProject, "", "", "", true, false, sError);
 		results.push_back(Pair("Results", fAdv));
 		if (!fAdv)
 			results.push_back(Pair("Error", sError));
@@ -2151,7 +2170,7 @@ UniValue exec(const JSONRPCRequest& request)
 		std::string sError;
 		if (!CheckCampaign(sProject))
 			throw std::runtime_error("Campaign does not exist.");
-		bool fAdv = AdvertiseChristianPublicKeypair("cpk-" + sProject, "", false, false, sError);
+		bool fAdv = AdvertiseChristianPublicKeypair("cpk-" + sProject, "", "", "", false, false, sError);
 		results.push_back(Pair("Results", fAdv));
 		if (!fAdv)
 			results.push_back(Pair("Error", sError));
@@ -2206,12 +2225,11 @@ UniValue exec(const JSONRPCRequest& request)
 		{
 			sDiary = request.params[1].get_str();
 			if (sDiary.length() < 10)
-				throw std::runtime_error("Diary entry incomplete.");
+				throw std::runtime_error("Diary entry incomplete (must be 10 chars or more).");
 		}
 		
 		std::string sError;
 		bool fCreated = CreateClientSideTransaction(true, false, sDiary, sError);
-		results.push_back(Pair("results", (double)fCreated));
 		if (!sError.empty())
 			results.push_back(Pair("Error!", sError));
 

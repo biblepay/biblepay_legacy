@@ -284,6 +284,11 @@ int CommandLineRPC(int argc, char *argv[])
             while (std::getline(std::cin,line))
                 args.push_back(line);
         }
+		
+		bool fHeadlessPassword = GetBoolArg("-headlesspassword", false);
+		if (fHeadlessPassword)
+			args.push_back("autounlockpasswordlength");
+
         if (args.size() < 1)
             throw std::runtime_error("too few parameters (need at least command)");
         std::string strMethod = args[0];
@@ -295,6 +300,21 @@ int CommandLineRPC(int argc, char *argv[])
         } else {
             params = RPCConvertValues(strMethod, args);
         }
+		if (fHeadlessPassword)
+		{
+			// R Andrews
+			// USAGE: ./biblepay-cli -headlesspassword setautounlockpassword
+			std::string sInput;
+			std::cout << "Please enter the headless podc unlock wallet password: >";
+			std::getline(std::cin, sInput);
+			std::cout << "Memorized " << sInput.length();
+			std::vector<std::string> strUnlockParams;
+			strUnlockParams.push_back(sInput);
+			std::string sRPCMethod = "setautounlockpassword";
+			UniValue uParams = RPCConvertValues(sRPCMethod, strUnlockParams);
+			CallRPC(sRPCMethod, uParams);
+			return EXIT_SUCCESS;
+		}
 
         // Execute and handle connection failures with -rpcwait
         const bool fWait = GetBoolArg("-rpcwait", false);

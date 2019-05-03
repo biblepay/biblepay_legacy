@@ -2194,14 +2194,18 @@ double CWallet::GetAntiBotNetWalletWeight(double nMinCoinAge, CAmount& nTotalReq
     	
 					if (nDepth >= GSC_MIN_CONFIRMS && !fLocked && mine != ISMINE_NO && nAmount > (GSC_DUST * COIN) && (nFoundCoinAge < nMinCoinAge || nMinCoinAge == 0))
 					{
-						double nAge = (double)(chainActive.Tip()->GetBlockTime() - pcoin->GetTxTime()) / 86400;
-						if (nAge < 0) nAge = 0;
-						double nWeight = (nAmount / COIN) * nAge;
-						nTotal += nWeight;
-						nTotalRequired += nAmount;
-						nFoundCoinAge += nWeight;
-						std::string sData = RoundToString((double)nAmount/COIN, 4) + "(" + RoundToString(nAge, 2) + ")=[" + RoundToString(nWeight, 2) + "],";
-						sCache += sData + "\n";
+						double nAge = (double)(chainActive.Tip()->pprev->GetBlockTime() - pcoin->GetTxTime()) / 86400;
+						if (nAge < 000) nAge = 0;
+						if (nAge > 365) nAge = 365;
+						if (nAge > 0)
+						{
+							double nWeight = (nAmount / COIN) * nAge;
+							nTotal += nWeight;
+							nTotalRequired += nAmount;
+							nFoundCoinAge += nWeight;
+							std::string sData = RoundToString((double)nAmount/COIN, 4) + "(" + RoundToString(nAge, 2) + ")=[" + RoundToString(nWeight, 2) + "],";
+							sCache += sData + "\n";
+						}
 					}
 				}
 			}
@@ -2827,7 +2831,8 @@ bool CWallet::SelectCoinsMinConf(const CAmount& nTargetValue, const int nConfMin
     // try to find nondenom first to prevent unneeded spending of mixed coins
     for (unsigned int tryDenom = tryDenomStart; tryDenom < 2; tryDenom++)
     {
-        LogPrint("selectcoins", "tryDenom: %d\n", tryDenom);
+        if (fDebugSpam)
+			LogPrint("selectcoins", "tryDenom: %d\n", tryDenom);
         vValue.clear();
         nTotalLower = 0;
         BOOST_FOREACH(const COutput &output, vCoins)

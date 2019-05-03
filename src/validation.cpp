@@ -115,6 +115,7 @@ std::string msGithubVersion;
 std::string sOS;
 int PRAYER_MODULUS = 0;
 int miGlobalPrayerIndex = 0;
+int miGlobalDiaryIndex = 0;
 int iMinerThreadCount = 0;
 int nProposalPrepareHeight = 0;
 int nHashCounter = 0;
@@ -3461,9 +3462,15 @@ bool ContextualCheckBlockHeader(const CBlockHeader& block, CValidationState& sta
 bool LateBlock(const CBlock& block, const CBlockIndex* pindexPrev, int iMinutes)
 {
 	// After 60 minutes, we no longer require the anti-bot-net weight (prevent the chain from freezing)
+	// Note we use two hard times to make this rule fork-proof
 	int64_t nAgeTip = block.GetBlockTime() - pindexPrev->nTime;
+	return (nAgeTip > (60 * iMinutes)) ? true : false;
+}
+
+int64_t LateBlockIndex(const CBlockIndex* pindexPrev, int iMinutes)
+{
 	int64_t nAge = GetAdjustedTime() - pindexPrev->nTime;
-	return (nAge > (60 * iMinutes) || nAgeTip > (60 * iMinutes)) ? true : false;
+	return (nAge > (60 * iMinutes)) ? true : false;
 }
 
 bool AntiGPU(const CBlock& block, const CBlockIndex* pindexPrev)
@@ -3474,7 +3481,7 @@ bool AntiGPU(const CBlock& block, const CBlockIndex* pindexPrev)
 	if (CPK.empty()) return false;
 
 	int iCheckWindow = fProd ? 4 : 1;
-	int64_t headerAge = GetAdjustedTime() - pindexPrev->nTime;
+	int64_t headerAge = block.GetBlockTime() - pindexPrev->nTime;
 	if (headerAge > (60 * 60 * 1)) return false;
 
 	const CBlockIndex *pindex = pindexPrev;
@@ -3488,11 +3495,15 @@ bool AntiGPU(const CBlock& block, const CBlockIndex* pindexPrev)
 			{
 				std::string lastCPK;
 				CheckABNSignature(prevBlock, lastCPK);
-				LogPrintf(" AntiGPU i %f, CPK %s      ", (double)i, lastCPK);
 				if (!lastCPK.empty() && !CPK.empty() && lastCPK == CPK)
 				{
+					LogPrintf("\n AntiGPU ERROR: CPK %s, height %f ", lastCPK, (double)pindexPrev->nHeight);
 					return true;
 				}
+			}
+			else
+			{
+				return false;
 			}
 			pindex = pindexPrev->pprev;
 		}
@@ -3501,7 +3512,7 @@ bool AntiGPU(const CBlock& block, const CBlockIndex* pindexPrev)
 }
 
 
-bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Consensus::Params& consensusParams, const CBlockIndex* pindexPrev)
+bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Consensus::Params& consensusParams, const CBlockIndex* pindexPrev, bool fMining)
 {
     const int nHeight = pindexPrev == NULL ? 0 : pindexPrev->nHeight + 1;
 
@@ -3530,7 +3541,10 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
         if (!IsFinalTx(*tx, nHeight, nLockTimeCutoff)) {
             return state.DoS(10, false, REJECT_INVALID, "bad-txns-nonfinal", false, "non-final transaction");
         }
-        if (!ContextualCheckTransaction(*tx, state, consensusParams, pindexPrev)) {
+        if (!ContextualCheckTransaction(*tx, state, consensusParams, pindexPrev)) 
+		{
+			if (fMining)
+				WriteCache("gsc", "errors", "bad transaction found in memmory pool", GetAdjustedTime());
             return false;
         }
         nSigOps += GetLegacySigOpCount(*tx);
@@ -3561,31 +3575,39 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
 	//                               Additional Checks for GSC (Generic-Smart-Contracts) and for ABN (Anti-Bot-Net) rules                        //
 	//                                                                                                                                           //
 	double nMinRequiredABNWeight = GetSporkDouble("requiredabnweight", 0);
-	if (nHeight > consensusParams.ABNHeight && nMinRequiredABNWeight > 0 && !LateBlock(block, pindexPrev, 60))
+	double nABNHeight = GetSporkDouble("abnheight", 0);
+	if (nABNHeight > 0 && nHeight > consensusParams.ABNHeight && nHeight > nABNHeight && nMinRequiredABNWeight > 0 && !LateBlock(block, pindexPrev, 60) && !LateBlockIndex(pindexPrev, 60))
 	{
 		double nABNWeight = GetABNWeight(block, false);
 		if (nABNWeight < nMinRequiredABNWeight)
 		{
-			LogPrintf("\nContextualCheckBlock::ABN ERROR!  Block %f does not meet anti-bot-net-minimum required guidelines: BlockWeight %f, RequiredWeight %f", 
-				(double)nHeight, (double)nABNWeight, nMinRequiredABNWeight);
-			double nEnforce = GetSporkDouble("enforceabnweight", 0);
-			if (nEnforce == 1)
+			if (fMining)
 			{
+				WriteCache("gsc", "errors", "low abn weight " + RoundToString(nABNWeight, 0), GetAdjustedTime());
 				return false;
 			}
-			else if (nEnforce == 2)
+			else
 			{
-				return state.DoS(1, false, REJECT_INVALID, "low-abn-weight", false, "Insufficient ABN weight");
+				LogPrintf("\nContextualCheckBlock::ABN ERROR!  Block %f does not meet anti-bot-net-minimum required guidelines: ReqABNHeight %f, BlockWeight %f, RequiredWeight %f", 
+						(double)nHeight, (double)nABNHeight, (double)nABNWeight, nMinRequiredABNWeight);
+				double nEnforce = GetSporkDouble("enforceabnweight", 0);
+				if (nEnforce == 1)
+					return false;
 			}
 		}
 	}
 
-	double nRequireAntiGPUCheck = GetSporkDouble("enforceantigpucheck", 0);
-	if (nRequireAntiGPUCheck == 1 && nHeight > consensusParams.ABNHeight && !LateBlock(block, pindexPrev, 60))
+	double nAntiGPUHeight = GetSporkDouble("antigpuheight", 0);
+	if (nAntiGPUHeight > 0 && nHeight > consensusParams.ABNHeight && nHeight > nABNHeight && nHeight > nAntiGPUHeight && !LateBlock(block, pindexPrev, 60) && !LateBlockIndex(pindexPrev, 60))
 	{
 		bool fAntiGPU = AntiGPU(block, pindexPrev);
 		if (fAntiGPU)
 		{
+			if (fMining)
+			{
+				WriteCache("gsc", "errors", "anti-gpu triggered on my CPK", GetAdjustedTime());
+				return false;
+			}
 			LogPrintf("\nContextualCheckBlock::AntiGPU ERROR!  Block %f does not meet anti-gpu guidelines for this CPK. ", (double)nHeight);
 			return false;
 		}
@@ -3593,7 +3615,7 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
 
 	bool bIsSuperblock = CSuperblock::IsValidBlockHeight(nHeight) || CSuperblock::IsSmartContract(nHeight);
 	CAmount nPayments = block.vtx[0]->GetValueOut();
-	if (nHeight > consensusParams.EVOLUTION_CUTOVER_HEIGHT && bIsSuperblock && nPayments < ((MAX_BLOCK_SUBSIDY + 1) * COIN) && !LateBlock(block, pindexPrev, 15))
+	if (nHeight > consensusParams.EVOLUTION_CUTOVER_HEIGHT && bIsSuperblock && nPayments < ((MAX_BLOCK_SUBSIDY + 1) * COIN) && !LateBlockIndex(pindexPrev, 15))
 	{
 		LogPrintf("\nContextualCheckBlock::CheckGSCSuperblock, Block Height %f, This superblock has no recipients!", (double)nHeight);
 		return false; // return state.DoS(1, false, REJECT_INVALID, "invalid-gsc-recipient-count", false, "Invalid GSC recipient count");
@@ -3721,7 +3743,7 @@ static bool AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CValidation
     if (fNewBlock) *fNewBlock = true;
 	// R ANDREWS: BiblePay needs to pass in these 4 additional fields into CheckBlock:
     if  (!CheckBlock(block, state, chainparams.GetConsensus(), true, true, block.GetBlockTime(), pindex->pprev ? pindex->pprev->nTime : 0, pindex->pprev ? pindex->pprev->nHeight : 0, pindex->pprev) || 
-		 !ContextualCheckBlock(block, state, chainparams.GetConsensus(), pindex->pprev)) {
+		 !ContextualCheckBlock(block, state, chainparams.GetConsensus(), pindex->pprev, false)) {
 		if (state.IsInvalid() && !state.CorruptionPossible()) {
 			pindex->nStatus |= BLOCK_FAILED_VALID;
 			setDirtyBlockIndex.insert(pindex);
@@ -3791,7 +3813,7 @@ bool ProcessNewBlock(const CChainParams& chainparams, const std::shared_ptr<cons
 	return true;
 }
 
-bool TestBlockValidity(CValidationState& state, const CChainParams& chainparams, const CBlock& block, CBlockIndex* pindexPrev, bool fCheckPOW, bool fCheckMerkleRoot)
+bool TestBlockValidity(CValidationState& state, const CChainParams& chainparams, const CBlock& block, CBlockIndex* pindexPrev, bool fCheckPOW, bool fCheckMerkleRoot, bool fMining)
 {
     AssertLockHeld(cs_main);
     assert(pindexPrev && pindexPrev == chainActive.Tip());
@@ -3811,7 +3833,7 @@ bool TestBlockValidity(CValidationState& state, const CChainParams& chainparams,
         return error("%s: Consensus::ContextualCheckBlockHeader: %s", __func__, FormatStateMessage(state));
     if (!CheckBlock(block, state, chainparams.GetConsensus(), fCheckPOW, fCheckMerkleRoot))
         return error("%s: Consensus::CheckBlock: %s", __func__, FormatStateMessage(state));
-    if (!ContextualCheckBlock(block, state, chainparams.GetConsensus(), pindexPrev))
+    if (!ContextualCheckBlock(block, state, chainparams.GetConsensus(), pindexPrev, fMining))
         return error("%s: Consensus::ContextualCheckBlock: %s", __func__, FormatStateMessage(state));
     if (!ConnectBlock(block, state, &indexDummy, viewNew, chainparams, true))
         return false;
@@ -4813,7 +4835,12 @@ void SetOverviewStatus()
 	std::string sVersionAlert = GetVersionAlert();
 	if (!sVersionAlert.empty()) msGlobalStatus += " <font color=purple>" + sVersionAlert + "</font> ;";
 	std::string sPrayers = FormatHTML(sPrayer, 12, "<br>");
-	msGlobalStatus2 = "<font color=maroon><b>" + sPrayer + "</font></b><br>&nbsp;";
+	msGlobalStatus2 = "<br>Prayer Requests:<br><font color=maroon><b>" + sPrayer + "</font></b><br>&nbsp;";
+	// Diary entries (Healing campaign)
+	std::string sDiary;
+	GetDataList("DIARY", 30, miGlobalDiaryIndex, "", sDiary);
+	std::string sDiaries = FormatHTML(sDiary, 12, "<br>");
+	msGlobalStatus3 = "Healing Campaign Results:<br><font color=maroon><b>" + sDiaries + "</font></b><br>&nbsp;";
 }
 
 void KillBlockchainFiles()

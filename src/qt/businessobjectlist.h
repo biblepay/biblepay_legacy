@@ -52,6 +52,8 @@ private Q_SLOTS:
 	void slotCustomMenuRequested(QPoint pos);
 	void slotList();
 	void RefreshPogLeaderboard();
+	void showSummary();
+	void showDetails();
 
 };
 

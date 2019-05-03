@@ -453,18 +453,20 @@ std::string AssessBlocks(int nHeight, bool fCreatingContract)
 	}
 	
 	// Create the Daily Contract
+	// Allow room for a QT change between contract creation time and superblock generation time
+	double nMaxContractPercentage = .98;
 	std::string sAddresses;
 	std::string sPayments;
 	for (auto Members : mPoints)
 	{
-		CAmount nPayment = Members.second.nProminence * nPaymentsLimit;
+		CAmount nPayment = Members.second.nProminence * nPaymentsLimit * nMaxContractPercentage;
 		CBitcoinAddress cbaAddress(Members.second.sAddress);
 		if (cbaAddress.IsValid() && nPayment > (.25*COIN))
 		{
 			sAddresses += Members.second.sAddress + "|";
 			sPayments += RoundToString(nPayment / COIN, 2) + "|";
 			CPK localCPK = GetCPK(Members.second.sAddress);
-			std::string sRow =  Members.second.sAddress + "|" + RoundToString(Members.second.nPoints, 0) + "|" + RoundToString(Members.second.nProminence, 4) + "|" + localCPK.sNickName + "|\n";
+			std::string sRow =  "ALL|" + Members.second.sAddress + "|" + RoundToString(Members.second.nPoints, 0) + "|" + RoundToString(Members.second.nProminence, 4) + "|" + localCPK.sNickName + "|\n";
 			sGenData += sRow;
 		}
 	}
@@ -554,6 +556,21 @@ std::vector<std::pair<int64_t, uint256>> GetGSCSortedByGov(int nHeight, uint256 
 	return vPropByGov;
 }
 
+bool IsOverBudget(int nHeight, std::string sAmounts)
+{
+	CAmount nPaymentsLimit = CSuperblock::GetPaymentsLimit(nHeight);
+	if (sAmounts.empty()) return false;
+	std::vector<std::string> vPayments = Split(sAmounts.c_str(), "|");
+	double dTotalPaid = 0;
+	for (int i = 0; i < vPayments.size(); i++)
+	{
+		dTotalPaid += cdbl(vPayments[i], 2);
+	}
+	if ((dTotalPaid * COIN) > nPaymentsLimit)
+		return true;
+	return false;
+}
+
 bool VoteForGSCContract(int nHeight, std::string sMyContract, std::string& sError)
 {
 	int iPendingVotes = 0;
@@ -562,6 +579,9 @@ bool VoteForGSCContract(int nHeight, std::string sMyContract, std::string& sErro
 	std::string sAmounts;
 	uint256 uPamHash = GetPAMHashByContract(sMyContract);
 	GetGSCGovObjByHeight(nHeight, uPamHash, iPendingVotes, uGovObjHash, sPaymentAddresses, sAmounts);
+	
+	bool fOverBudget = IsOverBudget(nHeight, sAmounts);
+
 	// Verify Payment data matches our payment data, otherwise dont vote for it
 	if (sPaymentAddresses.empty() || sAmounts.empty())
 	{
@@ -580,9 +600,11 @@ bool VoteForGSCContract(int nHeight, std::string sMyContract, std::string& sErro
 	{
 		CGovernanceObject* myGov = governance.FindGovernanceObject(vPropByGov[i].second);
 		sAction = (i==0) ? "yes" : "no";
+		if (fOverBudget) 
+			sAction = "no";
 		iVotes = myGov->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING);
-		LogPrintf("\nSmartContract-Server::VoteForGSCContractOrderedByHash::Voting %s for govHash %s, with pre-existing-votes %f (created %f)",
-			sAction, myGov->GetHash().GetHex(), iVotes, myGov->GetCreationTime());
+		LogPrintf("\nSmartContract-Server::VoteForGSCContractOrderedByHash::Voting %s for govHash %s, with pre-existing-votes %f (created %f) Overbudget %f ",
+			sAction, myGov->GetHash().GetHex(), iVotes, myGov->GetCreationTime(), (double)fOverBudget);
 		VoteForGobject(myGov->GetHash(), sAction, sError);
 		break;
 	}
@@ -896,7 +918,7 @@ UniValue GetProminenceLevels(int nHeight, bool fMeOnly)
 			std::string sNickName = Caption(oPrimary.sNickName);
 			if (sNickName.empty())
 				sNickName = "N/A";
-			std::string sNarr = sCPK + " [" + sNickName + "] - " + sCampaignName + ", Pts: " + RoundToString(nPoints, 2);
+			std::string sNarr = sCampaignName + ": " + sCPK + " [" + sNickName + "], Pts: " + RoundToString(nPoints, 2);
 
 			if ((fMeOnly && sCPK == sMyCPK) || (!fMeOnly))
 				results.push_back(Pair(sNarr, RoundToString(nProminence, 2) + "%"));
@@ -905,21 +927,24 @@ UniValue GetProminenceLevels(int nHeight, bool fMeOnly)
 	
 
 	double dTotalPaid = 0;
+	// Allow room for a change in QT between first contract creation time and next superblock
+	double nMaxContractPercentage = .98;
 	results.push_back(Pair("Prominence", "Totals"));
 	for (int i = 0; i < vData.size(); i++)
 	{
 		std::vector<std::string> vRow = Split(vData[i].c_str(), "|");
 		if (vRow.size() >= 4)
 		{
-			std::string sCPK = vRow[0];
-			double nPoints = cdbl(vRow[1], 2);
-			double nProminence = cdbl(vRow[2], 4) * 100;
+			std::string sCampaign = vRow[0];
+			std::string sCPK = vRow[1];
+			double nPoints = cdbl(vRow[2], 2);
+			double nProminence = cdbl(vRow[3], 4) * 100;
 			CPK oPrimary = GetCPKFromProject("cpk", sCPK);
 			std::string sNickName = Caption(oPrimary.sNickName);
 			if (sNickName.empty())
 				sNickName = "N/A";
-			CAmount nOwed = nPaymentsLimit * (nProminence / 100) * .99;
-			std::string sNarr = sCPK + " [" + sNickName + "]" + ", Pts: " + RoundToString(nPoints, 2) + ", Reward: " + RoundToString((double)nOwed / COIN, 2);
+			CAmount nOwed = nPaymentsLimit * (nProminence / 100) * nMaxContractPercentage;
+			std::string sNarr = sCampaign + ": " + sCPK + " [" + sNickName + "]" + ", Pts: " + RoundToString(nPoints, 2) + ", Reward: " + RoundToString((double)nOwed / COIN, 2);
 			if ((fMeOnly && sCPK == sMyCPK) || (!fMeOnly))
 				results.push_back(Pair(sNarr, RoundToString(nProminence, 2) + "%"));
 		}
