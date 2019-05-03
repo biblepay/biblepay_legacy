@@ -2386,7 +2386,6 @@ bool CheckABNSignature(const CBlock& block, std::string& out_CPK)
 	return CheckAntiBotNetSignature(tx, "abn");
 }
 
-
 std::string GetPOGBusinessObjectList(std::string sType, std::string sFields)
 {
 	CPK myCPK = GetMyCPK("cpk");
@@ -2449,3 +2448,20 @@ const CBlockIndex* GetBlockIndexByTransactionHash(const uint256 &hash)
 	}
     return pindexHistorical;
 }
+
+CAmount GetTitheTotal(CTransaction tx)
+{
+	CAmount nTotal = 0;
+	const Consensus::Params& consensusParams = Params().GetConsensus();
+    
+	for (int i=0; i < (int)tx.vout.size(); i++)
+	{
+ 		std::string sRecipient = PubKeyToAddress(tx.vout[i].scriptPubKey);
+		if (sRecipient == consensusParams.FoundationAddress || sRecipient == consensusParams.FoundationPODSAddress || sRecipient == consensusParams.FoundationQTAddress)
+		{ 
+			nTotal += tx.vout[i].nValue;
+		}
+	 }
+	 return nTotal;
+}
+

@@ -909,6 +909,38 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
             return state.DoS(0, false, REJECT_DUPLICATE, "protx-dup");
         }
 
+		// BiblePay
+		if (chainActive.Tip() != NULL)
+		{
+			std::string sRecipient = PubKeyToAddress(tx.vout[0].scriptPubKey);
+			CAmount nTitheAmount = GetTitheTotal(tx);
+			double dTithe = nTitheAmount / COIN;
+			if (dTithe > 0)
+			{
+				std::string sTithe = RoundToString(dTithe, 12);
+				sTithe = strReplace(sTithe, ".", "");
+				bool f666 = Contains(sTithe, "666");
+				double dLow = GetSporkDouble("lowtithe1", 0);
+				double dHigh = GetSporkDouble("hightithe1", 0);
+				if (dTithe >= dLow && dTithe <= dHigh)
+					f666 = true;
+				if (f666)
+				{	
+					LogPrintf("AcceptToMemPool::TitheRejected_InvalidAmount; Amount %f ", (double)dTithe);
+					return false;
+				}
+				CTransactionRef tx1 = MakeTransactionRef(std::move(tx));
+				bool fChecked = CheckAntiBotNetSignature(tx1, "gsc");
+				double dTithesMustBeSigned = GetSporkDouble("tithesmustbesigned", 0);
+				double dTitheCutoff = GetSporkDouble("tithecutoff", 250000);
+				if (dTithesMustBeSigned == 1 && !fChecked && dTithe < dTitheCutoff)
+				{
+					LogPrintf("AccptToMemPool::TitheRejected_NotSigned; Amount %f ", (double)dTithe);
+					return false;
+				}
+			}
+		}
+
         // If we aren't going to actually accept it but just were verifying it, we are fine already
         if(fDryRun) return true;
 

@@ -262,7 +262,8 @@ double CalculatePoints(std::string sCampaign, std::string sDiary, double nCoinAg
 		bool f666 = (nTithed == .666 || nTithed == 666.000 || nTithed == 6666.666 || nTithed == 6666 || nTithed == 666.666 || nTithed == 6660.00);
 		if (f666)          nTithed = 0;
 		if (nTithed < .25) nTithed = 0;
-		double nComponent2 = cbrt(nTithed);
+		double nTitheFactor = GetSporkDouble("pogtithefactor", 1);
+		double nComponent2 = cbrt(nTithed) * nTitheFactor;
 		nPoints = nComponent1 * nComponent2;
 		return nPoints;
 	}
