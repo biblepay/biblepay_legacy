@@ -259,6 +259,9 @@ double CalculatePoints(std::string sCampaign, std::string sDiary, double nCoinAg
 	{
 		double nComponent1 = nCoinAge;
 		double nTithed = (double)nDonation / COIN;
+		bool f666 = (nTithed == .666 || nTithed == 666.000 || nTithed == 6666.666 || nTithed == 6666 || nTithed == 666.666 || nTithed == 6660.00);
+		if (f666)          nTithed = 0;
+		if (nTithed < .25) nTithed = 0;
 		double nComponent2 = cbrt(nTithed);
 		nPoints = nComponent1 * nComponent2;
 		return nPoints;
@@ -915,7 +918,7 @@ UniValue GetProminenceLevels(int nHeight, bool fMeOnly)
 			double nPoints = cdbl(vRow[2], 2);
 			double nProminence = cdbl(vRow[3], 8) * 100;
 			CPK oPrimary = GetCPKFromProject("cpk", sCPK);
-			std::string sNickName = Caption(oPrimary.sNickName);
+			std::string sNickName = Caption(oPrimary.sNickName, 10);
 			if (sNickName.empty())
 				sNickName = "N/A";
 			std::string sNarr = sCampaignName + ": " + sCPK + " [" + sNickName + "], Pts: " + RoundToString(nPoints, 2);
@@ -940,7 +943,7 @@ UniValue GetProminenceLevels(int nHeight, bool fMeOnly)
 			double nPoints = cdbl(vRow[2], 2);
 			double nProminence = cdbl(vRow[3], 4) * 100;
 			CPK oPrimary = GetCPKFromProject("cpk", sCPK);
-			std::string sNickName = Caption(oPrimary.sNickName);
+			std::string sNickName = Caption(oPrimary.sNickName, 10);
 			if (sNickName.empty())
 				sNickName = "N/A";
 			CAmount nOwed = nPaymentsLimit * (nProminence / 100) * nMaxContractPercentage;

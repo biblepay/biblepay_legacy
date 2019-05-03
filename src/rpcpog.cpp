@@ -1431,10 +1431,10 @@ bool CopyFile(std::string sSrc, std::string sDest)
 	return true;
 }
 
-std::string Caption(std::string sDefault)
+std::string Caption(std::string sDefault, int iMaxLen)
 {
-	if (sDefault.length() > 10)
-		sDefault = sDefault.substr(0, 10);
+	if (sDefault.length() > iMaxLen)
+		sDefault = sDefault.substr(0, iMaxLen);
 	std::string sValue = ReadCache("message", sDefault);
 	return sValue.empty() ? sDefault : sValue;		
 }
@@ -1610,17 +1610,32 @@ TxMessage GetTxMessage(std::string sMessage, int64_t nTime, int iPosition, std::
 	return t;
 }
 
+bool IsCPKWL(std::string sCPK, std::string sNN)
+{
+	std::string sWL = GetSporkValue("cpkdiarywl");
+	LogPrintf("\n cpkwl %s , snick %s ", sCPK, sNN);
+
+	return (Contains(sWL, sNN));
+}
+
 void MemorizePrayer(std::string sMessage, int64_t nTime, double dAmount, int iPosition, std::string sTxID, int nHeight, double dFoundationDonation, double dAge, double dMinCoinAge)
 {
 	if (sMessage.empty()) return;
 	TxMessage t = GetTxMessage(sMessage, nTime, iPosition, sTxID, dAmount, dFoundationDonation, nHeight);
 	std::string sDiary = ExtractXML(sMessage, "<diary>", "</diary>");
+	
 	if (!sDiary.empty())
 	{
-		std::string sNickName = ExtractXML(sMessage, "<nickname>", "</nickname>");
-		if (sNickName.empty()) sNickName = "NA";
-		std::string sEntry = sDiary + " [" + sNickName + "]";
-		WriteCache("diary", RoundToString(nTime, 0), sEntry, nTime);
+		std::string sCPK = ExtractXML(sMessage, "<abncpk>", "</abncpk>");
+		CPK oPrimary = GetCPKFromProject("cpk", sCPK);
+		std::string sNickName = Caption(oPrimary.sNickName, 10);
+		bool fWL = IsCPKWL(sCPK, sNickName);
+		if (fWL)
+		{
+			if (sNickName.empty()) sNickName = "NA";
+			std::string sEntry = sDiary + " [" + sNickName + "]";
+			WriteCache("diary", RoundToString(nTime, 0), sEntry, nTime);
+		}
 	}
 	if (!t.sIPFSHash.empty())
 	{
@@ -2400,7 +2415,7 @@ std::string GetPOGBusinessObjectList(std::string sType, std::string sFields)
 			nTotalPoints += nPoints;
 			double nProminence = cdbl(vRow[3], 4) * 100;
 			CPK oPrimary = GetCPKFromProject("cpk", sCPK);
-			std::string sNickName = Caption(oPrimary.sNickName);
+			std::string sNickName = Caption(oPrimary.sNickName, 10);
 			if (sNickName.empty())
 				sNickName = "N/A";
 			CAmount nOwed = nPaymentsLimit * (nProminence / 100) * .98;

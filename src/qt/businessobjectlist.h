@@ -54,7 +54,7 @@ private Q_SLOTS:
 	void RefreshPogLeaderboard();
 	void showSummary();
 	void showDetails();
-
+	void HandleIndicatorChanged(int logicalIndex);
 };
 
 #endif // BUSINESSOBJECTLIST_H

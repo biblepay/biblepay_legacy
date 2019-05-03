@@ -4834,12 +4834,12 @@ void SetOverviewStatus()
     
 	std::string sVersionAlert = GetVersionAlert();
 	if (!sVersionAlert.empty()) msGlobalStatus += " <font color=purple>" + sVersionAlert + "</font> ;";
-	std::string sPrayers = FormatHTML(sPrayer, 12, "<br>");
+	std::string sPrayers = FormatHTML(sPrayer, 24, "<br>");
 	msGlobalStatus2 = "<br>Prayer Requests:<br><font color=maroon><b>" + sPrayer + "</font></b><br>&nbsp;";
 	// Diary entries (Healing campaign)
 	std::string sDiary;
-	GetDataList("DIARY", 30, miGlobalDiaryIndex, "", sDiary);
-	std::string sDiaries = FormatHTML(sDiary, 12, "<br>");
+	GetDataList("DIARY", 7, miGlobalDiaryIndex, "", sDiary);
+	std::string sDiaries = FormatHTML(Caption(sDiary, 512), 24, "<br>");
 	msGlobalStatus3 = "Healing Campaign Results:<br><font color=maroon><b>" + sDiaries + "</font></b><br>&nbsp;";
 }
 
