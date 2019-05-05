@@ -914,8 +914,8 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
 		{
 			std::string sRecipient = PubKeyToAddress(tx.vout[0].scriptPubKey);
 			CAmount nTitheAmount = GetTitheTotal(tx);
-			double dTithe = nTitheAmount / COIN;
-			if (dTithe > 0)
+			double dTithe = (double)nTitheAmount / COIN;
+			if (nTitheAmount > 0)
 			{
 				std::string sTithe = RoundToString(dTithe, 12);
 				sTithe = strReplace(sTithe, ".", "");
@@ -932,7 +932,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
 				CTransactionRef tx1 = MakeTransactionRef(std::move(tx));
 				bool fChecked = CheckAntiBotNetSignature(tx1, "gsc");
 				double dTithesMustBeSigned = GetSporkDouble("tithesmustbesigned", 0);
-				double dTitheCutoff = GetSporkDouble("tithecutoff", 250000);
+				double dTitheCutoff = GetSporkDouble("tithecutoff", 50000);
 				if (dTithesMustBeSigned == 1 && !fChecked && dTithe < dTitheCutoff)
 				{
 					LogPrintf("AccptToMemPool::TitheRejected_NotSigned; Amount %f ", (double)dTithe);
