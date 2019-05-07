@@ -2392,6 +2392,10 @@ bool CheckABNSignature(const CBlock& block, std::string& out_CPK)
 
 std::string GetPOGBusinessObjectList(std::string sType, std::string sFields)
 {
+	const Consensus::Params& consensusParams = Params().GetConsensus();
+	if (chainActive.Tip()->nHeight < consensusParams.EVOLUTION_CUTOVER_HEIGHT) 
+		return "";
+	
 	CPK myCPK = GetMyCPK("cpk");
 	int iNextSuperblock = 0;
 	int iLastSuperblock = GetLastGSCSuperblockHeight(chainActive.Tip()->nHeight, iNextSuperblock);

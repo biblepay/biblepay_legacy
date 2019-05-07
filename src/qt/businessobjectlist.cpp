@@ -85,8 +85,6 @@ void BusinessObjectList::createUI(const QStringList &headers, const QString &pSt
 	ui->tableWidget->setRowCount(0);
 	ui->tableWidget->setSortingEnabled(false);
 	
-
-
     ui->tableWidget->setSelectionMode(QAbstractItemView::SingleSelection);
     ui->tableWidget->setSelectionBehavior(QAbstractItemView::SelectRows);
     ui->tableWidget->horizontalHeader()->setStretchLastSection(true);
