@@ -969,23 +969,28 @@ bool LateBlock(CBlock block, CBlockIndex* pindexPrev, int iMinutes)
 bool IsMyABNSufficient(CBlock block, CBlockIndex* pindexPrev, int nHeight)
 {
 	const Consensus::Params& consensusParams = Params().GetConsensus();
-	double nMinRequiredABNWeight = GetSporkDouble("requiredabnweight", 0);
-	double nABNHeight = GetSporkDouble("abnheight", 0);
-	// Rule #1 - Resist generating blocks with low ABN weight
-	if (nABNHeight > 0 && nHeight > consensusParams.ABNHeight && nHeight > nABNHeight && nMinRequiredABNWeight > 0 && !LateBlock(block, pindexPrev, 60))
+	double dDiff = GetDifficulty(pindexPrev);
+	double dDiffThreshhold = fProd ? 1000 : 1;
+	bool fActivateAdvancedFeatures = dDiff > dDiffThreshhold;
+	if (fActivateAdvancedFeatures)
 	{
-		double nABNWeight = GetABNWeight(block, true);
-		if (nABNWeight < nMinRequiredABNWeight) return false;
+		double nMinRequiredABNWeight = GetSporkDouble("requiredabnweight", 0);
+		double nABNHeight = GetSporkDouble("abnheight", 0);
+		// Rule #1 - Resist generating blocks with low ABN weight
+		if (nABNHeight > 0 && nHeight > consensusParams.ABNHeight && nHeight > nABNHeight && nMinRequiredABNWeight > 0 && !LateBlock(block, pindexPrev, 60))
+		{
+			double nABNWeight = GetABNWeight(block, true);
+			if (nABNWeight < nMinRequiredABNWeight) return false;
+		}
+		// Rule #2 for Smart Contracts - Resist mining a bad smart contract unless we absolutely have to (this prevents bad blocks from being generated on testnet and regtestnet)
+		bool bIsSuperblock = CSuperblock::IsValidBlockHeight(nHeight) || CSuperblock::IsSmartContract(nHeight);
+		CAmount nPayments = block.vtx[0]->GetValueOut();
+		if (bIsSuperblock && nPayments < ((MAX_BLOCK_SUBSIDY + 1) * COIN) && !LateBlock(block, pindexPrev, 30))
+		{
+			LogPrintf("\nMiner::IsMyAbnSufficient, Block Height %f, This superblock has no recipients!  Recreating block...", (double)nHeight);
+			return false;
+		}
 	}
-	// Rule #2 for Smart Contracts - Resist mining a bad smart contract unless we absolutely have to (this prevents bad blocks from being generated on testnet and regtestnet)
-	bool bIsSuperblock = CSuperblock::IsValidBlockHeight(nHeight) || CSuperblock::IsSmartContract(nHeight);
-	CAmount nPayments = block.vtx[0]->GetValueOut();
-	if (bIsSuperblock && nPayments < ((MAX_BLOCK_SUBSIDY + 1) * COIN) && !LateBlock(block, pindexPrev, 30))
-	{
-		LogPrintf("\nMiner::IsMyAbnSufficient, Block Height %f, This superblock has no recipients!  Recreating block...", (double)nHeight);
-		return false;
-	}
-
 	return true;
 }
 

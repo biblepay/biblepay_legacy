@@ -170,7 +170,10 @@ void ProposalAddDialog::on_btnSubmit_clicked()
 			}
 		}
 	}
-	std::string sNarr = (sError.empty()) ? "Successfully Prepared Proposal " + sPrepareTxId + ".   NOTE: You must wait 6 confirms for the proposal to be submitted.  Please check back on this page periodically to ensure a successful transmission and that no error message is listed in the bottom area of the page.  Thank you for using the BiblePay Governance System." : sError;
+	std::string sNarr = (sError.empty()) ? "Successfully Prepared Proposal " + sPrepareTxId + ".   NOTE: You must wait 6 confirms for the proposal to be submitted.  Please check back on this page periodically "
+		+ " to ensure a successful transmission and that no error message is listed in the bottom area of the page. "
+		+ "<br>WARNING: Do not shut down BiblePay until the proposal is submitted, otherwise you may lose your proposal submission and proposal collateral.  "
+		+" <br><br>Thank you for using the BiblePay Governance System." : sError;
 	if (sError.empty())
 	{
 		// Set the proposal up to be submitted after 6 confirms using Biblepay Governance Service:
@@ -181,7 +184,6 @@ void ProposalAddDialog::on_btnSubmit_clicked()
 		msProposalHex = sHex;
 		fProposalNeedsSubmitted = true;
 		clear();
- 	
 	}
  	QMessageBox::warning(this, tr("Proposal Add Result"), GUIUtil::TOQS(sNarr), QMessageBox::Ok, QMessageBox::Ok);
 

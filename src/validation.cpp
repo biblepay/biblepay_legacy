@@ -914,7 +914,14 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
 		{
 			std::string sRecipient = PubKeyToAddress(tx.vout[0].scriptPubKey);
 			CAmount nTitheAmount = GetTitheTotal(tx);
+			CAmount nNonTitheAmount = GetNonTitheTotal(tx);
 			double dTithe = (double)nTitheAmount / COIN;
+			if (nNonTitheAmount > 0)
+			{
+				LogPrintf("AcceptToMemPool::TitheRejected_NonTithe_InvalidAmount; Recip %s, Amount %f ", sRecipient, (double)dTithe);
+				return false;
+			}
+
 			if (nTitheAmount > 0)
 			{
 				std::string sTithe = RoundToString(dTithe, 12);
@@ -3606,45 +3613,51 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
 	//////////////////////////////////////////////////////////  BIBLEPAY //////////////////////////////////////////////////////////////////////////
 	//                               Additional Checks for GSC (Generic-Smart-Contracts) and for ABN (Anti-Bot-Net) rules                        //
 	//                                                                                                                                           //
-	double nMinRequiredABNWeight = GetSporkDouble("requiredabnweight", 0);
-	double nABNHeight = GetSporkDouble("abnheight", 0);
-	if (nABNHeight > 0 && nHeight > consensusParams.ABNHeight && nHeight > nABNHeight && nMinRequiredABNWeight > 0 && !LateBlock(block, pindexPrev, 60) && !LateBlockIndex(pindexPrev, 60))
+	double dDiff = GetDifficulty(pindexPrev);
+	double dDiffThreshhold = fProd ? 1000 : 1;
+	bool fActivateAdvancedFeatures = dDiff > dDiffThreshhold;
+
+	if (fActivateAdvancedFeatures)
 	{
-		double nABNWeight = GetABNWeight(block, false);
-		if (nABNWeight < nMinRequiredABNWeight)
+		double nMinRequiredABNWeight = GetSporkDouble("requiredabnweight", 0);
+		double nABNHeight = GetSporkDouble("abnheight", 0);
+		if (nABNHeight > 0 && nHeight > consensusParams.ABNHeight && nHeight > nABNHeight && nMinRequiredABNWeight > 0 && !LateBlock(block, pindexPrev, 60) && !LateBlockIndex(pindexPrev, 60))
 		{
-			if (fMining)
+			double nABNWeight = GetABNWeight(block, false);
+			if (nABNWeight < nMinRequiredABNWeight)
 			{
-				WriteCache("gsc", "errors", "low abn weight " + RoundToString(nABNWeight, 0), GetAdjustedTime());
-				return false;
-			}
-			else
-			{
-				LogPrintf("\nContextualCheckBlock::ABN ERROR!  Block %f does not meet anti-bot-net-minimum required guidelines: ReqABNHeight %f, BlockWeight %f, RequiredWeight %f", 
-						(double)nHeight, (double)nABNHeight, (double)nABNWeight, nMinRequiredABNWeight);
-				double nEnforce = GetSporkDouble("enforceabnweight", 0);
-				if (nEnforce == 1)
+				if (fMining)
+				{
+					WriteCache("gsc", "errors", "low abn weight " + RoundToString(nABNWeight, 0), GetAdjustedTime());
 					return false;
+				}
+				else
+				{
+					LogPrintf("\nContextualCheckBlock::ABN ERROR!  Block %f does not meet anti-bot-net-minimum required guidelines: ReqABNHeight %f, BlockWeight %f, RequiredWeight %f", 
+							(double)nHeight, (double)nABNHeight, (double)nABNWeight, nMinRequiredABNWeight);
+					double nEnforce = GetSporkDouble("enforceabnweight", 0);
+					if (nEnforce == 1)
+						return false;
+				}
 			}
 		}
-	}
 
-	double nAntiGPUHeight = GetSporkDouble("antigpuheight", 0);
-	if (nAntiGPUHeight > 0 && nHeight > consensusParams.ABNHeight && nHeight > nABNHeight && nHeight > nAntiGPUHeight && !LateBlock(block, pindexPrev, 60) && !LateBlockIndex(pindexPrev, 60))
-	{
-		bool fAntiGPU = AntiGPU(block, pindexPrev);
-		if (fAntiGPU)
+		double nAntiGPUHeight = GetSporkDouble("antigpuheight", 0);
+		if (nAntiGPUHeight > 0 && nHeight > consensusParams.ABNHeight && nHeight > nABNHeight && nHeight > nAntiGPUHeight && !LateBlock(block, pindexPrev, 60) && !LateBlockIndex(pindexPrev, 60))
 		{
-			if (fMining)
+			bool fAntiGPU = AntiGPU(block, pindexPrev);
+			if (fAntiGPU)
 			{
-				WriteCache("gsc", "errors", "anti-gpu triggered on my CPK", GetAdjustedTime());
+				if (fMining)
+				{
+					WriteCache("gsc", "errors", "anti-gpu triggered on my CPK", GetAdjustedTime());
+					return false;
+				}
+				LogPrintf("\nContextualCheckBlock::AntiGPU ERROR!  Block %f does not meet anti-gpu guidelines for this CPK. ", (double)nHeight);
 				return false;
 			}
-			LogPrintf("\nContextualCheckBlock::AntiGPU ERROR!  Block %f does not meet anti-gpu guidelines for this CPK. ", (double)nHeight);
-			return false;
 		}
 	}
-
 	bool bIsSuperblock = CSuperblock::IsValidBlockHeight(nHeight) || CSuperblock::IsSmartContract(nHeight);
 	CAmount nPayments = block.vtx[0]->GetValueOut();
 	if (nHeight > consensusParams.EVOLUTION_CUTOVER_HEIGHT && bIsSuperblock && nPayments < ((MAX_BLOCK_SUBSIDY + 1) * COIN) && !LateBlockIndex(pindexPrev, 15))
@@ -4866,12 +4879,12 @@ void SetOverviewStatus()
     
 	std::string sVersionAlert = GetVersionAlert();
 	if (!sVersionAlert.empty()) msGlobalStatus += " <font color=purple>" + sVersionAlert + "</font> ;";
-	std::string sPrayers = FormatHTML(sPrayer, 24, "<br>");
+	std::string sPrayers = FormatHTML(sPrayer, 20, "<br>");
 	msGlobalStatus2 = "<br>Prayer Requests:<br><font color=maroon><b>" + sPrayer + "</font></b><br>&nbsp;";
 	// Diary entries (Healing campaign)
 	std::string sDiary;
 	GetDataList("DIARY", 7, miGlobalDiaryIndex, "", sDiary);
-	std::string sDiaries = FormatHTML(Caption(sDiary, 512), 24, "<br>");
+	std::string sDiaries = FormatHTML(Caption(sDiary, 512), 20, "<br>");
 	msGlobalStatus3 = "Healing Campaign Results:<br><font color=maroon><b>" + sDiaries + "</font></b><br>&nbsp;";
 }
 

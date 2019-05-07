@@ -30,7 +30,8 @@
 #include "utilmoneystr.h"
 #include "utilstrencodings.h"
 #include "validationinterface.h"
-
+#include "rpcpog.h"
+#include "rpcpodc.h"
 #include "spork.h"
 #include "governance.h"
 #include "instantx.h"
@@ -1368,6 +1369,22 @@ inline void static SendBlockTransactions(const CBlock& block, const BlockTransac
     connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::BLOCKTXN, resp));
 }
 
+double GetPeerVersion(std::string sVersion)
+{
+	sVersion = strReplace(sVersion, "BiblePay Core:", "");
+	sVersion = strReplace(sVersion, "Biblepay Core:", "");
+	sVersion = strReplace(sVersion, "Develop", "");
+	sVersion = strReplace(sVersion, "Main", "");
+	sVersion = strReplace(sVersion, "Test", "");
+	sVersion = strReplace(sVersion, ":", "");
+	sVersion = strReplace(sVersion, "-", "");
+	sVersion = strReplace(sVersion, "/", "");
+	sVersion = strReplace(sVersion, ".", "");
+	double dVersion = cdbl(sVersion, 0);
+	return dVersion;
+}
+	
+
 bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv, int64_t nTimeReceived, const CChainParams& chainparams, CConnman& connman, const std::atomic<bool>& interruptMsgProc)
 {
     if (fDebugSpam)
@@ -1478,19 +1495,8 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             pfrom->fDisconnect = true;
             return false;
         }
-
-        if ((nVersion < nMinPeerProtoVersion) || (!fProd && nVersion < MIN_PEER_TESTNET_PROTO_VERSION))
-        {
-            // disconnect from peers older than this proto version
-			if (fDebugSpam)
-				LogPrintf("peer=%d using obsolete version %i; disconnecting\n", pfrom->id, nVersion);
-            connman.PushMessage(pfrom, CNetMsgMaker(INIT_PROTO_VERSION).Make(NetMsgType::REJECT, strCommand, REJECT_OBSOLETE,
-                               strprintf("Version must be %d or greater", nMinPeerProtoVersion)));
-            pfrom->fDisconnect = true;
-            return false;
-        }
-	
-        if (nVersion == 10300)
+			
+	    if (nVersion == 10300)
             nVersion = 300;
         if (!vRecv.empty())
             vRecv >> addrFrom >> nNonce;
@@ -1503,6 +1509,18 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         }
         if (!vRecv.empty())
             vRecv >> fRelay;
+
+        if ((nVersion < nMinPeerProtoVersion) || (!fProd && nVersion < MIN_PEER_TESTNET_PROTO_VERSION))
+        {
+            // disconnect from peers older than this proto version
+			if (fDebugSpam)
+				LogPrintf("peer=%d using obsolete version %i; disconnecting\n", pfrom->id, nVersion);
+            connman.PushMessage(pfrom, CNetMsgMaker(INIT_PROTO_VERSION).Make(NetMsgType::REJECT, strCommand, REJECT_OBSOLETE,
+                               strprintf("Version must be %d or greater", nMinPeerProtoVersion)));
+            pfrom->fDisconnect = true;
+            return false;
+        }
+
         // Disconnect if we connected to ourself
         if (pfrom->fInbound && !connman.CheckIncomingNonce(nNonce))
         {
@@ -1548,6 +1566,28 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             LOCK(pfrom->cs_filter);
             pfrom->fRelayTxes = fRelay; // set to true after we get the first filter* message
         }
+
+		// BIBLEPAY
+		double dPeerVersion = GetPeerVersion(pfrom->cleanSubVer);
+		if (dPeerVersion < 1428 && !fProd && dPeerVersion > 1000)
+		{
+		    LogPrint("net", "Disconnecting unauthorized peer in TestNet using old version %f\r\n", (double)dPeerVersion);
+			Misbehaving(pfrom->GetId(), 1);
+        	pfrom->fDisconnect = true;
+			return false;
+		}
+
+		int64_t nTimeDrift = std::abs(GetAdjustedTime() - nTime);
+        if (nTimeDrift > (5 * 60))
+        {
+            LogPrintf("Disconnecting unauthorized peer with Network Time off by %f seconds!\r\n",(double)nTimeDrift);
+			Misbehaving(pfrom->GetId(), 12);
+			pfrom->fDisconnect = true;
+			return false;
+        }
+
+		// End of BiblePay
+
 
         // Change version
         pfrom->SetSendVersion(nSendVersion);

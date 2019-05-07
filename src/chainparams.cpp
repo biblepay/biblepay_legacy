@@ -387,7 +387,7 @@ public:
 		consensus.nGovernanceFilterElements = 500;
 		consensus.nMasternodeMinimumConfirmations = 1;
 		consensus.FoundationAddress = "yTrEKf8XQ7y7tychC2gWuGw1hsLqBybnEN";
-		consensus.FoundationPODSAddress = "yTrEKf8XQ7y7tychC2gWuGw1hsLqBybnEN";
+		consensus.FoundationPODSAddress = "yPrVdc1kFTC19Hx4NMnwEeLFifToUcQGMs";
 		consensus.FoundationQTAddress = "ygGKQR4bYwjGaEnX8KCyzEJhht4paYCiuo";
 		consensus.nDCCSuperblockStartBlock = 4504; 
         consensus.nDCCSuperblockCycle = BLOCKS_PER_DAY; // Daily
@@ -501,7 +501,8 @@ public:
 		checkpointData = (CCheckpointData) 
 		{
 			boost::assign::map_list_of
-				(1, uint256S("0xde31388eddd9e0ea515353628a0ca1f167466f09c45b10354de10459c7c018f2"))
+				(1,     uint256S("0xde31388eddd9e0ea515353628a0ca1f167466f09c45b10354de10459c7c018f2"))
+				(60000, uint256S("0x210d88152e3cd89a400034adf1d9ffebd3a6a0e96ced8eeec7c9ab18effa25f3"))
 		};
 
         chainTxData = ChainTxData{
@@ -755,7 +756,6 @@ public:
 
         nFulfilledRequestExpireTime = 5*60; // fulfilled requests expire in 5 minutes
 
-        // privKey: cP4EKFyJsHT39LDqgdcB43Y3YXjNyjb5Fuas1GQSeAtjnZWmZEQK
         vSporkAddresses = {"yj949n1UH6fDhw6HtVE5VMj2iSTaSWBMcW"};
         nMinSporkKeys = 1;
         // regtest usually has no masternodes in most tests, so don't check for upgraged MNs

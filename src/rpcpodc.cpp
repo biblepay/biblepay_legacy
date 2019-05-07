@@ -119,7 +119,7 @@ bool SignStake(std::string sBitcoinAddress, std::string strMessage, std::string&
 }
 
 
-std::string SendBlockchainMessage(std::string sType, std::string sPrimaryKey, std::string sValue, double dStorageFee, bool Sign, std::string& sError)
+std::string SendBlockchainMessage(std::string sType, std::string sPrimaryKey, std::string sValue, double dStorageFee, bool Sign, std::string sExtraPayload, std::string& sError)
 {
 	const Consensus::Params& consensusParams = Params().GetConsensus();
     std::string sAddress = consensusParams.FoundationAddress;
@@ -149,8 +149,8 @@ std::string SendBlockchainMessage(std::string sType, std::string sPrimaryKey, st
 		LogPrintf(" Signing Nonce%f , With spork Sig %s on message %s  \n", (double)GetAdjustedTime(), 
 			 sMessageSig.c_str(), sValue.c_str());
 	}
-	std::string s1 = sMessageType + sMessageKey + sMessageValue + sNonce + sMessageSig;
-	//	estinationWithMinimumBalance(address.Get(), nAmount, nMinimumBalance, 0, 0, "", 0, wtx, sError);
+	std::string s1 = sMessageType + sMessageKey + sMessageValue + sNonce + sMessageSig + sExtraPayload;
+	LogPrintf("SendBlockchainMessage %s", s1);
 	bool fSubtractFee = false;
 	bool fInstantSend = false;
 	bool fSent = RPCSendMoney(sError, address.Get(), nAmount, fSubtractFee, wtx, fInstantSend, s1);

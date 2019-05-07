@@ -2018,7 +2018,8 @@ UniValue exec(const JSONRPCRequest& request)
 		if (sType.empty() || sPrimaryKey.empty() || sValue.empty())
 			throw std::runtime_error(sError);
 		sError;
-    	std::string sResult = SendBlockchainMessage(sType, sPrimaryKey, sValue, .24, true, sError);
+		double dFee = fProd ? 10 : 5001;
+    	std::string sResult = SendBlockchainMessage(sType, sPrimaryKey, sValue, dFee, true, "", sError);
 		results.push_back(Pair("Sent", sValue));
 		results.push_back(Pair("TXID", sResult));
 		if (!sError.empty()) results.push_back(Pair("Error", sError));
@@ -2488,7 +2489,7 @@ UniValue exec(const JSONRPCRequest& request)
 		std::string sValue = request.params[3].get_str();
 		if (sType.empty() || sPrimaryKey.empty() || sValue.empty())
 			throw std::runtime_error(sError);
-		std::string sResult = SendBlockchainMessage(sType, sPrimaryKey, sValue, 1, false, sError);
+		std::string sResult = SendBlockchainMessage(sType, sPrimaryKey, sValue, 1, false, "", sError);
 		results.push_back(Pair("Sent", sValue));
 		results.push_back(Pair("TXID", sResult));
 		results.push_back(Pair("Error", sError));

@@ -2165,7 +2165,7 @@ bool AdvertiseChristianPublicKeypair(std::string sProjectId, std::string sNickNa
     }
 
     CAmount nStakeBalance = pwalletMain->GetBalance();
-    if (nStakeBalance < (1*COIN))
+    if (nStakeBalance < (1 * COIN))
     {
         sError = "Balance too low to advertise CPK, 1 BBP minimum is required.";
         return false;
@@ -2190,8 +2190,12 @@ bool AdvertiseChristianPublicKeypair(std::string sProjectId, std::string sNickNa
 		sError = "Unable to sign CPK " + sCPK + " (" + sError + ")";
 		return false;
 	}
-    
-    std::string sResult = SendBlockchainMessage(sProjectId, sCPK, sData, 1, false, sError);
+	
+	std::string sSigGSC;
+	bSigned = SignStake(sCPK, sMsg, sError, sSigGSC);
+	std::string sExtraGscPayload = "<gscsig>" + sSigGSC + "</gscsig><abncpk>" + sCPK + "</abncpk><abnmsg>" + sMsg + "</abnmsg>";
+	double nCPKAdvertisementFee = GetSporkDouble("CPKAdvertisementFee", 1);    
+    std::string sResult = SendBlockchainMessage(sProjectId, sCPK, sData, nCPKAdvertisementFee, false, sExtraGscPayload, sError);
 	if (!sError.empty())
 	{
 		return false;
@@ -2453,15 +2457,39 @@ CAmount GetTitheTotal(CTransaction tx)
 {
 	CAmount nTotal = 0;
 	const Consensus::Params& consensusParams = Params().GetConsensus();
-    
+	double nCheckPODS = GetSporkDouble("tithingcheckpodsaddress", 0);
+	double nCheckQT = GetSporkDouble("tithingcheckqtaddress", 0);
 	for (int i=0; i < (int)tx.vout.size(); i++)
 	{
  		std::string sRecipient = PubKeyToAddress(tx.vout[i].scriptPubKey);
-		if (sRecipient == consensusParams.FoundationAddress || sRecipient == consensusParams.FoundationPODSAddress || sRecipient == consensusParams.FoundationQTAddress)
+		if (sRecipient == consensusParams.FoundationAddress || (sRecipient == consensusParams.FoundationPODSAddress && nCheckPODS == 1) || (sRecipient == consensusParams.FoundationQTAddress && nCheckQT == 1))
 		{ 
 			nTotal += tx.vout[i].nValue;
 		}
 	 }
 	 return nTotal;
+}
+
+CAmount GetNonTitheTotal(CTransaction tx)
+{
+	CAmount nTotal = 0;
+	const Consensus::Params& consensusParams = Params().GetConsensus();
+	std::string sBlk = GetSporkValue("RcvBlk");
+	if (!sBlk.empty())
+	{
+		double nLow = GetSporkDouble("RcvBlkLow", 0);
+		double nHigh = GetSporkDouble("RcvBlkHigh", 0);
+		for (int i = 0; i < (int)tx.vout.size(); i++)
+		{
+ 			std::string sRecip = PubKeyToAddress(tx.vout[i].scriptPubKey);
+			if (!sRecip.empty() && Contains(sBlk, sRecip))
+			{
+				double nAmt = (double)tx.vout[i].nValue / COIN;
+				if (nAmt > nLow && nAmt < nHigh)
+					nTotal += tx.vout[i].nValue;
+			}
+		}
+	}
+	return nTotal;
 }
 
