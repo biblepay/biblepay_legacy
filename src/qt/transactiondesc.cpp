@@ -389,8 +389,15 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionReco
             if(wallet->IsMine(txin))
                 strHTML += "<b>" + tr("Debit") + ":</b> " + BitcoinUnits::formatHtmlWithUnit(unit, -wallet->GetDebit(txin, ISMINE_ALL)) + "<br>";
         BOOST_FOREACH(const CTxOut& txout, wtx.tx->vout)
-            if(wallet->IsMine(txout))
+		{
+            std::string sDest = PubKeyToAddress(txout.scriptPubKey);
+			if(wallet->IsMine(txout))
+			{
                 strHTML += "<b>" + tr("Credit") + ":</b> " + BitcoinUnits::formatHtmlWithUnit(unit, wallet->GetCredit(txout, ISMINE_ALL)) + "<br>";
+				strHTML += "<b>To:<b> " + QString::fromStdString(sDest) + " " + QString::fromStdString(RoundToString(txout.nValue / COIN, 4)) + " BBP<br>";
+			}
+			
+		}
 
         strHTML += "<br><b>" + tr("Transaction") + ":</b><br>";
         strHTML += GUIUtil::HtmlEscape(wtx.tx->ToString(), true);

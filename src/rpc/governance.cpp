@@ -1274,7 +1274,7 @@ UniValue leaderboard(const JSONRPCRequest& request)
         throw std::runtime_error(
             "leaderboard\n"
             "Returns an object containing the campaign participants prominence levels per project, and global totals.\n"
-			"\nYou must specify leaderboard [me_only=true/false] [height || prominence last || prominence future || prominence]. The default is exec prominence false future."
+			"\nYou must specify leaderboard [me_only=true/false] [height || last || future]. The default is leaderboard false future."
             + HelpExampleCli("leaderboard", "")
             );
     }

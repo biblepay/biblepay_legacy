@@ -46,9 +46,9 @@ QString BitcoinUnits::name(int unit)
     {
         switch(unit)
         {
-            case BIBLEPAY: return QString("BIBLEPAY");
-            case mBIBLEPAY: return QString("mBIBLEPAY");
-            case uBIBLEPAY: return QString::fromUtf8("μBIBLEPAY");
+            case BIBLEPAY: return QString("BBP");
+            case mBIBLEPAY: return QString("mBBP");
+            case uBIBLEPAY: return QString::fromUtf8("μBBP");
             case duffs: return QString("duffs");
             default: return QString("???");
         }
@@ -57,9 +57,9 @@ QString BitcoinUnits::name(int unit)
     {
         switch(unit)
         {
-            case BIBLEPAY: return QString("tBIBLEPAY");
-            case mBIBLEPAY: return QString("mtBIBLEPAY");
-            case uBIBLEPAY: return QString::fromUtf8("μtBIBLEPAY");
+            case BIBLEPAY: return QString("tBBP");
+            case mBIBLEPAY: return QString("mtBBP");
+            case uBIBLEPAY: return QString::fromUtf8("μtBBP");
             case duffs: return QString("tduffs");
             default: return QString("???");
         }
@@ -233,7 +233,7 @@ QString BitcoinUnits::getAmountColumnTitle(int unit)
     QString amountTitle = QObject::tr("Amount");
     if (BitcoinUnits::valid(unit))
     {
-        amountTitle += " ("+BitcoinUnits::name(unit) + ")";
+        amountTitle += " (" + BitcoinUnits::name(unit) + ")";
     }
     return amountTitle;
 }

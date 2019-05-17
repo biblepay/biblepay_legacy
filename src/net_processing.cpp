@@ -3183,7 +3183,8 @@ bool ProcessMessages(CNode* pfrom, CConnman& connman, const std::atomic<bool>& i
                 // Allow exceptions from over-long size
 				if (strCommand == "mnw")
 				{
-					// CRITICAL TODO:  ENSURE Classic mnw message is fixed
+					// This placeholder is reserved for a Log Message.  We must wait until all biblepay-classic sanctuaries are retired (as they are still sending this oversized message).
+					// We have confirmed the deterministic nodes can cope with this temporary spam.
 				}
 				else
 				{

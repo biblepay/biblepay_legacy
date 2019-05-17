@@ -142,7 +142,7 @@ void masternode_list_help()
             "  daemon         - Print daemon version of a masternode (can be additionally filtered, exact match)\n"
             "  full           - Print info in format 'status protocol payee lastseen activeseconds lastpaidtime lastpaidblock IP'\n"
             "                   (can be additionally filtered, partial match)\n"
-            "  info           - Print info in format 'status protocol payee lastseen activeseconds sentinelversion sentinelstate IP'\n"
+            "  info           - Print info in format 'status protocol payee lastseen activeseconds watchmanversion watchmanstate IP'\n"
             "                   (can be additionally filtered, partial match)\n"
             "  json           - Print info in JSON format (can be additionally filtered, partial match)\n"
             "  lastpaidblock  - Print the last block height a node was paid on the network\n"
@@ -847,6 +847,17 @@ UniValue masternode(const JSONRPCRequest& request)
     }
 }
 
+std::string GetWatchmanString()
+{
+	return FormatFullVersion();
+}
+
+bool GetWatchmanState()
+{
+	// Watchman on the wall is integrated in
+	return true;
+}
+
 UniValue masternodelist(const JSONRPCRequest& request)
 {
     std::string strMode = "json";
@@ -975,8 +986,8 @@ UniValue masternodelist(const JSONRPCRequest& request)
                 objMN.push_back(Pair("status", mn.GetStatus()));
                 objMN.push_back(Pair("protocol", mn.nProtocolVersion));
                 objMN.push_back(Pair("daemonversion", mn.lastPing.GetDaemonString()));
-                objMN.push_back(Pair("sentinelversion", mn.lastPing.GetSentinelString()));
-                objMN.push_back(Pair("sentinelstate", (mn.lastPing.fSentinelIsCurrent ? "current" : "expired")));
+                objMN.push_back(Pair("watchmanversion", GetWatchmanString()));
+                objMN.push_back(Pair("watchmanstate", (GetWatchmanState() ? "current" : "expired")));
                 objMN.push_back(Pair("lastseen", (int64_t)mn.lastPing.sigTime));
                 objMN.push_back(Pair("activeseconds", (int64_t)(mn.lastPing.sigTime - mn.sigTime)));
                 objMN.push_back(Pair("lastpaidtime", mn.GetLastPaidTime()));

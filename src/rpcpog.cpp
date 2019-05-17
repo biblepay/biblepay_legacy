@@ -307,7 +307,7 @@ std::string ReadCache(std::string sSection, std::string sKey)
 {
 	boost::to_upper(sSection);
 	boost::to_upper(sKey);
-	// CRITICAL TODO : Find a way to eliminate this to_upper
+	// NON-CRITICAL TODO : Find a way to eliminate this to_upper while we transition to non-financial transactions
 	if (sSection.empty() || sKey.empty())
 		return std::string();
 	std::pair<std::string, int64_t> t = mvApplicationCache[std::make_pair(sSection, sKey)];

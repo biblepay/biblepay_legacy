@@ -368,7 +368,8 @@ std::string AssessBlocks(int nHeight, bool fCreatingContract)
 	std::map<std::string, double> mCampaignPoints;
 	std::map<std::string, CPK> mCPKCampaignPoints;
 	std::map<std::string, double> mCampaigns;
-
+	double dDebugLevel = cdbl(GetArg("-debuglevel", "0"), 0);
+	
 	while (pindex && pindex->nHeight < nMaxDepth)
 	{
 		if (pindex->nHeight < chainActive.Tip()->nHeight) 
@@ -408,9 +409,9 @@ std::string AssessBlocks(int nHeight, bool fCreatingContract)
 							cCPKCampaignPoints.sNickName = c.sNickName;
 							cCPKCampaignPoints.nPoints += nPoints;
 							mCPKCampaignPoints[sCPK + sCampaignName] = cCPKCampaignPoints;
-							if (fDebugSpam)
-								LogPrintf("\nUser %s , nn %s, Points %f, Campaign %s, coinage %f, donation %f, usertotal %f ",
-								c.sAddress, localCPK.sNickName, 
+							if (dDebugLevel == 1)
+								LogPrintf("\nUser %s , height %f, TXID %s, nn %s, Points %f, Campaign %s, coinage %f, donation %f, usertotal %f ",
+								c.sAddress, pindex->nHeight, block.vtx[n]->GetHash().GetHex(), localCPK.sNickName, 
 								(double)nPoints, c.sCampaign, (double)nCoinAge, 
 								(double)nDonation/COIN, (double)c.nPoints);
 						}

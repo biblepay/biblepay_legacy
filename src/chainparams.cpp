@@ -181,7 +181,8 @@ public:
 
 		consensus.FPOG_CUTOVER_HEIGHT = 100001;   // Feb 7th, 2019 (100,001)
 		consensus.PODC_LAST_BLOCK = 107000; // March 13th, 2019
-		consensus.EVOLUTION_CUTOVER_HEIGHT = 125000;
+
+		consensus.EVOLUTION_CUTOVER_HEIGHT = 123200; // June 2nd, 2019 
 		consensus.F7000_CUTOVER_HEIGHT = 7000;
 		consensus.F8000_CUTOVER_HEIGHT = 21350;
 		consensus.F9000_CUTOVER_HEIGHT = 21550;
@@ -189,7 +190,7 @@ public:
 		consensus.F12000_CUTOVER_HEIGHT = 35110;
 		consensus.F13000_CUTOVER_HEIGHT = 57700; 
 		consensus.LAST_TITHE_BLOCK = 21565;
-		consensus.ABNHeight = 125000;
+		consensus.ABNHeight = 127000;
 		consensus.nSubsidyHalvingInterval = BLOCKS_PER_DAY * 365; // We produce approx 74,825 blocks per year (205 per day)
 		consensus.nInstantSendKeepLock = 7;
 		consensus.nMasternodePaymentsIncreasePeriod = BLOCKS_PER_DAY * 30; 
@@ -209,12 +210,14 @@ public:
 		consensus.nGovernanceFilterElements = 20000;
 		consensus.nSuperblockStartHash = uint256(); 
 		consensus.nMasternodeMinimumConfirmations = 7;
-		consensus.BIP34Height = 120000;
+		// BIP34, 65, 66 should match Evo cutover height
+		consensus.BIP34Height = 123200;
 		consensus.BIP34Hash = uint256();
-		consensus.BIP65Height = 120000; // 00000000000076d8fcea02ec0963de4abfd01e771fec0863f960c2c64fe6f357
-		consensus.BIP66Height = 120000; // 00000000000b1fa2dfa312863570e13fae9ca7b5566cb27e55422620b469aefa
+		consensus.BIP65Height = 123200; // 00000000000076d8fcea02ec0963de4abfd01e771fec0863f960c2c64fe6f357
+		consensus.BIP66Height = 123200; // 00000000000b1fa2dfa312863570e13fae9ca7b5566cb27e55422620b469aefa
+
 		consensus.DIP0001Height = 220000;
-		consensus.QTHeight = 145000;  // Note to future forkers of BiblePay!  This height must be > (BLOCKS_PER_DAY * 32)!  Thank you for forking biblepay and thank you for your support!
+		consensus.QTHeight = 124000;  // Note to future forkers of BiblePay!  This height must be > (BLOCKS_PER_DAY * 32)!  Thank you for forking biblepay and thank you for your support!
 		consensus.powLimit = uint256S("0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"); 
 		consensus.FoundationAddress = "BB2BwSbDCqCqNsfc7FgWFJn4sRgnUt4tsM";
 		consensus.FoundationPODSAddress = "BScSypUZVEEY4TMz1ehyyPcS5wrnMM7WPB";
@@ -244,7 +247,7 @@ public:
 
         // Deployment of BIP147
         consensus.vDeployments[Consensus::DEPLOYMENT_BIP147].bit = 2;
-        consensus.vDeployments[Consensus::DEPLOYMENT_BIP147].nStartTime = 1560023274; // June 3rd, 2019
+        consensus.vDeployments[Consensus::DEPLOYMENT_BIP147].nStartTime = 1544655600; 
         consensus.vDeployments[Consensus::DEPLOYMENT_BIP147].nTimeout = 1577836800; // June 2020
         consensus.vDeployments[Consensus::DEPLOYMENT_BIP147].nWindowSize = 4032;
         consensus.vDeployments[Consensus::DEPLOYMENT_BIP147].nThreshold = 3226; // 80% of 4032
@@ -286,11 +289,11 @@ public:
 		vSeeds.push_back(CDNSSeedData("biblepay.org", "dnsseed.biblepay-explorer.org"));
 
         // Biblepay addresses start with 'B'
-        base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,25);
+        base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1, 25);
         // Biblepay script addresses start with '7'
-        base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1,16);
+        base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1, 16);
         // Biblepay private keys start with '7' or 'X'
-        base58Prefixes[SECRET_KEY] =     std::vector<unsigned char>(1,182);
+        base58Prefixes[SECRET_KEY] =     std::vector<unsigned char>(1, 182);
         // Biblepay BIP32 pubkeys start with 'xpub' (Bitcoin defaults)
         base58Prefixes[EXT_PUBLIC_KEY] = boost::assign::list_of(0x04)(0x88)(0xB2)(0x1E).convert_to_container<std::vector<unsigned char> >();
         // Biblepay BIP32 prvkeys start with 'xprv' (Bitcoin defaults)
@@ -298,7 +301,6 @@ public:
 
         // Biblepay BIP44 coin type is '5'
         nExtCoinType = 10;
-
         vFixedSeeds = std::vector<SeedSpec6>(pnSeed6_main, pnSeed6_main + ARRAYLEN(pnSeed6_main));
 
         // long living quorum params
@@ -315,13 +317,12 @@ public:
         fAllowMultiplePorts = false;
 
         nPoolMaxTransactions = 3;
-        nFulfilledRequestExpireTime = 60*60; // fulfilled requests expire in 1 hour
+        nFulfilledRequestExpireTime = 60 * 60; // fulfilled requests expire in 1 hour
         vSporkAddresses = {"BB2BwSbDCqCqNsfc7FgWFJn4sRgnUt4tsM"};
         nMinSporkKeys = 1;
         fBIP9CheckMasternodesUpgraded = true;
         consensus.fLLMQAllowDummyCommitments = false;
-
-
+		
 		checkpointData = (CCheckpointData){
 			boost::assign::map_list_of
 				(7, uint256S("0x00022b1be28b1deb9a51d4d69f3fa393f4ea36621039b6313a6c0796546621de"))
@@ -335,13 +336,14 @@ public:
 				(33460, uint256S("0xe64ff92ae97c2978c14d97ae45c618c1f2140339ce9ccb770945d3efb7d5e0f5"))
 				(63000, uint256S("0x1ef6f6e5d803cf04f84a4377365db6cefe82a775a9a596029db7d23fa3652f57"))
 				(105028, uint256S("0x2d38a145444c5e880209fe6a1ee1b09542f5438f50ca8736b20bafc5c552d79b"))
+				(119000, uint256S("0x527a086d639b315e4eb03cb52d394a809654d072387c5cb73401799cb5998f90"))
 		};
 
         chainTxData = ChainTxData{
             1551671253, // * UNIX timestamp of last known number of transactions
-            879614,    // * total number of transactions between genesis and that timestamp
+            879614,     // * total number of transactions between genesis and that timestamp
                         //   (the tx=... number in the SetBestChain debug.log lines)
-            0.01         // * estimated number of transactions per second after that timestamp
+            0.01        // * estimated number of transactions per second after that timestamp
         };
     }
 };

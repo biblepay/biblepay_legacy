@@ -61,7 +61,7 @@ UniValue GetCampaigns()
 	std::map<std::string, CPK> cp = GetGSCMap("cpk", "", true);
 	for (std::pair<std::string, CPK> a : cp)
 	{
-		// CRITICAL TODO: Figure out why nickname is missing from GSCMap but not from GetCPKFromProject
+		// NON-CRITICAL TODO: Figure out why nickname is missing from GSCMap but not from GetCPKFromProject
 		CPK oPrimary = GetCPKFromProject("cpk", a.second.sAddress);
 		results.push_back(Pair("member [" + Caption(oPrimary.sNickName, 10) + "]", a.second.sAddress));
 	}
@@ -301,8 +301,7 @@ bool Enrolled(std::string sCampaignName, std::string& sError)
 bool CreateClientSideTransaction(bool fForce, bool fDiaryProjectsOnly, std::string sDiary, std::string& sError)
 {
 	std::map<std::string, std::string> mCampaigns = GetSporkMap("spork", "gsccampaigns");
-	// CRITICAL TODO - Change this to 12 hours before we go to prod
-	double nTransmissionFrequency = GetSporkDouble("gscclienttransmissionfrequency", (60 * 60 * 1));
+	double nTransmissionFrequency = GetSporkDouble("gscclienttransmissionfrequency", (60 * 60 * 12));
 	if (sDiary.length() < 10) 
 		sDiary = "";
 	if (fDiaryProjectsOnly && sDiary.empty())

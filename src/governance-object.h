@@ -25,7 +25,7 @@ class CGovernanceTriggerManager;
 class CGovernanceObject;
 class CGovernanceVote;
 
-// CRITICAL - increment this min_gov_peer_proto_version to 70719 during next mandatory upgrade
+// BiblePay - During Evolution Cutover we transition to v70718
 static const int MIN_GOVERNANCE_PEER_PROTO_VERSION = 70718;
 static const int GOVERNANCE_FILTER_PROTO_VERSION = 70718;
 

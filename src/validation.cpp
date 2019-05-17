@@ -4881,13 +4881,13 @@ void SetOverviewStatus()
 	if (!sVersionAlert.empty()) msGlobalStatus += " <font color=purple>" + sVersionAlert + "</font> ;";
 	std::string sPrayers = FormatHTML(sPrayer, 20, "<br>");
 	if (!sPrayer.empty())
-		msGlobalStatus2 = "<br>Prayer Requests:<br><font color=maroon><b>" + sPrayer + "</font></b><br>&nbsp;";
+		msGlobalStatus2 = "<br><b>Prayer Requests:</b><br><font color=maroon><b>" + sPrayer + "</font></b><br>&nbsp;";
 	// Diary entries (Healing campaign)
 	std::string sDiary;
 	GetDataList("DIARY", 7, miGlobalDiaryIndex, "", sDiary);
 	std::string sDiaries = FormatHTML(Caption(sDiary, 512), 20, "<br>");
-	if (!sDiaries.empty())
-		msGlobalStatus3 = "Healing Campaign Results:<br><font color=maroon><b>" + sDiaries + "</font></b><br>&nbsp;";
+	if (!sDiary.empty())
+		msGlobalStatus2 += "<br><br><b>Healing Campaign Results:</b><br><font color=maroon><b>" + sDiary + "</font></b><br>&nbsp;";
 }
 
 void KillBlockchainFiles()
