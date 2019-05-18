@@ -2172,6 +2172,7 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
 	// Memorize Prayers
 	uiInterface.InitMessage(_("Memorizing Prayers..."));
     MemorizeBlockChainPrayers(false, false, true, false);
+	uiInterface.InitMessage(_("Discovering Peers..."));
 
     Discover(threadGroup);
 
@@ -2198,6 +2199,7 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
         return InitError(strNodeError);
 
     // ********************************************************* Step 13: finished
+	uiInterface.InitMessage(_("Starting Miner..."));
 
 	// Generate coins - Proof-of-Bible-Hash (POBH) - in the background
 	GenerateBiblecoins(GetBoolArg("-gen", true), GetArg("-genproclimit", 1), chainparams);

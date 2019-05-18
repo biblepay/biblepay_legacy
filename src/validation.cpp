@@ -4860,34 +4860,45 @@ void DumpMempool(void)
 // BIBLEPAY
 void SetOverviewStatus()
 {
-	double dDiff = GetDifficulty(chainActive.Tip());
-	// QuantitativeTightening - QT - R ANDREWS - BIBLEPAY
-	double dPriorPrice = 0;
-	double dPriorPhase = 0;
-	std::string sQT;
-    if (sporkManager.IsSporkActive(SPORK_20_QUANTITATIVE_TIGHTENING_ENABLED)) 
+	try
 	{
-		GetQTPhase(false, -1, chainActive.Tip()->nHeight, dPriorPrice, dPriorPhase);
-		std::string sQTColor = (dPriorPhase == 0) ? "" : "<font color=green>";
-		sQT = "Price: " + RoundToString(dPriorPrice, 8) + "; QT: " + sQTColor + RoundToString(dPriorPhase, 0) + "%" + "</font>";
-	}
-	std::string sPrayer = "N/A";
-	GetDataList("PRAYER", 30, miGlobalPrayerIndex, "", sPrayer);
-	msGlobalStatus = "Blocks: " + RoundToString((double)chainActive.Tip()->nHeight, 0);
-	msGlobalStatus += "<br>Difficulty: " + RoundToString(GetDifficulty(chainActive.Tip()), 2);
-	msGlobalStatus += "<br>" + sQT;
+		double dDiff = GetDifficulty(chainActive.Tip());
+		// QuantitativeTightening - QT - R ANDREWS - BIBLEPAY
+		double dPriorPrice = 0;
+		double dPriorPhase = 0;
+		std::string sQT;
+		if (sporkManager.IsSporkActive(SPORK_20_QUANTITATIVE_TIGHTENING_ENABLED)) 
+		{
+			GetQTPhase(false, -1, chainActive.Tip()->nHeight, dPriorPrice, dPriorPhase);
+			std::string sQTColor = (dPriorPhase == 0) ? "" : "<font color=green>";
+			sQT = "Price: " + RoundToString(dPriorPrice, 8) + "; QT: " + sQTColor + RoundToString(dPriorPhase, 0) + "%" + "</font>";
+		}
+		std::string sPrayer = "N/A";
+		GetDataList("PRAYER", 30, miGlobalPrayerIndex, "", sPrayer);
+		msGlobalStatus = "Blocks: " + RoundToString((double)chainActive.Tip()->nHeight, 0);
+		msGlobalStatus += "<br>Difficulty: " + RoundToString(GetDifficulty(chainActive.Tip()), 2);
+		msGlobalStatus += "<br>" + sQT;
     
-	std::string sVersionAlert = GetVersionAlert();
-	if (!sVersionAlert.empty()) msGlobalStatus += " <font color=purple>" + sVersionAlert + "</font> ;";
-	std::string sPrayers = FormatHTML(sPrayer, 20, "<br>");
-	if (!sPrayer.empty())
-		msGlobalStatus2 = "<br><b>Prayer Requests:</b><br><font color=maroon><b>" + sPrayer + "</font></b><br>&nbsp;";
-	// Diary entries (Healing campaign)
-	std::string sDiary;
-	GetDataList("DIARY", 7, miGlobalDiaryIndex, "", sDiary);
-	std::string sDiaries = FormatHTML(Caption(sDiary, 512), 20, "<br>");
-	if (!sDiary.empty())
-		msGlobalStatus2 += "<br><br><b>Healing Campaign Results:</b><br><font color=maroon><b>" + sDiary + "</font></b><br>&nbsp;";
+		std::string sVersionAlert = GetVersionAlert();
+		if (!sVersionAlert.empty()) msGlobalStatus += " <font color=purple>" + sVersionAlert + "</font> ;";
+		std::string sPrayers = FormatHTML(sPrayer, 20, "<br>");
+		if (!sPrayer.empty())
+			msGlobalStatus2 = "<br><b>Prayer Requests:</b><br><font color=maroon><b>" + sPrayer + "</font></b><br>&nbsp;";
+		// Diary entries (Healing campaign)
+		std::string sDiary;
+		GetDataList("DIARY", 7, miGlobalDiaryIndex, "", sDiary);
+		std::string sDiaries = FormatHTML(Caption(sDiary, 512), 20, "<br>");
+		if (!sDiary.empty())
+			msGlobalStatus2 += "<br><br><b>Healing Campaign Results:</b><br><font color=maroon><b>" + sDiary + "</font></b><br>&nbsp;";
+	 }
+	 catch (const std::exception& e) 
+	 {
+		 LogPrintf(" Failed to update overview (type %f) ", 1);
+	 }
+	 catch (...)
+	 {
+		 LogPrintf(" Failed to update overview (type %f) ", 2);
+	 }
 }
 
 void KillBlockchainFiles()

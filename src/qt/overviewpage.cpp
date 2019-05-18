@@ -451,12 +451,23 @@ void OverviewPage::updatePrivateSendProgress()
 
 void OverviewPage::updatePrayers()
 {
-	 QString qsStatus = QString::fromUtf8(msGlobalStatus.c_str());
-	 ui->txtDisplay->setText(qsStatus);
-	 QString qsStatus2 = QString::fromUtf8(msGlobalStatus2.c_str());
-	 ui->txtDisplay2->setText(qsStatus2);
-	 QString qsStatus3 = QString::fromUtf8(msGlobalStatus3.c_str());
-	 ui->txtDisplay3->setText(qsStatus3);
+	try
+	{
+		QString qsStatus = QString::fromUtf8(msGlobalStatus.c_str());
+		ui->txtDisplay->setText(qsStatus);
+		QString qsStatus2 = QString::fromUtf8(msGlobalStatus2.c_str());
+		ui->txtDisplay2->setText(qsStatus2);
+		QString qsStatus3 = QString::fromUtf8(msGlobalStatus3.c_str());
+		ui->txtDisplay3->setText(qsStatus3);
+	}
+	catch (const std::exception& e) 
+	{
+		LogPrintf(" Failed to update prayers (type %f) ", 1);
+	}
+	catch (...)
+	{
+		LogPrintf(" Failed to update prayers (type %f) ", 2);
+	}
 }
 
 void OverviewPage::updateAdvancedPSUI(bool fShowAdvancedPSUI) {
@@ -487,7 +498,7 @@ void OverviewPage::privateSendStatus()
 	PRAYER_MODULUS++;
 	if ((PRAYER_MODULUS % 60) == 0)
 	{
-		PRAYER_MODULUS=0;
+		PRAYER_MODULUS = 0;
 		SetOverviewStatus();
 		updatePrayers();
 	}

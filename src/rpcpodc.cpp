@@ -165,9 +165,9 @@ std::string GetGithubVersion()
 	std::string sURL = "https://" + GetSporkValue("pool");
 	std::string sRestfulURL = "SAN/LastMandatoryVersion.htm";
 	std::string sResponse = BiblepayHTTPSPost(false, 0, "", "", "", sURL, sRestfulURL, 443, "", 25, 10000, 1);
-	if (sResponse.length() > 6)
+	if (sResponse.length() > 11)
 	{
-		sResponse = sResponse.substr(sResponse.length()-11, 11);
+		sResponse = sResponse.substr(sResponse.length() - 11, 11);
 		sResponse = strReplace(sResponse, "\n", "");
 		sResponse = strReplace(sResponse, "\r", "");
     }

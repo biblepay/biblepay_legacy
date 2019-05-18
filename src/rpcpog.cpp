@@ -104,13 +104,12 @@ double Round(double d, int place)
 	}
 	catch(boost::bad_lexical_cast const& e)
 	{
-		LogPrintf("caught bad lexical cast I");
+		LogPrintf("caught bad lexical cast %f", 1);
 		return 0;
 	}
 	catch(...)
 	{
-		LogPrintf("caught bad lexical cast II");
-		return 0;
+		LogPrintf("caught bad lexical cast %f", 2);
 	}
 	return r;
 }
@@ -134,8 +133,8 @@ double cdbl(std::string s, int place)
 {
 	if (s=="") s = "0";
 	if (s.length() > 255) return 0;
-	s = strReplace(s,"\r","");
-	s = strReplace(s,"\n","");
+	s = strReplace(s, "\r","");
+	s = strReplace(s, "\n","");
 	std::string t = "";
 	for (int i = 0; i < (int)s.length(); i++)
 	{
@@ -145,9 +144,21 @@ double cdbl(std::string s, int place)
 			t += u;
 		}
 	}
-
-    double r = boost::lexical_cast<double>(t);
-	double d = Round(r,place);
+	double r= 0;
+	try
+	{
+	    r = boost::lexical_cast<double>(t);
+	}
+	catch(boost::bad_lexical_cast const& e)
+	{
+		LogPrintf("caught cdbl bad lexical cast %f", 1);
+		return 0;
+	}
+	catch(...)
+	{
+		LogPrintf("caught cdbl bad lexical cast %f", 2);
+	}
+	double d = Round(r, place);
 	return d;
 }
 
@@ -1313,7 +1324,7 @@ void SerializePrayersToFile(int nHeight)
 	std::string sSuffix = fProd ? "_prod" : "_testnet";
 	std::string sTarget = GetSANDirectory2() + "prayers2" + sSuffix;
 	FILE *outFile = fopen(sTarget.c_str(), "w");
-	LogPrintf("Serializing Prayers... %f ",GetAdjustedTime());
+	LogPrintf("Serializing Prayers... %f ", GetAdjustedTime());
 	for (auto ii : mvApplicationCache) 
 	{
 		std::pair<std::string, int64_t> v = mvApplicationCache[std::make_pair(ii.first.first, ii.first.second)];
@@ -1329,12 +1340,13 @@ void SerializePrayersToFile(int nHeight)
 			fputs(sRow.c_str(), outFile);
 		}
 	}
-	LogPrintf("...Done Serializing Prayers... %f ",GetAdjustedTime());
+	LogPrintf("...Done Serializing Prayers... %f ", GetAdjustedTime());
     fclose(outFile);
 }
 
 int DeserializePrayersFromFile()
 {
+	LogPrintf("\nDeserializing prayers from file %f", GetAdjustedTime());
 	std::string sSuffix = fProd ? "_prod" : "_testnet";
 	std::string sSource = GetSANDirectory2() + "prayers2" + sSuffix;
 
@@ -1367,8 +1379,8 @@ int DeserializePrayersFromFile()
 			}
 		}
 	}
-    LogPrintf(" Processed %f prayer rows \n", iRows);
 	streamIn.close();
+    LogPrintf(" Processed %f prayer rows - %f\n", iRows, GetAdjustedTime());
 	return nHeight;
 }
 
@@ -1655,8 +1667,14 @@ void MemorizeBlockChainPrayers(bool fDuringConnectBlock, bool fSubThread, bool f
 	if (fColdBoot)
 	{
 		nDeserializedHeight = DeserializePrayersFromFile();
-		if (chainActive.Tip()->nHeight < nDeserializedHeight && nDeserializedHeight > 0) nDeserializedHeight=0;
+		if (chainActive.Tip()->nHeight < nDeserializedHeight && nDeserializedHeight > 0)
+		{
+			LogPrintf(" Chain Height %f, Loading entire prayer index\n", chainActive.Tip()->nHeight);
+			nDeserializedHeight = 0;
+		}
 	}
+	LogPrintf("Memorizing prayers tip height %f @ time %f deserialized height %f ", chainActive.Tip()->nHeight, GetAdjustedTime(), nDeserializedHeight);
+
 	int nMaxDepth = chainActive.Tip()->nHeight;
 	int nMinDepth = fDuringConnectBlock ? nMaxDepth - 2 : nMaxDepth - (BLOCKS_PER_DAY * 30 * 12);  // One year
 	if (fDuringSanctuaryQuorum) nMinDepth = nMaxDepth - (BLOCKS_PER_DAY * 14); // Two Weeks
@@ -1671,6 +1689,8 @@ void MemorizeBlockChainPrayers(bool fDuringConnectBlock, bool fSubThread, bool f
 		CBlock block;
 		if (ReadBlockFromDisk(block, pindex, consensusParams)) 
 		{
+			if (pindex->nHeight % 25000 == 0)
+				LogPrintf(" MBCP %f @ %f, ", pindex->nHeight, GetAdjustedTime());
 			for (unsigned int n = 0; n < block.vtx.size(); n++)
     		{
 				double dTotalSent = 0;
@@ -1695,13 +1715,12 @@ void MemorizeBlockChainPrayers(bool fDuringConnectBlock, bool fSubThread, bool f
 	}
 	if (fColdBoot) 
 	{
-		if (nMaxDepth > (nDeserializedHeight-1000))
+		if (nMaxDepth > (nDeserializedHeight - 1000))
 		{
-			SerializePrayersToFile(nMaxDepth-1);
+			SerializePrayersToFile(nMaxDepth - 1);
 		}
 	}
-	if (fDebugSpam)
-		LogPrint("net", "Finished MemorizeBlockChainPrayers @ %f ", GetAdjustedTime());
+	LogPrintf("...Finished MemorizeBlockChainPrayers @ %f ", GetAdjustedTime());
 }
 
 std::string SignMessageEvo(std::string strAddress, std::string strMessage, std::string& sError)
@@ -1852,7 +1871,8 @@ std::string PrepareHTTPPost(bool bPost, std::string sPage, std::string sHostHead
 std::string BiblepayHTTPSPost(bool bPost, int iThreadID, std::string sActionName, std::string sDistinctUser, std::string sPayload, std::string sBaseURL, std::string sPage, int iPort, 
 	std::string sSolution, int iTimeoutSecs, int iMaxSize, int iBOE)
 {
-	bool bDebugMode = false;
+	bool bDebugMode = cdbl(GetArg("-debuglevel", "0"), 0) == 1;
+	
 	// The OpenSSL version of BiblepayHTTPSPost *only* works with SSL websites, hence the need for BiblePayHTTPPost(2) (using BOOST).  The dev team is working on cleaning this up before the end of 2019 to have one standard version with cleaner code and less internal parts. //
 	try
 	{

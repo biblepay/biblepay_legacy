@@ -3176,7 +3176,9 @@ bool ProcessMessages(CNode* pfrom, CConnman& connman, const std::atomic<bool>& i
             if (strstr(e.what(), "end of data"))
             {
                 // Allow exceptions from under-length message on vRecv
-                LogPrintf("%s(%s, %u bytes): Exception '%s' caught, normally caused by a message being shorter than its stated length\n", __func__, SanitizeString(strCommand), nMessageSize, e.what());
+				if (fDebugSpam)
+					LogPrintf("%s(%s, %u bytes): Exception '%s' caught, normally caused by a message being shorter than its stated length\n", __func__, SanitizeString(strCommand), nMessageSize, e.what());
+				// R Andrews - We have two messages in classic (mnp, 147 bytes) && (govobjvote, 155 bytes) throwing this error; we can remove the debug master after the supermajority upgrades
             }
             else if (strstr(e.what(), "size too large"))
             {
@@ -3209,7 +3211,7 @@ bool ProcessMessages(CNode* pfrom, CConnman& connman, const std::atomic<bool>& i
 
         if (!fRet) 
 		{
-			if (strCommand != "mnw")
+			if (strCommand != "mnw" && strCommand != "govobjvote")
 			{				
 				LogPrintf("%s(%s, %u bytes) FAILED peer=%d\n", __func__, SanitizeString(strCommand), nMessageSize, pfrom->id);
 			}
