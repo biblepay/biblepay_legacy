@@ -715,7 +715,7 @@ CAmount CSuperblock::GetPaymentsLimit(int nBlockHeight)
 	if (nPaymentsLimit > nAbsoluteMaxMonthlyBudget) nPaymentsLimit = nAbsoluteMaxMonthlyBudget;
 	if (Params().NetworkIDString() == "main")
 	{
-		if (nType == 0 && nBlockHeight > consensusParams.EVOLUTION_CUTOVER_HEIGHT && nPaymentsLimit > nMaxMonthlyBudget)
+		if (nType == 0 && nBlockHeight > (consensusParams.EVOLUTION_CUTOVER_HEIGHT - 6150) && nPaymentsLimit > nMaxMonthlyBudget)
 		{
 			nPaymentsLimit = nMaxMonthlyBudget;
 		}

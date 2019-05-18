@@ -1235,6 +1235,12 @@ UniValue getgovernanceinfo(const JSONRPCRequest& request)
     obj.push_back(Pair("superblockcycle", Params().GetConsensus().nSuperblockCycle));
     obj.push_back(Pair("lastsuperblock", nLastSuperblock));
     obj.push_back(Pair("nextsuperblock", nNextSuperblock));
+	// Used by the pools:
+	if (nBlockHeight > 0 && nNextSuperblock > 0)
+	{
+		double nBudget = CSuperblock::GetPaymentsLimit(nNextSuperblock) / COIN;
+		obj.push_back(Pair("nextbudget", nBudget));
+	}
 
     return obj;
 }
