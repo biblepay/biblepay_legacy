@@ -4890,15 +4890,19 @@ void SetOverviewStatus()
 		std::string sDiaries = FormatHTML(Caption(sDiary, 512), 20, "<br>");
 		if (!sDiary.empty())
 			msGlobalStatus2 += "<br><br><b>Healing Campaign Results:</b><br><font color=maroon><b>" + sDiary + "</font></b><br>&nbsp;";
-	 }
-	 catch (const std::exception& e) 
-	 {
-		 LogPrintf(" Failed to update overview (type %f) ", 1);
-	 }
-	 catch (...)
-	 {
-		 LogPrintf(" Failed to update overview (type %f) ", 2);
-	 }
+	}
+	catch(boost::bad_lexical_cast const& e)
+	{
+		LogPrintf(" Failed to update overview (type %f) ", 0);
+	}
+	catch (const std::exception& e) 
+	{
+		LogPrintf(" Failed to update overview (type %f) ", 1);
+	}
+	catch (...)
+	{
+		LogPrintf(" Failed to update overview (type %f) ", 2);
+	}
 }
 
 void KillBlockchainFiles()

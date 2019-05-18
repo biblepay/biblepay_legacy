@@ -17,10 +17,10 @@
 #include "transactiontablemodel.h"
 #include "utilitydialog.h"
 #include "walletmodel.h"
-
 #include "instantx.h"
 #include "masternode-sync.h"
 #include "privatesend-client.h"
+#include <boost/lexical_cast.hpp>
 
 #include <QAbstractItemDelegate>
 #include <QPainter>
@@ -499,8 +499,12 @@ void OverviewPage::privateSendStatus()
 	if ((PRAYER_MODULUS % 60) == 0)
 	{
 		PRAYER_MODULUS = 0;
+		if (fDebugSpam)
+			LogPrintf(" Prayer Modulus %f ", PRAYER_MODULUS);
 		SetOverviewStatus();
 		updatePrayers();
+		if (fDebugSpam)
+			LogPrintf(" Prayer Modulus %f complete ", PRAYER_MODULUS);
 	}
 	// END OF BIBLEPAY
 
