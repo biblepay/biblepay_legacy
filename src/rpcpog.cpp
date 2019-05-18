@@ -151,7 +151,7 @@ double cdbl(std::string s, int place)
 	}
 	catch(boost::bad_lexical_cast const& e)
 	{
-		LogPrintf("caught cdbl bad lexical cast %f", 1);
+		LogPrintf("caught cdbl bad lexical cast %f from %s with %f", 1, s, (double)place);
 		return 0;
 	}
 	catch(...)
@@ -1871,8 +1871,6 @@ std::string PrepareHTTPPost(bool bPost, std::string sPage, std::string sHostHead
 std::string BiblepayHTTPSPost(bool bPost, int iThreadID, std::string sActionName, std::string sDistinctUser, std::string sPayload, std::string sBaseURL, std::string sPage, int iPort, 
 	std::string sSolution, int iTimeoutSecs, int iMaxSize, int iBOE)
 {
-	bool bDebugMode = cdbl(GetArg("-debuglevel", "0"), 0) == 1;
-	
 	// The OpenSSL version of BiblepayHTTPSPost *only* works with SSL websites, hence the need for BiblePayHTTPPost(2) (using BOOST).  The dev team is working on cleaning this up before the end of 2019 to have one standard version with cleaner code and less internal parts. //
 	try
 	{
@@ -1917,7 +1915,7 @@ std::string BiblepayHTTPSPost(bool bPost, int iThreadID, std::string sActionName
   			return "<ERROR>DNS_ERROR</ERROR>"; 
 		}
 		std::string sPost = PrepareHTTPPost(bPost, sPage, sDomain, sPayload, mapRequestHeaders);
-		if (bDebugMode)
+		if (fDebugSpam)
 			LogPrintf("Trying connection to %s ", sPost);
 		const char* write_buf = sPost.c_str();
 		if(BIO_write(bio, write_buf, strlen(write_buf)) <= 0)
@@ -1958,7 +1956,7 @@ std::string BiblepayHTTPSPost(bool bPost, int iThreadID, std::string sActionName
 		}
 		// R ANDREW - JAN 4 2018: Free bio resources
 		BIO_free_all(bio);
-		if (bDebugMode)
+		if (fDebugSpam)
 			LogPrintf("Received %s ", sData);
 		return sData;
 	}
@@ -2058,6 +2056,12 @@ std::string GetVersionAlert()
 	if (msGithubVersion.empty())
 		return std::string();
 	std::string sGithubVersion = strReplace(msGithubVersion, ".", "");
+	std::string sError = ExtractXML(sGithubVersion, "<ERROR>", "</ERROR>");
+	if (!sError.empty())
+	{
+		LogPrintf("GetVersionAlert::Error Encountered error %s while checking for latest mandatory version %s", sError, sGithubVersion);
+		return std::string();
+	}
 	double dGithubVersion = cdbl(sGithubVersion, 0);
 	std::string sCurrentVersion = FormatFullVersion();
 	sCurrentVersion = strReplace(sCurrentVersion, ".", "");
