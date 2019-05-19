@@ -369,7 +369,8 @@ std::string AssessBlocks(int nHeight, bool fCreatingContract)
 	std::map<std::string, CPK> mCPKCampaignPoints;
 	std::map<std::string, double> mCampaigns;
 	double dDebugLevel = cdbl(GetArg("-debuglevel", "0"), 0);
-	
+	std::string sDiaries;
+
 	while (pindex && pindex->nHeight < nMaxDepth)
 	{
 		if (pindex->nHeight < chainActive.Tip()->nHeight) 
@@ -383,8 +384,7 @@ std::string AssessBlocks(int nHeight, bool fCreatingContract)
 				{
 					std::string sCampaignName;
 					std::string sCPK = GetTxCPK(block.vtx[n], sCampaignName);
-					CPK localCPK = GetCPK(sCPK);
-
+					CPK localCPK = GetCPKFromProject("cpk", sCPK);
 					double nCoinAge = 0;
 					CAmount nDonation = 0;
 					GetTransactionPoints(pindex, block.vtx[n], nCoinAge, nDonation);
@@ -410,10 +410,14 @@ std::string AssessBlocks(int nHeight, bool fCreatingContract)
 							cCPKCampaignPoints.nPoints += nPoints;
 							mCPKCampaignPoints[sCPK + sCampaignName] = cCPKCampaignPoints;
 							if (dDebugLevel == 1)
-								LogPrintf("\nUser %s , height %f, TXID %s, nn %s, Points %f, Campaign %s, coinage %f, donation %f, usertotal %f ",
-								c.sAddress, pindex->nHeight, block.vtx[n]->GetHash().GetHex(), localCPK.sNickName, 
+								LogPrintf("\nUser %s , NN %s, Diary %s, height %f, TXID %s, nn %s, Points %f, Campaign %s, coinage %f, donation %f, usertotal %f ",
+								c.sAddress, localCPK.sNickName, sDiary, pindex->nHeight, block.vtx[n]->GetHash().GetHex(), localCPK.sNickName, 
 								(double)nPoints, c.sCampaign, (double)nCoinAge, 
 								(double)nDonation/COIN, (double)c.nPoints);
+							if (c.sCampaign == "HEALING" && !sDiary.empty())
+							{
+								sDiaries += "\n" + sCPK + "|" + localCPK.sNickName + "|" + sDiary;
+							}
 						}
 					}
 				}
@@ -470,7 +474,7 @@ std::string AssessBlocks(int nHeight, bool fCreatingContract)
 		{
 			sAddresses += Members.second.sAddress + "|";
 			sPayments += RoundToString(nPayment / COIN, 2) + "|";
-			CPK localCPK = GetCPK(Members.second.sAddress);
+			CPK localCPK = GetCPKFromProject("cpk", Members.second.sAddress);
 			std::string sRow =  "ALL|" + Members.second.sAddress + "|" + RoundToString(Members.second.nPoints, 0) + "|" + RoundToString(Members.second.nProminence, 4) + "|" + localCPK.sNickName + "|\n";
 			sGenData += sRow;
 		}
@@ -499,7 +503,8 @@ std::string AssessBlocks(int nHeight, bool fCreatingContract)
 		sAddresses = sAddresses.substr(0, sAddresses.length() - 1);
 	
 	sData = "<PAYMENTS>" + sPayments + "</PAYMENTS><ADDRESSES>" + sAddresses + "</ADDRESSES><DATA>" + sGenData + "</DATA><LIMIT>" 
-		+ RoundToString(nPaymentsLimit/COIN, 4) + "</LIMIT><TOTALPOINTS>" + RoundToString(nTotalPoints, 2) + "</TOTALPOINTS><DETAILS>" + sDetails + "</DETAILS>" + QTData;
+		+ RoundToString(nPaymentsLimit/COIN, 4) + "</LIMIT><TOTALPOINTS>" + RoundToString(nTotalPoints, 2) + "</TOTALPOINTS><DIARIES>" 
+		+ sDiaries + "</DIARIES><DETAILS>" + sDetails + "</DETAILS>" + QTData;
 
 	return sData;
 }
@@ -904,8 +909,10 @@ UniValue GetProminenceLevels(int nHeight, bool fMeOnly)
 	std::string sContract = GetGSCContract(nHeight, false);
 	std::string sData = ExtractXML(sContract, "<DATA>", "</DATA>");
 	std::string sDetails = ExtractXML(sContract, "<DETAILS>", "</DETAILS>");
+	std::string sDiaries = ExtractXML(sContract, "<DIARIES>", "</DIARIES>");
 	std::vector<std::string> vData = Split(sData.c_str(), "\n");
 	std::vector<std::string> vDetails = Split(sDetails.c_str(), "\n");
+	std::vector<std::string> vDiaries = Split(sDiaries.c_str(), "\n");
 	results.push_back(Pair("Prominence", "Details"));
 	// DETAIL ROW FORMAT: sCampaignName + "|" + Members.Address + "|" + nPoints + "|" + nProminence + "|" + NickName + "|\n";
 	std::string sMyCPK = DefaultRecAddress("Christian-Public-Key");
@@ -929,7 +936,18 @@ UniValue GetProminenceLevels(int nHeight, bool fMeOnly)
 				results.push_back(Pair(sNarr, RoundToString(nProminence, 2) + "%"));
 		}
 	}
-	
+	if (vDiaries.size() > 0)
+		results.push_back(Pair("Healing", "Diary Entries"));
+	for (int i = 0; i < vDiaries.size(); i++)
+	{
+		std::vector<std::string> vRow = Split(vDiaries[i].c_str(), "|");
+		if (vRow.size() >= 2)
+		{
+			std::string sCPK = vRow[0];
+			if ((fMeOnly && sCPK == sMyCPK) || (!fMeOnly))
+				results.push_back(Pair(vRow[1], vRow[2]));
+		}
+	}
 
 	double dTotalPaid = 0;
 	// Allow room for a change in QT between first contract creation time and next superblock

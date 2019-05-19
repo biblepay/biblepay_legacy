@@ -128,9 +128,17 @@ HelpMessageDialog::HelpMessageDialog(QWidget *parent, HelpMode helpMode, int iPr
         ui->scrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
         text = version + "\n" + licenseInfo;
         ui->aboutMessage->setText(version + "<br><br>" + licenseInfoHTML);
-        ui->aboutMessage->setWordWrap(true);
+    	ui->btnPublish->setVisible(false);
+		ui->btnPreview->setVisible(false);
+	    ui->aboutMessage->setWordWrap(true);
         ui->helpMessage->setVisible(false);
-    } else if (helpMode == cmdline) {
+		ui->comboBook->setVisible(false);
+		ui->comboChapter->setVisible(false);
+		ui->lblChapter->setVisible(false);
+		ui->lblBook->setVisible(false);
+    }
+	else if (helpMode == cmdline) 
+	{
         setWindowTitle(tr("Command-line options"));
         QString header = tr("Usage:") + "\n" +
             "  biblepay-qt [" + tr("command-line options") + "]                     " + "\n";
