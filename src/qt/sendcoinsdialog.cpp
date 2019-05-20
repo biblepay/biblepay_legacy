@@ -233,11 +233,18 @@ void SendCoinsDialog::on_sendButton_clicked()
     QList<SendCoinsRecipient> recipients;
     bool valid = true;
 
+	bool fDiary = false;
     for(int i = 0; i < ui->entries->count(); ++i)
     {
         SendCoinsEntry *entry = qobject_cast<SendCoinsEntry*>(ui->entries->itemAt(i)->widget());
         if(entry)
         {
+			if(!entry->isHidden())
+			{
+				SendCoinsRecipient rcp = entry->getValue();
+        		if (rcp.fDiary)
+					fDiary = true;
+			}
             if(entry->validate())
             {
                 recipients.append(entry->getValue());
@@ -285,7 +292,7 @@ void SendCoinsDialog::on_sendButton_clicked()
     // and make many transactions while unlocking through this dialog
     // will call relock
     WalletModel::EncryptionStatus encStatus = model->getEncryptionStatus();
-    if(encStatus == model->Locked || encStatus == model->UnlockedForMixingOnly)
+    if(!fDiary && (encStatus == model->Locked || encStatus == model->UnlockedForMixingOnly))
     {
         WalletModel::UnlockContext ctx(model->requestUnlock());
         if(!ctx.isValid())

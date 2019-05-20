@@ -61,9 +61,9 @@ UniValue GetCampaigns()
 	std::map<std::string, CPK> cp = GetGSCMap("cpk", "", true);
 	for (std::pair<std::string, CPK> a : cp)
 	{
-		// CRITICAL TODO: Figure out why nickname is missing from GSCMap but not from GetCPKFromProject
+		// NON-CRITICAL TODO: Figure out why nickname is missing from GSCMap but not from GetCPKFromProject
 		CPK oPrimary = GetCPKFromProject("cpk", a.second.sAddress);
-		results.push_back(Pair("member [" + Caption(oPrimary.sNickName) + "]", a.second.sAddress));
+		results.push_back(Pair("member [" + Caption(oPrimary.sNickName, 10) + "]", a.second.sAddress));
 	}
 
 	results.push_back(Pair("List Of", "Campaign Participants"));
@@ -75,7 +75,7 @@ UniValue GetCampaigns()
 		for (std::pair<std::string, CPK> a : cp1)
 		{
 			CPK oPrimary = GetCPKFromProject("cpk", a.second.sAddress);
-			results.push_back(Pair("campaign-" + sCampaign + "-member [" + Caption(oPrimary.sNickName) + "]", oPrimary.sAddress));
+			results.push_back(Pair("campaign-" + sCampaign + "-member [" + Caption(oPrimary.sNickName, 10) + "]", oPrimary.sAddress));
 		}
 	}
 	
@@ -301,11 +301,14 @@ bool Enrolled(std::string sCampaignName, std::string& sError)
 bool CreateClientSideTransaction(bool fForce, bool fDiaryProjectsOnly, std::string sDiary, std::string& sError)
 {
 	std::map<std::string, std::string> mCampaigns = GetSporkMap("spork", "gsccampaigns");
-	// CRITICAL TODO - Change this to 12 hours before we go to prod
-	double nTransmissionFrequency = GetSporkDouble("gscclienttransmissionfrequency", (60 * 60 * 1));
+	double nTransmissionFrequency = GetSporkDouble("gscclienttransmissionfrequency", (60 * 60 * 12));
 	if (sDiary.length() < 10) 
 		sDiary = "";
-
+	if (fDiaryProjectsOnly && sDiary.empty())
+	{
+		sError = "Sorry, you have selected diary projects only, but biblepay did not receive a diary entry.";
+		return false;
+	}
 	// List of Campaigns
 	for (auto s : mCampaigns)
 	{
@@ -318,33 +321,41 @@ bool CreateClientSideTransaction(bool fForce, bool fDiaryProjectsOnly, std::stri
 		{
 			WriteCacheDouble(s.first + "_lastclientgsc", GetAdjustedTime());
 			// This particular campaign needs a transaction sent (if the user is in good standing and enrolled in this project)
-			std::string sError;
+			std::string sError1;
 			bool fPreCheckPassed = true;
 			if (s.first == "HEALING" && sDiary.empty())
 				fPreCheckPassed = false;
 			if (fDiaryProjectsOnly && CalculatePoints(s.first, "", 1000, 1000) > 0) 
 				fPreCheckPassed = false;
 				
-			if (Enrolled(s.first, sError) && fPreCheckPassed)
+			if (Enrolled(s.first, sError1) && fPreCheckPassed)
 			{
 				LogPrintf("\nSmartContract-Client::Creating Client side transaction for campaign %s ", s.first);
-				sError = "";
 				std::string sXML;
 				CReserveKey reservekey(pwalletMain);
 				double nCoinAgePercentage = UserSetting(s.first + "_coinagepercentage", nDefaultCoinAgePercentage);
 				CAmount nFoundationDonation = UserSetting(s.first + "_foundationdonation", nDefaultTithe) * COIN;
-				CWalletTx wtx = CreateGSCClientTransmission(s.first, sDiary, chainActive.Tip(), nCoinAgePercentage, nFoundationDonation, reservekey, sXML, sError);
+				std::string sError2;
+				CWalletTx wtx = CreateGSCClientTransmission(s.first, sDiary, chainActive.Tip(), nCoinAgePercentage, nFoundationDonation, reservekey, sXML, sError2);
 				LogPrintf("\nCreated client side transmission - %s [%s] with txid %s ", sXML, sError, wtx.tx->GetHash().GetHex());
 				// Bubble any error to getmininginfo - or clear the error
-				WriteCache("gsc", "errors", s.first + ": " + sError, GetAdjustedTime());
+				WriteCache("gsc", "errors", s.first + ": " + sError2, GetAdjustedTime());
 				CValidationState state;
 
-				if (sError.empty())
+				if (sError2.empty())
 				{
 					if (!pwalletMain->CommitTransaction(wtx, reservekey, g_connman.get(), state,  NetMsgType::TX))
 					{
 						LogPrint("GSC", "\nUnable to Commit transaction %s", wtx.tx->GetHash().GetHex());
 						WriteCache("gsc", "errors", "GSC Commit Client Transmission failed " + s.first, GetAdjustedTime());
+						return false;
+					}
+				}
+				else
+				{
+					sError += sError2;
+					if (fDiaryProjectsOnly)
+					{
 						return false;
 					}
 				}

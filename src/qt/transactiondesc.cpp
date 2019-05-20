@@ -1,4 +1,4 @@
-// Copyright (c) 2011-2015 The Bitcoin Core developers
+﻿// Copyright (c) 2011-2015 The Bitcoin Core developers
 // Copyright (c) 2014-2017 The BiblePay Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
@@ -19,6 +19,8 @@
 #include "wallet/db.h"
 #include "wallet/wallet.h"
 #include "rpcpog.h"
+#include "rpcpodc.h"
+#include "kjv.h"
 #include "instantx.h"
 
 #include <stdint.h>
@@ -32,7 +34,7 @@ QString TransactionDesc::FormatTxStatus(const CWalletTx& wtx)
         if (wtx.tx->nLockTime < LOCKTIME_THRESHOLD)
             return tr("Open for %n more block(s)", "", wtx.tx->nLockTime - chainActive.Height());
         else
-            return tr("Open until %1").arg(GUIUtil::dateTimeStr(wtx.tx->nLockTime));
+			return tr("Open until %1").arg(GUIUtil::dateTimeStr(wtx.tx->nLockTime));
     }
     else
     {
@@ -69,6 +71,29 @@ QString TransactionDesc::FormatTxStatus(const CWalletTx& wtx)
 
         return strTxStatus;
     }
+}
+
+QString GetFormattedVerses(std::string sVerses)
+{
+	QString sFormatted;
+	QString sCross = QChar(0x0002020);          // †
+	QString sParagraph = QChar(0x0000b6);       // ¶
+	QString sCrown = QChar(0x0002655);          // ♕
+	std::vector<std::string> vVerses = Split(sVerses.c_str(), "\n");
+	for (int i = 0; i < vVerses.size(); i++)
+	{
+		std::string sRow = vVerses[i];
+		std::vector<std::string> vRow = Split(sRow.c_str(), "|");
+		// R Andrews:  Book, Chapter, Verse No, Verse
+		if (vRow.size() >= 3)
+		{
+			QString sSection = sCrown + " " + GUIUtil::TOQS(vRow[0]) + " "
+				+ GUIUtil::TOQS(vRow[1]) 
+				+ ":" + GUIUtil::TOQS(vRow[2]) + " - " + GUIUtil::TOQS(vRow[3]);
+			sFormatted += sSection + "<br>";
+		}
+	}
+	return sFormatted;
 }
 
 QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionRecord *rec, int unit)
@@ -320,6 +345,7 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionReco
 	bool fEvolutionView = true;
 	std::string sStripped;
 	std::string sObjType;
+	const CBlockIndex* pindexTxList;
     if (fDebug || fEvolutionView)
     {
 		// In Network Messages or Prayers
@@ -335,7 +361,7 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionReco
     
 		if (nDepth > 0)
 		{
-			const CBlockIndex* pindexTxList = GetBlockIndexByTransactionHash(wtx.GetHash());
+			pindexTxList = GetBlockIndexByTransactionHash(wtx.GetHash());
 			const Consensus::Params& consensusParams = Params().GetConsensus();
 			if (pindexTxList != NULL)
 			{
@@ -354,20 +380,31 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionReco
 		sObjType = ExtractXML(sNetworkMessage, "<MT>", "</MT>");
 		std::string sDiary = ExtractXML(sNetworkMessage, "<diary>", "</diary>");
 
-        strHTML += "<hr><br>" + tr("Debug information") + "<br><br>";
+        if (false)
+			strHTML += "<hr><br>" + tr("Debug information") + "<br><br>";
+		else
+			strHTML += "<br><br>";
+
         BOOST_FOREACH(const CTxIn& txin, wtx.tx->vin)
             if(wallet->IsMine(txin))
                 strHTML += "<b>" + tr("Debit") + ":</b> " + BitcoinUnits::formatHtmlWithUnit(unit, -wallet->GetDebit(txin, ISMINE_ALL)) + "<br>";
         BOOST_FOREACH(const CTxOut& txout, wtx.tx->vout)
-            if(wallet->IsMine(txout))
+		{
+            std::string sDest = PubKeyToAddress(txout.scriptPubKey);
+			if(wallet->IsMine(txout))
+			{
                 strHTML += "<b>" + tr("Credit") + ":</b> " + BitcoinUnits::formatHtmlWithUnit(unit, wallet->GetCredit(txout, ISMINE_ALL)) + "<br>";
+				strHTML += "<b>To:<b> " + QString::fromStdString(sDest) + " " + QString::fromStdString(RoundToString(txout.nValue / COIN, 4)) + " BBP<br>";
+			}
+			
+		}
 
         strHTML += "<br><b>" + tr("Transaction") + ":</b><br>";
         strHTML += GUIUtil::HtmlEscape(wtx.tx->ToString(), true);
 
-        strHTML += "<br><b>" + tr("Inputs") + ":</b>";
-        strHTML += "<ul>";
+        QString sInputsHeader = "<br><b>" + tr("Inputs") + ":</b><ul>";
 
+		int iRow = 0;
         BOOST_FOREACH(const CTxIn& txin, wtx.tx->vin)
         {
             COutPoint prevout = txin.prevout;
@@ -376,6 +413,9 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionReco
             if(pcoinsTip->GetCoin(prevout, prev))
             {
                 {
+					iRow++;
+					if (iRow==1)
+						strHTML += sInputsHeader;
                     strHTML += "<li>";
                     const CTxOut &vout = prev.out;
                     CTxDestination address;
@@ -398,9 +438,15 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionReco
 
 		if (!sDiary.empty())
 			strHTML += "<br><b>Diary:</b> " + GUIUtil::TOQS(sDiary) + "<br>";
-
     }
-	
+	// Bible Verses
+	if (pindexTxList)
+	{
+		std::string sVerses = GetBibleHashVerses(pindexTxList->GetBlockHash(), pindexTxList->GetBlockTime(), pindexTxList->pprev->nTime, pindexTxList->pprev->nHeight, pindexTxList->pprev);
+		QString v = GetFormattedVerses(sVerses);
+		strHTML = strHTML + "<br><b>Verses:<body style=font-family:MS Shell Dlg 2; font-size:8.25pt; font-weight:400;font-style:normal;><br></b> " + v + "</br>";
+	}
     strHTML += "</font></html>";
+
     return strHTML;
 }

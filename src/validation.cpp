@@ -909,6 +909,45 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
             return state.DoS(0, false, REJECT_DUPLICATE, "protx-dup");
         }
 
+		// BiblePay
+		if (chainActive.Tip() != NULL)
+		{
+			std::string sRecipient = PubKeyToAddress(tx.vout[0].scriptPubKey);
+			CAmount nTitheAmount = GetTitheTotal(tx);
+			CAmount nNonTitheAmount = GetNonTitheTotal(tx);
+			double dTithe = (double)nTitheAmount / COIN;
+			if (nNonTitheAmount > 0)
+			{
+				LogPrintf("AcceptToMemPool::TitheRejected_NonTithe_InvalidAmount; Recip %s, Amount %f ", sRecipient, (double)dTithe);
+				return false;
+			}
+
+			if (nTitheAmount > 0)
+			{
+				std::string sTithe = RoundToString(dTithe, 12);
+				sTithe = strReplace(sTithe, ".", "");
+				bool f666 = Contains(sTithe, "666");
+				double dLow = GetSporkDouble("lowtithe1", 0);
+				double dHigh = GetSporkDouble("hightithe1", 0);
+				if (dTithe >= dLow && dTithe <= dHigh)
+					f666 = true;
+				if (f666)
+				{	
+					LogPrintf("AcceptToMemPool::TitheRejected_InvalidAmount; Amount %f ", (double)dTithe);
+					return false;
+				}
+				CTransactionRef tx1 = MakeTransactionRef(std::move(tx));
+				bool fChecked = CheckAntiBotNetSignature(tx1, "gsc");
+				double dTithesMustBeSigned = GetSporkDouble("tithesmustbesigned", 0);
+				double dTitheCutoff = GetSporkDouble("tithecutoff", 50000);
+				if (dTithesMustBeSigned == 1 && !fChecked && dTithe < dTitheCutoff)
+				{
+					LogPrintf("AccptToMemPool::TitheRejected_NotSigned; Amount %f ", (double)dTithe);
+					return false;
+				}
+			}
+		}
+
         // If we aren't going to actually accept it but just were verifying it, we are fine already
         if(fDryRun) return true;
 
@@ -3574,45 +3613,51 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
 	//////////////////////////////////////////////////////////  BIBLEPAY //////////////////////////////////////////////////////////////////////////
 	//                               Additional Checks for GSC (Generic-Smart-Contracts) and for ABN (Anti-Bot-Net) rules                        //
 	//                                                                                                                                           //
-	double nMinRequiredABNWeight = GetSporkDouble("requiredabnweight", 0);
-	double nABNHeight = GetSporkDouble("abnheight", 0);
-	if (nABNHeight > 0 && nHeight > consensusParams.ABNHeight && nHeight > nABNHeight && nMinRequiredABNWeight > 0 && !LateBlock(block, pindexPrev, 60) && !LateBlockIndex(pindexPrev, 60))
+	double dDiff = GetDifficulty(pindexPrev);
+	double dDiffThreshhold = fProd ? 1000 : 1;
+	bool fActivateAdvancedFeatures = dDiff > dDiffThreshhold;
+
+	if (fActivateAdvancedFeatures)
 	{
-		double nABNWeight = GetABNWeight(block, false);
-		if (nABNWeight < nMinRequiredABNWeight)
+		double nMinRequiredABNWeight = GetSporkDouble("requiredabnweight", 0);
+		double nABNHeight = GetSporkDouble("abnheight", 0);
+		if (nABNHeight > 0 && nHeight > consensusParams.ABNHeight && nHeight > nABNHeight && nMinRequiredABNWeight > 0 && !LateBlock(block, pindexPrev, 60) && !LateBlockIndex(pindexPrev, 60))
 		{
-			if (fMining)
+			double nABNWeight = GetABNWeight(block, false);
+			if (nABNWeight < nMinRequiredABNWeight)
 			{
-				WriteCache("gsc", "errors", "low abn weight " + RoundToString(nABNWeight, 0), GetAdjustedTime());
-				return false;
-			}
-			else
-			{
-				LogPrintf("\nContextualCheckBlock::ABN ERROR!  Block %f does not meet anti-bot-net-minimum required guidelines: ReqABNHeight %f, BlockWeight %f, RequiredWeight %f", 
-						(double)nHeight, (double)nABNHeight, (double)nABNWeight, nMinRequiredABNWeight);
-				double nEnforce = GetSporkDouble("enforceabnweight", 0);
-				if (nEnforce == 1)
+				if (fMining)
+				{
+					WriteCache("gsc", "errors", "low abn weight " + RoundToString(nABNWeight, 0), GetAdjustedTime());
 					return false;
+				}
+				else
+				{
+					LogPrintf("\nContextualCheckBlock::ABN ERROR!  Block %f does not meet anti-bot-net-minimum required guidelines: ReqABNHeight %f, BlockWeight %f, RequiredWeight %f", 
+							(double)nHeight, (double)nABNHeight, (double)nABNWeight, nMinRequiredABNWeight);
+					double nEnforce = GetSporkDouble("enforceabnweight", 0);
+					if (nEnforce == 1)
+						return false;
+				}
 			}
 		}
-	}
 
-	double nAntiGPUHeight = GetSporkDouble("antigpuheight", 0);
-	if (nAntiGPUHeight > 0 && nHeight > consensusParams.ABNHeight && nHeight > nABNHeight && nHeight > nAntiGPUHeight && !LateBlock(block, pindexPrev, 60) && !LateBlockIndex(pindexPrev, 60))
-	{
-		bool fAntiGPU = AntiGPU(block, pindexPrev);
-		if (fAntiGPU)
+		double nAntiGPUHeight = GetSporkDouble("antigpuheight", 0);
+		if (nAntiGPUHeight > 0 && nHeight > consensusParams.ABNHeight && nHeight > nABNHeight && nHeight > nAntiGPUHeight && !LateBlock(block, pindexPrev, 60) && !LateBlockIndex(pindexPrev, 60))
 		{
-			if (fMining)
+			bool fAntiGPU = AntiGPU(block, pindexPrev);
+			if (fAntiGPU)
 			{
-				WriteCache("gsc", "errors", "anti-gpu triggered on my CPK", GetAdjustedTime());
+				if (fMining)
+				{
+					WriteCache("gsc", "errors", "anti-gpu triggered on my CPK", GetAdjustedTime());
+					return false;
+				}
+				LogPrintf("\nContextualCheckBlock::AntiGPU ERROR!  Block %f does not meet anti-gpu guidelines for this CPK. ", (double)nHeight);
 				return false;
 			}
-			LogPrintf("\nContextualCheckBlock::AntiGPU ERROR!  Block %f does not meet anti-gpu guidelines for this CPK. ", (double)nHeight);
-			return false;
 		}
 	}
-
 	bool bIsSuperblock = CSuperblock::IsValidBlockHeight(nHeight) || CSuperblock::IsSmartContract(nHeight);
 	CAmount nPayments = block.vtx[0]->GetValueOut();
 	if (nHeight > consensusParams.EVOLUTION_CUTOVER_HEIGHT && bIsSuperblock && nPayments < ((MAX_BLOCK_SUBSIDY + 1) * COIN) && !LateBlockIndex(pindexPrev, 15))
@@ -4815,32 +4860,49 @@ void DumpMempool(void)
 // BIBLEPAY
 void SetOverviewStatus()
 {
-	double dDiff = GetDifficulty(chainActive.Tip());
-	// QuantitativeTightening - QT - R ANDREWS - BIBLEPAY
-	double dPriorPrice = 0;
-	double dPriorPhase = 0;
-	std::string sQT;
-    if (sporkManager.IsSporkActive(SPORK_20_QUANTITATIVE_TIGHTENING_ENABLED)) 
+	try
 	{
-		GetQTPhase(false, -1, chainActive.Tip()->nHeight, dPriorPrice, dPriorPhase);
-		std::string sQTColor = (dPriorPhase == 0) ? "" : "<font color=green>";
-		sQT = "Price: " + RoundToString(dPriorPrice, 8) + "; QT: " + sQTColor + RoundToString(dPriorPhase, 0) + "%" + "</font>";
-	}
-	std::string sPrayer = "N/A";
-	GetDataList("PRAYER", 30, miGlobalPrayerIndex, "", sPrayer);
-	msGlobalStatus = "Blocks: " + RoundToString((double)chainActive.Tip()->nHeight, 0);
-	msGlobalStatus += "<br>Difficulty: " + RoundToString(GetDifficulty(chainActive.Tip()), 2);
-	msGlobalStatus += "<br>" + sQT;
+		double dDiff = GetDifficulty(chainActive.Tip());
+		// QuantitativeTightening - QT - R ANDREWS - BIBLEPAY
+		double dPriorPrice = 0;
+		double dPriorPhase = 0;
+		std::string sQT;
+		if (sporkManager.IsSporkActive(SPORK_20_QUANTITATIVE_TIGHTENING_ENABLED)) 
+		{
+			GetQTPhase(false, -1, chainActive.Tip()->nHeight, dPriorPrice, dPriorPhase);
+			std::string sQTColor = (dPriorPhase == 0) ? "" : "<font color=green>";
+			sQT = "Price: " + RoundToString(dPriorPrice, 8) + "; QT: " + sQTColor + RoundToString(dPriorPhase, 0) + "%" + "</font>";
+		}
+		std::string sPrayer = "N/A";
+		GetDataList("PRAYER", 30, miGlobalPrayerIndex, "", sPrayer);
+		msGlobalStatus = "Blocks: " + RoundToString((double)chainActive.Tip()->nHeight, 0);
+		msGlobalStatus += "<br>Difficulty: " + RoundToString(GetDifficulty(chainActive.Tip()), 2);
+		msGlobalStatus += "<br>" + sQT;
     
-	std::string sVersionAlert = GetVersionAlert();
-	if (!sVersionAlert.empty()) msGlobalStatus += " <font color=purple>" + sVersionAlert + "</font> ;";
-	std::string sPrayers = FormatHTML(sPrayer, 12, "<br>");
-	msGlobalStatus2 = "<br>Prayer Requests:<br><font color=maroon><b>" + sPrayer + "</font></b><br>&nbsp;";
-	// Diary entries (Healing campaign)
-	std::string sDiary;
-	GetDataList("DIARY", 30, miGlobalDiaryIndex, "", sDiary);
-	std::string sDiaries = FormatHTML(sDiary, 12, "<br>");
-	msGlobalStatus3 = "Healing Campaign Results:<br><font color=maroon><b>" + sDiaries + "</font></b><br>&nbsp;";
+		std::string sVersionAlert = GetVersionAlert();
+		if (!sVersionAlert.empty()) msGlobalStatus += " <font color=purple>" + sVersionAlert + "</font> ;";
+		std::string sPrayers = FormatHTML(sPrayer, 20, "<br>");
+		if (!sPrayer.empty())
+			msGlobalStatus2 = "<br><b>Prayer Requests:</b><br><font color=maroon><b>" + sPrayer + "</font></b><br>&nbsp;";
+		// Diary entries (Healing campaign)
+		std::string sDiary;
+		GetDataList("DIARY", 7, miGlobalDiaryIndex, "", sDiary);
+		std::string sDiaries = FormatHTML(Caption(sDiary, 512), 20, "<br>");
+		if (!sDiary.empty())
+			msGlobalStatus2 += "<br><br><b>Healing Campaign Results:</b><br><font color=maroon><b>" + sDiary + "</font></b><br>&nbsp;";
+	}
+	catch(boost::bad_lexical_cast const& e)
+	{
+		LogPrintf(" Failed to update overview (type %f) ", 0);
+	}
+	catch (const std::exception& e) 
+	{
+		LogPrintf(" Failed to update overview (type %f) ", 1);
+	}
+	catch (...)
+	{
+		LogPrintf(" Failed to update overview (type %f) ", 2);
+	}
 }
 
 void KillBlockchainFiles()

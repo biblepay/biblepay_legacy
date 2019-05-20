@@ -98,7 +98,7 @@ double GetMinimumMagnitude();
 int GetMinimumResearcherParticipationLevel();
 void ClearSanctuaryMemories();
 double GetMinimumRequiredUTXOStake(double dRAC, double dFactor);
-std::string SendBlockchainMessage(std::string sType, std::string sPrimaryKey, std::string sValue, double dStorageFee, bool Sign, std::string& sError);
+std::string SendBlockchainMessage(std::string sType, std::string sPrimaryKey, std::string sValue, double dStorageFee, bool Sign, std::string sExtraPayload, std::string& sError);
 bool IsMature(int64_t nTime, int64_t nMaturityAge);
 std::string ToYesNo(bool bValue);
 bool VoteForGobject(uint256 govobj, std::string sVoteOutcome, std::string& sError);

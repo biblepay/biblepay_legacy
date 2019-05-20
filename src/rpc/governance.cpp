@@ -1235,6 +1235,12 @@ UniValue getgovernanceinfo(const JSONRPCRequest& request)
     obj.push_back(Pair("superblockcycle", Params().GetConsensus().nSuperblockCycle));
     obj.push_back(Pair("lastsuperblock", nLastSuperblock));
     obj.push_back(Pair("nextsuperblock", nNextSuperblock));
+	// Used by the pools:
+	if (nBlockHeight > 0 && nNextSuperblock > 0)
+	{
+		double nBudget = CSuperblock::GetPaymentsLimit(nNextSuperblock) / COIN;
+		obj.push_back(Pair("nextbudget", nBudget));
+	}
 
     return obj;
 }
@@ -1274,7 +1280,7 @@ UniValue leaderboard(const JSONRPCRequest& request)
         throw std::runtime_error(
             "leaderboard\n"
             "Returns an object containing the campaign participants prominence levels per project, and global totals.\n"
-			"\nYou must specify leaderboard [me_only=true/false] [height || prominence last || prominence future || prominence]. The default is exec prominence false future."
+			"\nYou must specify leaderboard [me_only=true/false] [height || last || future]. The default is leaderboard false future."
             + HelpExampleCli("leaderboard", "")
             );
     }

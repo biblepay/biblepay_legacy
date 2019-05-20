@@ -1843,6 +1843,47 @@ UniValue exec(const JSONRPCRequest& request)
 			results.push_back(Pair("BibleHashV2", hash2.GetHex()));
 		}
 	}
+	else if (sItem == "subsidy")
+	{
+		// Used by the Pools
+		if (request.params.size() != 2) 
+			throw std::runtime_error("You must specify height.");
+		std::string sHeight = request.params[1].get_str();
+		int64_t nHeight = (int64_t)cdbl(sHeight,0);
+		if (nHeight >= 1 && nHeight <= chainActive.Tip()->nHeight)
+		{
+			CBlockIndex* pindex = FindBlockByHeight(nHeight);
+			const Consensus::Params& consensusParams = Params().GetConsensus();
+			if (pindex)
+			{
+				CBlock block;
+				if (ReadBlockFromDisk(block, pindex, consensusParams)) 
+				{
+        			results.push_back(Pair("subsidy", block.vtx[0]->vout[0].nValue/COIN));
+					std::string sRecipient = PubKeyToAddress(block.vtx[0]->vout[0].scriptPubKey);
+					results.push_back(Pair("recipient", sRecipient));
+					results.push_back(Pair("blockversion", GetBlockVersion(block.vtx[0]->vout[0].sTxOutMessage)));
+					results.push_back(Pair("minerguid", ExtractXML(block.vtx[0]->vout[0].sTxOutMessage,"<MINERGUID>","</MINERGUID>")));
+				}
+			}
+		}
+		else
+		{
+			results.push_back(Pair("error","block not found"));
+		}
+	}
+	else if (sItem == "pinfo")
+	{
+		// Used by the Pools
+		results.push_back(Pair("height", chainActive.Tip()->nHeight));
+		int64_t nElapsed = GetAdjustedTime() - chainActive.Tip()->nTime;
+		int64_t nMN = nElapsed * 256;
+		if (nElapsed > (30 * 60)) 
+			nMN=999999999;
+		if (nMN < 512) nMN = 512;
+		results.push_back(Pair("pinfo", nMN));
+		results.push_back(Pair("elapsed", nElapsed));
+	}
 	else if (sItem == "versioncheck")
 	{
 		std::string sNarr = GetVersionAlert();
@@ -2018,7 +2059,8 @@ UniValue exec(const JSONRPCRequest& request)
 		if (sType.empty() || sPrimaryKey.empty() || sValue.empty())
 			throw std::runtime_error(sError);
 		sError;
-    	std::string sResult = SendBlockchainMessage(sType, sPrimaryKey, sValue, .24, true, sError);
+		double dFee = fProd ? 10 : 5001;
+    	std::string sResult = SendBlockchainMessage(sType, sPrimaryKey, sValue, dFee, true, "", sError);
 		results.push_back(Pair("Sent", sValue));
 		results.push_back(Pair("TXID", sResult));
 		if (!sError.empty()) results.push_back(Pair("Error", sError));
@@ -2488,7 +2530,7 @@ UniValue exec(const JSONRPCRequest& request)
 		std::string sValue = request.params[3].get_str();
 		if (sType.empty() || sPrimaryKey.empty() || sValue.empty())
 			throw std::runtime_error(sError);
-		std::string sResult = SendBlockchainMessage(sType, sPrimaryKey, sValue, 1, false, sError);
+		std::string sResult = SendBlockchainMessage(sType, sPrimaryKey, sValue, 1, false, "", sError);
 		results.push_back(Pair("Sent", sValue));
 		results.push_back(Pair("TXID", sResult));
 		results.push_back(Pair("Error", sError));

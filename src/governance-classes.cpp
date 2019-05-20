@@ -671,18 +671,21 @@ CAmount CSuperblock::GetPaymentsLimit(int nBlockHeight)
 	
 	int nSuperblockCycle = 0;
 	double nBudgetFactor = 0;
+	int nType = 0;
 	if (IsValidBlockHeight(nBlockHeight))
 	{
 		// Active - Monthly
 		nSuperblockCycle = consensusParams.nSuperblockCycle;
 		double nAdjFactor = .05;  // This brings our budget down to the actual seamless budget deflation level as of March 2019 while accounting for all prior budgets
 		nBudgetFactor = .35 - nAdjFactor;
+		nType = 0;
 	}
 	else if (IsDCCSuperblock(nBlockHeight))
 	{
 		// RETIRED - Daily
 		nSuperblockCycle = consensusParams.nDCCSuperblockCycle;
  		nBudgetFactor = .65;
+		nType = 1;
 		if (fProd && nBlockHeight > 33600 && nBlockHeight < consensusParams.PODC_LAST_BLOCK) nBudgetFactor = 1.0; // Early DC Superblocks paid the entire budget.
 	}
 	else if (IsSmartContract(nBlockHeight))
@@ -690,12 +693,7 @@ CAmount CSuperblock::GetPaymentsLimit(int nBlockHeight)
 		// Active - Daily
 		nSuperblockCycle = consensusParams.nDCCSuperblockCycle;
  		nBudgetFactor = .65;
-		// CRITICAL TODO: Before testnet phase 3, we will address this feature in a distinct phase
-		// Use the actual average difficulty level over 24 hours as of 7 days ago for Daily Payments (this means that we pay less out when block difficulty limited the subsidy).  We go back 7 days to allow planning and keep anti-fork logic.
-		// int nAssessmentHeight = nBlockHeight - (BLOCKS_PER_DAY * 7);
-		// if (nAssessmentHeight < 1) nAssessmentHeight = 1;
-		// CBlockIndex* pindex = FindBlockByHeight(nAssessmentHeight);
-		// nBits = Get24HourAvgBits(pindex, nBits);
+		nType = 2;
 		// LogPrintf(" AssessmentHeight %f, BlockHeight %f, 24HrAvgBits %f \n", (double)nAssessmentHeight, (double)nBlockHeight, (double)nBits);
 	}
 	else
@@ -705,7 +703,8 @@ CAmount CSuperblock::GetPaymentsLimit(int nBlockHeight)
 
 	// Note at block 98400, our budget is 13518421, deflating.
 	// The first call to GetBlockSubsidy calculates the future reward (and this has our standard deflation of 19% per year in it)
-
+	CAmount nMaxMonthlyBudget = 13500000 * COIN;
+	CAmount nMaxDailyBudget   = 1000000  * COIN;
 	//QT - Get reference block subsidy from last months subsidy
 	int nAssessmentHeight = nBlockHeight - 1;
 	if (nBlockHeight > consensusParams.QTHeight)
@@ -714,6 +713,18 @@ CAmount CSuperblock::GetPaymentsLimit(int nBlockHeight)
     CAmount nPaymentsLimit = nSuperblockPartOfSubsidy * nSuperblockCycle * nBudgetFactor;
 	CAmount nAbsoluteMaxMonthlyBudget = MAX_BLOCK_SUBSIDY * BLOCKS_PER_DAY * 30 * .20 * COIN; // Ensure monthly budget is never > 20% of avg monthly total block emission regardless of low difficulty in PODC
 	if (nPaymentsLimit > nAbsoluteMaxMonthlyBudget) nPaymentsLimit = nAbsoluteMaxMonthlyBudget;
+	if (Params().NetworkIDString() == "main")
+	{
+		if (nType == 0 && nBlockHeight > (consensusParams.EVOLUTION_CUTOVER_HEIGHT - 6150) && nPaymentsLimit > nMaxMonthlyBudget)
+		{
+			nPaymentsLimit = nMaxMonthlyBudget;
+		}
+		else if (nType == 2 && nBlockHeight > consensusParams.EVOLUTION_CUTOVER_HEIGHT && nPaymentsLimit > nMaxDailyBudget)
+		{
+			nPaymentsLimit = nMaxDailyBudget;
+		}
+	}
+
     LogPrint("net", "CSuperblock::GetPaymentsLimit -- Valid superblock height %d, payments max %d \n", (double)nBlockHeight, (double)nPaymentsLimit/COIN);
 	
     return nPaymentsLimit;

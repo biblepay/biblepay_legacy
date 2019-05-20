@@ -150,7 +150,7 @@ bool CopyFile(std::string sSrc, std::string sDest);
 CAmount R20(CAmount amount);
 bool PODCEnabled(int nHeight);
 bool POGEnabled(int nHeight, int64_t nTime);
-std::string Caption(std::string sDefault);
+std::string Caption(std::string sDefault, int iMaxLen);
 std::vector<std::string> Split(std::string s, std::string delim);
 void MemorizeBlockChainPrayers(bool fDuringConnectBlock, bool fSubThread, bool fColdBoot, bool fDuringSanctuaryQuorum);
 double GetBlockVersion(std::string sXML);
@@ -182,6 +182,7 @@ int GetHeightByEpochTime(int64_t nEpoch);
 bool CheckABNSignature(const CBlock& block, std::string& out_CPK);
 std::string GetPOGBusinessObjectList(std::string sType, std::string sFields);
 std::string SignMessageEvo(std::string strAddress, std::string strMessage, std::string& sError);
+CAmount GetNonTitheTotal(CTransaction tx);
 const CBlockIndex* GetBlockIndexByTransactionHash(const uint256 &hash);
 
 #endif

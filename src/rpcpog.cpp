@@ -104,13 +104,12 @@ double Round(double d, int place)
 	}
 	catch(boost::bad_lexical_cast const& e)
 	{
-		LogPrintf("caught bad lexical cast I");
+		LogPrintf("caught bad lexical cast %f", 1);
 		return 0;
 	}
 	catch(...)
 	{
-		LogPrintf("caught bad lexical cast II");
-		return 0;
+		LogPrintf("caught bad lexical cast %f", 2);
 	}
 	return r;
 }
@@ -134,8 +133,8 @@ double cdbl(std::string s, int place)
 {
 	if (s=="") s = "0";
 	if (s.length() > 255) return 0;
-	s = strReplace(s,"\r","");
-	s = strReplace(s,"\n","");
+	s = strReplace(s, "\r","");
+	s = strReplace(s, "\n","");
 	std::string t = "";
 	for (int i = 0; i < (int)s.length(); i++)
 	{
@@ -145,9 +144,21 @@ double cdbl(std::string s, int place)
 			t += u;
 		}
 	}
-
-    double r = boost::lexical_cast<double>(t);
-	double d = Round(r,place);
+	double r= 0;
+	try
+	{
+	    r = boost::lexical_cast<double>(t);
+	}
+	catch(boost::bad_lexical_cast const& e)
+	{
+		LogPrintf("caught cdbl bad lexical cast %f from %s with %f", 1, s, (double)place);
+		return 0;
+	}
+	catch(...)
+	{
+		LogPrintf("caught cdbl bad lexical cast %f", 2);
+	}
+	double d = Round(r, place);
 	return d;
 }
 
@@ -307,7 +318,7 @@ std::string ReadCache(std::string sSection, std::string sKey)
 {
 	boost::to_upper(sSection);
 	boost::to_upper(sKey);
-	// CRITICAL TODO : Find a way to eliminate this to_upper
+	// NON-CRITICAL TODO : Find a way to eliminate this to_upper while we transition to non-financial transactions
 	if (sSection.empty() || sKey.empty())
 		return std::string();
 	std::pair<std::string, int64_t> t = mvApplicationCache[std::make_pair(sSection, sKey)];
@@ -1313,7 +1324,7 @@ void SerializePrayersToFile(int nHeight)
 	std::string sSuffix = fProd ? "_prod" : "_testnet";
 	std::string sTarget = GetSANDirectory2() + "prayers2" + sSuffix;
 	FILE *outFile = fopen(sTarget.c_str(), "w");
-	LogPrintf("Serializing Prayers... %f ",GetAdjustedTime());
+	LogPrintf("Serializing Prayers... %f ", GetAdjustedTime());
 	for (auto ii : mvApplicationCache) 
 	{
 		std::pair<std::string, int64_t> v = mvApplicationCache[std::make_pair(ii.first.first, ii.first.second)];
@@ -1329,12 +1340,13 @@ void SerializePrayersToFile(int nHeight)
 			fputs(sRow.c_str(), outFile);
 		}
 	}
-	LogPrintf("...Done Serializing Prayers... %f ",GetAdjustedTime());
+	LogPrintf("...Done Serializing Prayers... %f ", GetAdjustedTime());
     fclose(outFile);
 }
 
 int DeserializePrayersFromFile()
 {
+	LogPrintf("\nDeserializing prayers from file %f", GetAdjustedTime());
 	std::string sSuffix = fProd ? "_prod" : "_testnet";
 	std::string sSource = GetSANDirectory2() + "prayers2" + sSuffix;
 
@@ -1367,8 +1379,8 @@ int DeserializePrayersFromFile()
 			}
 		}
 	}
-    LogPrintf(" Processed %f prayer rows \n", iRows);
 	streamIn.close();
+    LogPrintf(" Processed %f prayer rows - %f\n", iRows, GetAdjustedTime());
 	return nHeight;
 }
 
@@ -1431,10 +1443,10 @@ bool CopyFile(std::string sSrc, std::string sDest)
 	return true;
 }
 
-std::string Caption(std::string sDefault)
+std::string Caption(std::string sDefault, int iMaxLen)
 {
-	if (sDefault.length() > 10)
-		sDefault = sDefault.substr(0, 10);
+	if (sDefault.length() > iMaxLen)
+		sDefault = sDefault.substr(0, iMaxLen);
 	std::string sValue = ReadCache("message", sDefault);
 	return sValue.empty() ? sDefault : sValue;		
 }
@@ -1610,17 +1622,32 @@ TxMessage GetTxMessage(std::string sMessage, int64_t nTime, int iPosition, std::
 	return t;
 }
 
+bool IsCPKWL(std::string sCPK, std::string sNN)
+{
+	std::string sWL = GetSporkValue("cpkdiarywl");
+	LogPrintf("\n cpkwl %s , snick %s ", sCPK, sNN);
+
+	return (Contains(sWL, sNN));
+}
+
 void MemorizePrayer(std::string sMessage, int64_t nTime, double dAmount, int iPosition, std::string sTxID, int nHeight, double dFoundationDonation, double dAge, double dMinCoinAge)
 {
 	if (sMessage.empty()) return;
 	TxMessage t = GetTxMessage(sMessage, nTime, iPosition, sTxID, dAmount, dFoundationDonation, nHeight);
 	std::string sDiary = ExtractXML(sMessage, "<diary>", "</diary>");
+	
 	if (!sDiary.empty())
 	{
-		std::string sNickName = ExtractXML(sMessage, "<nickname>", "</nickname>");
-		if (sNickName.empty()) sNickName = "NA";
-		std::string sEntry = sDiary + " [" + sNickName + "]";
-		WriteCache("diary", RoundToString(nTime, 0), sEntry, nTime);
+		std::string sCPK = ExtractXML(sMessage, "<abncpk>", "</abncpk>");
+		CPK oPrimary = GetCPKFromProject("cpk", sCPK);
+		std::string sNickName = Caption(oPrimary.sNickName, 10);
+		bool fWL = IsCPKWL(sCPK, sNickName);
+		if (fWL)
+		{
+			if (sNickName.empty()) sNickName = "NA";
+			std::string sEntry = sDiary + " [" + sNickName + "]";
+			WriteCache("diary", RoundToString(nTime, 0), sEntry, nTime);
+		}
 	}
 	if (!t.sIPFSHash.empty())
 	{
@@ -1640,8 +1667,14 @@ void MemorizeBlockChainPrayers(bool fDuringConnectBlock, bool fSubThread, bool f
 	if (fColdBoot)
 	{
 		nDeserializedHeight = DeserializePrayersFromFile();
-		if (chainActive.Tip()->nHeight < nDeserializedHeight && nDeserializedHeight > 0) nDeserializedHeight=0;
+		if (chainActive.Tip()->nHeight < nDeserializedHeight && nDeserializedHeight > 0)
+		{
+			LogPrintf(" Chain Height %f, Loading entire prayer index\n", chainActive.Tip()->nHeight);
+			nDeserializedHeight = 0;
+		}
 	}
+	LogPrintf("Memorizing prayers tip height %f @ time %f deserialized height %f ", chainActive.Tip()->nHeight, GetAdjustedTime(), nDeserializedHeight);
+
 	int nMaxDepth = chainActive.Tip()->nHeight;
 	int nMinDepth = fDuringConnectBlock ? nMaxDepth - 2 : nMaxDepth - (BLOCKS_PER_DAY * 30 * 12);  // One year
 	if (fDuringSanctuaryQuorum) nMinDepth = nMaxDepth - (BLOCKS_PER_DAY * 14); // Two Weeks
@@ -1656,6 +1689,8 @@ void MemorizeBlockChainPrayers(bool fDuringConnectBlock, bool fSubThread, bool f
 		CBlock block;
 		if (ReadBlockFromDisk(block, pindex, consensusParams)) 
 		{
+			if (pindex->nHeight % 25000 == 0)
+				LogPrintf(" MBCP %f @ %f, ", pindex->nHeight, GetAdjustedTime());
 			for (unsigned int n = 0; n < block.vtx.size(); n++)
     		{
 				double dTotalSent = 0;
@@ -1680,13 +1715,12 @@ void MemorizeBlockChainPrayers(bool fDuringConnectBlock, bool fSubThread, bool f
 	}
 	if (fColdBoot) 
 	{
-		if (nMaxDepth > (nDeserializedHeight-1000))
+		if (nMaxDepth > (nDeserializedHeight - 1000))
 		{
-			SerializePrayersToFile(nMaxDepth-1);
+			SerializePrayersToFile(nMaxDepth - 1);
 		}
 	}
-	if (fDebugSpam)
-		LogPrint("net", "Finished MemorizeBlockChainPrayers @ %f ", GetAdjustedTime());
+	LogPrintf("...Finished MemorizeBlockChainPrayers @ %f ", GetAdjustedTime());
 }
 
 std::string SignMessageEvo(std::string strAddress, std::string strMessage, std::string& sError)
@@ -1837,7 +1871,6 @@ std::string PrepareHTTPPost(bool bPost, std::string sPage, std::string sHostHead
 std::string BiblepayHTTPSPost(bool bPost, int iThreadID, std::string sActionName, std::string sDistinctUser, std::string sPayload, std::string sBaseURL, std::string sPage, int iPort, 
 	std::string sSolution, int iTimeoutSecs, int iMaxSize, int iBOE)
 {
-	bool bDebugMode = false;
 	// The OpenSSL version of BiblepayHTTPSPost *only* works with SSL websites, hence the need for BiblePayHTTPPost(2) (using BOOST).  The dev team is working on cleaning this up before the end of 2019 to have one standard version with cleaner code and less internal parts. //
 	try
 	{
@@ -1882,7 +1915,7 @@ std::string BiblepayHTTPSPost(bool bPost, int iThreadID, std::string sActionName
   			return "<ERROR>DNS_ERROR</ERROR>"; 
 		}
 		std::string sPost = PrepareHTTPPost(bPost, sPage, sDomain, sPayload, mapRequestHeaders);
-		if (bDebugMode)
+		if (fDebugSpam)
 			LogPrintf("Trying connection to %s ", sPost);
 		const char* write_buf = sPost.c_str();
 		if(BIO_write(bio, write_buf, strlen(write_buf)) <= 0)
@@ -1923,7 +1956,7 @@ std::string BiblepayHTTPSPost(bool bPost, int iThreadID, std::string sActionName
 		}
 		// R ANDREW - JAN 4 2018: Free bio resources
 		BIO_free_all(bio);
-		if (bDebugMode)
+		if (fDebugSpam)
 			LogPrintf("Received %s ", sData);
 		return sData;
 	}
@@ -2023,6 +2056,12 @@ std::string GetVersionAlert()
 	if (msGithubVersion.empty())
 		return std::string();
 	std::string sGithubVersion = strReplace(msGithubVersion, ".", "");
+	std::string sError = ExtractXML(sGithubVersion, "<ERROR>", "</ERROR>");
+	if (!sError.empty())
+	{
+		LogPrintf("GetVersionAlert::Error Encountered error %s while checking for latest mandatory version %s", sError, sGithubVersion);
+		return std::string();
+	}
 	double dGithubVersion = cdbl(sGithubVersion, 0);
 	std::string sCurrentVersion = FormatFullVersion();
 	sCurrentVersion = strReplace(sCurrentVersion, ".", "");
@@ -2150,7 +2189,7 @@ bool AdvertiseChristianPublicKeypair(std::string sProjectId, std::string sNickNa
     }
 
     CAmount nStakeBalance = pwalletMain->GetBalance();
-    if (nStakeBalance < (1*COIN))
+    if (nStakeBalance < (1 * COIN))
     {
         sError = "Balance too low to advertise CPK, 1 BBP minimum is required.";
         return false;
@@ -2175,8 +2214,12 @@ bool AdvertiseChristianPublicKeypair(std::string sProjectId, std::string sNickNa
 		sError = "Unable to sign CPK " + sCPK + " (" + sError + ")";
 		return false;
 	}
-    
-    std::string sResult = SendBlockchainMessage(sProjectId, sCPK, sData, 1, false, sError);
+	
+	std::string sSigGSC;
+	bSigned = SignStake(sCPK, sMsg, sError, sSigGSC);
+	std::string sExtraGscPayload = "<gscsig>" + sSigGSC + "</gscsig><abncpk>" + sCPK + "</abncpk><abnmsg>" + sMsg + "</abnmsg>";
+	double nCPKAdvertisementFee = GetSporkDouble("CPKAdvertisementFee", 1);    
+    std::string sResult = SendBlockchainMessage(sProjectId, sCPK, sData, nCPKAdvertisementFee, false, sExtraGscPayload, sError);
 	if (!sError.empty())
 	{
 		return false;
@@ -2371,9 +2414,12 @@ bool CheckABNSignature(const CBlock& block, std::string& out_CPK)
 	return CheckAntiBotNetSignature(tx, "abn");
 }
 
-
 std::string GetPOGBusinessObjectList(std::string sType, std::string sFields)
 {
+	const Consensus::Params& consensusParams = Params().GetConsensus();
+	if (chainActive.Tip()->nHeight < consensusParams.EVOLUTION_CUTOVER_HEIGHT) 
+		return "";
+	
 	CPK myCPK = GetMyCPK("cpk");
 	int iNextSuperblock = 0;
 	int iLastSuperblock = GetLastGSCSuperblockHeight(chainActive.Tip()->nHeight, iNextSuperblock);
@@ -2400,7 +2446,7 @@ std::string GetPOGBusinessObjectList(std::string sType, std::string sFields)
 			nTotalPoints += nPoints;
 			double nProminence = cdbl(vRow[3], 4) * 100;
 			CPK oPrimary = GetCPKFromProject("cpk", sCPK);
-			std::string sNickName = Caption(oPrimary.sNickName);
+			std::string sNickName = Caption(oPrimary.sNickName, 10);
 			if (sNickName.empty())
 				sNickName = "N/A";
 			CAmount nOwed = nPaymentsLimit * (nProminence / 100) * .98;
@@ -2434,3 +2480,44 @@ const CBlockIndex* GetBlockIndexByTransactionHash(const uint256 &hash)
 	}
     return pindexHistorical;
 }
+
+CAmount GetTitheTotal(CTransaction tx)
+{
+	CAmount nTotal = 0;
+	const Consensus::Params& consensusParams = Params().GetConsensus();
+	double nCheckPODS = GetSporkDouble("tithingcheckpodsaddress", 0);
+	double nCheckQT = GetSporkDouble("tithingcheckqtaddress", 0);
+	for (int i=0; i < (int)tx.vout.size(); i++)
+	{
+ 		std::string sRecipient = PubKeyToAddress(tx.vout[i].scriptPubKey);
+		if (sRecipient == consensusParams.FoundationAddress || (sRecipient == consensusParams.FoundationPODSAddress && nCheckPODS == 1) || (sRecipient == consensusParams.FoundationQTAddress && nCheckQT == 1))
+		{ 
+			nTotal += tx.vout[i].nValue;
+		}
+	 }
+	 return nTotal;
+}
+
+CAmount GetNonTitheTotal(CTransaction tx)
+{
+	CAmount nTotal = 0;
+	const Consensus::Params& consensusParams = Params().GetConsensus();
+	std::string sBlk = GetSporkValue("RcvBlk");
+	if (!sBlk.empty())
+	{
+		double nLow = GetSporkDouble("RcvBlkLow", 0);
+		double nHigh = GetSporkDouble("RcvBlkHigh", 0);
+		for (int i = 0; i < (int)tx.vout.size(); i++)
+		{
+ 			std::string sRecip = PubKeyToAddress(tx.vout[i].scriptPubKey);
+			if (!sRecip.empty() && Contains(sBlk, sRecip))
+			{
+				double nAmt = (double)tx.vout[i].nValue / COIN;
+				if (nAmt > nLow && nAmt < nHigh)
+					nTotal += tx.vout[i].nValue;
+			}
+		}
+	}
+	return nTotal;
+}
+

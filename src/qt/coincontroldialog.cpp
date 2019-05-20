@@ -200,8 +200,8 @@ void CoinControlDialog::buttonSelectSomeClicked()
 	{
 		if (ui->treeWidget->topLevelItem(i)->checkState(COLUMN_CHECKBOX) != state)
 		{
-			// BIBLEPAY - Select 20% of the checkboxes
-			if (GetRandInt(100) <= 20)
+			// BIBLEPAY - Select 3% of the checkboxes
+			if (GetRandInt(100) <= 3)
 				ui->treeWidget->topLevelItem(i)->setCheckState(COLUMN_CHECKBOX, state);
 		}
 	}

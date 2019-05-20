@@ -229,11 +229,6 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
         return OK;
     }
 
-    // This should never really happen, yet another safety check, just in case.
-    if(wallet->IsLocked()) {
-        return TransactionCreationFailed;
-    }
-
     QSet<QString> setAddress; // Used to detect duplicates
     int nAddresses = 0;
 	std::string sOptPrayer;
@@ -318,6 +313,12 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
         }
     }
 
+	// This should never really happen, yet another safety check, just in case.
+    if (wallet->IsLocked() && !fDiaryEntry) 
+	{
+        return TransactionCreationFailed;
+    }
+
 	if (fDiaryEntry)
 	{
 		LogPrintf("WalletModel::CreateDiaryEntry::Creating diary entry ... %s ", sOptPrayer);
@@ -326,6 +327,12 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
 		bool fCreated = CreateClientSideTransaction(true, true, sOptPrayer, sError);
 		int iMsg = fCreated ? CClientUIInterface::MSG_INFORMATION : CClientUIInterface::MSG_ERROR;
 		std::string sNarr = fCreated ? "Created Diary Entry for GSC Transmission" : sError;
+		LogPrintf("WalletModel::CreateDiaryEntry Results Narr %s, Error %s", sNarr, sError);
+
+		if (!sError.empty() || !fCreated)
+		{
+			return TransactionCreationFailed;
+		}
 	    Q_EMIT message(tr("Create Diary Entry"), QString::fromStdString(sNarr), iMsg);
 	    return SendCoinsReturn(TransactionCommitFailed, QString::fromStdString("GSC_SUCCESS"));
 	}

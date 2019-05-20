@@ -85,8 +85,6 @@ void BusinessObjectList::createUI(const QStringList &headers, const QString &pSt
 	ui->tableWidget->setRowCount(0);
 	ui->tableWidget->setSortingEnabled(false);
 	
-
-
     ui->tableWidget->setSelectionMode(QAbstractItemView::SingleSelection);
     ui->tableWidget->setSelectionBehavior(QAbstractItemView::SelectRows);
     ui->tableWidget->horizontalHeader()->setStretchLastSection(true);
@@ -97,8 +95,8 @@ void BusinessObjectList::createUI(const QStringList &headers, const QString &pSt
     pMatrix = SplitData(pStr);
 	int rows = pMatrix.size();
 	int iFooterRow = 0;
-	int iAmountCol = 4;
-	int iNameCol = 0;
+	int iAmountCol = 3;
+	int iNameCol = 1;
 	iFooterRow += 6;
 	std::string sXML = GUIUtil::FROMQS(pStr);
 	std::string msNickName = ExtractXML(sXML, "<my_nickname>","</my_nickname>");
@@ -110,6 +108,7 @@ void BusinessObjectList::createUI(const QStringList &headers, const QString &pSt
 	double dGrandTotal = 0;
 	int iHighlighted = 0;
 	//	Leaderboard fields = "nickname,cpk,points,owed,prominence";
+	ui->tableWidget->setSortingEnabled(false);
 
     for (int i = 0; i < rows; i++)
 	{
@@ -152,22 +151,21 @@ void BusinessObjectList::createUI(const QStringList &headers, const QString &pSt
         int iSortColumn = ui->tableWidget->horizontalHeader()->sortIndicatorSection();
         Qt::SortOrder soDefaultOrder = Qt::DescendingOrder;
         Qt::SortOrder soCurrentOrder = ui->tableWidget->horizontalHeader()->sortIndicatorOrder();
-        if (soDefaultOrder == soCurrentOrder && iSortColumn == default_sort_column)   
+        if (soDefaultOrder == soCurrentOrder && iSortColumn == default_sort_column && iSortColumn > 1)   
 		{
             ui->tableWidget->sortByColumn(default_sort_column, soDefaultOrder);
         }
-		ui->tableWidget->setSortingEnabled(true);
+		ui->tableWidget->setSortingEnabled(false);
+
 		addFooterRow(rows, iFooterRow, "Difficulty:", ExtractXML(sXML, "<difficulty>","</difficulty>"));
 		addFooterRow(rows, iFooterRow, "My Points:", ExtractXML(sXML, "<my_points>","</my_points>"));
 		addFooterRow(rows, iFooterRow, "My Nick Name:", ExtractXML(sXML, "<my_nickname>","</my_nickname>"));
 		addFooterRow(rows, iFooterRow, "Total Points:", ExtractXML(sXML, "<total_points>","</total_points>"));
 		addFooterRow(rows, iFooterRow, "Total Participants:", ExtractXML(sXML, "<participants>","</participants>"));
-		
+
 		if (iHighlighted > 0) 
 		{
-			// ui->tableWidget->scrollToTop();
 			ui->tableWidget->selectRow(iHighlighted);
-			// ui->tableWidget->scrollTo(ui->tableWidget->currentIndex());
 		}
 	}
 
@@ -187,7 +185,18 @@ void BusinessObjectList::createUI(const QStringList &headers, const QString &pSt
 		connect(ui->tableWidget, SIGNAL(customContextMenuRequested(QPoint)), this, SLOT(slotCustomMenuRequested(QPoint)));
 	    connect(ui->btnSummary, SIGNAL(clicked()), this, SLOT(showSummary()));
 		connect(ui->btnDetails, SIGNAL(clicked()), this, SLOT(showDetails()));
+		connect(ui->tableWidget->horizontalHeader(), SIGNAL(sectionPressed(int)),this, SLOT(HandleIndicatorChanged(int)));
 		bSlotsCreated = true;
+	}
+}
+
+void BusinessObjectList::HandleIndicatorChanged(int logicalIndex)
+{
+	if (logicalIndex != 0 && logicalIndex != 1)
+	{
+		ui->tableWidget->horizontalHeader()->setSortIndicatorShown(true);
+		Qt::SortOrder soCurrentOrder = ui->tableWidget->horizontalHeader()->sortIndicatorOrder();
+		ui->tableWidget->sortByColumn(logicalIndex, soCurrentOrder);
 	}
 }
 
