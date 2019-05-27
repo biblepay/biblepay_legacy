@@ -71,3 +71,12 @@ Install Watchman in cron:
 crontab -e
 Add this line:
 * * * * * cd /home/YOURUSERNAME/watchman && ./venv/bin/python bin/watchman.py >/dev/null 2>&1
+
+
+
+*** TROUBLESHOOTING ****
+Q: What if I receive an error during ./autogen.sh?  Libtoolize failed AC_CONFIG_MACRO_DIRS([build-aux/m4]) conflicts with ACLOCAL.AMFLAGS=-I build-aux/m4?
+A: This is because some files were downloaded from git with CRLF.  Fix with:
+find . -name \*.m4|xargs dos2unix
+find . -name \*.ac|xargs dos2unix
+find . -name \*.am|xargs dos2unix
