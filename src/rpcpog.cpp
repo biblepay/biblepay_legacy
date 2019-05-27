@@ -1625,8 +1625,6 @@ TxMessage GetTxMessage(std::string sMessage, int64_t nTime, int iPosition, std::
 bool IsCPKWL(std::string sCPK, std::string sNN)
 {
 	std::string sWL = GetSporkValue("cpkdiarywl");
-	LogPrintf("\n cpkwl %s , snick %s ", sCPK, sNN);
-
 	return (Contains(sWL, sNN));
 }
 

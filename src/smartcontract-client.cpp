@@ -61,7 +61,6 @@ UniValue GetCampaigns()
 	std::map<std::string, CPK> cp = GetGSCMap("cpk", "", true);
 	for (std::pair<std::string, CPK> a : cp)
 	{
-		// NON-CRITICAL TODO: Figure out why nickname is missing from GSCMap but not from GetCPKFromProject
 		CPK oPrimary = GetCPKFromProject("cpk", a.second.sAddress);
 		results.push_back(Pair("member [" + Caption(oPrimary.sNickName, 10) + "]", a.second.sAddress));
 	}

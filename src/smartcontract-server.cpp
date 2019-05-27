@@ -466,6 +466,7 @@ std::string AssessBlocks(int nHeight, bool fCreatingContract)
 	double nMaxContractPercentage = .98;
 	std::string sAddresses;
 	std::string sPayments;
+	std::string sProminenceExport = "<PROMINENCE>";
 	for (auto Members : mPoints)
 	{
 		CAmount nPayment = Members.second.nProminence * nPaymentsLimit * nMaxContractPercentage;
@@ -477,8 +478,10 @@ std::string AssessBlocks(int nHeight, bool fCreatingContract)
 			CPK localCPK = GetCPKFromProject("cpk", Members.second.sAddress);
 			std::string sRow =  "ALL|" + Members.second.sAddress + "|" + RoundToString(Members.second.nPoints, 0) + "|" + RoundToString(Members.second.nProminence, 4) + "|" + localCPK.sNickName + "|\n";
 			sGenData += sRow;
+			sProminenceExport += "<CPK>" + Members.second.sAddress + "|" + RoundToString(Members.second.nPoints, 0) + "|" + RoundToString(Members.second.nProminence, 4) + "|" + localCPK.sNickName + "</CPK>";
 		}
 	}
+	sProminenceExport += "</PROMINENCE>";
 
 	std::string QTData;
 	if (fCreatingContract)
@@ -501,12 +504,45 @@ std::string AssessBlocks(int nHeight, bool fCreatingContract)
 		sPayments = sPayments.substr(0, sPayments.length() - 1);
 	if (sAddresses.length() > 1)
 		sAddresses = sAddresses.substr(0, sAddresses.length() - 1);
-	
+
+	std::string sCPKList = "<CPKLIST>";
+	std::map<std::string, CPK> mAllC = GetGSCMap("cpk", "", true);
+	for (std::pair<std::string, CPK> a : mAllC)
+	{
+		sCPKList += "<C>" + a.second.sAddress + "|" + a.second.sNickName + "</C>";
+	}
+	sCPKList += "</CPKLIST>";
+	// The BiblePay Daily Export should also send a list of registered stratis nodes in this XML report.
+	std::string sStratisNodes = "<STRATISNODES>";
+	std::map<std::string, CPK> mAllStratis = GetGSCMap("stratis", "", true);
+	for (std::pair<std::string, CPK> a : mAllStratis)
+	{
+		// ToDo:  The stratis public IP field must be added to our campaign object and to the daily export
+		sStratisNodes += "<SN>" + a.second.sAddress + "|" + a.second.sNickName + "</SN>";
+	}
+	sStratisNodes += "</STRATISNODES>";
+
 	sData = "<PAYMENTS>" + sPayments + "</PAYMENTS><ADDRESSES>" + sAddresses + "</ADDRESSES><DATA>" + sGenData + "</DATA><LIMIT>" 
 		+ RoundToString(nPaymentsLimit/COIN, 4) + "</LIMIT><TOTALPOINTS>" + RoundToString(nTotalPoints, 2) + "</TOTALPOINTS><DIARIES>" 
-		+ sDiaries + "</DIARIES><DETAILS>" + sDetails + "</DETAILS>" + QTData;
+		+ sDiaries + "</DIARIES><DETAILS>" + sDetails + "</DETAILS>" + QTData + sProminenceExport + sCPKList + sStratisNodes;
 
 	return sData;
+}
+
+void DailyExport()
+{
+	// This procedure exports data to Stratis clients
+	double dDisableStratisExport = cdbl(GetArg("-disablestratisexport", "0"), 0);
+	if (dDisableStratisExport == 1) 
+		return;
+	std::string sSuffix = fProd ? "_prod" : "_testnet";
+	std::string sTarget = GetSANDirectory2() + "dataexport" + sSuffix;
+	FILE *outFile = fopen(sTarget.c_str(), "w");
+	if (!chainActive.Tip()) 
+		return;
+	std::string sContract = GetGSCContract(chainActive.Tip()->nHeight, false);
+	fputs(sContract.c_str(), outFile);
+	fclose(outFile);
 }
 
 int GetRequiredQuorumLevel(int nHeight)
@@ -1034,6 +1070,10 @@ std::string ExecuteGenericSmartContractQuorumProcess()
 		if (fDebugSpam)
 			LogPrintf("WatchmanOnTheWall::Status %s Contract %s", sWatchman, sContr);
 	}
+	bool fStratisExport = (chainActive.Tip()->nHeight % BLOCKS_PER_DAY == 0) && fMasternodeMode;
+	if (fStratisExport)
+		DailyExport();
+
 	// Goal 1: Be synchronized as a team after the warming period, but be cascading during the warming period
 	int iNextSuperblock = 0;
 	int iLastSuperblock = GetLastGSCSuperblockHeight(chainActive.Tip()->nHeight, iNextSuperblock);
