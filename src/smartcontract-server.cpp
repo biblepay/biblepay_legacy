@@ -518,14 +518,12 @@ std::string AssessBlocks(int nHeight, bool fCreatingContract)
 	for (std::pair<std::string, CPK> a : mAllStratis)
 	{
 		// ToDo:  The stratis public IP field must be added to our campaign object and to the daily export
-		sStratisNodes += "<SN>" + a.second.sAddress + "|" + a.second.sNickName + "</SN>";
+		sStratisNodes += "<NODE>" + a.second.sAddress + "|" + a.second.sNickName + "</NODE>";
 	}
 	sStratisNodes += "</STRATISNODES>";
-
 	sData = "<PAYMENTS>" + sPayments + "</PAYMENTS><ADDRESSES>" + sAddresses + "</ADDRESSES><DATA>" + sGenData + "</DATA><LIMIT>" 
 		+ RoundToString(nPaymentsLimit/COIN, 4) + "</LIMIT><TOTALPOINTS>" + RoundToString(nTotalPoints, 2) + "</TOTALPOINTS><DIARIES>" 
 		+ sDiaries + "</DIARIES><DETAILS>" + sDetails + "</DETAILS>" + QTData + sProminenceExport + sCPKList + sStratisNodes;
-
 	return sData;
 }
 
