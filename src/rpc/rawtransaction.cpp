@@ -174,6 +174,13 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
             qcTx.ToJson(obj);
             entry.push_back(Pair("qcTx", obj));
         }
+    } else if (tx.nType == TRANSACTION_NON_FINANCIAL) {
+	    CNonFinancialTx cNon;
+        if (GetTxPayload(tx, cNon)) {
+            UniValue obj;
+            cNon.ToJson(obj);
+            entry.push_back(Pair("cNonFinancialTx", obj));
+        }
     }
 
     if (!hashBlock.IsNull()) {

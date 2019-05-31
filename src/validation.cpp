@@ -626,7 +626,8 @@ bool ContextualCheckTransaction(const CTransaction& tx, CValidationState &state,
                 tx.nType != TRANSACTION_PROVIDER_UPDATE_REGISTRAR &&
                 tx.nType != TRANSACTION_PROVIDER_UPDATE_REVOKE &&
                 tx.nType != TRANSACTION_COINBASE &&
-                tx.nType != TRANSACTION_QUORUM_COMMITMENT) {
+                tx.nType != TRANSACTION_QUORUM_COMMITMENT &&
+				tx.nType != TRANSACTION_NON_FINANCIAL) {
                 return state.DoS(100, false, REJECT_INVALID, "bad-txns-type");
             }
             if (tx.IsCoinBase() && tx.nType != TRANSACTION_COINBASE)
@@ -4920,6 +4921,35 @@ void KillBlockchainFiles()
 	boost::filesystem::path pathMncache = GetDataDir() / "mncache.dat";
 	if(boost::filesystem::exists(pathMncache)) boost::filesystem::remove(pathMncache); 
 }  
+
+void ConnectNonFinancialTransactions(const CBlock& block, const CBlockIndex* pindexPrev, const Consensus::Params& consensusParams)
+{
+    int nHeight = pindexPrev == NULL ? 0 : pindexPrev->nHeight + 1;
+    bool fDIP0003Active_context = VersionBitsState(pindexPrev, consensusParams, Consensus::DEPLOYMENT_DIP0003, versionbitscache) == THRESHOLD_ACTIVE;
+    if (fDIP0003Active_context) 
+	{
+		for (const auto& tx : block.vtx) 
+		{
+			CTransaction ctx = *tx;
+		    if (ctx.nType == TRANSACTION_NON_FINANCIAL)
+			{
+				CValidationState state;
+				bool fValid = CheckNonFinancialTx(ctx, pindexPrev, state);
+				if (fValid)
+				{
+					CNonFinancialTx ptx;
+					if (GetTxPayload(ctx, ptx)) 
+					{
+						LogPrintf("Non-Financial Transaction %s %s %s\n", ptx.sObjectType, ptx.sKey, ptx.sValue);
+						// Store here.
+					}
+				}
+			}
+		}
+	}
+}
+
+
 
 // END OF BIBLEPAY
 

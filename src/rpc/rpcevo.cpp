@@ -17,11 +17,14 @@
 #endif//ENABLE_WALLET
 
 #include "netbase.h"
+#include "rpcpog.h"
 
 #include "evo/specialtx.h"
 #include "evo/providertx.h"
 #include "evo/deterministicmns.h"
 #include "evo/simplifiedmns.h"
+#include "evo/cbtx.h"
+
 
 #include "bls/bls.h"
 
@@ -1077,6 +1080,80 @@ UniValue protx_diff(const JSONRPCRequest& request)
     );
 }
 
+UniValue nonfinancialtxtojson(const JSONRPCRequest& request)
+{
+	uint256 uHash = ParseHashV(request.params[0], "nonFinancialTxId");
+    CTransactionRef nonFinTx;
+	
+    uint256 tmpHashBlock;
+    if (!GetTransaction(uHash, nonFinTx, Params().GetConsensus(), tmpHashBlock)) 
+		throw std::runtime_error("Unable to find this non-financial-txid.");
+	
+    CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
+    ssTx << nonFinTx;
+    std::string sNonFinHex = HexStr(ssTx.begin(), ssTx.end());
+
+	CMutableTransaction mNonFinTx;
+    if (!DecodeHexTx(mNonFinTx, sNonFinHex)) 
+		throw std::runtime_error("Unable to decode non-financial-tx.");
+
+	CNonFinancialTx ptx;
+	if (!GetTxPayload(mNonFinTx, ptx)) 
+		throw std::runtime_error("Unable to retrieve non-financial payload.");
+
+    if (mNonFinTx.nType != TRANSACTION_NON_FINANCIAL) 
+			throw std::runtime_error("Not a non-financial transaction.");
+	UniValue obj;
+    ptx.ToJson(obj);
+	return obj;
+}
+
+UniValue createnonfinancialtransaction(const JSONRPCRequest& request)
+{
+	CNonFinancialTx ptx;
+	ptx.nVersion = CProRegTx::CURRENT_VERSION;
+	ptx.proTxHash = uint256S("0x01");
+	ptx.inputsHash = uint256S("0x02");
+	ptx.sNonce = GetRandHash().GetHex();
+	ptx.sObjectType = "PRAYER";
+	ptx.sKey = "OUT_TX_P_01";
+	ptx.sValue = "Let us pray for divine assistance in Venezuela for those short of medicine or food.";
+	ptx.dsqlHash = uint256S("0x03");
+	ptx.iObjectSize = 125;
+	ptx.sExtraPayload = "In Jesus Name, Amen.";
+	ptx.nTimestamp = GetAdjustedTime();
+	CMutableTransaction tx;
+	tx.nVersion = 3;
+	tx.nType = TRANSACTION_NON_FINANCIAL;
+	std::string sPayAddress = DefaultRecAddress("Christian-Public-Key"); 
+	CBitcoinAddress baPayAddress(sPayAddress);
+	bool fSubtractFee = false;
+	bool fInstantSend = false;
+	std::string sError;
+	std::string sData = "<NONFINANCIALTX/>";
+	// Send minute BBP to your CPK to ensure we can afford to fund the non-financial Tx
+	CWalletTx wtx;
+	bool fSent = RPCSendMoney(sError, baPayAddress.Get(), 1 * COIN, fSubtractFee, wtx, fInstantSend, sData);
+	CTxDestination feeSource;
+	feeSource = baPayAddress.Get();
+	// Fund the non financial tx
+	FundSpecialTx(tx, ptx, feeSource);
+	// sign the non financial with the CPK
+	CKeyID keyID;
+	if (!baPayAddress.GetKeyID(keyID))
+	{
+		sError = "Address does not refer to key";
+		return sError;
+	}
+	CKey key;
+	if (!pwalletMain->GetKey(keyID, key)) 
+		throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("collateral key not in wallet: %s", CBitcoinAddress(keyID).ToString()));
+       SignSpecialTxPayloadByString(tx, ptx, key);
+ 	SetTxPayload(tx, ptx);
+	return SignAndSendSpecialTx(tx);
+}
+
+
 UniValue protx(const JSONRPCRequest& request)
 {
     if (request.fHelp && request.params.empty()) {
@@ -1193,8 +1270,10 @@ UniValue _bls(const JSONRPCRequest& request)
 static const CRPCCommand commands[] =
 { //  category              name                      actor (function)         okSafeMode
   //  --------------------- ------------------------  -----------------------  ----------
-    { "evo",                "bls",                    &_bls,                   false, {}  },
-    { "evo",                "protx",                  &protx,                  false, {}  },
+    { "evo",                "bls",                          &_bls,                          false, {}  },
+    { "evo",                "protx",                        &protx,                         false, {}  },
+	{ "evo",                "createnonfinancialtransaction",&createnonfinancialtransaction, false, {}  },
+	{ "evo",                "nonfinancialtxtojson",         &nonfinancialtxtojson,          false, {}  },
 };
 
 void RegisterEvoRPCCommands(CRPCTable &tableRPC)
