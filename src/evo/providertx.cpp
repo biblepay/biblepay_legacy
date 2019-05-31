@@ -212,6 +212,25 @@ bool CheckProRegTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CValid
     return true;
 }
 
+bool CheckNonFinancialTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CValidationState& state)
+{
+    if (tx.nType != TRANSACTION_NON_FINANCIAL) {
+        return state.DoS(1, false, REJECT_INVALID, "bad-non-financial-transaction-type");
+    }
+
+    CNonFinancialTx ptx;
+    if (!GetTxPayload(tx, ptx)) {
+        return state.DoS(1, false, REJECT_INVALID, "bad-non-financial-transaction-payload");
+    }
+
+    if (ptx.nVersion == 0 || ptx.nVersion > CNonFinancialTx::CURRENT_VERSION) {
+        return state.DoS(1, false, REJECT_INVALID, "bad-non-financial-transaction-version");
+    }
+
+    return true;
+}
+
+
 bool CheckProUpServTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CValidationState& state)
 {
     if (tx.nType != TRANSACTION_PROVIDER_UPDATE_SERVICE) {
@@ -381,6 +400,34 @@ bool CheckProUpRevTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CVal
     }
 
     return true;
+}
+
+std::string CNonFinancialTx::MakeSignString() const
+{
+	// This will have all the elements we normally include in the CPK or a prayer or an IPFS pointer or a DSQL pointer 
+	// And is designed to prevent replay attacks
+    std::string s;
+	s = sNonce + "|" + proTxHash.GetHex();
+	s += ::SerializeHash(*this).ToString();
+	return s;
+}
+
+void CNonFinancialTx::ToJson(UniValue& obj) const
+{
+    obj.clear();
+    obj.setObject();
+    obj.push_back(Pair("version", nVersion));
+    obj.push_back(Pair("protxhash", proTxHash.ToString()));
+    obj.push_back(Pair("inputsHash", inputsHash.ToString()));
+	obj.push_back(Pair("nonce", sNonce));
+	obj.push_back(Pair("objectType", sObjectType));
+	obj.push_back(Pair("key", sKey));
+	obj.push_back(Pair("value", sValue));
+	obj.push_back(Pair("dsqlHash", dsqlHash.ToString()));
+	obj.push_back(Pair("signer", sSigner));
+	obj.push_back(Pair("objectsize", iObjectSize));
+	obj.push_back(Pair("extra_payload", sExtraPayload));
+	obj.push_back(Pair("timestamp", nTimestamp));
 }
 
 std::string CProRegTx::MakeSignString() const

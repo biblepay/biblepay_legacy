@@ -706,7 +706,13 @@ void CTxMemPool::removeUnchecked(txiter it, MemPoolRemovalReason reason)
             assert(false);
         }
         eraseProTxRef(proTx.proTxHash, it->GetTx().GetHash());
-    }
+    } else if (it->GetTx().nType == TRANSACTION_NON_FINANCIAL) {
+		CNonFinancialTx cNFN;
+		if (!GetTxPayload(it->GetTx(), cNFN))
+		{
+			assert(false);
+		}
+	}
 
     totalTxSize -= it->GetTxSize();
     cachedInnerUsage -= it->DynamicMemoryUsage();

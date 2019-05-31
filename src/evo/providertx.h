@@ -64,6 +64,56 @@ public:
     void ToJson(UniValue& obj) const;
 };
 
+class CNonFinancialTx
+{
+public:
+    static const uint16_t CURRENT_VERSION = 1;
+
+public:
+    uint16_t nVersion{CURRENT_VERSION}; 
+    uint256 proTxHash;
+    uint256 inputsHash; 
+	std::vector<unsigned char> vchSig; // CPK Sig, Or Foundation Sig, or Owner Sig
+	std::string sNonce;                // Replay protection
+	std::string sObjectType;           // PRAYER, FILE, MESSAGE, DCC, CPK, OBJECT
+	std::string sKey;
+	std::string sValue;
+	uint256 dsqlHash;
+	std::string sSigner;
+	int iObjectSize;
+	std::string sExtraPayload;
+	int64_t nTimestamp;
+
+public:
+    ADD_SERIALIZE_METHODS;
+
+    template <typename Stream, typename Operation>
+    inline void SerializationOp(Stream& s, Operation ser_action)
+    {
+		READWRITE(nVersion);
+		READWRITE(proTxHash);
+		READWRITE(inputsHash);
+		READWRITE(sNonce);
+		READWRITE(sObjectType);
+		READWRITE(sKey);
+		READWRITE(sValue);
+		READWRITE(dsqlHash);
+		READWRITE(sSigner);
+		READWRITE(iObjectSize);
+		READWRITE(sExtraPayload);
+		READWRITE(nTimestamp);
+		if (!(s.GetType() & SER_GETHASH)) 
+		{
+			READWRITE(vchSig);
+		}
+	}
+
+public:
+	std::string MakeSignString() const;
+    std::string ToString() const;
+    void ToJson(UniValue& obj) const;
+};
+
 class CProUpServTx
 {
 public:
@@ -182,5 +232,6 @@ bool CheckProRegTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CValid
 bool CheckProUpServTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CValidationState& state);
 bool CheckProUpRegTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CValidationState& state);
 bool CheckProUpRevTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CValidationState& state);
+bool CheckNonFinancialTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CValidationState& state);
 
 #endif //BIBLEPAY_PROVIDERTX_H
