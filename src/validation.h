@@ -173,7 +173,7 @@ extern bool fCommunicatingWithPool;
 extern int64_t nLastDCContractSubmitted;
 extern int64_t nHPSTimerStart;
 extern int64_t nProposalStartTime;
-extern int nHashCounter;
+extern int64_t nHashCounter;
 extern double dHashesPerSec;
 extern bool fProposalNeedsSubmitted;
 extern int nProposalPrepareHeight;

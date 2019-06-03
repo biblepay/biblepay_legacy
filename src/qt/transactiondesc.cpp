@@ -405,32 +405,35 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionReco
         QString sInputsHeader = "<br><b>" + tr("Inputs") + ":</b><ul>";
 
 		int iRow = 0;
-        BOOST_FOREACH(const CTxIn& txin, wtx.tx->vin)
-        {
-            COutPoint prevout = txin.prevout;
+		if (pindexTxList != NULL)
+		{
+			BOOST_FOREACH(const CTxIn& txin, wtx.tx->vin)
+			{
+				COutPoint prevout = txin.prevout;
 
-            Coin prev;
-            if(pcoinsTip->GetCoin(prevout, prev))
-            {
-                {
-					iRow++;
-					if (iRow==1)
-						strHTML += sInputsHeader;
-                    strHTML += "<li>";
-                    const CTxOut &vout = prev.out;
-                    CTxDestination address;
-                    if (ExtractDestination(vout.scriptPubKey, address))
-                    {
-                        if (wallet->mapAddressBook.count(address) && !wallet->mapAddressBook[address].name.empty())
-                            strHTML += GUIUtil::HtmlEscape(wallet->mapAddressBook[address].name) + " ";
-                        strHTML += QString::fromStdString(CBitcoinAddress(address).ToString());
-                    }
-                    strHTML = strHTML + " " + tr("Amount") + "=" + BitcoinUnits::formatHtmlWithUnit(unit, vout.nValue);
-                    strHTML = strHTML + " IsMine=" + (wallet->IsMine(vout) & ISMINE_SPENDABLE ? tr("true") : tr("false"));
-                    strHTML = strHTML + " IsWatchOnly=" + (wallet->IsMine(vout) & ISMINE_WATCH_ONLY ? tr("true") : tr("false")) + "</li>";
-                }
-            }
-        }
+				Coin prev;
+				if(pcoinsTip->GetCoin(prevout, prev))
+				{
+					{
+						iRow++;
+						if (iRow==1)
+							strHTML += sInputsHeader;
+						strHTML += "<li>";
+						const CTxOut &vout = prev.out;
+						CTxDestination address;
+						if (ExtractDestination(vout.scriptPubKey, address))
+						{
+							if (wallet->mapAddressBook.count(address) && !wallet->mapAddressBook[address].name.empty())
+								strHTML += GUIUtil::HtmlEscape(wallet->mapAddressBook[address].name) + " ";
+							strHTML += QString::fromStdString(CBitcoinAddress(address).ToString());
+						}
+						strHTML = strHTML + " " + tr("Amount") + "=" + BitcoinUnits::formatHtmlWithUnit(unit, vout.nValue);
+						strHTML = strHTML + " IsMine=" + (wallet->IsMine(vout) & ISMINE_SPENDABLE ? tr("true") : tr("false"));
+						strHTML = strHTML + " IsWatchOnly=" + (wallet->IsMine(vout) & ISMINE_WATCH_ONLY ? tr("true") : tr("false")) + "</li>";
+					}
+				}
+			}
+		}
 
         strHTML += "</ul>";
 		if (!sStripped.empty()) 
@@ -440,7 +443,7 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionReco
 			strHTML += "<br><b>Diary:</b> " + GUIUtil::TOQS(sDiary) + "<br>";
     }
 	// Bible Verses
-	if (pindexTxList)
+	if (pindexTxList != NULL)
 	{
 		std::string sVerses = GetBibleHashVerses(pindexTxList->GetBlockHash(), pindexTxList->GetBlockTime(), pindexTxList->pprev->nTime, pindexTxList->pprev->nHeight, pindexTxList->pprev);
 		QString v = GetFormattedVerses(sVerses);

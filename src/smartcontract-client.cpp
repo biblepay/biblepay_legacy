@@ -308,6 +308,10 @@ bool CreateClientSideTransaction(bool fForce, bool fDiaryProjectsOnly, std::stri
 		sError = "Sorry, you have selected diary projects only, but biblepay did not receive a diary entry.";
 		return false;
 	}
+	double nDisableClientSideTransmission = UserSetting("disablegsctransmission", 0);
+	if (nDisableClientSideTransmission == 1)
+		return false;
+				
 	// List of Campaigns
 	for (auto s : mCampaigns)
 	{

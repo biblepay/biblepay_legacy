@@ -1105,7 +1105,28 @@ UniValue gobject(const JSONRPCRequest& request)
         return gobject_vote_many(request);
     } else if (strCommand == "vote-alias") {
         return gobject_vote_alias(request);
-    } else if (strCommand == "list") {
+    } else if (strCommand == "serialize-legacy") {
+		std::string sEventBlockHeight = request.params[1].get_str();
+		std::string sPaymentAddresses = request.params[2].get_str();
+		std::string sPaymentAmounts = request.params[3].get_str();
+		std::string sProposalHashes = request.params[4].get_str();
+		std::string sType = request.params[5].get_str();
+		std::string sQ = "\"";
+		std::string sJson = "[[" + sQ + "trigger" + sQ + ",{";
+		sJson += GJE("event_block_height", sEventBlockHeight, true, false); // Must be an int
+		sJson += GJE("start_epoch", RoundToString(GetAdjustedTime(), 0), true, false);
+		sJson += GJE("payment_addresses", sPaymentAddresses, true, true);
+		sJson += GJE("payment_amounts", sPaymentAmounts, true, true);
+		sJson += GJE("proposal_hashes", sProposalHashes, true, true);
+		sJson += GJE("type", sType, false, false); 
+		sJson += "}]]";
+		UniValue u(UniValue::VOBJ);
+		std::vector<unsigned char> vchJson = std::vector<unsigned char>(sJson.begin(), sJson.end());
+		std::string sHex = HexStr(vchJson.begin(), vchJson.end());
+		u.push_back(Pair("Hex", sHex));
+		return u;
+	}
+	else if (strCommand == "list") {
         // USERS CAN QUERY THE SYSTEM FOR A LIST OF VARIOUS GOVERNANCE ITEMS
         return gobject_list(request);
 	} else if (strCommand == "listwild") {

@@ -296,9 +296,12 @@ std::map<std::string, CPK> GetGSCMap(std::string sGSCObjType, std::string sSearc
     	if (ii.first.first == sGSCObjType)
 		{
 			CPK k = GetCPK(ii.second.first);
-			if (!k.sAddress.empty() && k.fValid && (!sSearch.empty() && (sSearch == k.sAddress || sSearch == k.sNickName) || (sSearch.empty())))
+			if (!k.sAddress.empty() && k.fValid)
 			{
-				mCPKMap.insert(std::make_pair(k.sAddress, k));
+				if ((!sSearch.empty() && (sSearch == k.sAddress || sSearch == k.sNickName)) || sSearch.empty())
+				{
+					mCPKMap.insert(std::make_pair(k.sAddress, k));
+				}
 			}
 		}
 	}

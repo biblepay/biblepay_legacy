@@ -720,7 +720,7 @@ std::string PoolRequest(int iThreadID, std::string sAction, std::string sPoolURL
 }
 
 void UpdatePoolProgress(const CBlock* pblock, std::string sPoolAddress, arith_uint256 hashPoolTarget, CBlockIndex* pindexPrev, std::string sMinerGuid, std::string sWorkID, 
-	int iThreadID, unsigned int iThreadWork, int64_t nThreadStart, unsigned int nNonce)
+	int iThreadID, int64_t iThreadWork, int64_t nThreadStart, unsigned int nNonce)
 {
 	bool f7000;
 	bool f8000;
@@ -917,7 +917,7 @@ void RelayMiningMessage(std::string sMessage)
 	WriteCache("poolthread0", "poolinfo3", sMessage, GetAdjustedTime());
 }
 
-void UpdateHashesPerSec(unsigned int& nHashesDone)
+void UpdateHashesPerSec(int64_t nHashesDone)
 {
 	// Update HashesPerSec
 	nHashCounter += nHashesDone;
@@ -989,7 +989,7 @@ void static BibleMiner(const CChainParams& chainparams, int iThreadID, int iFeat
 	double dMinerSleep = cdbl(GetArg("-minersleep", "325"), 0);
 	LogPrintf(" MinerSleep %f \n", (double)dMinerSleep);
 	unsigned int nExtraNonce = 0;
-	unsigned int nHashesDone = 0;
+	int64_t nHashesDone = 0;
 	int iOuterLoop = 0;
 
 recover:

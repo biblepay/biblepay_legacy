@@ -290,9 +290,10 @@ UniValue getmininginfo(const JSONRPCRequest& request)
 	obj.push_back(Pair("chain",            Params().NetworkIDString()));
 	obj.push_back(Pair("genproclimit",     (int)GetArg("-genproclimit", DEFAULT_GENERATE_THREADS)));
 	obj.push_back(Pair("networkhashps",    getnetworkhashps(request)));
+	obj.push_back(Pair("networkmhashps",   cdbl(getnetworkhashps(request).getValStr(), 2)/1000000));
 	obj.push_back(Pair("hashps",           dHashesPerSec));
 	obj.push_back(Pair("minerstarttime",   TimestampToHRDate(nHPSTimerStart/1000)));
-	obj.push_back(Pair("hashcounter", nHashCounter));
+	obj.push_back(Pair("hashcounter",      nHashCounter));
 	obj.push_back(Pair("pooledtx",         (uint64_t)mempool.size()));
 	obj.push_back(Pair("chain",            Params().NetworkIDString()));
 	obj.push_back(Pair("biblepay-generate",getgenerate(request)));
