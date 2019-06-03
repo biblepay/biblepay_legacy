@@ -1,11 +1,18 @@
 Build BiblePay Evolution - Ubuntu
 
 /* Optional:  How to increase swap space on a machine with 1gb of ram:
-free #check if swap is 0
-dd if=/dev/zero of=/var/swap.img bs=1024k count=1000
-mkswap /var/swap.img
-swapon /var/swap.img
-free #check if swap is 1024
+free #check if swap is 0 then do this:
+sudo fallocate -l 1G /swapfile
+sudo dd if=/dev/zero of=/swapfile bs=1024 count=1048576
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+sudo nano /etc/fstab
+#add this line:
+/swapfile swap swap defaults 0 0
+#save the file
+sudo swapon --show
+free #check - should be 1G
 */
 
 
