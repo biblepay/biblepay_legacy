@@ -471,12 +471,15 @@ std::string AssessBlocks(int nHeight, bool fCreatingContract)
 	{
 		CAmount nPayment = Members.second.nProminence * nPaymentsLimit * nMaxContractPercentage;
 		CBitcoinAddress cbaAddress(Members.second.sAddress);
-		if (cbaAddress.IsValid() && nPayment > (.25*COIN))
+		if (cbaAddress.IsValid() && nPayment > (1 * COIN))
 		{
 			sAddresses += Members.second.sAddress + "|";
-			sPayments += RoundToString(nPayment / COIN, 2) + "|";
+			sPayments += RoundToString((double)nPayment / COIN, 2) + "|";
 			CPK localCPK = GetCPKFromProject("cpk", Members.second.sAddress);
-			std::string sRow =  "ALL|" + Members.second.sAddress + "|" + RoundToString(Members.second.nPoints, 0) + "|" + RoundToString(Members.second.nProminence, 4) + "|" + localCPK.sNickName + "|\n";
+			std::string sRow =  "ALL|" + Members.second.sAddress + "|" + RoundToString(Members.second.nPoints, 0) + "|" 
+				+ RoundToString(Members.second.nProminence, 4) + "|" 
+				+ localCPK.sNickName + "|" 
+				+ RoundToString((double)nPayment / COIN, 2) + "\n";
 			sGenData += sRow;
 			sProminenceExport += "<CPK>" + Members.second.sAddress + "|" + RoundToString(Members.second.nPoints, 0) + "|" + RoundToString(Members.second.nProminence, 4) + "|" + localCPK.sNickName + "</CPK>";
 		}
@@ -940,6 +943,8 @@ UniValue GetProminenceLevels(int nHeight, bool fMeOnly)
 		return NullUniValue;
       
 	CAmount nPaymentsLimit = CSuperblock::GetPaymentsLimit(nHeight);
+	nPaymentsLimit -= MAX_BLOCK_SUBSIDY * COIN;
+
 	std::string sContract = GetGSCContract(nHeight, false);
 	std::string sData = ExtractXML(sContract, "<DATA>", "</DATA>");
 	std::string sDetails = ExtractXML(sContract, "<DETAILS>", "</DETAILS>");
@@ -990,20 +995,23 @@ UniValue GetProminenceLevels(int nHeight, bool fMeOnly)
 	for (int i = 0; i < vData.size(); i++)
 	{
 		std::vector<std::string> vRow = Split(vData[i].c_str(), "|");
-		if (vRow.size() >= 4)
+		if (vRow.size() >= 6)
 		{
 			std::string sCampaign = vRow[0];
 			std::string sCPK = vRow[1];
 			double nPoints = cdbl(vRow[2], 2);
 			double nProminence = cdbl(vRow[3], 4) * 100;
-			CPK oPrimary = GetCPKFromProject("cpk", sCPK);
-			std::string sNickName = Caption(oPrimary.sNickName, 10);
+			double nPayment = cdbl(vRow[5], 4);
+			//			CPK oPrimary = GetCPKFromProject("cpk", sCPK);
+			std::string sNickName = vRow[4];
+			//			std::string sNickName = Caption(oPrimary.sNickName, 10);
 			if (sNickName.empty())
 				sNickName = "N/A";
 			CAmount nOwed = nPaymentsLimit * (nProminence / 100) * nMaxContractPercentage;
-			std::string sNarr = sCampaign + ": " + sCPK + " [" + sNickName + "]" + ", Pts: " + RoundToString(nPoints, 2) + ", Reward: " + RoundToString((double)nOwed / COIN, 2);
+			std::string sNarr = sCampaign + ": " + sCPK + " [" + sNickName + "]" + ", Pts: " + RoundToString(nPoints, 2) 
+				+ ", Reward: " + RoundToString(nPayment, 3);
 			if ((fMeOnly && sCPK == sMyCPK) || (!fMeOnly))
-				results.push_back(Pair(sNarr, RoundToString(nProminence, 2) + "%"));
+				results.push_back(Pair(sNarr, RoundToString(nProminence, 3) + "%"));
 		}
 	}
 

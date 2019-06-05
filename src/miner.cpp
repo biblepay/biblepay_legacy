@@ -917,7 +917,7 @@ void RelayMiningMessage(std::string sMessage)
 	WriteCache("poolthread0", "poolinfo3", sMessage, GetAdjustedTime());
 }
 
-void UpdateHashesPerSec(int64_t nHashesDone)
+void UpdateHashesPerSec(double& nHashesDone)
 {
 	// Update HashesPerSec
 	nHashCounter += nHashesDone;
@@ -989,7 +989,7 @@ void static BibleMiner(const CChainParams& chainparams, int iThreadID, int iFeat
 	double dMinerSleep = cdbl(GetArg("-minersleep", "325"), 0);
 	LogPrintf(" MinerSleep %f \n", (double)dMinerSleep);
 	unsigned int nExtraNonce = 0;
-	int64_t nHashesDone = 0;
+	double nHashesDone = 0;
 	int iOuterLoop = 0;
 
 recover:
@@ -1071,9 +1071,10 @@ recover:
             }
 			CBlock *pblock = &pblocktemplate->block;
 			bool bABNOK = IsMyABNSufficient(pblocktemplate->block, pindexPrev, pindexPrev->nHeight + 1);
-			LogPrintf(" ABN OK: %f ", (double)bABNOK);
 			if (!bABNOK)
 			{
+				if (fDebugSpam)
+					LogPrintf(" ABN OK: %f ", (double)bABNOK);
 				WriteCache("poolthread" + RoundToString(iThreadID, 0), "poolinfo2", "ABN weight is too low to mine", GetAdjustedTime());
 			}
             IncrementExtraNonce(pblock, pindexPrev, nExtraNonce);

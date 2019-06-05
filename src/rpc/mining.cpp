@@ -78,7 +78,7 @@ UniValue GetNetworkHashPS(int lookup, int height) {
     arith_uint256 workDiff = pb->nChainWork - pb0->nChainWork;
     int64_t timeDiff = maxTime - minTime;
 
-    return workDiff.getdouble() / timeDiff;
+    return workDiff.getdouble() / timeDiff / nHashPerSecondCalibration;
 }
 
 UniValue getnetworkhashps(const JSONRPCRequest& request)
@@ -290,7 +290,6 @@ UniValue getmininginfo(const JSONRPCRequest& request)
 	obj.push_back(Pair("chain",            Params().NetworkIDString()));
 	obj.push_back(Pair("genproclimit",     (int)GetArg("-genproclimit", DEFAULT_GENERATE_THREADS)));
 	obj.push_back(Pair("networkhashps",    getnetworkhashps(request)));
-	obj.push_back(Pair("networkmhashps",   cdbl(getnetworkhashps(request).getValStr(), 2)/1000000));
 	obj.push_back(Pair("hashps",           dHashesPerSec));
 	obj.push_back(Pair("minerstarttime",   TimestampToHRDate(nHPSTimerStart/1000)));
 	obj.push_back(Pair("hashcounter",      nHashCounter));

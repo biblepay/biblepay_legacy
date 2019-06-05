@@ -118,13 +118,13 @@ int miGlobalPrayerIndex = 0;
 int miGlobalDiaryIndex = 0;
 int iMinerThreadCount = 0;
 int nProposalPrepareHeight = 0;
-int64_t nHashCounter = 0;
+double nHashCounter = 0;
 int nProposalModulus = 0;
 int64_t nLastDCContractSubmitted = 0;
 int64_t nHPSTimerStart = 0;
 int64_t nBibleMinerPulse = 0;
 int64_t nProposalStartTime = 0;
-
+double nHashPerSecondCalibration = 7500;
 double dHashesPerSec = 0;
 uint256 uTxIdFee = uint256S("0x0");
 
