@@ -1,4 +1,4 @@
-usr/bin/env bash
+#!/usr/bin/env bash
 NONE='\033[00m'
 RED='\033[01;31m'
 GREEN='\033[01;32m'
@@ -23,6 +23,7 @@ COINCONFIG=biblepay.conf
 COINDOWNLOADDIR=biblepay-evolution
 
 archname=""
+update=""
 
 purgeOldInstallation() {
     echo "Searching old masternode files"
@@ -35,6 +36,7 @@ purgeOldInstallation() {
             #kill wallet daemon the nice way
             $COINCLIENT stop > /dev/null 2>&1
             sleep 5
+            update="y"
         else 
             echo "Removing old masternode files and configuration"
             #kill wallet daemon
@@ -272,8 +274,10 @@ echo
     purgeOldInstallation
     checkForUbuntuVersion
     updateAndUpgrade
-    installFirewall
-    setupSwap
+    if [[ "$update" != "y" ]]; then
+        installFirewall
+        setupSwap
+    fi
     echo -e "${BOLD}"
     read -p "Use pre-compiled Biblepay binaries (y) or compile from source (n)? (y/n)?" binaries
     echo -e "${NONE}"
@@ -286,18 +290,26 @@ echo
       cd ~/$COINDOWNLOADDIR/src
       installWallet
     fi
-    configureWallet
+    if [[ "$update" != "y" ]]; then
+        configureWallet
+    fi
     startWallet
     cleanUp
 
-    echo -e "================================================================================================"
-    echo -e "${BOLD}The VPS side of your masternode has been installed. Save the masternode ip and${NONE}"
-    echo -e "${BOLD}private key so you can use them to complete your local wallet part of the setup${NONE}".
-    echo -e "================================================================================================"
-    echo -e "${BOLD}Masternode IP:${NONE} ${mnip}:${COINPORT}"
-    echo -e "${BOLD}Masternode Private Key:${NONE} ${mnkey}"
-    echo -e "${BOLD}Continue with the cold wallet part of the setup${NONE}"
-    echo -e "================================================================================================"
+    if [[ "$update" == "y" ]]; then 
+        echo -e "================================================================================================"
+        echo -e "${BOLD}Masternode updated ${NONE}"
+        echo -e "================================================================================================"
+    else 
+        echo -e "================================================================================================"
+        echo -e "${BOLD}The VPS side of your masternode has been installed. Save the masternode ip and${NONE}"
+        echo -e "${BOLD}private key so you can use them to complete your local wallet part of the setup${NONE}".
+        echo -e "================================================================================================"
+        echo -e "${BOLD}Masternode IP:${NONE} ${mnip}:${COINPORT}"
+        echo -e "${BOLD}Masternode Private Key:${NONE} ${mnkey}"
+        echo -e "${BOLD}Continue with the cold wallet part of the setup${NONE}"
+        echo -e "================================================================================================"
+    fi
 else
     echo && echo "Installation cancelled" && echo
 fi
