@@ -1082,6 +1082,9 @@ UniValue protx_diff(const JSONRPCRequest& request)
 
 UniValue nonfinancialtxtojson(const JSONRPCRequest& request)
 {
+	if (request.fHelp)
+		throw std::runtime_error("Describes a non-financial transaction (dev use only).");
+
 	uint256 uHash = ParseHashV(request.params[0], "nonFinancialTxId");
     CTransactionRef nonFinTx;
 	
@@ -1110,6 +1113,9 @@ UniValue nonfinancialtxtojson(const JSONRPCRequest& request)
 
 UniValue createnonfinancialtransaction(const JSONRPCRequest& request)
 {
+	if (request.fHelp)
+		throw std::runtime_error("Creates a non-financial transaction (dev use only).");
+
 	CNonFinancialTx ptx;
 	ptx.nVersion = CProRegTx::CURRENT_VERSION;
 	ptx.proTxHash = uint256S("0x01");
