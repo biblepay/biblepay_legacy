@@ -1875,6 +1875,8 @@ std::string BiblepayHTTPSPost(bool bPost, int iThreadID, std::string sActionName
 	// The OpenSSL version of BiblepayHTTPSPost *only* works with SSL websites, hence the need for BiblePayHTTPPost(2) (using BOOST).  The dev team is working on cleaning this up before the end of 2019 to have one standard version with cleaner code and less internal parts. //
 	try
 	{
+		double dDebugLevel = cdbl(GetArg("-debuglevel", "0"), 0);
+	
 		std::map<std::string, std::string> mapRequestHeaders;
 		mapRequestHeaders["Miner"] = sDistinctUser;
 		mapRequestHeaders["Action"] = sPayload;
@@ -1916,7 +1918,7 @@ std::string BiblepayHTTPSPost(bool bPost, int iThreadID, std::string sActionName
   			return "<ERROR>DNS_ERROR</ERROR>"; 
 		}
 		std::string sPost = PrepareHTTPPost(bPost, sPage, sDomain, sPayload, mapRequestHeaders);
-		if (fDebugSpam)
+		if (dDebugLevel == 1)
 			LogPrintf("Trying connection to %s ", sPost);
 		const char* write_buf = sPost.c_str();
 		if(BIO_write(bio, write_buf, strlen(write_buf)) <= 0)
@@ -1957,7 +1959,7 @@ std::string BiblepayHTTPSPost(bool bPost, int iThreadID, std::string sActionName
 		}
 		// R ANDREW - JAN 4 2018: Free bio resources
 		BIO_free_all(bio);
-		if (fDebugSpam)
+		if (dDebugLevel == 1)
 			LogPrintf("Received %s ", sData);
 		return sData;
 	}
@@ -1989,16 +1991,26 @@ std::string BiblePayHTTPSPost2(bool bPost, std::string sProtocol, std::string sD
 			s64 = EncodeBase64(&uData[0], uData.size());
 		}
 		/* mapRequestHeaders["Content-Type"] = "application/json"; */
-
+		
 		std::string sPost = PrepareHTTPPost(bPost, sPage, sDomain, s64, mapRequestHeaders);
+		LogPrintf("Preparing post for %s with %s ",sDomain, sPost);
+
 		boost::asio::io_service io_service;
 		// Get a list of endpoints corresponding to the server name.
 		boost::asio::ip::tcp::resolver resolver(io_service);
 		boost::asio::ip::tcp::resolver::query query(sDomain, sProtocol);
+
 		boost::asio::ip::tcp::resolver::iterator endpoint_iterator = resolver.resolve(query);
 		// Try each endpoint until we successfully establish a connection.
 		boost::asio::ip::tcp::socket socket(io_service);
 		boost::asio::connect(socket, endpoint_iterator);
+
+		boost::asio::ip::tcp::endpoint remote_ep = socket.remote_endpoint();
+		boost::asio::ip::address remote_ad = remote_ep.address();
+		std::string sRAD = remote_ad.to_string();
+
+		LogPrintf(" BPHP Connecting to address %s", sRAD);
+	
 		boost::asio::streambuf request;
 		std::ostream request_stream(&request);
 		request_stream << sPost;
@@ -2439,18 +2451,17 @@ std::string GetPOGBusinessObjectList(std::string sType, std::string sFields)
 	for (int i = 0; i < vData.size(); i++)
 	{
 		std::vector<std::string> vRow = Split(vData[i].c_str(), "|");
-		if (vRow.size() >= 4)
+		if (vRow.size() >= 6)
 		{
 			std::string sCampaign = vRow[0];
 			std::string sCPK = vRow[1];
 			double nPoints = cdbl(vRow[2], 2);
 			nTotalPoints += nPoints;
 			double nProminence = cdbl(vRow[3], 4) * 100;
-			CPK oPrimary = GetCPKFromProject("cpk", sCPK);
-			std::string sNickName = Caption(oPrimary.sNickName, 10);
+			std::string sNickName = Caption(vRow[4], 10);
 			if (sNickName.empty())
 				sNickName = "N/A";
-			CAmount nOwed = nPaymentsLimit * (nProminence / 100) * .98;
+			CAmount nOwed = cdbl(vRow[5], 4) * COIN;
 			if (sCPK == myCPK.sAddress)
 				nMyPoints += nPoints;
 			std::string sRow = sCampaign + "<col>" + sNickName + "<col>" + sCPK + "<col>" + RoundToString(nPoints, 2) 

@@ -1943,6 +1943,11 @@ UniValue exec(const JSONRPCRequest& request)
 			results.push_back(Pair(sBookName, sReversed));
 		}
 	}
+	else if (sItem == "ipfstest1")
+	{
+		std::string sResult = BiblePayHTTPSPost2(true, "5001", "192.168.0.153", "BiblePayGui/Welcome", "na", "gear.png");
+		results.push_back(Pair("result", sResult));
+	}
 	else if (sItem == "testgscvote")
 	{
 		int iNextSuperblock = 0;

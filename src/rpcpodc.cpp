@@ -138,7 +138,12 @@ std::string SendBlockchainMessage(std::string sType, std::string sPrimaryKey, st
 	{
 		std::string sSignature = "";
 		bool bSigned = SignStake(consensusParams.FoundationAddress, sValue + sNonceValue, sError, sSignature);
-		if (bSigned) sMessageSig = "<SPORKSIG>" + sSignature + "</SPORKSIG>";
+		if (bSigned) 
+		{
+			sMessageSig = "<SPORKSIG>" + sSignature + "</SPORKSIG>";
+			sMessageSig += "<BOSIG>" + sSignature + "</BOSIG>";
+			sMessageSig += "<BOSIGNER>" + consensusParams.FoundationAddress + "</BOSIGNER>";
+		}
 		if (!bSigned) LogPrintf("Unable to sign spork %s ", sError);
 		LogPrintf(" Signing Nonce%f , With spork Sig %s on message %s  \n", (double)GetAdjustedTime(), 
 			 sMessageSig.c_str(), sValue.c_str());
@@ -175,6 +180,9 @@ double GetCryptoPrice(std::string sSymbol)
 	int TRANSMISSION_TIMEOUT = 15000;
 	int TERM_TYPE = 1;
 	std::string sC1 = BiblepayHTTPSPost(false, 0, "", "", "api", GetSporkValue("pool"), GetSporkValue("getcryptoprice" + sSymbol), SSL_PORT, "", CONNECTION_TIMEOUT, TRANSMISSION_TIMEOUT, TERM_TYPE);
+	double dDebugLevel = cdbl(GetArg("-debuglevel", "0"), 0);
+	if (dDebugLevel == 1)
+		LogPrintf("CryptoPrice %s", sC1);
 	std::string sPrice = ExtractXML(sC1, "<MIDPOINT>", "</MIDPOINT>");
 	double dMid = cdbl(sPrice, 12);
 	return dMid;

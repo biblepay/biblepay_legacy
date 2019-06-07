@@ -1154,7 +1154,7 @@ UniValue createnonfinancialtransaction(const JSONRPCRequest& request)
 	CKey key;
 	if (!pwalletMain->GetKey(keyID, key)) 
 		throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("collateral key not in wallet: %s", CBitcoinAddress(keyID).ToString()));
-       SignSpecialTxPayloadByString(tx, ptx, key);
+    SignSpecialTxPayloadByString(tx, ptx, key);
  	SetTxPayload(tx, ptx);
 	return SignAndSendSpecialTx(tx);
 }
