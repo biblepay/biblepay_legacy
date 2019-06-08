@@ -139,6 +139,7 @@ std::string msProposalHex;
 std::string msGlobalStatus;
 std::string msGlobalStatus2;
 std::string msGlobalStatus3;
+std::string msURL;
 SecureString msEncryptedString = "";
 
 // END OF BIBLEPAY

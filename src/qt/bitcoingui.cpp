@@ -1640,6 +1640,12 @@ void BitcoinGUI::detectShutdown()
     if (nProposalModulus % 15 == 0 && !fLoadingIndex)
     {
         nProposalModulus = 0;
+		if (!msURL.empty())
+		{
+			QString qNav = GUIUtil::TOQS(msURL);
+			msURL = std::string();
+			QDesktopServices::openUrl(QUrl(qNav));
+		}
         if (fProposalNeedsSubmitted)
         {
             nProposalModulus = 0;

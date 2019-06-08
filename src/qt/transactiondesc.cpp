@@ -343,7 +343,8 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionReco
     // Debug view
     //
 	bool fEvolutionView = true;
-	std::string sStripped;
+	int nDepth = wtx.GetDepthInMainChain();
+    std::string sStripped;
 	std::string sObjType;
 	const CBlockIndex* pindexTxList;
     if (fDebug || fEvolutionView)
@@ -357,8 +358,7 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionReco
 		}
 
 		// Biblepay - Read actual block, so we can give the user even more information
-		int nDepth = wtx.GetDepthInMainChain();
-    
+		
 		if (nDepth > 0)
 		{
 			pindexTxList = GetBlockIndexByTransactionHash(wtx.GetHash());
@@ -405,7 +405,7 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionReco
         QString sInputsHeader = "<br><b>" + tr("Inputs") + ":</b><ul>";
 
 		int iRow = 0;
-		if (pindexTxList != NULL)
+		if (nDepth > 0 && pindexTxList != NULL)
 		{
 			BOOST_FOREACH(const CTxIn& txin, wtx.tx->vin)
 			{
@@ -443,7 +443,7 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionReco
 			strHTML += "<br><b>Diary:</b> " + GUIUtil::TOQS(sDiary) + "<br>";
     }
 	// Bible Verses
-	if (pindexTxList != NULL)
+	if (nDepth > 0 && pindexTxList != NULL)
 	{
 		std::string sVerses = GetBibleHashVerses(pindexTxList->GetBlockHash(), pindexTxList->GetBlockTime(), pindexTxList->pprev->nTime, pindexTxList->pprev->nHeight, pindexTxList->pprev);
 		QString v = GetFormattedVerses(sVerses);

@@ -2567,6 +2567,44 @@ UniValue exec(const JSONRPCRequest& request)
 		if (iDryRun == 1)
 			AppendSanctuaryFile("deterministic.conf", sDSD);
 	}
+	else if (sItem == "navtest_devsonly")
+	{
+		// ** This command is strictly for testing only by the devs - please disregard **
+		// BiblePay - Purchase Plug-In API for web purchases
+		// The users Public-Funding-Address keypair contains the user funds they will purchase with (send test funds here)
+	    EnsureWalletIsUnlocked();
+		// We authenticate with the CPK (this allows sites to not require log-in credentials, and to know the users nickname)
+		// We DO NOT pass the CPKs private key outside of the wallet
+		std::string sCPK = DefaultRecAddress("Christian-Public-Key");
+		std::string sPFA = DefaultRecAddress("Public-Funding-Address");
+	    CBitcoinAddress pfaAddress;
+		if (!pfaAddress.SetString(sPFA))
+			throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Biblepay PFA address");
+		CKeyID keyID;
+		if (!pfaAddress.GetKeyID(keyID))
+			throw JSONRPCError(RPC_TYPE_ERROR, "PFA Address does not refer to a key; have you created a PFA Key?");
+		CKey vchSecret;
+		if (!pwalletMain->GetKey(keyID, vchSecret))
+			throw JSONRPCError(RPC_WALLET_ERROR, "Private key for address " + sPFA + " is not in wallet.  Please create a PFA key to continue.");
+		// This PrivKey will not be revealed to a sanctuary, or on the internet, but instead will be stored in a private place on the local computer, in the local browsers HTML5 local-storage database 
+		// and cannot be accessed by web sites or javascript scripting attacks (as the key is stored in a private namespace)
+		// PURPOSE: When the user decides to buy something from a BiblePay web-site, the BiblePay purchase api plugin will sign the purchase with this key (from local javascript in our namespace), then 
+		// we will only transmit the transaction itself to the network.  (This way the user can conveniently browse and securely buy things on the web).
+		// NOTE: The only private key we expose is "Public-Funding-Address", so be very careful and only fund this address with just enough BBP to complete test purchases.
+		std::string sPFA_PrivKey = CBitcoinSecret(vchSecret).ToString();
+		std::string sNonce = GetRandHash().GetHex();
+		std::string sSignature;
+		std::string sError;
+		bool bSigned = SignStake(sCPK, sNonce, sError, sSignature);
+		if (!bSigned || !sError.empty())
+			throw JSONRPCError(RPC_TYPE_ERROR, "Unable to sign CPK [" + sError + "]");
+		std::string sDestinationURL = "https://Unknown.com/purchase.aspx";
+		std::string sData = sCPK + "|" + sNonce + "|" + sSignature + "|" + sPFA + "|" + sPFA_PrivKey + "|" + sDestinationURL;
+		std::string sEncData = EncodeBase64(sData);
+		msURL = "http://192.168.0.153:5001/bbp_electrum.htm?data=" + sEncData;
+		// Launch the browser 
+		results.push_back(Pair("data", sData));
+	}
 	else if (sItem == "datalist")
 	{
 		if (request.params.size() != 2 && request.params.size() != 3)

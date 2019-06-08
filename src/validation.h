@@ -165,6 +165,7 @@ extern std::string msGlobalStatus2;
 extern std::string msGlobalStatus3;
 extern std::string sGlobalPoolURL;
 extern std::string msProposalHex;
+extern std::string msURL;
 extern int64_t nBibleMinerPulse;
 extern int iMinerThreadCount;
 extern bool fPoolMiningMode;
