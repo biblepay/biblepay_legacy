@@ -370,6 +370,8 @@ std::string AssessBlocks(int nHeight, bool fCreatingContract)
 	std::map<std::string, double> mCampaigns;
 	double dDebugLevel = cdbl(GetArg("-debuglevel", "0"), 0);
 	std::string sDiaries;
+	std::string sAnalyzeUser = ReadCache("analysis", "user");
+	std::string sAnalysisData1;
 
 	while (pindex && pindex->nHeight < nMaxDepth)
 	{
@@ -414,6 +416,15 @@ std::string AssessBlocks(int nHeight, bool fCreatingContract)
 								c.sAddress, localCPK.sNickName, sDiary, pindex->nHeight, block.vtx[n]->GetHash().GetHex(), localCPK.sNickName, 
 								(double)nPoints, c.sCampaign, (double)nCoinAge, 
 								(double)nDonation/COIN, (double)c.nPoints);
+							if (!sAnalyzeUser.empty() && sAnalyzeUser == c.sNickName)
+							{
+								std::string sInfo = "User: " + c.sAddress + ", Diary: " + sDiary + ", Height: " + RoundToString(pindex->nHeight, 2)
+									+ ", TXID: " + block.vtx[n]->GetHash().GetHex() + ", NickName: " 
+									+ localCPK.sNickName + ", Points: " + RoundToString(nPoints, 2) 
+									+ ", Campaign: " + c.sCampaign + ", CoinAge: " + RoundToString(nCoinAge, 4) 
+									+ ", Donation: " + RoundToString(nDonation/COIN, 4) + ", UserTotal: " + RoundToString(c.nPoints, 2) + "\n";
+									sAnalysisData1 += sInfo;
+							}
 							if (c.sCampaign == "HEALING" && !sDiary.empty())
 							{
 								sDiaries += "\n" + sCPK + "|" + localCPK.sNickName + "|" + sDiary;
@@ -429,8 +440,8 @@ std::string AssessBlocks(int nHeight, bool fCreatingContract)
 	std::string sGenData;
 	std::string sDetails;
 	double nTotalPoints = 0;
-
 	// Convert To Campaign-CPK-Prominence levels
+	std::string sAnalysisData2;
 	for (auto myCampaign : mCampaignPoints)
 	{
 		std::string sCampaignName = myCampaign.first;
@@ -450,11 +461,17 @@ std::string AssessBlocks(int nHeight, bool fCreatingContract)
 				LogPrintf("\nUser %s, Campaign %s, Points %f, Prominence %f ", mCPKCampaignPoints[sKey].sAddress, sCampaignName, 
 				mCPKCampaignPoints[sKey].nPoints, mCPKCampaignPoints[sKey].nProminence);
 			std::string sRow = sCampaignName + "|" + Members.second.sAddress + "|" + RoundToString(mCPKCampaignPoints[sKey].nPoints, 0) + "|" 
-				+ RoundToString(mCPKCampaignPoints[sKey].nProminence, 8) + "|" + Members.second.sNickName + "|\n";
+				+ RoundToString(mCPKCampaignPoints[sKey].nProminence, 8) + "|" + Members.second.sNickName + "|" + RoundToString(nCampaignPoints, 0) + "\n";
+			if (!sAnalyzeUser.empty() && sAnalyzeUser == Members.second.sNickName)
+			{
+				sAnalysisData2 += sRow;
+			}
 			sDetails += sRow;
-	
 		}
 	}
+	WriteCache("analysis", "data_1", sAnalysisData1, GetAdjustedTime());
+	WriteCache("analysis", "data_2", sAnalysisData2, GetAdjustedTime());
+
 	// Grand Total for Smart Contract
 	for (auto Members : mCPKCampaignPoints)
 	{
@@ -467,14 +484,25 @@ std::string AssessBlocks(int nHeight, bool fCreatingContract)
 	std::string sAddresses;
 	std::string sPayments;
 	std::string sProminenceExport = "<PROMINENCE>";
+	double nGSCContractType = GetSporkDouble("GSC_CONTRACT_TYPE", 0);
+	double GSC_MIN_PAYMENT = 1;
+	if (nGSCContractType == 0)
+		GSC_MIN_PAYMENT = .25;
 	for (auto Members : mPoints)
 	{
 		CAmount nPayment = Members.second.nProminence * nPaymentsLimit * nMaxContractPercentage;
 		CBitcoinAddress cbaAddress(Members.second.sAddress);
-		if (cbaAddress.IsValid() && nPayment > (1 * COIN))
+		if (cbaAddress.IsValid() && nPayment > (GSC_MIN_PAYMENT * COIN))
 		{
 			sAddresses += Members.second.sAddress + "|";
-			sPayments += RoundToString((double)nPayment / COIN, 2) + "|";
+			if (nGSCContractType == 0)
+			{
+				sPayments += RoundToString(nPayment / COIN, 2) + "|";
+			}
+			else if (nGSCContractType == 1)
+			{
+				sPayments += RoundToString((double)nPayment / COIN, 2) + "|";
+			}
 			CPK localCPK = GetCPKFromProject("cpk", Members.second.sAddress);
 			std::string sRow =  "ALL|" + Members.second.sAddress + "|" + RoundToString(Members.second.nPoints, 0) + "|" 
 				+ RoundToString(Members.second.nProminence, 4) + "|" 
@@ -485,7 +513,7 @@ std::string AssessBlocks(int nHeight, bool fCreatingContract)
 		}
 	}
 	sProminenceExport += "</PROMINENCE>";
-
+	
 	std::string QTData;
 	if (fCreatingContract)
 	{
@@ -1067,6 +1095,10 @@ std::string ExecuteGenericSmartContractQuorumProcess()
 	
 	if (!fMasternodeMode)   
 		return "NOT_A_SANCTUARY";
+
+	double nMinGSCProtocolVersion = GetSporkDouble("MIN_GSC_PROTO_VERSION", 0);
+	if (PROTOCOL_VERSION < nMinGSCProtocolVersion)
+		return "GSC_PROTOCOL_REQUIRES_UPGRADE";
 
 	bool fWatchmanQuorum = (chainActive.Tip()->nHeight % 10 == 0) && fMasternodeMode;
 	if (fWatchmanQuorum)

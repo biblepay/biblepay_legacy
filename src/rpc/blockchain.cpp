@@ -1983,6 +1983,11 @@ UniValue exec(const JSONRPCRequest& request)
 			results.push_back(Pair("quorum_gobject_trigger_hash", sGobjectHash));
 			results.push_back(Pair("quorum_error", sError));
 		}
+		results.push_back(Pair("protocol_version", PROTOCOL_VERSION));
+		double nMinGSCProtocolVersion = GetSporkDouble("MIN_GSC_PROTO_VERSION", 0);
+		bool bVersionSufficient = (PROTOCOL_VERSION >= nMinGSCProtocolVersion);
+		results.push_back(Pair("min_gsc_proto_version", nMinGSCProtocolVersion));
+		results.push_back(Pair("version_sufficient", bVersionSufficient));
 		results.push_back(Pair("votes_for_my_contract", iVotes));
 		int iRequiredVotes = GetRequiredQuorumLevel(iNextSuperblock);
 		results.push_back(Pair("required_votes", iRequiredVotes));
@@ -2604,6 +2609,24 @@ UniValue exec(const JSONRPCRequest& request)
 		msURL = "http://192.168.0.153:5001/bbp_electrum.htm?data=" + sEncData;
 		// Launch the browser 
 		results.push_back(Pair("data", sData));
+	}
+	else if (sItem == "analyze")
+	{
+		if (request.params.size() != 3)
+			throw std::runtime_error("You must specify height and nickname.");
+		int nHeight = cdbl(request.params[1].get_str(), 0);
+		std::string sNickName = request.params[2].get_str();
+		WriteCache("analysis", "user", sNickName, GetAdjustedTime());
+		UniValue p = GetProminenceLevels(nHeight, false);
+		std::string sData1 = ReadCache("analysis", "data_1");
+		std::string sData2 = ReadCache("analysis", "data_2");
+		results.push_back(Pair("Totals", sData2));
+		std::vector<std::string> v = Split(sData1.c_str(), "\n");
+		for (int i = 0; i < (int)v.size(); i++)
+		{
+			std::string sRow = v[i];
+			results.push_back(Pair(RoundToString(i, 0), sRow));
+		}
 	}
 	else if (sItem == "datalist")
 	{
