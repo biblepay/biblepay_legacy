@@ -2031,10 +2031,19 @@ UniValue exec(const JSONRPCRequest& request)
 		{
 			sMsg += block.vtx[0]->vout[i].sTxOutMessage;
 		}
-		bool fLegality = true;
-		std::string sLegalityNarr;
-		int64_t nHeaderAge = GetAdjustedTime() - block.GetBlockTime();
-		bool bActiveRACCheck = nHeaderAge < (60 * 15) ? true : false;
+		// Include abn weight in the reply
+		double nABNWeight = GetABNWeight(block, false);
+		double nMinRequiredABNWeight = GetSporkDouble("requiredabnweight", 0);
+		double nABNHeight = GetSporkDouble("abnheight", 0);
+		bool fABNPassed = true;
+		if (nABNHeight > consensusParams.ABNHeight && pindexPrev->nHeight > nABNHeight && nMinRequiredABNWeight > 0 && !LateBlock(block, pindexPrev, 60) && !LateBlockIndex(pindexPrev, 60))
+		{
+			if (nABNWeight < nMinRequiredABNWeight) 
+				fABNPassed = false;
+		} 
+		results.push_back(Pair("requiredabnweight", nMinRequiredABNWeight));
+		results.push_back(Pair("block_abn_weight", nABNWeight));
+		results.push_back(Pair("abn_passed", fABNPassed));
 		results.push_back(Pair("blockmessage", sMsg));
 	}
 	else if (sItem == "search")
@@ -2079,14 +2088,17 @@ UniValue exec(const JSONRPCRequest& request)
 		CAmount nTotalReq = 0;
 		double dABN = pwalletMain->GetAntiBotNetWalletWeight(0, nTotalReq);
 		double dMin = 0;
+		double dDebug = 0;
 		if (request.params.size() > 1)
 			dMin = cdbl(request.params[1].get_str(), 2);
+		if (request.params.size() > 2)
+			dDebug = cdbl(request.params[2].get_str(), 2);
 		results.push_back(Pair("weight", dABN));
 		results.push_back(Pair("total_required", nTotalReq/COIN));
 		if (dMin > 0)
 		{
 			dABN = pwalletMain->GetAntiBotNetWalletWeight(dMin, nTotalReq);
-			if (fDebug)
+			if (dDebug == 1)
 				results.push_back(Pair("coin_age_data", ReadCache("coin", "age")));
 
 			results.push_back(Pair("weight " + RoundToString(dMin, 2), dABN));
@@ -2194,7 +2206,7 @@ UniValue exec(const JSONRPCRequest& request)
 		if (request.params.size() >= 5)
 			fForce = request.params[4].get_str() == "true" ? true : false;
 
-		bool fAdv = AdvertiseChristianPublicKeypair("cpk", sNickName, sEmail, sVendorType, false, fForce, sError);
+		bool fAdv = AdvertiseChristianPublicKeypair("cpk", sNickName, sEmail, sVendorType, false, fForce, 0, "", sError);
 		results.push_back(Pair("Results", fAdv));
 		if (!fAdv)
 			results.push_back(Pair("Error", sError));
@@ -2271,7 +2283,7 @@ UniValue exec(const JSONRPCRequest& request)
 		std::string sError;
 		if (!CheckCampaign(sProject))
 			throw std::runtime_error("Campaign does not exist.");
-		bool fAdv = AdvertiseChristianPublicKeypair("cpk-" + sProject, "", "", "", true, false, sError);
+		bool fAdv = AdvertiseChristianPublicKeypair("cpk-" + sProject, "", "", "", true, false, 0, "", sError);
 		results.push_back(Pair("Results", fAdv));
 		if (!fAdv)
 			results.push_back(Pair("Error", sError));
@@ -2285,7 +2297,7 @@ UniValue exec(const JSONRPCRequest& request)
 		std::string sError;
 		if (!CheckCampaign(sProject))
 			throw std::runtime_error("Campaign does not exist.");
-		bool fAdv = AdvertiseChristianPublicKeypair("cpk-" + sProject, "", "", "", false, false, sError);
+		bool fAdv = AdvertiseChristianPublicKeypair("cpk-" + sProject, "", "", "", false, false, 0, "", sError);
 		results.push_back(Pair("Results", fAdv));
 		if (!fAdv)
 			results.push_back(Pair("Error", sError));
@@ -2626,6 +2638,63 @@ UniValue exec(const JSONRPCRequest& request)
 		{
 			std::string sRow = v[i];
 			results.push_back(Pair(RoundToString(i, 0), sRow));
+		}
+	}
+	else if (sItem == "roi")
+	{
+		const Consensus::Params& consensusParams = Params().GetConsensus();
+		int iNextSuperblock = 0;
+		int iLastSuperblock = GetLastGSCSuperblockHeight(chainActive.Tip()->nHeight, iNextSuperblock);
+		CAmount nPaymentsLimit = CSuperblock::GetPaymentsLimit(iLastSuperblock);
+		nPaymentsLimit -= MAX_BLOCK_SUBSIDY * COIN;
+		std::string sContract = GetGSCContract(iLastSuperblock, false);
+		std::string sData = ExtractXML(sContract, "<DATA>", "</DATA>");
+		std::vector<std::string> vData = Split(sData.c_str(), "\n");
+		double dTotalPaid = 0;
+		double nTotalPoints = 0;
+		for (int i = 0; i < vData.size(); i++)
+		{
+			std::vector<std::string> vRow = Split(vData[i].c_str(), "|");
+			if (vRow.size() >= 6)
+			{
+				double nPoints = cdbl(vRow[2], 2);
+				double nProminence = cdbl(vRow[3], 4) * 100;
+				double nPayment = cdbl(vRow[5], 4);
+				CAmount nOwed = nPaymentsLimit * (nProminence / 100);
+				dTotalPaid += nPayment;
+				nTotalPoints += nPoints;
+			}
+		}
+		results.push_back(Pair("Notes", "Please note this information is for the POG campaign only, and based on yesterday's participation levels."));
+		results.push_back(Pair("Contract Height", iLastSuperblock));
+		results.push_back(Pair("Total Paid", dTotalPaid));
+		results.push_back(Pair("Total Points", nTotalPoints));
+		double dPPP = dTotalPaid / nTotalPoints;
+		results.push_back(Pair("Payment Per Point", dPPP));
+		CAmount nTotalReq;
+		double dCoinAge = pwalletMain->GetAntiBotNetWalletWeight(0, nTotalReq);
+		results.push_back(Pair("My Current Coin Age", dCoinAge));
+		results.push_back(Pair("My free balance", nTotalReq / COIN));
+		CBlockIndex* bindex = FindBlockByHeight(iLastSuperblock - 1);
+		int nBits = bindex->nBits;
+		CAmount nReward = GetBlockSubsidy(nBits, iLastSuperblock - 1, consensusParams, false);
+		CAmount nSanc = GetMasternodePayment(iLastSuperblock -1, nReward);
+		results.push_back(Pair("Sanctuary Reward @" + RoundToString(iLastSuperblock - 1, 2), nSanc / COIN));
+		double nSancROI = ((double)(nSanc/COIN) / SANCTUARY_COLLATERAL) * 100 * 365;
+		results.push_back(Pair("Sanctuary ROI Annualized %", nSancROI));
+		for (double nTitheAmount = 2; nTitheAmount < 50000; nTitheAmount += 1000)
+		{
+			double nPoints = cbrt(nTitheAmount) * dCoinAge;
+			if (nTitheAmount > 10000)
+				nTitheAmount += 5000;
+			results.push_back(Pair("Tithe " + RoundToString(nTitheAmount, 2) + " Points", nPoints));
+			// Calculate conceptual ROI
+			double nEarned = (dPPP * nPoints) - nTitheAmount;
+			results.push_back(Pair("Tithe " + RoundToString(nTitheAmount, 2) + " Reward", (dPPP * nPoints)));
+			double nROI = (nEarned / nTitheAmount) * 100;
+			results.push_back(Pair("Tithe " + RoundToString(nTitheAmount, 2) + " Daily ROI %", nROI));
+			double nROIBalance = (nEarned / (nTotalReq/COIN)) * 100 * 365;
+			results.push_back(Pair("Balance " + RoundToString(nTotalReq / COIN, 2) + " Annualized ROI %", nROIBalance));
 		}
 	}
 	else if (sItem == "datalist")

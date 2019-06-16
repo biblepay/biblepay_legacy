@@ -972,7 +972,7 @@ void static BibleMiner(const CChainParams& chainparams, int iThreadID, int iFeat
 {
 	LogPrintf("BibleMiner -- started thread %f \n", (double)iThreadID);
     int64_t nThreadStart = GetTimeMillis();
-	int64_t nLastGSC = GetAdjustedTime() - (60 * 60 * 4) + 60;
+	int64_t nLastGSC = GetAdjustedTime();
 	int64_t nThreadWork = 0;
 	int64_t nLastReadyToMine = GetAdjustedTime() - 480;
 	int64_t nLastClearCache = GetAdjustedTime() - 480;

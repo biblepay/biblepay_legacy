@@ -35,6 +35,8 @@ struct CPK
   std::string sEmail;
   std::string sVendorType;
   std::string sError;
+  std::string sChildId;
+  std::string sOptData;
   double nProminence = 0;
   double nPoints = 0;
   bool fValid = false;
@@ -163,7 +165,8 @@ std::string GJE(std::string sKey, std::string sValue, bool bIncludeDelimiter, bo
 bool InstantiateOneClickMiningEntries();
 bool WriteKey(std::string sKey, std::string sValue);
 std::string GetTransactionMessage(CTransactionRef tx);
-bool AdvertiseChristianPublicKeypair(std::string sProjectId, std::string sNickName, std::string sEmail, std::string sVendorType, bool fUnJoin, bool fForce, std::string &sError);
+std::map<std::string, CPK> GetChildMap(std::string sGSCObjType);
+bool AdvertiseChristianPublicKeypair(std::string sProjectId, std::string sNickName, std::string sEmail, std::string sVendorType, bool fUnJoin, bool fForce, CAmount nFee, std::string sOptData, std::string &sError);
 CWalletTx CreateAntiBotNetTx(CBlockIndex* pindexLast, double nMinCoinAge, CReserveKey& reservekey, std::string& sXML, std::string& sError);
 double GetAntiBotNetWeight(int64_t nBlockTime, CTransactionRef tx);
 double GetABNWeight(const CBlock& block, bool fMining);

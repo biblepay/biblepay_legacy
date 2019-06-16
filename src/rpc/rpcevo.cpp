@@ -24,6 +24,7 @@
 #include "evo/deterministicmns.h"
 #include "evo/simplifiedmns.h"
 #include "evo/cbtx.h"
+#include "smartcontract-client.h"
 
 
 #include "bls/bls.h"
@@ -1159,6 +1160,84 @@ UniValue createnonfinancialtransaction(const JSONRPCRequest& request)
 	return SignAndSendSpecialTx(tx);
 }
 
+UniValue sponsorchild(const JSONRPCRequest& request)
+{
+	// Sponsor a CameroonOne Child
+	if (request.fHelp)
+		throw std::runtime_error(
+		"Sponsors a new child through Cameroon One.  You may have more than one child per CPK (Currently we do not have a limit).  \n"
+		"Note:  We will send 50,000 BBP to the foundation as a donation each time you sponsor a child (this is to prevent Cameroon One abuse). \n "
+		"You must specify true to authorize the 50,000 bbp tithe.  Example:  sponsorchild authorize.");
+
+	if (request.params.size() != 1)
+			throw std::runtime_error("You must specify 'authorize' in order to approve a 50,000 BBP debit from your wallet to be tithed to the foundation.  ");
+	std::string sAuthorize = request.params[0].get_str();
+	if (sAuthorize != "authorize")
+		throw std::runtime_error("Sponsorship cancelled.");
+	std::string sError;
+	std::string sProject = "cpk|cameroon-one";
+    EnsureWalletIsUnlocked();
+
+	CAmount nFee = 500 * COIN;
+	std::string sChildId = GetRandHash().GetHex().substr(0,8);
+	std::string sKey = sProject + "|" + sChildId;
+	bool fAdv = AdvertiseChristianPublicKeypair(sKey, "", "", "", false, false, nFee, sChildId, sError);
+    UniValue results(UniValue::VOBJ);
+	results.push_back(Pair("Results", fAdv));
+	if (!fAdv)
+	{
+		results.push_back(Pair("Error", sError));
+	}
+	else
+	{
+		std::string sNarr = "Thank you for sponsoring a child through Cameroon One. "
+			"\nYour new child ID is: " + sChildId + "\nNOTE: You will not receive rewards for this child until Cameroon One posts a credit to your account for this child.  "
+			"\nIt can take 7-14 days to provision a new child, receive and post your payment, so please, be patient. "
+			"\nTo check the status of your child, type 'listchildren' into the RPC."
+		    "\nPlease mail a check for $40.00 (this is a tax deductible donation) to:"
+			"\nCameroon One A/R"
+			"\n28 Hawthorne St Unit 1"
+			"\nBoston, MA 02119 USA"
+			"\n!NOTE! You must write Child ID #" + sChildId + " on your check."
+			"\nPayPal:"
+			"\n";
+		std::vector<std::string> vNarr = Split(sNarr.c_str(), "\n");
+		for (int i = 0; i < vNarr.size(); i++)
+		{
+			results.push_back(Pair("Notes " + RoundToString(i,0), vNarr[i]));
+		}
+	}
+	return results;
+}
+
+UniValue listchildren(const JSONRPCRequest& request)
+{
+	// List sponsored children by the User's CPK
+	if (request.fHelp)
+		throw std::runtime_error("Returns a list of children sponsored by the users CPK.");
+    UniValue results(UniValue::VOBJ);
+	results.push_back(Pair("List Of", "Cameroon-One Children"));
+	std::map<std::string, CPK> cp1 = GetChildMap("cpk|cameroon-one");
+	for (std::pair<std::string, CPK> a : cp1)
+	{
+		std::string sCPK = a.second.sAddress;
+		std::string sChildID = a.second.sOptData;
+		std::string sBIOUrl = "https://cameroonone.org/biblepay/" + sChildID + ".htm";
+		double nBalance = 0; // GetChildBalance(sChildID);  <- Reserved until we finish API integration.
+		std::string sChildName; // We may or may not be able to retrieve this from the API (pending).
+		CPK userCPK = GetCPKFromProject("cpk", sCPK);
+		if (!sChildID.empty())
+		{
+			results.push_back(Pair("Child ID [" + sChildID + "]", a.second.sAddress));
+			results.push_back(Pair("Biography", sBIOUrl));
+			results.push_back(Pair("Balance", nBalance));
+			results.push_back(Pair("Nickname", userCPK.sNickName));
+			if (!sChildName.empty())
+				results.push_back(Pair("Child Name", sChildName));
+		}
+	}
+	return results;
+}
 
 UniValue protx(const JSONRPCRequest& request)
 {
@@ -1280,6 +1359,8 @@ static const CRPCCommand commands[] =
     { "evo",                "protx",                        &protx,                         false, {}  },
 	{ "evo",                "createnonfinancialtransaction",&createnonfinancialtransaction, false, {}  },
 	{ "evo",                "nonfinancialtxtojson",         &nonfinancialtxtojson,          false, {}  },
+	{ "evo",                "sponsorchild",                 &sponsorchild,                  false, {}  },
+	{ "evo",                "listchildren",                 &listchildren,                  false, {}  },
 };
 
 void RegisterEvoRPCCommands(CRPCTable &tableRPC)

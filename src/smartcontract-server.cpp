@@ -461,7 +461,8 @@ std::string AssessBlocks(int nHeight, bool fCreatingContract)
 				LogPrintf("\nUser %s, Campaign %s, Points %f, Prominence %f ", mCPKCampaignPoints[sKey].sAddress, sCampaignName, 
 				mCPKCampaignPoints[sKey].nPoints, mCPKCampaignPoints[sKey].nProminence);
 			std::string sRow = sCampaignName + "|" + Members.second.sAddress + "|" + RoundToString(mCPKCampaignPoints[sKey].nPoints, 0) + "|" 
-				+ RoundToString(mCPKCampaignPoints[sKey].nProminence, 8) + "|" + Members.second.sNickName + "|" + RoundToString(nCampaignPoints, 0) + "\n";
+				+ RoundToString(mCPKCampaignPoints[sKey].nProminence, 8) + "|" + Members.second.sNickName + "|" + 
+				RoundToString(nCampaignPoints, 0) + "\n";
 			if (!sAnalyzeUser.empty() && sAnalyzeUser == Members.second.sNickName)
 			{
 				sAnalysisData2 += sRow;
@@ -1030,9 +1031,7 @@ UniValue GetProminenceLevels(int nHeight, bool fMeOnly)
 			double nPoints = cdbl(vRow[2], 2);
 			double nProminence = cdbl(vRow[3], 4) * 100;
 			double nPayment = cdbl(vRow[5], 4);
-			//			CPK oPrimary = GetCPKFromProject("cpk", sCPK);
 			std::string sNickName = vRow[4];
-			//			std::string sNickName = Caption(oPrimary.sNickName, 10);
 			if (sNickName.empty())
 				sNickName = "N/A";
 			CAmount nOwed = nPaymentsLimit * (nProminence / 100) * nMaxContractPercentage;

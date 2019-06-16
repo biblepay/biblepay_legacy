@@ -259,7 +259,7 @@ bool CheckStakeSignature(std::string sBitcoinAddress, std::string sSignature, st
 
 CPK GetCPK(std::string sData)
 {
-	// CPK DATA FORMAT: sCPK + "|" + Sanitized NickName + "|" + LockTime + "|" + SecurityHash + "|" + CPK Signature + "|" + Email + "|" + VendorType
+	// CPK DATA FORMAT: sCPK + "|" + Sanitized NickName + "|" + LockTime + "|" + SecurityHash + "|" + CPK Signature + "|" + Email + "|" + VendorType + "|" + OptData
 	CPK k;
 	std::vector<std::string> vDec = Split(sData.c_str(), "|");
 	if (vDec.size() < 5) return k;
@@ -271,6 +271,8 @@ CPK GetCPK(std::string sData)
 		k.sEmail = vDec[5];
 	if (vDec.size() >= 7)
 		k.sVendorType = vDec[6];
+	if (vDec.size() >= 8)
+		k.sOptData = vDec[7];
 
 	k.fValid = CheckStakeSignature(sCPK, sSig, sSecurityHash, k.sError);
 	if (!k.fValid) 
@@ -286,6 +288,22 @@ CPK GetCPK(std::string sData)
 	return k;
 
 } 
+
+std::map<std::string, CPK> GetChildMap(std::string sGSCObjType)
+{
+	std::map<std::string, CPK> mCPKMap;
+	boost::to_upper(sGSCObjType);
+	for (auto ii : mvApplicationCache)
+	{
+		if (Contains(ii.first.first, sGSCObjType))
+		{
+			CPK k = GetCPK(ii.second.first);
+			mCPKMap.insert(std::make_pair(k.sAddress, k));
+		}
+	}
+	return mCPKMap;
+}
+
 
 std::map<std::string, CPK> GetGSCMap(std::string sGSCObjType, std::string sSearch, bool fRequireSig)
 {
@@ -1557,7 +1575,7 @@ TxMessage GetTxMessage(std::string sMessage, int64_t nTime, int iPosition, std::
 	if (t.sMessageType == "PRAYER" && (!(Contains(t.sMessageKey, "(") ))) t.sMessageKey += " (" + t.sTimestamp + ")";
 	if (t.sMessageType == "SPORK")
 	{
-		t.fSporkSigValid = CheckSporkSig(t);
+		t.fSporkSigValid = CheckSporkSig(t);                                                                                                                                                                                                                 
 		if (!t.fSporkSigValid) t.sMessageValue  = "";
 		t.fPassedSecurityCheck = t.fSporkSigValid;
 	}
@@ -2160,7 +2178,7 @@ std::string GetCPKData(std::string sProjectId, std::string sPK)
 	return ReadCache(sProjectId, sPK);
 }
 
-bool AdvertiseChristianPublicKeypair(std::string sProjectId, std::string sNickName, std::string sEmail, std::string sVendorType, bool fUnJoin, bool fForce, std::string &sError)
+bool AdvertiseChristianPublicKeypair(std::string sProjectId, std::string sNickName, std::string sEmail, std::string sVendorType, bool fUnJoin, bool fForce, CAmount nFee, std::string sOptData, std::string &sError)
 {	
 	std::string sCPK = DefaultRecAddress("Christian-Public-Key");
 	std::string sRec = GetCPKData(sProjectId, sCPK);
@@ -2201,8 +2219,12 @@ bool AdvertiseChristianPublicKeypair(std::string sProjectId, std::string sNickNa
         return false;
     }
 
-    CAmount nStakeBalance = pwalletMain->GetBalance();
-    if (nStakeBalance < (1 * COIN))
+    CAmount nBalance = pwalletMain->GetBalance();
+	double nCPKAdvertisementFee = GetSporkDouble("CPKAdvertisementFee", 1);    
+	if (nFee == 0) 
+		nFee = nCPKAdvertisementFee * COIN;
+    
+    if (nBalance < nFee)
     {
         sError = "Balance too low to advertise CPK, 1 BBP minimum is required.";
         return false;
@@ -2220,7 +2242,7 @@ bool AdvertiseChristianPublicKeypair(std::string sProjectId, std::string sNickNa
 	// Only append the signature after we prove they can sign...
 	if (bSigned)
 	{
-		sData += "|" + sSignature + "|" + sEmail + "|" + sVendorType;
+		sData += "|" + sSignature + "|" + sEmail + "|" + sVendorType + "|" + sOptData;
 	}
 	else
 	{
@@ -2231,8 +2253,7 @@ bool AdvertiseChristianPublicKeypair(std::string sProjectId, std::string sNickNa
 	std::string sSigGSC;
 	bSigned = SignStake(sCPK, sMsg, sError, sSigGSC);
 	std::string sExtraGscPayload = "<gscsig>" + sSigGSC + "</gscsig><abncpk>" + sCPK + "</abncpk><abnmsg>" + sMsg + "</abnmsg>";
-	double nCPKAdvertisementFee = GetSporkDouble("CPKAdvertisementFee", 1);    
-    std::string sResult = SendBlockchainMessage(sProjectId, sCPK, sData, nCPKAdvertisementFee, false, sExtraGscPayload, sError);
+	std::string sResult = SendBlockchainMessage(sProjectId, sCPK, sData, nFee/COIN, false, sExtraGscPayload, sError);
 	if (!sError.empty())
 	{
 		return false;
@@ -2461,11 +2482,11 @@ std::string GetPOGBusinessObjectList(std::string sType, std::string sFields)
 			std::string sNickName = Caption(vRow[4], 10);
 			if (sNickName.empty())
 				sNickName = "N/A";
-			CAmount nOwed = cdbl(vRow[5], 4) * COIN;
+			double nOwed = (sType=="pog") ?  cdbl(vRow[5], 4) : (nPaymentsLimit/COIN) * (nProminence/100);
 			if (sCPK == myCPK.sAddress)
 				nMyPoints += nPoints;
 			std::string sRow = sCampaign + "<col>" + sNickName + "<col>" + sCPK + "<col>" + RoundToString(nPoints, 2) 
-				+ "<col>" + RoundToString((double)nOwed/COIN, 2) 
+				+ "<col>" + RoundToString(nOwed, 2) 
 				+ "<col>" + RoundToString(nProminence, 2) + "<object>";
 			sData += sRow;
 		}

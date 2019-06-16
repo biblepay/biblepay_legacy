@@ -3499,7 +3499,6 @@ bool ContextualCheckBlockHeader(const CBlockHeader& block, CValidationState& sta
     return true;
 }
 
-
 bool LateBlock(const CBlock& block, const CBlockIndex* pindexPrev, int iMinutes)
 {
 	// After 60 minutes, we no longer require the anti-bot-net weight (prevent the chain from freezing)
