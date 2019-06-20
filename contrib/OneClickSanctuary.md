@@ -1,8 +1,14 @@
-******************* BIBLEPAY EVOLUTION   --    ONE-CLICK SANCTUARY INSTALLATION SCRIPT FOR VMS OR HOME USE ******************* 
+***** BIBLEPAY EVOLUTION  --  ONE-CLICK SANCTUARY INSTALLATION SCRIPT FOR VMS OR HOME USE ****** 
 
 
 URL:
 https://raw.githubusercontent.com/biblepay/biblepay-evolution/master/contrib/masternode-install.sh
+
+Command line script options
+
+-u  Run unattended with defaults (upgrade if .biblepayevolution found, clean install if not)
+-n  Don't run apt-get update/upgrade/dist-upgrade/remove 
+-s  Swap size (1G by default). Size values not validated.
 
 Instructions:
 1.  Lease a VMS (for example the Vultr Ubuntu 18/64) 

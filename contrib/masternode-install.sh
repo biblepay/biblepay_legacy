@@ -24,13 +24,44 @@ COINDOWNLOADDIR=biblepay-evolution
 
 archname=""
 update=""
+SWAPSIZE="1G"
+
+POSITIONAL=()
+while [[ $# -gt 0 ]]
+do
+key="$1"
+case $key in
+    -u|--unattended)
+    UNATTENDED="Y"
+    shift # past argument
+    ;;
+    -n|--noaptget)
+    NOAPTGET="Y"
+    shift # past argument
+    ;;
+    -s|--swapsize)
+    SWAPSIZE="$2"
+    shift # past argument
+    shift # past value
+    ;;
+    *)    # unknown option
+    POSITIONAL+=("$1") # save it in an array for later
+    shift # past argument
+    ;;
+esac
+done
 
 purgeOldInstallation() {
     echo "Searching old masternode files"
     if [ -d ~/.biblepayevolution ]; then
-        echo -e "${BOLD}"
-        read -p "An existing setup was detected. Do you want to upgrade (y) or clean install (n)? (y/n)?" existing
-        echo -e "${NONE}"
+        if [[ "$UNATTENDED" != "Y" ]]; then
+            echo -e "${BOLD}"
+            read -p "An existing setup was detected. Do you want to upgrade (y) or clean install (n)? (y/n)?" existing
+            echo -e "${NONE}"
+        else 
+            existing="y"
+        fi
+        
         if [[ "$existing" =~ ^([yY][eE][sS]|[yY])+$ ]]; then
             echo "Keeping old files and configuration"
             #kill wallet daemon the nice way
@@ -85,10 +116,16 @@ setupSwap() {
 
     echo a; else echo b; fi
 
-    echo -e "${BOLD}"
-    read -e -p "Add swap space? (Recommended for VPS that have 1GB of RAM) [Y/n] :" add_swap
+    if [[ "$UNATTENDED" != "Y" ]]; then
+        echo -e "${BOLD}"
+        read -e -p "Add swap space? (Recommended for VPS that have 1GB of RAM) [Y/n] :" add_swap
+        echo -e "${NONE}"
+    else 
+        add_swap="y"
+    fi
+
     if [[ ("$add_swap" == "y" || "$add_swap" == "Y" || "$add_swap" == "") ]]; then
-        swap_size="4G"
+        swap_size="$SWAPSIZE"
     else
         echo -e "${NONE}[3/${MAX}] Swap space not created."
     fi
@@ -263,9 +300,14 @@ echo -e "|                                                                   |"
 echo -e "|            Biblepay Evolution Masternode Installer                |"
 echo -e "|                                                                   |"
 echo -e "--------------------------------------------------------------------"
-echo -e "${BOLD}"
-read -p "This script will setup your Biblepay Evolution Masternode. Continue? (y/n)?" response
-echo -e "${NONE}"
+
+if [[ "$UNATTENDED" != "Y" ]]; then
+    echo -e "${BOLD}"
+    read -p "This script will setup your Biblepay Evolution Masternode. Continue? (y/n)?" response
+    echo -e "${NONE}"
+else 
+    response="y"
+fi
 
 getArchitectureString
 
@@ -273,14 +315,23 @@ if [[ "$response" =~ ^([yY][eE][sS]|[yY])+$ ]]; then
 echo
     purgeOldInstallation
     checkForUbuntuVersion
-    updateAndUpgrade
+    
+    if [[ "$NOAPTGET" != "Y" ]]; then
+        updateAndUpgrade
+    fi
     if [[ "$update" != "y" ]]; then
         installFirewall
         setupSwap
     fi
-    echo -e "${BOLD}"
-    read -p "Use pre-compiled Biblepay binaries (y) or compile from source (n)? (y/n)?" binaries
-    echo -e "${NONE}"
+    
+    if [[ "$UNATTENDED" != "Y" ]]; then
+        echo -e "${BOLD}"
+        read -p "Use pre-compiled Biblepay binaries (y) or compile from source (n)? (y/n)?" binaries
+        echo -e "${NONE}"
+    else 
+        binaries="y"
+    fi
+        
     if [[ "$binaries" =~ ^([yY][eE][sS]|[yY])+$ ]];
     then
       downloadWallet
