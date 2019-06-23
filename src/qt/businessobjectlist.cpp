@@ -61,12 +61,17 @@ void BusinessObjectList::UpdateObject(std::string objType)
 	ObjectType = objType;
 	std::string sFields;
     QString pString;
+	static bool bRefreshed = false;
 	if (masternodeSync.IsBlockchainSynced())
 	{
 		sFields = "campaign,nickname,cpk,points,owed,prominence";
 		pString = GUIUtil::TOQS(GetPOGBusinessObjectList(sMode, sFields));
-        // Update once per five minutes
-        QTimer::singleShot(300000, this, SLOT(RefreshPogLeaderboard()));
+        // Update once per seven minutes
+		if (!bRefreshed)
+		{
+			bRefreshed = true;
+			QTimer::singleShot(700000, this, SLOT(RefreshPogLeaderboard()));
+		}
 	}
     QStringList pHeaders = GetHeaders(sFields);
     this->createUI(pHeaders, pString);

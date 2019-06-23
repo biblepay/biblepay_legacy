@@ -738,7 +738,7 @@ std::string GetActiveProposals()
 		// First ensure the proposals gov height has not passed yet
 		bool bIsPaid = nEpochHeight < nLastSuperblock;
 		std::string sReport = DescribeProposal(bbpProposal);
-		if (fDebugSpam)
+		if (fDebugSpam && fDebug)
 			LogPrintf("\nGetActiveProposals::Proposal %s , epochHeight %f, nLastSuperblock %f, IsPaid %f ", 
 					sReport, nEpochHeight, nLastSuperblock, (double)bIsPaid);
 		if (!bIsPaid)
@@ -2316,7 +2316,8 @@ double GetAntiBotNetWeight(int64_t nBlockTime, CTransactionRef tx)
 	bool fSigned = CheckAntiBotNetSignature(tx, "abn");
 	if (!fSigned) 
 	{
-		LogPrintf("antibotnetsignature failed on tx %s with purported coin-age of %f \n",tx->GetHash().GetHex(), nCoinAge);
+		if (fDebugSpam && fDebug && nCoinAge > 0)
+			LogPrintf("antibotnetsignature failed on tx %s with purported coin-age of %f \n",tx->GetHash().GetHex(), nCoinAge);
 		return 0;
 	}
 	return nCoinAge;
@@ -2343,11 +2344,14 @@ CWalletTx CreateAntiBotNetTx(CBlockIndex* pindexLast, double nMinCoinAge, CReser
 	// In Phase 2, we do a dry run to assess the required Coin Amount in the Coin Stake
 	nABNWeight = pwalletMain->GetAntiBotNetWalletWeight(nMinCoinAge, nReqCoins);
 	CAmount nBalance = pwalletMain->GetBalance();
-	LogPrintf("\nABN Tx Total Bal %f, Needed %f, ABNWeight %f ", (double)nBalance/COIN, (double)nReqCoins/COIN, nABNWeight);
+	if (fDebug && fDebugSpam)
+		LogPrintf("\nABN Tx Total Bal %f, Needed %f, ABNWeight %f ", (double)nBalance/COIN, (double)nReqCoins/COIN, nABNWeight);
 
 	if (nReqCoins > nBalance)
 	{
-		sError = "Sorry, your balance is lower than the required ABN transaction amount.";
+		LogPrintf("\nCreateAntiBotNetTx::Wallet Total Bal %f (>6 confirms), Needed %f (>5 confirms), ABNWeight %f ", 
+			(double)nBalance/COIN, (double)nReqCoins/COIN, nABNWeight);
+		sError = "Sorry, your balance is lower than the required ABN transaction amount when seeking coins aged > 5 confirms deep.";
 		return wtx;
 	}
 	if (nReqCoins < (1 * COIN))
@@ -2459,6 +2463,8 @@ std::string GetPOGBusinessObjectList(std::string sType, std::string sFields)
 	int iLastSuperblock = GetLastGSCSuperblockHeight(chainActive.Tip()->nHeight, iNextSuperblock);
     std::string sData;  
 	CAmount nPaymentsLimit = CSuperblock::GetPaymentsLimit(iNextSuperblock);
+	nPaymentsLimit -= MAX_BLOCK_SUBSIDY * COIN;
+		
 	std::string sContract = GetGSCContract(iNextSuperblock, false);
 	std::string s1 = ExtractXML(sContract, "<DATA>", "</DATA>");
 	std::string sDetails = ExtractXML(sContract, "<DETAILS>", "</DETAILS>");
@@ -2469,6 +2475,7 @@ std::string GetPOGBusinessObjectList(std::string sType, std::string sFields)
 	double dTotalPaid = 0;
 	double nTotalPoints = 0;
 	double nMyPoints = 0;
+	double dLimit = (double)nPaymentsLimit / COIN;
 	for (int i = 0; i < vData.size(); i++)
 	{
 		std::vector<std::string> vRow = Split(vData[i].c_str(), "|");
@@ -2478,11 +2485,11 @@ std::string GetPOGBusinessObjectList(std::string sType, std::string sFields)
 			std::string sCPK = vRow[1];
 			double nPoints = cdbl(vRow[2], 2);
 			nTotalPoints += nPoints;
-			double nProminence = cdbl(vRow[3], 4) * 100;
+			double nProminence = cdbl(vRow[3], 8) * 100;
 			std::string sNickName = Caption(vRow[4], 10);
 			if (sNickName.empty())
 				sNickName = "N/A";
-			double nOwed = (sType=="pog") ?  cdbl(vRow[5], 4) : (nPaymentsLimit/COIN) * (nProminence/100);
+			double nOwed = (sType=="_pog") ?  cdbl(vRow[5], 4) : dLimit * nProminence / 100;
 			if (sCPK == myCPK.sAddress)
 				nMyPoints += nPoints;
 			std::string sRow = sCampaign + "<col>" + sNickName + "<col>" + sCPK + "<col>" + RoundToString(nPoints, 2) 

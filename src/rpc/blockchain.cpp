@@ -2629,7 +2629,7 @@ UniValue exec(const JSONRPCRequest& request)
 		int nHeight = cdbl(request.params[1].get_str(), 0);
 		std::string sNickName = request.params[2].get_str();
 		WriteCache("analysis", "user", sNickName, GetAdjustedTime());
-		UniValue p = GetProminenceLevels(nHeight, false);
+		UniValue p = GetProminenceLevels(nHeight + BLOCKS_PER_DAY, false);
 		std::string sData1 = ReadCache("analysis", "data_1");
 		std::string sData2 = ReadCache("analysis", "data_2");
 		results.push_back(Pair("Totals", sData2));
@@ -2696,6 +2696,34 @@ UniValue exec(const JSONRPCRequest& request)
 			double nROIBalance = (nEarned / (nTotalReq/COIN)) * 100 * 365;
 			results.push_back(Pair("Balance " + RoundToString(nTotalReq / COIN, 2) + " Annualized ROI %", nROIBalance));
 		}
+	}
+	else if (sItem == "debugtool1")
+	{
+		std::string sBlock = request.params[1].get_str();
+		int nHeight = (int)cdbl(sBlock,0);
+		if (nHeight < 0 || nHeight > chainActive.Tip()->nHeight) 
+			throw std::runtime_error("Block number out of range.");
+		CBlockIndex* pblockindex = FindBlockByHeight(nHeight);
+		const Consensus::Params& consensusParams = Params().GetConsensus();
+		double dDiff = GetDifficulty(pblockindex);
+		double dDiffThreshhold = fProd ? 1000 : 1;
+		results.push_back(Pair("diff", dDiff));
+		bool f1 = dDiff > dDiffThreshhold;
+		results.push_back(Pair("f1", f1));
+		CBlock block;
+		ReadBlockFromDisk(block, pblockindex, consensusParams);
+		double nMinRequiredABNWeight = GetSporkDouble("requiredabnweight", 0);
+		double nABNHeight = GetSporkDouble("abnheight", 0);
+		results.push_back(Pair("abnheight", nABNHeight));
+		results.push_back(Pair("fprod", fProd));
+		results.push_back(Pair("consensusABNHeight", consensusParams.ABNHeight));
+		bool f10 = (nABNHeight > 0 && nHeight > consensusParams.ABNHeight && nHeight > nABNHeight && nMinRequiredABNWeight > 0);
+		results.push_back(Pair("f10_abnheight", f10));
+		results.push_back(Pair("LateBlock", LateBlock(block, pblockindex, 60)));
+		bool fLBI = LateBlockIndex(pblockindex, 60);
+		results.push_back(Pair("LBI", fLBI));
+		results.push_back(Pair("abnreqweight", nMinRequiredABNWeight));
+		results.push_back(Pair("abnheight", nABNHeight));
 	}
 	else if (sItem == "datalist")
 	{

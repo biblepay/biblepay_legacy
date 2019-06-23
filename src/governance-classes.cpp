@@ -672,6 +672,7 @@ CAmount CSuperblock::GetPaymentsLimit(int nBlockHeight)
 	int nSuperblockCycle = 0;
 	double nBudgetFactor = 0;
 	int nType = 0;
+		
 	if (IsValidBlockHeight(nBlockHeight))
 	{
 		// Active - Monthly

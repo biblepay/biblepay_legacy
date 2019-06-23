@@ -190,7 +190,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
 		}
 		else
 		{
-			LogPrintf("\nCreateNewBlock::Unable to add ABN because %s", sError1.c_str());
+			LogPrintf("\n***** CreateNewBlock::Unable to add ABN because %s *****\n", sError1.c_str());
 		}
 	}
 
@@ -980,6 +980,8 @@ void static BibleMiner(const CChainParams& chainparams, int iThreadID, int iFeat
 	int64_t nLastGUI = GetAdjustedTime() - 30;
 	int64_t POOL_MIN_MINUTES = 3 * 60;
 	int64_t POOL_MAX_MINUTES = 7 * 60;
+	int64_t nLastCreateBlock = 0;
+	int64_t nLastMiningBreak = 0;
 
 	int64_t nGSCFrequency = cdbl(GetSporkValue("gscclientminerfrequency"), 0);
 	if (nGSCFrequency == 0) 
@@ -987,22 +989,20 @@ void static BibleMiner(const CChainParams& chainparams, int iThreadID, int iFeat
 	int iFailCount = 0;
 	// This allows the miner to dictate how much sleep will occur when distributed computing is enabled.  This will let Rosetta use the maximum CPU time.  NOTE: The default is 200ms per 256 hashes.
 	double dMinerSleep = cdbl(GetArg("-minersleep", "325"), 0);
-	LogPrintf(" MinerSleep %f \n", (double)dMinerSleep);
 	unsigned int nExtraNonce = 0;
 	double nHashesDone = 0;
 	int iOuterLoop = 0;
-
-recover:
-	int iStart = rand() % 1000;
-	MilliSleep(iStart);
     RenameThread("biblepay-miner");
-
     boost::shared_ptr<CReserveScript> coinbaseScript;
     GetMainSignals().ScriptForMining(coinbaseScript);
 	std::string sPoolMiningAddress;
 	std::string sMinerGuid;
 	std::string sWorkID;
 	std::string sPoolConfURL = GetArg("-pool", "");
+
+recover:
+	int iStart = rand() % 1000;
+	MilliSleep(iStart);
 		
     try {
         // Throw an error if no script was provided.  This can happen
@@ -1061,9 +1061,14 @@ recover:
 			}
 
 			// Create Evo block
-	                  		
-	        std::unique_ptr<CBlockTemplate> pblocktemplate(BlockAssembler(Params()).CreateNewBlock(coinbaseScript->reserveScript, sPoolMiningAddress, sMinerGuid, iThreadID));
-            if (!pblocktemplate.get())
+	        int64_t nElapsedLastCreateBlock = GetAdjustedTime() - nLastCreateBlock;
+			if (nLastCreateBlock < 15)
+			{
+				MilliSleep(15000);
+			}
+			std::unique_ptr<CBlockTemplate> pblocktemplate(BlockAssembler(Params()).CreateNewBlock(coinbaseScript->reserveScript, sPoolMiningAddress, sMinerGuid, iThreadID));
+			nLastCreateBlock = GetAdjustedTime();
+			if (!pblocktemplate.get())
             {
 				MilliSleep(30000);
 				LogPrint("miner", "No block to mine %f", iThreadID);
@@ -1073,8 +1078,6 @@ recover:
 			bool bABNOK = IsMyABNSufficient(pblocktemplate->block, pindexPrev, pindexPrev->nHeight + 1);
 			if (!bABNOK)
 			{
-				if (fDebugSpam)
-					LogPrintf(" ABN OK: %f ", (double)bABNOK);
 				WriteCache("poolthread" + RoundToString(iThreadID, 0), "poolinfo2", "ABN weight is too low to mine", GetAdjustedTime());
 			}
             IncrementExtraNonce(pblock, pindexPrev, nExtraNonce);
@@ -1154,35 +1157,34 @@ recover:
 						
 					pblock->nNonce += 1;
 			
-					if ((pblock->nNonce & 0x5F) == 0)
+					if ((pblock->nNonce & 0xFF) == 0)
 					{
+						boost::this_thread::interruption_point();
+              			if (dMinerSleep > 0) 
+							MilliSleep(dMinerSleep);
+
 						int64_t nElapsed = GetAdjustedTime() - nLastGUI;
+				
 						if (nElapsed > 10)
 						{
 							nLastGUI = GetAdjustedTime();
 							UpdateHashesPerSec(nHashesDone);
 							WriteCache("poolthread" + RoundToString(iThreadID,0), "poolinfo1", "", GetAdjustedTime());
+							bool fNonce = CheckNonce(f9000, pblock->nNonce, pindexPrev->nHeight, pindexPrev->nTime, pblock->GetBlockTime(), consensusParams);
+							if (!fNonce)
+								pblock->nNonce = 0x9FFF;
 						}
-						bool fNonce = CheckNonce(f9000, pblock->nNonce, pindexPrev->nHeight, pindexPrev->nTime, pblock->GetBlockTime(), consensusParams);
-						if (!fNonce)
+						int64_t nElapsedLastMiningBreak = GetAdjustedTime() - nLastMiningBreak;
+						if (nElapsedLastMiningBreak > 60)
 						{
-							pblock->nNonce = 0x9FFF;
+							nLastMiningBreak = GetAdjustedTime();
 							break;
 						}
-						if (dMinerSleep > 0) 
-							MilliSleep(dMinerSleep);
-						if (!bABNOK)
-							MilliSleep(1000);  // ABN not sufficient; sleep unless block becomes late
 					}
-				
-					// 0x4FFF is approximately 20 seconds, then we update hashmeter
-					if ((pblock->nNonce & 0x4FFF) == 0)
-					{
-						break;
-					}
-		        }
+			    }
 
 				UpdateHashesPerSec(nHashesDone);
+			
 		        // Check for stop or if block needs to be rebuilt
                 boost::this_thread::interruption_point();
                 // Regtest mode doesn't require peers

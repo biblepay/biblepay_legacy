@@ -9,6 +9,7 @@
 #include "validation.h"
 #include "spork.h"
 #include "bls/bls.h"
+#include "rpcpog.h"
 
 #include "evo/deterministicmns.h"
 
@@ -265,14 +266,27 @@ public:
 
     bool IsValidForPayment() const
     {
+		// R ANDREWS - GSC Quorum Enforcement
+		double nEnforceQuorum = GetSporkDouble("enforcegscquorum", 0);
+		double nMinGSCProtoVersion = GetSporkDouble("MIN_GSC_PROTO_VERSION", 0);
+		if (nEnforceQuorum == 1 && nMinGSCProtoVersion > 1 && nProtocolVersion > 1)
+		{
+			if (nProtocolVersion < nMinGSCProtoVersion)
+			{
+				LogPrintf("\nIsValidForPayment - Sanctuary %s running old protoversion %f, required version %f ", addr.ToStringIPPort(), nProtocolVersion, nMinGSCProtoVersion);
+				return false;
+			}
+		}
+
         if(nActiveState == MASTERNODE_ENABLED) {
             return true;
         }
+
         if(!sporkManager.IsSporkActive(SPORK_14_REQUIRE_SENTINEL_FLAG) &&
            (nActiveState == MASTERNODE_SENTINEL_PING_EXPIRED)) {
             return true;
         }
-
+	
         return false;
     }
 
