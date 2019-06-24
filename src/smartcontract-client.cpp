@@ -220,7 +220,7 @@ CWalletTx CreateGSCClientTransmission(std::string sCampaign, std::string sDiary,
 	CAmount nFeeRequired;
 	std::vector<CRecipient> vecSend;
 	int nChangePosRet = -1;
-	bool fSubtractFeeFromAmount = false;
+	bool fSubtractFeeFromAmount = true;
 	CRecipient recipient = {spkCPKScript, nPayment1, false, fSubtractFeeFromAmount};
 	vecSend.push_back(recipient); // This transmission is to Me
 	CBitcoinAddress baFoundation(consensusParams.FoundationAddress);
@@ -245,8 +245,7 @@ CWalletTx CreateGSCClientTransmission(std::string sCampaign, std::string sDiary,
 	}
 	sXML += "<gscsig>" + sSignature + "</gscsig><abncpk>" + sCPK + "</abncpk><gsccampaign>" + sCampaign + "</gsccampaign><abnwgt>" + RoundToString(nTargetCoinAge, 0) + "</abnwgt><diary>" + sDiary + "</diary>";
 	std::string strError;
-	CAmount nBuffer = 10 * COIN;
-	bool fCreated = pwalletMain->CreateTransaction(vecSend, wtx, reservekey, nFeeRequired, nChangePosRet, strError, NULL, true, ALL_COINS, false, 0, sXML, nTargetCoinAge, nTargetSpend + nBuffer);
+	bool fCreated = pwalletMain->CreateTransaction(vecSend, wtx, reservekey, nFeeRequired, nChangePosRet, strError, NULL, true, ALL_COINS, false, 0, sXML, nTargetCoinAge, nTargetSpend);
 	if (bTriedToUnlock)		{ pwalletMain->Lock();	}
 
 	if (!fCreated)    

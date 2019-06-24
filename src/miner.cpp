@@ -191,6 +191,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
 		else
 		{
 			LogPrintf("\n***** CreateNewBlock::Unable to add ABN because %s *****\n", sError1.c_str());
+			MilliSleep(5000);
 		}
 	}
 

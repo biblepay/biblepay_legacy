@@ -2394,23 +2394,23 @@ CWalletTx CreateAntiBotNetTx(CBlockIndex* pindexLast, double nMinCoinAge, CReser
 	bool fCreated = false;		
 	// Feedback Loop here ensures we successfully create a good ABN that other miners will not disagree with:
 	int MAX_FEEDBACK_ITERATIONS = 25;
-	double INCREMENTOR = .25;
+	double INCREMENTOR = .10;
 	std::string sDebugInfo;
 	std::string sMiningInfo;
-	for (double i = .75; i < MAX_FEEDBACK_ITERATIONS; i += INCREMENTOR)
+	CAmount nUsed = 0;
+	double nTargetABNWeight = pwalletMain->GetAntiBotNetWalletWeight(nMinCoinAge, nUsed);
+	int nChangePosRet = -1;
+	bool fSubtractFeeFromAmount = true;
+	for (double i = .50; i < MAX_FEEDBACK_ITERATIONS; i += INCREMENTOR)
 	{
-		CAmount nUsed = 0;
-		int nChangePosRet = -1;
-		double nTargetABNWeight = pwalletMain->GetAntiBotNetWalletWeight(nMinCoinAge * i, nUsed);
-		bool fSubtractFeeFromAmount = true;
-		CRecipient recipient = {spkCPKScript, nUsed, false, fSubtractFeeFromAmount};
+		CAmount nAllocated = nUsed * i;
+		CRecipient recipient = {spkCPKScript, nAllocated, false, fSubtractFeeFromAmount};
 		std::vector<CRecipient> vecSend;
 		vecSend.push_back(recipient);
-		CAmount nAllocated = nUsed;
 		if (i > (MAX_FEEDBACK_ITERATIONS * .75))
 			nAllocated = nAllocated * 2;
 		CAmount nFeeRequired = 0;
-		fCreated = pwalletMain->CreateTransaction(vecSend, wtx, reservekey, nFeeRequired, nChangePosRet, strError, NULL, true, ALL_COINS, false, 0, sXML, nMinCoinAge * i, nAllocated);
+		fCreated = pwalletMain->CreateTransaction(vecSend, wtx, reservekey, nFeeRequired, nChangePosRet, strError, NULL, true, ALL_COINS, false, 0, sXML, nMinCoinAge, nAllocated);
 		double nTest = GetAntiBotNetWeight(chainActive.Tip()->GetBlockTime(), wtx.tx);
 		sDebugInfo = "TargetWeight=" + RoundToString(nTargetABNWeight, 0) + ", UsingBBP=" + RoundToString(nUsed/COIN, 2) 
 			+ ", I=" + RoundToString(i, 0) + ", NeededWeight=" + RoundToString(nMinCoinAge, 0) + ", GotWeight=" + RoundToString(nTest, 2);
