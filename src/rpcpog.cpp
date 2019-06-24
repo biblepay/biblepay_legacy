@@ -2378,8 +2378,6 @@ CWalletTx CreateAntiBotNetTx(CBlockIndex* pindexLast, double nMinCoinAge, CReser
 	std::string sCPK = DefaultRecAddress("Christian-Public-Key");
 	CBitcoinAddress baCPKAddress(sCPK);
 	CScript spkCPKScript = GetScriptForDestination(baCPKAddress.Get());
-	CAmount nFeeRequired;
-	CAmount nBuffer = (10 * COIN);
 	std::string sMessage = GetRandHash().GetHex();
 	sXML += "<MT>ABN</MT><abnmsg>" + sMessage + "</abnmsg>";
 	std::string sSignature;
@@ -2395,36 +2393,45 @@ CWalletTx CreateAntiBotNetTx(CBlockIndex* pindexLast, double nMinCoinAge, CReser
 	sXML += "<abnsig>" + sSignature + "</abnsig><abncpk>" + sCPK + "</abncpk><abnwgt>" + RoundToString(nMinCoinAge, 0) + "</abnwgt>";
 	bool fCreated = false;		
 	// Feedback Loop here ensures we successfully create a good ABN that other miners will not disagree with:
-	int MAX_FEEDBACK_ITERATIONS = 20;
-	double INCREMENTOR = .50;
-	int nChangePosRet = -1;
-	bool fSubtractFeeFromAmount = false;
-
-	for (double i = 1; i < MAX_FEEDBACK_ITERATIONS; i += INCREMENTOR)
+	int MAX_FEEDBACK_ITERATIONS = 25;
+	double INCREMENTOR = .25;
+	std::string sDebugInfo;
+	std::string sMiningInfo;
+	for (double i = .75; i < MAX_FEEDBACK_ITERATIONS; i += INCREMENTOR)
 	{
 		CAmount nUsed = 0;
+		int nChangePosRet = -1;
 		double nTargetABNWeight = pwalletMain->GetAntiBotNetWalletWeight(nMinCoinAge * i, nUsed);
+		bool fSubtractFeeFromAmount = true;
 		CRecipient recipient = {spkCPKScript, nUsed, false, fSubtractFeeFromAmount};
 		std::vector<CRecipient> vecSend;
 		vecSend.push_back(recipient);
-		CAmount nAllocated = nUsed + nBuffer;
+		CAmount nAllocated = nUsed;
 		if (i > (MAX_FEEDBACK_ITERATIONS * .75))
 			nAllocated = nAllocated * 2;
+		CAmount nFeeRequired = 0;
 		fCreated = pwalletMain->CreateTransaction(vecSend, wtx, reservekey, nFeeRequired, nChangePosRet, strError, NULL, true, ALL_COINS, false, 0, sXML, nMinCoinAge * i, nAllocated);
 		double nTest = GetAntiBotNetWeight(chainActive.Tip()->GetBlockTime(), wtx.tx);
+		sDebugInfo = "TargetWeight=" + RoundToString(nTargetABNWeight, 0) + ", UsingBBP=" + RoundToString(nUsed/COIN, 2) 
+			+ ", I=" + RoundToString(i, 0) + ", NeededWeight=" + RoundToString(nMinCoinAge, 0) + ", GotWeight=" + RoundToString(nTest, 2);
+		sMiningInfo = "[" + RoundToString(nMinCoinAge, 0) + " ABN OK] Amount=" + RoundToString(nUsed/COIN, 2) + ", Weight=" + RoundToString(nTest, 2);
 		if (fDebug)
 		{
-			LogPrintf("-Creating ABN Tx with weight %f using %f  BBP iteration %f, Needed %f, Got %f ", nTargetABNWeight, (double)nUsed/COIN, i, nMinCoinAge, nTest);
+			LogPrintf(" CreateABN::%s", sDebugInfo);
 		}
-		if (fCreated && nTest >= nMinCoinAge) 
+		if (fCreated && nTest >= nMinCoinAge)
+		{
+			// Bubble ABN info to user
+			WriteCache("poolthread0", "poolinfo1", sMiningInfo, GetAdjustedTime());
 			break;
+		}
 	}
 
 	if (bTriedToUnlock)
 		pwalletMain->Lock();
 	if (!fCreated)    
 	{
-		sError = "CreateABN::Fail::" + strError;
+		sError = "CreateABN::Fail::" + strError + "::" + sDebugInfo;
 		return wtx;
 	}
 	return wtx;

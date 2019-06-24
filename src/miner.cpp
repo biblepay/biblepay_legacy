@@ -975,7 +975,7 @@ void static BibleMiner(const CChainParams& chainparams, int iThreadID, int iFeat
 	int64_t nLastGSC = GetAdjustedTime();
 	int64_t nThreadWork = 0;
 	int64_t nLastReadyToMine = GetAdjustedTime() - 480;
-	int64_t nLastClearCache = GetAdjustedTime() - 480;
+	int64_t nLastClearCache = GetAdjustedTime();
 	int64_t nLastShareSubmitted = GetAdjustedTime() - 480;
 	int64_t nLastGUI = GetAdjustedTime() - 30;
 	int64_t POOL_MIN_MINUTES = 3 * 60;
@@ -1086,9 +1086,7 @@ recover:
 			std::string sPoolNarr = GetPoolMiningNarr(sPoolMiningAddress);
 			if (fDebugSpam)
 				LogPrint("miner", "BiblepayMiner -- Running miner %s with %u transactions in block (%u bytes)\n", sPoolNarr.c_str(), pblock->vtx.size(), ::GetSerializeSize(*pblock, SER_NETWORK, PROTOCOL_VERSION));
-			// Clear errors
-			WriteCache("poolthread" + RoundToString(iThreadID,0), "poolinfo1", "", GetAdjustedTime());
-            //
+		    //
             // Search
             //
             int64_t nStart = GetTime();
@@ -1169,7 +1167,6 @@ recover:
 						{
 							nLastGUI = GetAdjustedTime();
 							UpdateHashesPerSec(nHashesDone);
-							WriteCache("poolthread" + RoundToString(iThreadID,0), "poolinfo1", "", GetAdjustedTime());
 							bool fNonce = CheckNonce(f9000, pblock->nNonce, pindexPrev->nHeight, pindexPrev->nTime, pblock->GetBlockTime(), consensusParams);
 							if (!fNonce)
 								pblock->nNonce = 0x9FFF;
