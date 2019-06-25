@@ -33,6 +33,7 @@
 #include "evo/providertx.h"
 #include "evo/cbtx.h"
 #include "llmq/quorums_commitment.h"
+#include "rpcpodc.h"
 
 #include <stdint.h>
 
@@ -80,6 +81,14 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
         else {
             in.push_back(Pair("txid", txin.prevout.hash.GetHex()));
             in.push_back(Pair("vout", (int64_t)txin.prevout.n));
+			int64_t nTxTime = 0;
+			CAmount caAmount = 0;
+			bool fOK = GetTransactionTimeAndAmount(txin.prevout.hash, txin.prevout.n, nTxTime, caAmount);
+			if (fOK)
+			{
+				in.push_back(Pair("spent_amount", ValueFromAmount(caAmount)));
+				in.push_back(Pair("spent_time", nTxTime));
+			}
             UniValue o(UniValue::VOBJ);
             o.push_back(Pair("asm", ScriptToAsmStr(txin.scriptSig, true)));
             o.push_back(Pair("hex", HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));

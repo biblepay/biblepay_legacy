@@ -1288,7 +1288,7 @@ UniValue setautounlockpassword(const JSONRPCRequest& request)
 UniValue autounlockpasswordlength(const JSONRPCRequest& request)
 {
 	if (request.fHelp)
-		throw std::runtime_error("Use this to retrieve the length of the auto-unlock password.");
+		throw std::runtime_error("autounlockpasswordlength\nUse this to retrieve the length of the auto-unlock password.");
 	UniValue obj(UniValue::VOBJ);
 	obj.push_back(Pair("Length", (double)msEncryptedString.size()));
 	return obj;
@@ -1296,7 +1296,7 @@ UniValue autounlockpasswordlength(const JSONRPCRequest& request)
 
 UniValue leaderboard(const JSONRPCRequest& request)
 {
-    if (request.fHelp || request.params.size() != 0 && request.params.size() != 1 && request.params.size() != 2) 
+    if (request.fHelp || (request.params.size() != 0 && request.params.size() != 1 && request.params.size() != 2))
 	{
         throw std::runtime_error(
             "leaderboard\n"
