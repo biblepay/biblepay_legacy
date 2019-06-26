@@ -2093,14 +2093,16 @@ UniValue exec(const JSONRPCRequest& request)
 			dMin = cdbl(request.params[1].get_str(), 2);
 		if (request.params.size() > 2)
 			dDebug = cdbl(request.params[2].get_str(), 2);
-		results.push_back(Pair("version", 1.1));
+		results.push_back(Pair("version", 1.2));
 		results.push_back(Pair("weight", dABN));
-		results.push_back(Pair("total_required", nTotalReq/COIN));
-		if (dMin > 0)
+		results.push_back(Pair("total_required", nTotalReq / COIN));
+		if (dMin > 0) 
 		{
 			dABN = pwalletMain->GetAntiBotNetWalletWeight(dMin, nTotalReq);
 			if (dDebug == 1)
-				results.push_back(Pair("coin_age_data", ReadCache("coin", "age")));
+			{
+				results.push_back(Pair("coin_age_data_pre_select", ReadCache("coin", "age")));
+			}
 
 			results.push_back(Pair("weight " + RoundToString(dMin, 2), dABN));
 			results.push_back(Pair("total_required " + RoundToString(dMin, 2), nTotalReq/COIN));
@@ -2165,22 +2167,16 @@ UniValue exec(const JSONRPCRequest& request)
 			dTargetWeight = cdbl(request.params[1].get_str(), 2);
 		CReserveKey reserveKey(pwalletMain);
 		CWalletTx wtx = CreateAntiBotNetTx(chainActive.Tip(), dTargetWeight, reserveKey, sXML, sError);
+	
 		results.push_back(Pair("xml", sXML));
 		results.push_back(Pair("err", sError));
 		if (sError.empty())
 		{
-			CValidationState state;
-			if (pwalletMain->CommitTransaction(wtx, reserveKey, g_connman.get(), state, NetMsgType::TX))
-			{
+				results.push_back(Pair("coin_age_data_selected", ReadCache("availablecoins", "age")));
 				results.push_back(Pair("success", wtx.GetHash().GetHex()));
 				double nAuditedWeight = GetAntiBotNetWeight(chainActive.Tip()->GetBlockTime(), wtx.tx);
+				results.push_back(Pair("coin_age_data_pre_select", ReadCache("coin", "age")));
 				results.push_back(Pair("audited_weight", nAuditedWeight));
-			}
-			else
-			{
-				results.push_back(Pair("fail", "rejected"));
-				results.push_back(Pair("age_data", ReadCache("availablecoins", "age")));
-			}
 		}
 		else
 		{

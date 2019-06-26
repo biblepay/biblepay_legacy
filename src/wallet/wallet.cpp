@@ -2224,6 +2224,7 @@ double CWallet::GetAntiBotNetWalletWeight(double nMinCoinAge, CAmount& nTotalReq
 			}
 		}
     }
+	sCache += "</EOF>";
 	WriteCache("coin", "age", sCache, GetAdjustedTime());
     return nTotal;
 }
@@ -2722,19 +2723,21 @@ void CWallet::AvailableCoins(std::vector<COutput>& vCoins, bool fOnlyConfirmed, 
                                                   (coinControl && coinControl->fAllowWatchOnly && (mine & ISMINE_WATCH_SOLVABLE) != ISMINE_NO),
                                                  (mine & (ISMINE_SPENDABLE | ISMINE_WATCH_SOLVABLE)) != ISMINE_NO));
 						CTransactionRef txLocal = pcoin->tx;
-						
-						double nAge = (double)(chainActive.Tip()->GetBlockTime() - pcoin->GetTxTime()) / 86400;
-						if (nAge < 0) nAge = 0;
-						double nMyWeight = (pcoin->tx->vout[i].nValue/COIN) * nAge;
-						nTotalWeightFound += nMyWeight;
 						if (dMinCoinAge > 0) 
+						{
+							double nAge = (double)(chainActive.Tip()->pprev->GetBlockTime() - pcoin->GetTxTime()) / 86400;
+							if (nAge < 0) nAge = 0;
+							double nMyWeight = (pcoin->tx->vout[i].nValue / COIN) * nAge;
+							nTotalWeightFound += nMyWeight;
 							nBufferFulfilled += pcoin->tx->vout[i].nValue;
-						sData += RoundToString((double)pcoin->tx->vout[i].nValue/COIN, 4) + "(" + RoundToString(nMyWeight, 2) + "),";
+							sData += RoundToString((double)pcoin->tx->vout[i].nValue/COIN, 4) + "(" + RoundToString(nMyWeight, 2) + "),";
+						}
 					}
             }
         }
     }
-	WriteCache("availablecoins", "age", sData, GetAdjustedTime());
+	if (dMinCoinAge > 0)
+		WriteCache("availablecoins", "age", sData, GetAdjustedTime());
 }
 
 static void ApproximateBestSubset(std::vector<std::pair<CAmount, std::pair<const CWalletTx*,unsigned int> > >vValue, const CAmount& nTotalLower, const CAmount& nTargetValue,

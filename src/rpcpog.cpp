@@ -1692,7 +1692,8 @@ void MemorizeBlockChainPrayers(bool fDuringConnectBlock, bool fSubThread, bool f
 			nDeserializedHeight = 0;
 		}
 	}
-	LogPrintf("Memorizing prayers tip height %f @ time %f deserialized height %f ", chainActive.Tip()->nHeight, GetAdjustedTime(), nDeserializedHeight);
+	if (fDebugSpam && fDebug)
+		LogPrintf("Memorizing prayers tip height %f @ time %f deserialized height %f ", chainActive.Tip()->nHeight, GetAdjustedTime(), nDeserializedHeight);
 
 	int nMaxDepth = chainActive.Tip()->nHeight;
 	int nMinDepth = fDuringConnectBlock ? nMaxDepth - 2 : nMaxDepth - (BLOCKS_PER_DAY * 30 * 12);  // One year
@@ -1739,7 +1740,8 @@ void MemorizeBlockChainPrayers(bool fDuringConnectBlock, bool fSubThread, bool f
 			SerializePrayersToFile(nMaxDepth - 1);
 		}
 	}
-	LogPrintf("...Finished MemorizeBlockChainPrayers @ %f ", GetAdjustedTime());
+	if (fDebugSpam && fDebug)
+		LogPrintf("...Finished MemorizeBlockChainPrayers @ %f ", GetAdjustedTime());
 }
 
 std::string SignMessageEvo(std::string strAddress, std::string strMessage, std::string& sError)
@@ -2329,10 +2331,43 @@ double GetAntiBotNetWeight(int64_t nBlockTime, CTransactionRef tx)
 	return nCoinAge;
 }
 
+static int64_t miABNTime = 0;
+static CWalletTx mtxABN;
+static std::string msABNXML;
+static std::string msABNError;
+static bool mfABNSpent = false;
+static std::mutex cs_abn;
+
+void SpendABN()
+{
+	mfABNSpent = true;
+	miABNTime = 0;
+}
+
+CWalletTx GetAntiBotNetTx(CBlockIndex* pindexLast, double nMinCoinAge, CReserveKey& reservekey, std::string& sXML, std::string& sError)
+{
+	// Share the ABN among all threads, until it's spent or expires
+	int64_t nAge = GetAdjustedTime() - miABNTime;
+	if (nAge > (60 * 10) || mfABNSpent)
+	{
+        std::unique_lock<std::mutex> lock(cs_abn);
+		{
+			mtxABN = CreateAntiBotNetTx(pindexLast, nMinCoinAge, reservekey, sXML, sError);
+			mfABNSpent = false;
+			miABNTime = GetAdjustedTime();
+			return mtxABN;
+		}
+	}
+	else
+	{
+		sXML = msABNXML;
+		sError = msABNError;
+		return mtxABN;
+	}
+}
+
 CWalletTx CreateAntiBotNetTx(CBlockIndex* pindexLast, double nMinCoinAge, CReserveKey& reservekey, std::string& sXML, std::string& sError)
 {
-	LOCK2(cs_main, pwalletMain->cs_wallet);
-	{
 		CWalletTx wtx;
 		CAmount nReqCoins = 0;
 		double nABNWeight = pwalletMain->GetAntiBotNetWalletWeight(0, nReqCoins);
@@ -2345,7 +2380,7 @@ CWalletTx CreateAntiBotNetTx(CBlockIndex* pindexLast, double nMinCoinAge, CReser
 
 		if (pwalletMain->IsLocked() && msEncryptedString.empty())
 		{
-			WriteCache("poolthread0", "poolinfo3", "Unable to create abn tx (wallet locked)", GetAdjustedTime());
+			WriteCache("poolthread0", "poolinfo4", "Unable to create abn tx (wallet locked)", GetAdjustedTime());
 			sError = "Sorry, the wallet must be unlocked to create an anti-botnet transaction.";
 			return wtx;
 		}
@@ -2430,7 +2465,7 @@ CWalletTx CreateAntiBotNetTx(CBlockIndex* pindexLast, double nMinCoinAge, CReser
 			if (fCreated && nTest >= nMinCoinAge)
 			{
 				// Bubble ABN info to user
-				WriteCache("poolthread0", "poolinfo1", sMiningInfo, GetAdjustedTime());
+				WriteCache("poolthread0", "poolinfo4", sMiningInfo, GetAdjustedTime());
 				break;
 			}
 		}
@@ -2443,7 +2478,6 @@ CWalletTx CreateAntiBotNetTx(CBlockIndex* pindexLast, double nMinCoinAge, CReser
 			return wtx;
 		}
 		return wtx;
-	}
 }
 
 double GetABNWeight(const CBlock& block, bool fMining)

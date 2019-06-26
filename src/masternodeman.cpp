@@ -913,7 +913,8 @@ void CMasternodeMan::ProcessMasternodeConnections(CConnman& connman)
             }
             if (fFound) return; // do NOT disconnect mixing masternodes
 #endif // ENABLE_WALLET
-            LogPrintf("Closing Masternode connection: peer=%d, addr=%s\n", pnode->id, pnode->addr.ToString());
+			if (fDebugSpam)
+				LogPrintf("Closing Masternode connection: peer=%d, addr=%s\n", pnode->id, pnode->addr.ToString());
             pnode->fDisconnect = true;
         }
     });
@@ -1611,7 +1612,8 @@ void CMasternodeMan::ProcessVerifyBroadcast(CNode* pnode, const CMasternodeVerif
 
     // we don't care about history
     if(mnv.nBlockHeight < nCachedBlockHeight - MAX_POSE_BLOCKS) {
-        LogPrint("masternode", "CMasternodeMan::ProcessVerifyBroadcast -- Outdated: current block %d, verification block %d, peer=%d\n",
+		if (fDebugSpam)
+			LogPrint("masternode", "CMasternodeMan::ProcessVerifyBroadcast -- Outdated: current block %d, verification block %d, peer=%d\n",
                     nCachedBlockHeight, mnv.nBlockHeight, pnode->id);
         return;
     }
@@ -1700,7 +1702,8 @@ void CMasternodeMan::ProcessVerifyBroadcast(CNode* pnode, const CMasternodeVerif
         }
         mnv.Relay();
 
-        LogPrintf("CMasternodeMan::ProcessVerifyBroadcast -- verified masternode %s for addr %s\n",
+		if (fDebugSpam)
+			LogPrintf("CMasternodeMan::ProcessVerifyBroadcast -- verified masternode %s for addr %s\n",
                     pmn1->outpoint.ToStringShort(), pmn1->addr.ToString());
 
         // increase ban score for everyone else with the same addr

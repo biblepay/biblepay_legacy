@@ -299,6 +299,7 @@ UniValue getmininginfo(const JSONRPCRequest& request)
 	obj.push_back(Pair("poolinfo1",        ConcatenatePoolHealth("poolinfo1")));
 	obj.push_back(Pair("poolinfo2",        ConcatenatePoolHealth("poolinfo2")));
 	obj.push_back(Pair("poolinfo3",        ConcatenatePoolHealth("poolinfo3")));
+	obj.push_back(Pair("abninfo",          ConcatenatePoolHealth("poolinfo4")));
 	obj.push_back(Pair("gsc_errors",       ReadCache("gsc", "errors")));
 	obj.push_back(Pair("poolmining",       fPoolMiningMode));
 	obj.push_back(Pair("pool_url",         sGlobalPoolURL));

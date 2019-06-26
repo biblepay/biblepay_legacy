@@ -178,8 +178,8 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
 		CReserveKey reserve1(pwalletMain);
 		std::string sXML1;
 		std::string sError1;
-		CWalletTx wtxABN = CreateAntiBotNetTx(chainActive.Tip(), nMinCoinAge, reserve1, sXML1, sError1);
-		if (sError1.empty())
+		CWalletTx wtxABN = GetAntiBotNetTx(chainActive.Tip(), nMinCoinAge, reserve1, sXML1, sError1);
+		if (sError1.empty() && wtxABN.tx != NULL)
 		{
 			pblock->vtx.emplace_back(wtxABN.tx);
 			pblocktemplate->vTxFees.emplace_back(0);
@@ -190,8 +190,8 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
 		}
 		else
 		{
+			WriteCache("poolthread" + RoundToString(iThreadId, 0), "poolinfo4", "Unable to Create ABN: " + sError1, GetAdjustedTime());
 			LogPrintf("\n***** CreateNewBlock::Unable to add ABN because %s *****\n", sError1.c_str());
-			MilliSleep(5000);
 		}
 	}
 
@@ -881,7 +881,7 @@ bool GetPoolMiningMode(int iThreadID, int& iFailCount, std::string& out_PoolAddr
 		 }
 		 out_PoolAddress = sPoolAddress;
 		 // Start Pool Mining
-		 WriteCache("poolthread" + RoundToString(iThreadID,0), "poolinfo1", sPoolAddress,GetAdjustedTime());
+		 WriteCache("poolthread" + RoundToString(iThreadID,0), "poolinfo1", sPoolAddress, GetAdjustedTime());
 		 WriteCache("poolthread" + RoundToString(iThreadID,0), "poolinfo2", "RM_" + TimestampToHRDate(GetAdjustedTime()), GetAdjustedTime());
 		 iFailCount = 0;
 		 // Cache pool mining settings to share across threads to decrease pool load
@@ -981,7 +981,6 @@ void static BibleMiner(const CChainParams& chainparams, int iThreadID, int iFeat
 	int64_t nLastGUI = GetAdjustedTime() - 30;
 	int64_t POOL_MIN_MINUTES = 3 * 60;
 	int64_t POOL_MAX_MINUTES = 7 * 60;
-	int64_t nLastCreateBlock = 0;
 	int64_t nLastMiningBreak = 0;
 
 	int64_t nGSCFrequency = cdbl(GetSporkValue("gscclientminerfrequency"), 0);
@@ -1062,13 +1061,7 @@ recover:
 			}
 
 			// Create Evo block
-	        int64_t nElapsedLastCreateBlock = GetAdjustedTime() - nLastCreateBlock;
-			if (nLastCreateBlock < 15)
-			{
-				MilliSleep(15000);
-			}
-			std::unique_ptr<CBlockTemplate> pblocktemplate(BlockAssembler(Params()).CreateNewBlock(coinbaseScript->reserveScript, sPoolMiningAddress, sMinerGuid, iThreadID));
-			nLastCreateBlock = GetAdjustedTime();
+	    	std::unique_ptr<CBlockTemplate> pblocktemplate(BlockAssembler(Params()).CreateNewBlock(coinbaseScript->reserveScript, sPoolMiningAddress, sMinerGuid, iThreadID));
 			if (!pblocktemplate.get())
             {
 				MilliSleep(30000);
@@ -1079,7 +1072,8 @@ recover:
 			bool bABNOK = IsMyABNSufficient(pblocktemplate->block, pindexPrev, pindexPrev->nHeight + 1);
 			if (!bABNOK)
 			{
-				WriteCache("poolthread" + RoundToString(iThreadID, 0), "poolinfo2", "ABN weight is too low to mine", GetAdjustedTime());
+				WriteCache("poolthread" + RoundToString(iThreadID, 0), "poolinfo4", "ABN weight is too low to mine", GetAdjustedTime());
+				MilliSleep(60000);
 			}
             IncrementExtraNonce(pblock, pindexPrev, nExtraNonce);
 			nHashesDone++;
@@ -1136,6 +1130,7 @@ recover:
 						{
 							// Found a solution
 					        std::shared_ptr<const CBlock> shared_pblock = std::make_shared<const CBlock>(*pblock);
+							SpendABN();
 							if (bABNOK)
 							{
 								bool bAccepted = !ProcessNewBlock(Params(), shared_pblock, true, NULL);
@@ -1164,7 +1159,7 @@ recover:
 
 						int64_t nElapsed = GetAdjustedTime() - nLastGUI;
 				
-						if (nElapsed > 10)
+						if (nElapsed > 5)
 						{
 							nLastGUI = GetAdjustedTime();
 							UpdateHashesPerSec(nHashesDone);

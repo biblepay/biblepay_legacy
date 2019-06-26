@@ -187,5 +187,7 @@ std::string GetPOGBusinessObjectList(std::string sType, std::string sFields);
 std::string SignMessageEvo(std::string strAddress, std::string strMessage, std::string& sError);
 CAmount GetNonTitheTotal(CTransaction tx);
 const CBlockIndex* GetBlockIndexByTransactionHash(const uint256 &hash);
+CWalletTx GetAntiBotNetTx(CBlockIndex* pindexLast, double nMinCoinAge, CReserveKey& reservekey, std::string& sXML, std::string& sError);
+void SpendABN();
 
 #endif

@@ -485,7 +485,8 @@ bool CSuperblockManager::GetSuperblockPayments(int nBlockHeight, std::vector<CTx
             // TODO: PRINT NICE N.N BIBLEPAY OUTPUT
 
             DBG(std::cout << "CSuperblockManager::GetSuperblockPayments Before LogPrintf call, nAmount = " << payment.nAmount << std::endl;);
-            LogPrintf("NEW Superblock : output %d (addr %s, amount %d)\n", i, address2.ToString(), payment.nAmount);
+			if (fDebug && fDebugSpam)
+				LogPrintf("GetSuperblockPayments::NEW Superblock : output %d (addr %s, amount %d)\n", i, address2.ToString(), payment.nAmount);
             DBG(std::cout << "CSuperblockManager::GetSuperblockPayments After LogPrintf call " << std::endl;);
         } else {
             DBG(std::cout << "CSuperblockManager::GetSuperblockPayments Payment not found " << std::endl;);
