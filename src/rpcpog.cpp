@@ -2355,6 +2355,8 @@ CWalletTx GetAntiBotNetTx(CBlockIndex* pindexLast, double nMinCoinAge, CReserveK
 			mtxABN = CreateAntiBotNetTx(pindexLast, nMinCoinAge, reservekey, sXML, sError);
 			mfABNSpent = false;
 			miABNTime = GetAdjustedTime();
+			msABNXML = sXML;
+			msABNError = sError;
 			return mtxABN;
 		}
 	}
