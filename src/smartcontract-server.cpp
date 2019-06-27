@@ -37,7 +37,7 @@ extern CWallet* pwalletMain;
 
 void GetTransactionPoints(CBlockIndex* pindex, CTransactionRef tx, double& nCoinAge, CAmount& nDonation)
 {
-	nCoinAge = GetVINCoinAge(pindex->GetBlockTime(), tx);
+	nCoinAge = GetVINCoinAge(pindex->GetBlockTime(), tx, false);
 	bool fSigned = CheckAntiBotNetSignature(tx, "gsc");
 	nDonation = GetTitheAmount(tx);
 	if (!fSigned) 

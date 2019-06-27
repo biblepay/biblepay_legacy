@@ -717,7 +717,7 @@ UniValue gobject_vote_alias(const JSONRPCRequest& request)
     return VoteWithMasternodeList(entries, hash, eVoteSignal, eVoteOutcome, nSuccessful, nFailed);
 }
 
-UniValue ListObjects(const std::string& strCachedSignal, const std::string& strType, int nStartTime, std::string sWildCard)
+UniValue ListObjects(const std::string& strCachedSignal, const std::string& strType, int nStartTime, std::string sWildCard, double nMinVotes)
 {
     UniValue objResult(UniValue::VOBJ);
 
@@ -747,6 +747,11 @@ UniValue ListObjects(const std::string& strCachedSignal, const std::string& strT
 				bFound = true;
 			if (pGovObj->GetDataAsPlainString().find(sWildCard) != std::string::npos)
 				bFound = true;
+		}
+
+		if (nMinVotes > 0)
+		{
+			bFound = pGovObj->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING) > nMinVotes;
 		}
 
 		if (bFound)
@@ -799,7 +804,7 @@ void gobject_list_help()
 
 UniValue gobject_list(const JSONRPCRequest& request)
 {
-    if (request.fHelp || request.params.size() > 3)
+    if (request.fHelp || request.params.size() > 4)
         gobject_list_help();
 
     std::string strCachedSignal = "valid";
@@ -811,18 +816,22 @@ UniValue gobject_list(const JSONRPCRequest& request)
     if (request.params.size() == 3) strType = request.params[2].get_str();
     if (strType != "proposals" && strType != "triggers" && strType != "all")
         return "Invalid type, should be 'proposals', 'triggers' or 'all'";
-
-    return ListObjects(strCachedSignal, strType, 0, "");
+	double nMinVotes = 0;
+	if (request.params.size() > 3)
+		nMinVotes = cdbl(request.params[3].getValStr(), 0);
+    
+    return ListObjects(strCachedSignal, strType, 0, "", nMinVotes);
 }
 
 UniValue gobject_list_wild(const JSONRPCRequest& request)
 {
-    if (request.fHelp || request.params.size() > 4)
+    if (request.fHelp || request.params.size() > 5)
         gobject_list_help();
 
     std::string strWild;
 	std::string strCachedSignal = "valid";
-    if (request.params.size() >= 2) strCachedSignal = request.params[1].get_str();
+    if (request.params.size() >= 2) 
+		strCachedSignal = request.params[1].get_str();
     if (strCachedSignal != "valid" && strCachedSignal != "funding" && strCachedSignal != "delete" && strCachedSignal != "endorsed" && strCachedSignal != "all")
         return "Invalid signal, should be 'valid', 'funding', 'delete', 'endorsed' or 'all'";
 
@@ -830,8 +839,12 @@ UniValue gobject_list_wild(const JSONRPCRequest& request)
     if (request.params.size() >= 3) strType = request.params[2].get_str();
     if (strType != "proposals" && strType != "triggers" && strType != "all")
         return "Invalid type, should be 'proposals', 'triggers' or 'all'";
-	if (request.params.size() >= 4) strWild = request.params[3].get_str();
-    return ListObjects(strCachedSignal, strType, 0, strWild);
+	if (request.params.size() >= 4) 
+		strWild = request.params[3].get_str();
+	double nMinVotes = 0;
+	if (request.params.size() >= 5)
+		nMinVotes = cdbl(request.params[4].getValStr(), 0);
+    return ListObjects(strCachedSignal, strType, 0, strWild, nMinVotes);
 }
 
 void gobject_diff_help()
@@ -860,7 +873,7 @@ UniValue gobject_diff(const JSONRPCRequest& request)
     if (strType != "proposals" && strType != "triggers" && strType != "all")
         return "Invalid type, should be 'proposals', 'triggers' or 'all'";
 
-    return ListObjects(strCachedSignal, strType, governance.GetLastDiffTime(), "");
+    return ListObjects(strCachedSignal, strType, governance.GetLastDiffTime(), "", 0);
 }
 
 void gobject_get_help()

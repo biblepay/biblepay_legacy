@@ -2291,9 +2291,10 @@ bool CheckAntiBotNetSignature(CTransactionRef tx, std::string sType)
 	return false;
 }
 
-double GetVINCoinAge(int64_t nBlockTime, CTransactionRef tx)
+double GetVINCoinAge(int64_t nBlockTime, CTransactionRef tx, bool fDebug)
 {
 	double dTotal = 0;
+	std::string sDebugData = "\nGetVINCoinAge: ";
 	for (int i = 0; i < (int)tx->vin.size(); i++) 
 	{
     	int n = tx->vin[i].prevout.n;
@@ -2313,14 +2314,19 @@ double GetVINCoinAge(int64_t nBlockTime, CTransactionRef tx)
 			if (nAge < 0)   nAge = 0;
 			double dWeight = nAge * (nAmount / COIN);
 			dTotal += dWeight;
+			if (fDebug)
+				sDebugData += "Output #" + RoundToString(i, 0) + ", Weight: " + RoundToString(dWeight, 2) + ", Age: " + RoundToString(nAge, 2) + ", Amount: " + RoundToString(nAmount / COIN, 2) 
+				+ ", TxTime: " + RoundToString(nTime, 0) + "...";
 		}
 	}
+	if (fDebug)
+		WriteCache("vin", "coinage", sDebugData, GetAdjustedTime());
 	return dTotal;
 }
 
-double GetAntiBotNetWeight(int64_t nBlockTime, CTransactionRef tx)
+double GetAntiBotNetWeight(int64_t nBlockTime, CTransactionRef tx, bool fDebug)
 {
-	double nCoinAge = GetVINCoinAge(nBlockTime, tx);
+	double nCoinAge = GetVINCoinAge(nBlockTime, tx, fDebug);
 	bool fSigned = CheckAntiBotNetSignature(tx, "abn");
 	if (!fSigned) 
 	{
@@ -2454,11 +2460,13 @@ CWalletTx CreateAntiBotNetTx(CBlockIndex* pindexLast, double nMinCoinAge, CReser
 			vecSend.push_back(recipient);
 			if (i > (MAX_FEEDBACK_ITERATIONS * .75))
 				nAllocated = nAllocated * 2;
+			if (nAllocated > nBalance) 
+				nAllocated = nBalance - (1 * COIN);
 			CAmount nFeeRequired = 0;
 			fCreated = pwalletMain->CreateTransaction(vecSend, wtx, reservekey, nFeeRequired, nChangePosRet, strError, NULL, true, ALL_COINS, false, 0, sXML, nMinCoinAge, nAllocated);
-			double nTest = GetAntiBotNetWeight(chainActive.Tip()->GetBlockTime(), wtx.tx);
+			double nTest = GetAntiBotNetWeight(chainActive.Tip()->GetBlockTime(), wtx.tx, true);
 			sDebugInfo = "TargetWeight=" + RoundToString(nTargetABNWeight, 0) + ", UsingBBP=" + RoundToString(nUsed/COIN, 2) 
-				+ ", I=" + RoundToString(i, 0) + ", NeededWeight=" + RoundToString(nMinCoinAge, 0) + ", GotWeight=" + RoundToString(nTest, 2);
+				+ ", I=" + RoundToString(i, 0) + ", SpendingBBP=" + RoundToString(nAllocated/COIN, 2) + ", NeededWeight=" + RoundToString(nMinCoinAge, 0) + ", GotWeight=" + RoundToString(nTest, 2);
 			sMiningInfo = "[" + RoundToString(nMinCoinAge, 0) + " ABN OK] Amount=" + RoundToString(nUsed/COIN, 2) + ", Weight=" + RoundToString(nTest, 2);
 			if (fDebug)
 			{
@@ -2489,7 +2497,7 @@ double GetABNWeight(const CBlock& block, bool fMining)
 	int nABNLocator = (int)cdbl(ExtractXML(sMsg, "<abnlocator>", "</abnlocator>"), 0);
 	if (block.vtx.size() < nABNLocator) return 0;
 	CTransactionRef tx = block.vtx[nABNLocator];
-	double dWeight = GetAntiBotNetWeight(block.GetBlockTime(), tx);
+	double dWeight = GetAntiBotNetWeight(block.GetBlockTime(), tx, true);
 	return dWeight;
 }
 

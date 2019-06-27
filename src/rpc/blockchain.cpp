@@ -2150,7 +2150,7 @@ UniValue exec(const JSONRPCRequest& request)
 		{
 		    CBlockIndex* pblockindex = mapBlockIndex[hashBlock];
 			if (!pblockindex) pblockindex = chainActive.Tip();
-			double nAuditedWeight = GetAntiBotNetWeight(pblockindex->GetBlockTime(), tx);
+			double nAuditedWeight = GetAntiBotNetWeight(pblockindex->GetBlockTime(), tx, true);
 			results.push_back(Pair("audited_weight", nAuditedWeight));
 		}
 		else
@@ -2174,9 +2174,10 @@ UniValue exec(const JSONRPCRequest& request)
 		{
 				results.push_back(Pair("coin_age_data_selected", ReadCache("availablecoins", "age")));
 				results.push_back(Pair("success", wtx.GetHash().GetHex()));
-				double nAuditedWeight = GetAntiBotNetWeight(chainActive.Tip()->GetBlockTime(), wtx.tx);
+				double nAuditedWeight = GetAntiBotNetWeight(chainActive.Tip()->GetBlockTime(), wtx.tx, true);
 				results.push_back(Pair("coin_age_data_pre_select", ReadCache("coin", "age")));
 				results.push_back(Pair("audited_weight", nAuditedWeight));
+				results.push_back(Pair("vin_coin_age_data", ReadCache("vin", "coinage")));
 		}
 		else
 		{
