@@ -2621,3 +2621,75 @@ CAmount GetNonTitheTotal(CTransaction tx)
 	return nTotal;
 }
 
+double AddVector(std::string sData, std::string sDelim)
+{
+	double dTotal = 0;
+	std::vector<std::string> vAdd = Split(sData.c_str(), sDelim);
+	for (int i = 0; i < (int)vAdd.size(); i++)
+	{
+		std::string sElement = vAdd[i];
+		double dAmt = cdbl(sElement, 2);
+		dTotal += dAmt;
+	}
+	return dTotal;
+}
+
+int ReassessAllChains()
+{
+    int iProgress = 0;
+    LOCK(cs_main);
+    std::set<const CBlockIndex*, CompareBlocksByHeight> setTips;
+    BOOST_FOREACH(const PAIRTYPE(const uint256, CBlockIndex*)& item, mapBlockIndex)
+	{
+		if (item.second != NULL) 
+			setTips.insert(item.second);
+	}
+
+    BOOST_FOREACH(const PAIRTYPE(const uint256, CBlockIndex*)& item, mapBlockIndex)
+    {
+		if (item.second != NULL)
+		{
+			if (item.second->pprev != NULL)
+			{
+				const CBlockIndex* pprev = item.second->pprev;
+				if (pprev)
+					setTips.erase(pprev);
+			}
+		}
+    }
+
+    int nBranchMin = -1;
+    int nCountMax = INT_MAX;
+
+	BOOST_FOREACH(const CBlockIndex* block, setTips)
+    {
+        const CBlockIndex* pindexFork = chainActive.FindFork(block);
+        const int branchLen = block->nHeight - chainActive.FindFork(block)->nHeight;
+        if(branchLen < nBranchMin)
+			continue;
+
+        if(nCountMax-- < 1) 
+			break;
+
+		if (block->nHeight > (chainActive.Tip()->nHeight - (BLOCKS_PER_DAY * 5)))
+		{
+			bool fForked = !chainActive.Contains(block);
+			if (fForked)
+			{
+				uint256 hashFork(uint256S(block->phashBlock->GetHex()));
+				CBlockIndex* pblockindex = mapBlockIndex[hashFork];
+				if (pblockindex != NULL)
+				{
+					LogPrintf("\nReassessAllChains::Working on Fork %s at height %f ", hashFork.GetHex(), block->nHeight);
+					ResetBlockFailureFlags(pblockindex);
+					iProgress++;
+				}
+			}
+		}
+	}
+	
+	CValidationState state;
+	ActivateBestChain(state, Params());
+	return iProgress;
+}
+

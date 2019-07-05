@@ -64,6 +64,21 @@ struct BiblePayProposal
 	std::string sProposalHRTime;
 };
 
+/** Comparison function for sorting the getchaintips heads.  */
+struct CompareBlocksByHeight
+{
+    bool operator()(const CBlockIndex* a, const CBlockIndex* b) const
+    {
+        /* Make sure that unequal blocks with the same height do not compare
+           equal. Use the pointers themselves to make a distinction. */
+
+        if (a->nHeight != b->nHeight)
+          return (a->nHeight > b->nHeight);
+
+        return a < b;
+    }
+};
+
 CAmount CAmountFromValue(const UniValue& value);
 std::string RoundToString(double d, int place);
 std::string QueryBibleHashVerses(uint256 hash, uint64_t nBlockTime, uint64_t nPrevBlockTime, int nPrevHeight, CBlockIndex* pindexPrev);
@@ -189,5 +204,7 @@ CAmount GetNonTitheTotal(CTransaction tx);
 const CBlockIndex* GetBlockIndexByTransactionHash(const uint256 &hash);
 CWalletTx GetAntiBotNetTx(CBlockIndex* pindexLast, double nMinCoinAge, CReserveKey& reservekey, std::string& sXML, std::string& sError);
 void SpendABN();
+double AddVector(std::string sData, std::string sDelim);
+int ReassessAllChains();
 
 #endif

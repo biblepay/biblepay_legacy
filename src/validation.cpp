@@ -2769,18 +2769,27 @@ bool DisconnectBlocks(int blocks)
 
 void ReprocessBlocks(int nBlocks)
 {
+	if (nBlocks % 3 == 0)
+	{
+		// If BiblePay devs execute the spork hinting for blocks ending in modulus 3, only reassess the non-main-chains then exit.  
+		// This will clear up any issues where we had a bad block that broke softfork-checkblock rules but later became a good block, but is still marked invalid by the node internally (in the rejected blocks map).
+		ReassessAllChains();
+		return;
+	}
+
     LOCK(cs_main);
 
     std::map<uint256, int64_t>::iterator it = mapRejectedBlocks.begin();
-    while(it != mapRejectedBlocks.end()){
-        //use a window twice as large as is usual for the nBlocks we want to reset
-        if((*it).second  > GetTime() - (nBlocks*60*5)) {
-            BlockMap::iterator mi = mapBlockIndex.find((*it).first);
-            if (mi != mapBlockIndex.end() && (*mi).second) {
-
-                CBlockIndex* pindex = (*mi).second;
-                LogPrintf("ReprocessBlocks -- %s\n", (*it).first.ToString());
-
+	// R Andrews - BiblePay - Beef this up a little
+    while (it != mapRejectedBlocks.end())
+	{
+		BlockMap::iterator mi = mapBlockIndex.find((*it).first);
+		if (mi != mapBlockIndex.end() && (*mi).second) 
+		{
+			CBlockIndex* pindex = (*mi).second;
+			if (pindex != NULL && pindex->nHeight > (chainActive.Tip()->nHeight-nBlocks))
+			{
+                LogPrintf("\nReprocessBlocks -- %s\n", (*it).first.ToString());
                 ResetBlockFailureFlags(pindex);
             }
         }

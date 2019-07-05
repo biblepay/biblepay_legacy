@@ -31,6 +31,7 @@ std::map<int, int64_t> mapSporkDefaults = {
     {SPORK_16_INSTANTSEND_AUTOLOCKS,           4070908800ULL}, // OFF
     {SPORK_17_QUORUM_DKG_ENABLED,              4070908800ULL}, // OFF
     {SPORK_20_QUANTITATIVE_TIGHTENING_ENABLED, 4070908800ULL}, // OFF
+	{SPORK_31_GSC_BUFFER,                      0},             // 0 BUFFER
 };
 
 bool CSporkManager::SporkValueIsActive(int nSporkID, int64_t &nActiveValueRet) const
@@ -296,6 +297,7 @@ int CSporkManager::GetSporkIDByName(const std::string& strName)
     if (strName == "SPORK_16_INSTANTSEND_AUTOLOCKS")            return SPORK_16_INSTANTSEND_AUTOLOCKS;
     if (strName == "SPORK_17_QUORUM_DKG_ENABLED")               return SPORK_17_QUORUM_DKG_ENABLED;
     if (strName == "SPORK_20_QUANTITATIVE_TIGHTENING_ENABLED")  return SPORK_20_QUANTITATIVE_TIGHTENING_ENABLED;
+	if (strName == "SPORK_31_GSC_BUFFER")                       return SPORK_31_GSC_BUFFER;
 
     LogPrint("spork", "CSporkManager::GetSporkIDByName -- Unknown Spork name '%s'\n", strName);
     return -1;
@@ -317,6 +319,7 @@ std::string CSporkManager::GetSporkNameByID(int nSporkID)
         case SPORK_16_INSTANTSEND_AUTOLOCKS:            return "SPORK_16_INSTANTSEND_AUTOLOCKS";
         case SPORK_17_QUORUM_DKG_ENABLED:               return "SPORK_17_QUORUM_DKG_ENABLED";
         case SPORK_20_QUANTITATIVE_TIGHTENING_ENABLED:	return "SPORK_20_QUANTITATIVE_TIGHTENING_ENABLED";
+		case SPORK_31_GSC_BUFFER:                       return "SPORK_31_GSC_BUFFER";
         default:
             LogPrint("spork", "CSporkManager::GetSporkNameByID -- Unknown Spork ID %d\n", nSporkID);
             return "Unknown";

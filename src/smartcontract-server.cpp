@@ -353,6 +353,15 @@ std::string AssessBlocks(int nHeight, bool fCreatingContract)
 {
 	CAmount nPaymentsLimit = CSuperblock::GetPaymentsLimit(nHeight);
 	nPaymentsLimit -= MAX_BLOCK_SUBSIDY * COIN;
+	CAmount nQTBuffer = nPaymentsLimit * .01;
+	nPaymentsLimit -= nQTBuffer;
+
+	int64_t nPaymentBuffer = sporkManager.GetSporkValue(SPORK_31_GSC_BUFFER);
+	if (nPaymentBuffer > 0 && nPaymentBuffer < (nPaymentsLimit / COIN))
+	{
+		nPaymentsLimit -= nPaymentBuffer * COIN;
+	}
+
 	if (!chainActive.Tip()) 
 		return std::string();
 	if (nHeight > chainActive.Tip()->nHeight)
@@ -487,6 +496,8 @@ std::string AssessBlocks(int nHeight, bool fCreatingContract)
 	std::string sProminenceExport = "<PROMINENCE>";
 	double nGSCContractType = GetSporkDouble("GSC_CONTRACT_TYPE", 0);
 	double GSC_MIN_PAYMENT = 1;
+	double nTotalProminence = 0;
+
 	if (nGSCContractType == 0)
 		GSC_MIN_PAYMENT = .25;
 	for (auto Members : mPoints)
@@ -510,6 +521,7 @@ std::string AssessBlocks(int nHeight, bool fCreatingContract)
 				+ localCPK.sNickName + "|" 
 				+ RoundToString((double)nPayment / COIN, 2) + "\n";
 			sGenData += sRow;
+			nTotalProminence += Members.second.nProminence;
 			sProminenceExport += "<CPK>" + Members.second.sAddress + "|" + RoundToString(Members.second.nPoints, 0) + "|" + RoundToString(Members.second.nProminence, 4) + "|" + localCPK.sNickName + "</CPK>";
 		}
 	}
@@ -553,9 +565,14 @@ std::string AssessBlocks(int nHeight, bool fCreatingContract)
 		sStratisNodes += "<NODE>" + a.second.sAddress + "|" + a.second.sNickName + "</NODE>";
 	}
 	sStratisNodes += "</STRATISNODES>";
+	double nTotalPayments = nTotalProminence * (double)nPaymentsLimit / COIN;
+
 	sData = "<PAYMENTS>" + sPayments + "</PAYMENTS><ADDRESSES>" + sAddresses + "</ADDRESSES><DATA>" + sGenData + "</DATA><LIMIT>" 
-		+ RoundToString(nPaymentsLimit/COIN, 4) + "</LIMIT><TOTALPOINTS>" + RoundToString(nTotalPoints, 2) + "</TOTALPOINTS><DIARIES>" 
+		+ RoundToString(nPaymentsLimit/COIN, 4) + "</LIMIT><TOTALPROMINENCE>" + RoundToString(nTotalProminence, 2) + "</TOTALPROMINENCE><TOTALPAYOUT>" + RoundToString(nTotalPayments, 2) 
+		+ "</TOTALPAYOUT><TOTALPOINTS>" + RoundToString(nTotalPoints, 2) + "</TOTALPOINTS><DIARIES>" 
 		+ sDiaries + "</DIARIES><DETAILS>" + sDetails + "</DETAILS>" + QTData + sProminenceExport + sCPKList + sStratisNodes;
+	if (dDebugLevel == 1)
+		LogPrintf("XML %s", sData);
 	return sData;
 }
 

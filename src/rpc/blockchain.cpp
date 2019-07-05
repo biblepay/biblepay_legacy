@@ -1399,21 +1399,6 @@ UniValue getblockchaininfo(const JSONRPCRequest& request)
     return obj;
 }
 
-/** Comparison function for sorting the getchaintips heads.  */
-struct CompareBlocksByHeight
-{
-    bool operator()(const CBlockIndex* a, const CBlockIndex* b) const
-    {
-        /* Make sure that unequal blocks with the same height do not compare
-           equal. Use the pointers themselves to make a distinction. */
-
-        if (a->nHeight != b->nHeight)
-          return (a->nHeight > b->nHeight);
-
-        return a < b;
-    }
-};
-
 UniValue getchaintips(const JSONRPCRequest& request)
 {
 	    if (request.fHelp || request.params.size() > 4)
@@ -1899,6 +1884,11 @@ UniValue exec(const JSONRPCRequest& request)
 		UniValue aDataList = GetDataList("SIN", 7, iSpecificEntry, "", sEntry);
 		return aDataList;
 	}
+	else if (sItem == "reassesschains")
+	{
+		int iWorkDone = ReassessAllChains();
+		results.push_back(Pair("progress", iWorkDone));
+	}
 	else if (sItem == "autounlockpasswordlength")
 	{
 		results.push_back(Pair("Length", (double)msEncryptedString.size()));
@@ -1966,6 +1956,8 @@ UniValue exec(const JSONRPCRequest& request)
 		results.push_back(Pair("govobjhash", uGovObjHash.GetHex()));
 		results.push_back(Pair("Addresses", sAddresses));
 		results.push_back(Pair("Amounts", sAmounts));
+		double dTotal = AddVector(sAmounts, "|");
+		results.push_back(Pair("Total_Target_Spend", dTotal));
 		if (uGovObjHash == uint256S("0x0"))
 		{
 			// create the contract
@@ -1993,6 +1985,15 @@ UniValue exec(const JSONRPCRequest& request)
 		results.push_back(Pair("required_votes", iRequiredVotes));
 		results.push_back(Pair("last_superblock", iLastSuperblock));
 		results.push_back(Pair("next_superblock", iNextSuperblock));
+		CAmount nLastLimit = CSuperblock::GetPaymentsLimit(iLastSuperblock);
+		results.push_back(Pair("last_payments_limit", (double)nLastLimit/COIN));
+		CAmount nNextLimit = CSuperblock::GetPaymentsLimit(iNextSuperblock);
+		results.push_back(Pair("next_payments_limit", (double)nNextLimit/COIN));
+		bool fOverbudget = dTotal > (nNextLimit/COIN);
+		results.push_back(Pair("overbudget", fOverbudget));
+		if (fOverbudget)
+			results.push_back(Pair("! CAUTION !", "Superblock exceeds budget, will be rejected."));
+	
 		bool fTriggered = CSuperblockManager::IsSuperblockTriggered(iNextSuperblock);
 		results.push_back(Pair("next_superblock_triggered", fTriggered));
 
