@@ -2163,6 +2163,7 @@ UniValue exec(const JSONRPCRequest& request)
 	{
 		std::string sError;
 		std::string sXML;
+		WriteCache("vin", "coinage", "", GetAdjustedTime());
 		double dTargetWeight = 0;
 		if (request.params.size() > 1)
 			dTargetWeight = cdbl(request.params[1].get_str(), 2);
@@ -2183,6 +2184,13 @@ UniValue exec(const JSONRPCRequest& request)
 		else
 		{
 			results.push_back(Pair("age_data", ReadCache("availablecoins", "age")));
+			if (true)
+			{
+				double nAuditedWeight = GetAntiBotNetWeight(chainActive.Tip()->GetBlockTime(), wtx.tx, true);
+				results.push_back(Pair("vin_coin_age_data", ReadCache("vin", "coinage")));
+				results.push_back(Pair("total_audited_weight", nAuditedWeight));
+			}
+	
 			results.push_back(Pair("tx_create_error", sError));
 		}
 	}
