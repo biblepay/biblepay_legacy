@@ -207,8 +207,8 @@ void CGovernanceManager::ProcessMessage(CNode* pfrom, const std::string& strComm
                 LogPrintf("MNGOVERNANCEOBJECT -- Not enough fee confirmations for: %s, strError = %s\n", strHash, strError);
             } else {
                 LogPrintf("MNGOVERNANCEOBJECT -- Governance object is invalid - %s\n", strError);
-                // apply node's ban score
-                Misbehaving(pfrom->GetId(), 20);
+				// apply node's ban score (see RAN-0708)
+				Misbehaving(pfrom->GetId(), 1);
             }
 
             return;

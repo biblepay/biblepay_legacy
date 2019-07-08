@@ -979,9 +979,11 @@ void static BibleMiner(const CChainParams& chainparams, int iThreadID, int iFeat
 	int64_t nLastClearCache = GetAdjustedTime();
 	int64_t nLastShareSubmitted = GetAdjustedTime() - 480;
 	int64_t nLastGUI = GetAdjustedTime() - 30;
+	int64_t nLastPoolShareSolved = GetAdjustedTime();
 	int64_t POOL_MIN_MINUTES = 3 * 60;
 	int64_t POOL_MAX_MINUTES = 7 * 60;
 	int64_t nLastMiningBreak = 0;
+	int64_t STAGNANT_WORK_THRESHHOLD = 60 * 15;
 
 	int64_t nGSCFrequency = cdbl(GetSporkValue("gscclientminerfrequency"), 0);
 	if (nGSCFrequency == 0) 
@@ -1119,6 +1121,7 @@ recover:
 								hashTargetPool = UintToArith256(uint256S("0x0"));
 								nThreadStart = GetTimeMillis();
 								nThreadWork = 0;
+								nLastPoolShareSolved = GetAdjustedTime();
 							}
 						}
 					}
@@ -1153,6 +1156,18 @@ recover:
 			
 					if ((pblock->nNonce & 0xFF) == 0)
 					{
+						// If the user is pool mining, and has not found a share in 15 minutes, get new work
+						int64_t nStagnantWorkElapsedTime = GetAdjustedTime() - nLastPoolShareSolved;
+						if (fPoolMiningMode && nStagnantWorkElapsedTime > STAGNANT_WORK_THRESHHOLD)
+						{
+							hashTargetPool = UintToArith256(uint256S("0x0"));
+							nThreadStart = GetTimeMillis();
+							nThreadWork = 0;
+							nLastPoolShareSolved = GetAdjustedTime();
+							nLastReadyToMine = 0;
+							break;
+						}
+
 						boost::this_thread::interruption_point();
               			if (dMinerSleep > 0) 
 							MilliSleep(dMinerSleep);

@@ -341,7 +341,8 @@ bool CreateClientSideTransaction(bool fForce, bool fDiaryProjectsOnly, std::stri
 				CWalletTx wtx = CreateGSCClientTransmission(s.first, sDiary, chainActive.Tip(), nCoinAgePercentage, nFoundationDonation, reservekey, sXML, sError2);
 				LogPrintf("\nCreated client side transmission - %s [%s] with txid %s ", sXML, sError, wtx.tx->GetHash().GetHex());
 				// Bubble any error to getmininginfo - or clear the error
-				WriteCache("gsc", "errors", s.first + ": " + sError2, GetAdjustedTime());
+				if (!sError2.empty())
+					WriteCache("gsc", "errors", s.first + ": " + sError2, GetAdjustedTime());
 				CValidationState state;
 
 				if (sError2.empty())
