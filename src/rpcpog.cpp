@@ -2402,7 +2402,7 @@ CWalletTx CreateAntiBotNetTx(CBlockIndex* pindexLast, double nMinCoinAge, CReser
 		{
 			LogPrintf("\nCreateAntiBotNetTx::Wallet Total Bal %f (>6 confirms), Needed %f (>5 confirms), ABNWeight %f ", 
 				(double)nBalance/COIN, (double)nReqCoins/COIN, nABNWeight);
-			sError = "Sorry, your balance is lower than the required ABN transaction amount when seeking coins aged > 5 confirms deep.";
+			sError = "Sorry, your balance of " + RoundToString(nBalance/COIN, 2) + " is lower than the required ABN transaction amount of " + RoundToString(nReqCoins/COIN, 2) + " when seeking coins aged > 5 confirms deep.";
 			return wtx;
 		}
 		if (nReqCoins < (1 * COIN))
@@ -2443,43 +2443,32 @@ CWalletTx CreateAntiBotNetTx(CBlockIndex* pindexLast, double nMinCoinAge, CReser
 		}
 		sXML += "<abnsig>" + sSignature + "</abnsig><abncpk>" + sCPK + "</abncpk><abnwgt>" + RoundToString(nMinCoinAge, 0) + "</abnwgt>";
 		bool fCreated = false;		
-		// Feedback Loop here ensures we successfully create a good ABN that other miners will not disagree with:
-		int MAX_FEEDBACK_ITERATIONS = 25;
-		double INCREMENTOR = .10;
 		std::string sDebugInfo;
 		std::string sMiningInfo;
 		CAmount nUsed = 0;
 		double nTargetABNWeight = pwalletMain->GetAntiBotNetWalletWeight(nMinCoinAge, nUsed);
 		int nChangePosRet = -1;
 		bool fSubtractFeeFromAmount = true;
-		for (double i = .50; i < MAX_FEEDBACK_ITERATIONS; i += INCREMENTOR)
+		CAmount nAllocated = nUsed - (1 * COIN);
+		CRecipient recipient = {spkCPKScript, nAllocated, false, fSubtractFeeFromAmount};
+		std::vector<CRecipient> vecSend;
+		vecSend.push_back(recipient);
+		CAmount nFeeRequired = 0;
+		fCreated = pwalletMain->CreateTransaction(vecSend, wtx, reservekey, nFeeRequired, nChangePosRet, strError, NULL, true, ALL_COINS, false, 0, sXML, nMinCoinAge, nAllocated);
+		double nTest = GetAntiBotNetWeight(chainActive.Tip()->GetBlockTime(), wtx.tx, true);
+		sDebugInfo = "TargetWeight=" + RoundToString(nTargetABNWeight, 0) + ", UsingBBP=" + RoundToString((double)nUsed/COIN, 2) 
+				+ ", SpendingBBP=" + RoundToString((double)nAllocated/COIN, 2) + ", NeededWeight=" + RoundToString(nMinCoinAge, 0) + ", GotWeight=" + RoundToString(nTest, 2);
+		sMiningInfo = "[" + RoundToString(nMinCoinAge, 0) + " ABN OK] Amount=" + RoundToString(nUsed/COIN, 2) + ", Weight=" + RoundToString(nTest, 2);
+		if (fDebug)
 		{
-			CAmount nAllocated = nUsed * i;
-			CRecipient recipient = {spkCPKScript, nAllocated, false, fSubtractFeeFromAmount};
-			std::vector<CRecipient> vecSend;
-			vecSend.push_back(recipient);
-			if (i > (MAX_FEEDBACK_ITERATIONS * .75))
-				nAllocated = nAllocated * 2;
-			if (nAllocated > nBalance) 
-				nAllocated = nBalance - (1 * COIN);
-			CAmount nFeeRequired = 0;
-			fCreated = pwalletMain->CreateTransaction(vecSend, wtx, reservekey, nFeeRequired, nChangePosRet, strError, NULL, true, ALL_COINS, false, 0, sXML, nMinCoinAge, nAllocated);
-			double nTest = GetAntiBotNetWeight(chainActive.Tip()->GetBlockTime(), wtx.tx, true);
-			sDebugInfo = "TargetWeight=" + RoundToString(nTargetABNWeight, 0) + ", UsingBBP=" + RoundToString(nUsed/COIN, 2) 
-				+ ", I=" + RoundToString(i, 0) + ", SpendingBBP=" + RoundToString(nAllocated/COIN, 2) + ", NeededWeight=" + RoundToString(nMinCoinAge, 0) + ", GotWeight=" + RoundToString(nTest, 2);
-			sMiningInfo = "[" + RoundToString(nMinCoinAge, 0) + " ABN OK] Amount=" + RoundToString(nUsed/COIN, 2) + ", Weight=" + RoundToString(nTest, 2);
-			if (fDebug)
-			{
-				LogPrintf(" CreateABN::%s", sDebugInfo);
-			}
-			if (fCreated && nTest >= nMinCoinAge)
-			{
-				// Bubble ABN info to user
-				WriteCache("poolthread0", "poolinfo4", sMiningInfo, GetAdjustedTime());
-				break;
-			}
+			LogPrintf(" CreateABN::%s", sDebugInfo);
 		}
-
+		if (fCreated && nTest >= nMinCoinAge)
+		{
+			// Bubble ABN info to user
+			WriteCache("poolthread0", "poolinfo4", sMiningInfo, GetAdjustedTime());
+		}
+	
 		if (bTriedToUnlock)
 			pwalletMain->Lock();
 		if (!fCreated)    

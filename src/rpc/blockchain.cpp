@@ -2094,7 +2094,7 @@ UniValue exec(const JSONRPCRequest& request)
 			dMin = cdbl(request.params[1].get_str(), 2);
 		if (request.params.size() > 2)
 			dDebug = cdbl(request.params[2].get_str(), 2);
-		results.push_back(Pair("version", 1.2));
+		results.push_back(Pair("version", 1.3));
 		results.push_back(Pair("weight", dABN));
 		results.push_back(Pair("total_required", nTotalReq / COIN));
 		if (dMin > 0) 
@@ -2102,7 +2102,9 @@ UniValue exec(const JSONRPCRequest& request)
 			dABN = pwalletMain->GetAntiBotNetWalletWeight(dMin, nTotalReq);
 			if (dDebug == 1)
 			{
-				results.push_back(Pair("coin_age_data_pre_select", ReadCache("coin", "age")));
+				std::string sData = ReadCache("coin", "age");
+				if (sData.length() < 1000000)
+					results.push_back(Pair("coin_age_data_pre_select", sData));
 			}
 
 			results.push_back(Pair("weight " + RoundToString(dMin, 2), dABN));
@@ -2177,7 +2179,9 @@ UniValue exec(const JSONRPCRequest& request)
 				results.push_back(Pair("coin_age_data_selected", ReadCache("availablecoins", "age")));
 				results.push_back(Pair("success", wtx.GetHash().GetHex()));
 				double nAuditedWeight = GetAntiBotNetWeight(chainActive.Tip()->GetBlockTime(), wtx.tx, true);
-				results.push_back(Pair("coin_age_data_pre_select", ReadCache("coin", "age")));
+				std::string sData = ReadCache("coin", "age");
+				if (sData.length() < 1000000)
+					results.push_back(Pair("coin_age_data_pre_select", sData));
 				results.push_back(Pair("audited_weight", nAuditedWeight));
 				results.push_back(Pair("vin_coin_age_data", ReadCache("vin", "coinage")));
 		}
@@ -2188,6 +2192,9 @@ UniValue exec(const JSONRPCRequest& request)
 			{
 				double nAuditedWeight = GetAntiBotNetWeight(chainActive.Tip()->GetBlockTime(), wtx.tx, true);
 				results.push_back(Pair("vin_coin_age_data", ReadCache("vin", "coinage")));
+				std::string sData1 = ReadCache("coin", "age");
+				if (sData1.length() < 1000000)
+						results.push_back(Pair("coin_age_data_pre_select", sData1));
 				results.push_back(Pair("total_audited_weight", nAuditedWeight));
 			}
 	
