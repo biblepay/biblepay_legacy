@@ -2274,11 +2274,22 @@ std::string GetTransactionMessage(CTransactionRef tx)
 	return sMsg;
 }
 
-bool CheckAntiBotNetSignature(CTransactionRef tx, std::string sType)
+bool CheckAntiBotNetSignature(CTransactionRef tx, std::string sType, std::string sSolver)
 {
 	std::string sXML = GetTransactionMessage(tx);
 	std::string sSig = ExtractXML(sXML, "<" + sType + "sig>", "</" + sType + "sig>");
 	std::string sMessage = ExtractXML(sXML, "<abnmsg>", "</abnmsg>");
+	std::string sPPK = ExtractXML(sMessage, "<ppk>", "</ppk>");
+	double dCheckPoolSigs = GetSporkDouble("checkpoolsigs", 0);
+
+	if (!sSolver.empty() && !sPPK.empty() && dCheckPoolSigs == 1)
+	{
+		if (sSolver != sPPK)
+		{
+			LogPrintf("CheckAntiBotNetSignature::Pool public key != solver public key, signature %s \n", "rejected");
+			return false;
+		}
+	}
 	for (unsigned int i = 0; i < tx->vout.size(); i++)
 	{
 		const CTxOut& txout = tx->vout[i];
@@ -2324,10 +2335,10 @@ double GetVINCoinAge(int64_t nBlockTime, CTransactionRef tx, bool fDebug)
 	return dTotal;
 }
 
-double GetAntiBotNetWeight(int64_t nBlockTime, CTransactionRef tx, bool fDebug)
+double GetAntiBotNetWeight(int64_t nBlockTime, CTransactionRef tx, bool fDebug, std::string sSolver)
 {
 	double nCoinAge = GetVINCoinAge(nBlockTime, tx, fDebug);
-	bool fSigned = CheckAntiBotNetSignature(tx, "abn");
+	bool fSigned = CheckAntiBotNetSignature(tx, "abn", sSolver);
 	if (!fSigned) 
 	{
 		if (fDebugSpam && fDebug && nCoinAge > 0)
@@ -2350,7 +2361,7 @@ void SpendABN()
 	miABNTime = 0;
 }
 
-CWalletTx GetAntiBotNetTx(CBlockIndex* pindexLast, double nMinCoinAge, CReserveKey& reservekey, std::string& sXML, std::string& sError)
+CWalletTx GetAntiBotNetTx(CBlockIndex* pindexLast, double nMinCoinAge, CReserveKey& reservekey, std::string& sXML, std::string sPoolMiningPublicKey, std::string& sError)
 {
 	// Share the ABN among all threads, until it's spent or expires
 	int64_t nAge = GetAdjustedTime() - miABNTime;
@@ -2358,7 +2369,7 @@ CWalletTx GetAntiBotNetTx(CBlockIndex* pindexLast, double nMinCoinAge, CReserveK
 	{
         std::unique_lock<std::mutex> lock(cs_abn);
 		{
-			mtxABN = CreateAntiBotNetTx(pindexLast, nMinCoinAge, reservekey, sXML, sError);
+			mtxABN = CreateAntiBotNetTx(pindexLast, nMinCoinAge, reservekey, sXML, sPoolMiningPublicKey, sError);
 			mfABNSpent = false;
 			miABNTime = GetAdjustedTime();
 			msABNXML = sXML;
@@ -2374,7 +2385,7 @@ CWalletTx GetAntiBotNetTx(CBlockIndex* pindexLast, double nMinCoinAge, CReserveK
 	}
 }
 
-CWalletTx CreateAntiBotNetTx(CBlockIndex* pindexLast, double nMinCoinAge, CReserveKey& reservekey, std::string& sXML, std::string& sError)
+CWalletTx CreateAntiBotNetTx(CBlockIndex* pindexLast, double nMinCoinAge, CReserveKey& reservekey, std::string& sXML, std::string sPoolMiningPublicKey, std::string& sError)
 {
 		CWalletTx wtx;
 		CAmount nReqCoins = 0;
@@ -2430,6 +2441,10 @@ CWalletTx CreateAntiBotNetTx(CBlockIndex* pindexLast, double nMinCoinAge, CReser
 		CBitcoinAddress baCPKAddress(sCPK);
 		CScript spkCPKScript = GetScriptForDestination(baCPKAddress.Get());
 		std::string sMessage = GetRandHash().GetHex();
+		if (!sPoolMiningPublicKey.empty())
+		{
+			sMessage = "<nonce>" + GetRandHash().GetHex() + "</nonce><ppk>" + sPoolMiningPublicKey + "</ppk>";
+		}
 		sXML += "<MT>ABN</MT><abnmsg>" + sMessage + "</abnmsg>";
 		std::string sSignature;
 		std::string strError;
@@ -2455,7 +2470,7 @@ CWalletTx CreateAntiBotNetTx(CBlockIndex* pindexLast, double nMinCoinAge, CReser
 		vecSend.push_back(recipient);
 		CAmount nFeeRequired = 0;
 		fCreated = pwalletMain->CreateTransaction(vecSend, wtx, reservekey, nFeeRequired, nChangePosRet, strError, NULL, true, ALL_COINS, false, 0, sXML, nMinCoinAge, nAllocated);
-		double nTest = GetAntiBotNetWeight(chainActive.Tip()->GetBlockTime(), wtx.tx, true);
+		double nTest = GetAntiBotNetWeight(chainActive.Tip()->GetBlockTime(), wtx.tx, true, "");
 		sDebugInfo = "TargetWeight=" + RoundToString(nTargetABNWeight, 0) + ", UsingBBP=" + RoundToString((double)nUsed/COIN, 2) 
 				+ ", SpendingBBP=" + RoundToString((double)nAllocated/COIN, 2) + ", NeededWeight=" + RoundToString(nMinCoinAge, 0) + ", GotWeight=" + RoundToString(nTest, 2);
 		sMiningInfo = "[" + RoundToString(nMinCoinAge, 0) + " ABN OK] Amount=" + RoundToString(nUsed/COIN, 2) + ", Weight=" + RoundToString(nTest, 2);
@@ -2483,22 +2498,24 @@ double GetABNWeight(const CBlock& block, bool fMining)
 {
 	if (block.vtx.size() < 1) return 0;
 	std::string sMsg = GetTransactionMessage(block.vtx[0]);
+	std::string sSolver = PubKeyToAddress(block.vtx[0]->vout[0].scriptPubKey);
 	int nABNLocator = (int)cdbl(ExtractXML(sMsg, "<abnlocator>", "</abnlocator>"), 0);
 	if (block.vtx.size() < nABNLocator) return 0;
 	CTransactionRef tx = block.vtx[nABNLocator];
-	double dWeight = GetAntiBotNetWeight(block.GetBlockTime(), tx, true);
+	double dWeight = GetAntiBotNetWeight(block.GetBlockTime(), tx, true, sSolver);
 	return dWeight;
 }
 
 bool CheckABNSignature(const CBlock& block, std::string& out_CPK)
 {
 	if (block.vtx.size() < 1) return 0;
+	std::string sSolver = PubKeyToAddress(block.vtx[0]->vout[0].scriptPubKey);
 	std::string sMsg = GetTransactionMessage(block.vtx[0]);
 	int nABNLocator = (int)cdbl(ExtractXML(sMsg, "<abnlocator>", "</abnlocator>"), 0);
 	if (block.vtx.size() < nABNLocator) return 0;
 	CTransactionRef tx = block.vtx[nABNLocator];
 	out_CPK = ExtractXML(tx->GetTxMessage(), "<abncpk>", "</abncpk>");
-	return CheckAntiBotNetSignature(tx, "abn");
+	return CheckAntiBotNetSignature(tx, "abn", sSolver);
 }
 
 std::string GetPOGBusinessObjectList(std::string sType, std::string sFields)

@@ -939,7 +939,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
 					return false;
 				}
 				CTransactionRef tx1 = MakeTransactionRef(std::move(tx));
-				bool fChecked = CheckAntiBotNetSignature(tx1, "gsc");
+				bool fChecked = CheckAntiBotNetSignature(tx1, "gsc", "");
 				double dTithesMustBeSigned = GetSporkDouble("tithesmustbesigned", 0);
 				double dTitheCutoff = GetSporkDouble("tithecutoff", 50000);
 				if (dTithesMustBeSigned == 1 && !fChecked && dTithe < dTitheCutoff)

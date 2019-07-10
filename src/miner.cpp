@@ -32,6 +32,7 @@
 #include "validationinterface.h"
 #include "smartcontract-client.h"
 #include "governance-classes.h" // For superblock Height
+#include "rpcpodc.h"  // For strReplace
 
 #include "evo/specialtx.h"
 #include "evo/cbtx.h"
@@ -178,7 +179,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
 		CReserveKey reserve1(pwalletMain);
 		std::string sXML1;
 		std::string sError1;
-		CWalletTx wtxABN = GetAntiBotNetTx(chainActive.Tip(), nMinCoinAge, reserve1, sXML1, sError1);
+		CWalletTx wtxABN = GetAntiBotNetTx(chainActive.Tip(), nMinCoinAge, reserve1, sXML1, sPoolMiningPublicKey, sError1);
 		if (sError1.empty() && wtxABN.tx != NULL)
 		{
 			pblock->vtx.emplace_back(wtxABN.tx);
@@ -187,6 +188,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
 			nBlockSize += wtxABN.tx->GetTotalSize();
 			++nBlockTx;
 			sABNLocator = "<abnlocator>" + RoundToString(nBlockTx, 0) + "</abnlocator>";
+			WriteCache("poolthread" + RoundToString(iThreadId, 0), "poolinfo4", "ABN: OK", GetAdjustedTime());
 		}
 		else
 		{
@@ -791,7 +793,7 @@ void BusyWait()
 }
 
 
-bool GetPoolMiningMode(int iThreadID, int& iFailCount, std::string& out_PoolAddress, arith_uint256& out_HashTargetPool, std::string& out_MinerGuid, std::string& out_WorkID)
+bool GetPoolMiningMode(int iThreadID, int& iFailCount, std::string& out_PoolAddress, arith_uint256& out_HashTargetPool, std::string& out_MinerGuid, std::string& out_WorkID, std::string& out_BlockData)
 {
 	// If user is not pool mining, return false.
 	// If user is pool mining, and pool is down, return false so that the client reverts back to solo mining mode automatically.
@@ -801,6 +803,7 @@ bool GetPoolMiningMode(int iThreadID, int& iFailCount, std::string& out_PoolAddr
 	out_MinerGuid;
 	out_WorkID;
 	out_PoolAddress;
+	out_BlockData;
 
 	// If pool URL is empty, user is not pool mining
 	if (sPoolURL.empty())
@@ -822,6 +825,8 @@ bool GetPoolMiningMode(int iThreadID, int& iFailCount, std::string& out_PoolAddr
 	std::string sCachedHashTarget = ReadCache("poolcache", "poolhashtarget");
 	std::string sCachedMinerGuid = ReadCache("poolcache", "minerguid");
 	std::string sCachedWorkID = ReadCache("poolcache", "workid");
+	std::string sCachedBlockData = ReadCache("poolcache", "blockdata");
+	
 	sGlobalPoolURL = sPoolURL;
 
 	if (!sCachedAddress.empty() && !sCachedHashTarget.empty() && !sCachedMinerGuid.empty() && !sCachedWorkID.empty())
@@ -831,6 +836,7 @@ bool GetPoolMiningMode(int iThreadID, int& iFailCount, std::string& out_PoolAddr
 	    out_HashTargetPool = UintToArith256(uint256S("0x" + sCachedHashTarget.substr(0, 64)));
 		out_MinerGuid = sCachedMinerGuid;
 		out_WorkID = sCachedWorkID;
+		out_BlockData = sCachedBlockData;
 		WriteCache("poolthread" + RoundToString(iThreadID,0), "poolinfo1", out_PoolAddress, GetAdjustedTime());
 		WriteCache("poolthread" + RoundToString(iThreadID,0), "poolinfo2", "RMC_" + TimestampToHRDate(GetAdjustedTime()), GetAdjustedTime());
 		return true;
@@ -847,7 +853,7 @@ bool GetPoolMiningMode(int iThreadID, int& iFailCount, std::string& out_PoolAddr
 		iFailCount++;
 		if (iFailCount >= 5)
 		{
-			WriteCache("poolthread" + RoundToString(iThreadID,0),"poolinfo3","POOL DOWN-REVERTING TO SOLO MINING",GetAdjustedTime());
+			WriteCache("poolthread" + RoundToString(iThreadID,0),"poolinfo3","POOL DOWN-REVERTING TO SOLO MINING", GetAdjustedTime());
 		}
 		return false;
 	}
@@ -856,27 +862,28 @@ bool GetPoolMiningMode(int iThreadID, int& iFailCount, std::string& out_PoolAddr
 		 CBitcoinAddress cbaPoolAddress(sPoolAddress);
 		 if (!cbaPoolAddress.IsValid())
 		 {
-		     WriteCache("poolthread" + RoundToString(iThreadID,0), "poolinfo3", "INVALID POOL ADDRESS",GetAdjustedTime());
+		     WriteCache("poolthread" + RoundToString(iThreadID,0), "poolinfo3", "INVALID POOL ADDRESS", GetAdjustedTime());
 			 return false;  // Ensure pool returns a valid address for this network
 		 }
 		 // Verify pool has a hash target for this miner
 		 std::string sHashTarget = ExtractXML(sResult,"<HASHTARGET>","</HASHTARGET>");
 		 if (sHashTarget.empty())
 		 {
-	 		 WriteCache("poolthread" + RoundToString(iThreadID,0), "poolinfo3", "POOL HAS NO AVAILABLE WORK",GetAdjustedTime());
+	 		 WriteCache("poolthread" + RoundToString(iThreadID,0), "poolinfo3", "POOL HAS NO AVAILABLE WORK", GetAdjustedTime());
 			 return false; //Revert to solo mining
 		 }
 		 out_HashTargetPool = UintToArith256(uint256S("0x" + sHashTarget.substr(0, 64)));
-		 out_MinerGuid = ExtractXML(sResult,"<MINERGUID>","</MINERGUID>");
-		 out_WorkID = ExtractXML(sResult,"<WORKID>","</WORKID>");
+		 out_MinerGuid = ExtractXML(sResult, "<MINERGUID>", "</MINERGUID>");
+		 out_WorkID = ExtractXML(sResult, "<WORKID>", "</WORKID>");
+		 out_BlockData = ExtractXML(sResult, "<BLOCKDATA>", "</BLOCKDATA>");
 		 if (out_MinerGuid.empty()) 
 		 {
-		 	 WriteCache("poolthread" + RoundToString(iThreadID,0), "poolinfo3", "MINER GUID IS EMPTY",GetAdjustedTime());
+		 	 WriteCache("poolthread" + RoundToString(iThreadID,0), "poolinfo3", "MINER GUID IS EMPTY", GetAdjustedTime());
 			 return false;
 		 }
 		 if (out_WorkID.empty()) 
 		 {
-		 	 WriteCache("poolthread" + RoundToString(iThreadID,0), "poolinfo3", "POOL HAS NO AVAILABLE WORK",GetAdjustedTime());
+		 	 WriteCache("poolthread" + RoundToString(iThreadID,0), "poolinfo3", "POOL HAS NO AVAILABLE WORK", GetAdjustedTime());
 			 return false;
 		 }
 		 out_PoolAddress = sPoolAddress;
@@ -889,6 +896,7 @@ bool GetPoolMiningMode(int iThreadID, int& iFailCount, std::string& out_PoolAddr
 		 WriteCache("poolcache", "poolhashtarget", sHashTarget, GetAdjustedTime());
 		 WriteCache("poolcache", "minerguid", out_MinerGuid, GetAdjustedTime());
 		 WriteCache("poolcache", "workid", out_WorkID, GetAdjustedTime());
+		 WriteCache("poolcache", "blockdata", out_BlockData, GetAdjustedTime());
 		 MilliSleep(1000);
 		 return true;
 	}
@@ -991,15 +999,20 @@ void static BibleMiner(const CChainParams& chainparams, int iThreadID, int iFeat
 	int iFailCount = 0;
 	// This allows the miner to dictate how much sleep will occur when distributed computing is enabled.  This will let Rosetta use the maximum CPU time.  NOTE: The default is 200ms per 256 hashes.
 	double dMinerSleep = cdbl(GetArg("-minersleep", "325"), 0);
+	double dJackrabbitStart = cdbl(GetArg("-jackrabbitstart", "0"), 0);
 	unsigned int nExtraNonce = 0;
 	double nHashesDone = 0;
 	int iOuterLoop = 0;
     RenameThread("biblepay-miner");
+	if (iThreadID == 0)
+		SpendABN();
+					
     boost::shared_ptr<CReserveScript> coinbaseScript;
     GetMainSignals().ScriptForMining(coinbaseScript);
 	std::string sPoolMiningAddress;
 	std::string sMinerGuid;
 	std::string sWorkID;
+	std::string sBlockData;
 	std::string sPoolConfURL = GetArg("-pool", "");
 
 recover:
@@ -1025,6 +1038,8 @@ recover:
 				{
 		            if (PeersExist() && !IsInitialBlockDownload() && masternodeSync.IsSynced()) 
 						break;
+					if (dJackrabbitStart == 1) 
+						break;
                     MilliSleep(1000);
                 } 
             }
@@ -1035,7 +1050,7 @@ recover:
 				if ((GetAdjustedTime() - nLastReadyToMine) > POOL_MIN_MINUTES)
 				{ 
 					nLastReadyToMine = GetAdjustedTime();
-					fPoolMiningMode = GetPoolMiningMode(iThreadID, iFailCount, sPoolMiningAddress, hashTargetPool, sMinerGuid, sWorkID);
+					fPoolMiningMode = GetPoolMiningMode(iThreadID, iFailCount, sPoolMiningAddress, hashTargetPool, sMinerGuid, sWorkID, sBlockData);
 					if (fDebugSpam && !sPoolMiningAddress.empty())
 						LogPrint("pool", "Checking with Pool: Pool Address %s \r\n", sPoolMiningAddress.c_str());
 				}
@@ -1070,8 +1085,22 @@ recover:
 				LogPrint("miner", "No block to mine %f", iThreadID);
 				goto recover;
             }
+
 			CBlock *pblock = &pblocktemplate->block;
-			bool bABNOK = IsMyABNSufficient(pblocktemplate->block, pindexPrev, pindexPrev->nHeight + 1);
+
+			// Pool support for funded ABNs - BiblePay - R Andrews
+			if (fPoolMiningMode && !sBlockData.empty())
+			{
+				if (!DecodeHexBlk(pblocktemplate->block, sBlockData))
+				{
+					WriteCache("poolthread" + RoundToString(iThreadID, 0), "poolinfo4", "Failed to retrieve funded ABN from pool.", GetAdjustedTime());
+					MilliSleep(30000);
+					goto recover;
+				}
+				WriteCache("poolthread" + RoundToString(iThreadID, 0), "poolinfo4", "Mining with funded ABN " + pblocktemplate->block.vtx[0]->GetHash().GetHex(), GetAdjustedTime());
+			}
+
+			bool bABNOK = IsMyABNSufficient(*pblock, pindexPrev, pindexPrev->nHeight + 1);
 			if (!bABNOK)
 			{
 				WriteCache("poolthread" + RoundToString(iThreadID, 0), "poolinfo4", "ABN weight is too low to mine", GetAdjustedTime());

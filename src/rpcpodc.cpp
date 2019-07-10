@@ -47,7 +47,6 @@ std::string ToYesNo(bool bValue)
 	return sYesNo;
 }
 
-
 std::string strReplace(std::string& str, const std::string& oldStr, const std::string& newStr)
 {
   size_t pos = 0;

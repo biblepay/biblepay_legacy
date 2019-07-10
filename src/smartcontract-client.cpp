@@ -139,7 +139,7 @@ UniValue SentGSCCReport(int nHeight)
 		{
 			for (unsigned int n = 0; n < block.vtx.size(); n++)
 			{
-				if (block.vtx[n]->IsGSCTransmission() && CheckAntiBotNetSignature(block.vtx[n], "gsc"))
+				if (block.vtx[n]->IsGSCTransmission() && CheckAntiBotNetSignature(block.vtx[n], "gsc", ""))
 				{
 					std::string sCampaignName;
 					std::string sCPK = GetTxCPK(block.vtx[n], sCampaignName);
@@ -253,7 +253,7 @@ CWalletTx CreateGSCClientTransmission(std::string sCampaign, std::string sDiary,
 		sError = "CreateGSCTransmission::Fail::" + strError;
 		return wtx;
 	}
-	bool fChecked = CheckAntiBotNetSignature(wtx.tx, "gsc");
+	bool fChecked = CheckAntiBotNetSignature(wtx.tx, "gsc", "");
 	if (!fChecked)
 	{
 		sError = "CreateGSCTransmission::Fail::Signing Failed.";

@@ -2094,7 +2094,7 @@ UniValue exec(const JSONRPCRequest& request)
 			dMin = cdbl(request.params[1].get_str(), 2);
 		if (request.params.size() > 2)
 			dDebug = cdbl(request.params[2].get_str(), 2);
-		results.push_back(Pair("version", 1.3));
+		results.push_back(Pair("version", 2.0));
 		results.push_back(Pair("weight", dABN));
 		results.push_back(Pair("total_required", nTotalReq / COIN));
 		if (dMin > 0) 
@@ -2153,7 +2153,7 @@ UniValue exec(const JSONRPCRequest& request)
 		{
 		    CBlockIndex* pblockindex = mapBlockIndex[hashBlock];
 			if (!pblockindex) pblockindex = chainActive.Tip();
-			double nAuditedWeight = GetAntiBotNetWeight(pblockindex->GetBlockTime(), tx, true);
+			double nAuditedWeight = GetAntiBotNetWeight(pblockindex->GetBlockTime(), tx, true, "");
 			results.push_back(Pair("audited_weight", nAuditedWeight));
 		}
 		else
@@ -2170,7 +2170,7 @@ UniValue exec(const JSONRPCRequest& request)
 		if (request.params.size() > 1)
 			dTargetWeight = cdbl(request.params[1].get_str(), 2);
 		CReserveKey reserveKey(pwalletMain);
-		CWalletTx wtx = CreateAntiBotNetTx(chainActive.Tip(), dTargetWeight, reserveKey, sXML, sError);
+		CWalletTx wtx = CreateAntiBotNetTx(chainActive.Tip(), dTargetWeight, reserveKey, sXML, "ppk", sError);
 	
 		results.push_back(Pair("xml", sXML));
 		results.push_back(Pair("err", sError));
@@ -2178,7 +2178,7 @@ UniValue exec(const JSONRPCRequest& request)
 		{
 				results.push_back(Pair("coin_age_data_selected", ReadCache("availablecoins", "age")));
 				results.push_back(Pair("success", wtx.GetHash().GetHex()));
-				double nAuditedWeight = GetAntiBotNetWeight(chainActive.Tip()->GetBlockTime(), wtx.tx, true);
+				double nAuditedWeight = GetAntiBotNetWeight(chainActive.Tip()->GetBlockTime(), wtx.tx, true, "");
 				std::string sData = ReadCache("coin", "age");
 				if (sData.length() < 1000000)
 					results.push_back(Pair("coin_age_data_pre_select", sData));
@@ -2190,7 +2190,7 @@ UniValue exec(const JSONRPCRequest& request)
 			results.push_back(Pair("age_data", ReadCache("availablecoins", "age")));
 			if (true)
 			{
-				double nAuditedWeight = GetAntiBotNetWeight(chainActive.Tip()->GetBlockTime(), wtx.tx, true);
+				double nAuditedWeight = GetAntiBotNetWeight(chainActive.Tip()->GetBlockTime(), wtx.tx, true, "");
 				results.push_back(Pair("vin_coin_age_data", ReadCache("vin", "coinage")));
 				std::string sData1 = ReadCache("coin", "age");
 				if (sData1.length() < 1000000)
@@ -2455,7 +2455,7 @@ UniValue exec(const JSONRPCRequest& request)
 				std::string sCPK = ExtractXML(tx->GetTxMessage(), "<abncpk>", "</abncpk>");
 				results.push_back(Pair("anti_gpu_xml", tx->GetTxMessage()));
 				results.push_back(Pair("cpk", sCPK));
-				bool fValid = CheckAntiBotNetSignature(tx, "abn");
+				bool fValid = CheckAntiBotNetSignature(tx, "abn", "");
 				results.push_back(Pair("sig_valid", fValid));
 				bool fAntiGPU = AntiGPU(block, pblockindex->pprev);
 				results.push_back(Pair("anti-gpu", fAntiGPU));

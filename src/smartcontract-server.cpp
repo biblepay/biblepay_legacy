@@ -38,7 +38,7 @@ extern CWallet* pwalletMain;
 void GetTransactionPoints(CBlockIndex* pindex, CTransactionRef tx, double& nCoinAge, CAmount& nDonation)
 {
 	nCoinAge = GetVINCoinAge(pindex->GetBlockTime(), tx, false);
-	bool fSigned = CheckAntiBotNetSignature(tx, "gsc");
+	bool fSigned = CheckAntiBotNetSignature(tx, "gsc", "");
 	nDonation = GetTitheAmount(tx);
 	if (!fSigned) 
 	{
@@ -391,7 +391,7 @@ std::string AssessBlocks(int nHeight, bool fCreatingContract)
 		{
 			for (unsigned int n = 0; n < block.vtx.size(); n++)
 			{
-				if (block.vtx[n]->IsGSCTransmission() && CheckAntiBotNetSignature(block.vtx[n], "gsc"))
+				if (block.vtx[n]->IsGSCTransmission() && CheckAntiBotNetSignature(block.vtx[n], "gsc", ""))
 				{
 					std::string sCampaignName;
 					std::string sCPK = GetTxCPK(block.vtx[n], sCampaignName);
