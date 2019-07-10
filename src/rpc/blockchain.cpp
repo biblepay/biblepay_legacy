@@ -2094,7 +2094,7 @@ UniValue exec(const JSONRPCRequest& request)
 			dMin = cdbl(request.params[1].get_str(), 2);
 		if (request.params.size() > 2)
 			dDebug = cdbl(request.params[2].get_str(), 2);
-		results.push_back(Pair("version", 2.0));
+		results.push_back(Pair("version", 2.2));
 		results.push_back(Pair("weight", dABN));
 		results.push_back(Pair("total_required", nTotalReq / COIN));
 		if (dMin > 0) 
