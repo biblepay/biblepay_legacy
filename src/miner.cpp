@@ -121,7 +121,7 @@ void BlockAssembler::resetBlock()
     blockFinished = false;
 }
 
-std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn, std::string sPoolMiningPublicKey, std::string sMinerGuid, int iThreadId)
+std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn, std::string sPoolMiningPublicKey, std::string sMinerGuid, int iThreadId, bool fFunded)
 {
     int64_t nTimeStart = GetTimeMicros();
 
@@ -174,7 +174,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
 	// BiblePay Anti-Bot-Net System
 	double nMinCoinAge = GetSporkDouble("requiredabnweight", 0);
 	std::string sABNLocator;
-	if (nMinCoinAge > 0)
+	if (nMinCoinAge > 0 && !fFunded)
 	{
 		CReserveKey reserve1(pwalletMain);
 		std::string sXML1;
@@ -273,7 +273,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     pblocktemplate->vTxSigOps[0] = GetLegacySigOpCount(*pblock->vtx[0]);
 	
     CValidationState state;
-    if (!TestBlockValidity(state, chainparams, *pblock, pindexPrev, false, false, true)) 
+    if (!fFunded && !TestBlockValidity(state, chainparams, *pblock, pindexPrev, false, false, true)) 
 	{
 		if (fDebugSpam)
 			LogPrint("miner", "BibleMiner failed to create new block\n");
@@ -1078,7 +1078,8 @@ recover:
 			}
 
 			// Create Evo block
-	    	std::unique_ptr<CBlockTemplate> pblocktemplate(BlockAssembler(Params()).CreateNewBlock(coinbaseScript->reserveScript, sPoolMiningAddress, sMinerGuid, iThreadID));
+			bool fFunded = !sBlockData.empty();
+	    	std::unique_ptr<CBlockTemplate> pblocktemplate(BlockAssembler(Params()).CreateNewBlock(coinbaseScript->reserveScript, sPoolMiningAddress, sMinerGuid, iThreadID, fFunded));
 			if (!pblocktemplate.get())
             {
 				MilliSleep(30000);
@@ -1097,14 +1098,25 @@ recover:
 					MilliSleep(30000);
 					goto recover;
 				}
-				WriteCache("poolthread" + RoundToString(iThreadID, 0), "poolinfo4", "Mining with funded ABN " + pblocktemplate->block.vtx[0]->GetHash().GetHex(), GetAdjustedTime());
+			    CValidationState state;
+				bool fValid = TestBlockValidity(state, chainparams, *pblock, pindexPrev, false, false, true);
+				// Handle the edge case where the pool gave us a bad block to mine
+				if (!fValid)
+				{
+					WriteCache("poolthread" + RoundToString(iThreadID, 0), "poolinfo4", "Received a stale block from the pool... Please wait... ", GetAdjustedTime());
+					MilliSleep(30000);
+					nLastReadyToMine = 0;
+					goto recover;
+				}
+				std::string sValid = fValid ? "Valid" : "Invalid";
+				WriteCache("poolthread" + RoundToString(iThreadID, 0), "poolinfo4", "Mining with funded " + sValid + " ABN " + pblocktemplate->block.vtx[0]->GetHash().GetHex(), GetAdjustedTime());
 			}
-
+			
 			bool bABNOK = IsMyABNSufficient(*pblock, pindexPrev, pindexPrev->nHeight + 1);
 			if (!bABNOK)
 			{
 				WriteCache("poolthread" + RoundToString(iThreadID, 0), "poolinfo4", "ABN weight is too low to mine", GetAdjustedTime());
-				MilliSleep(60000);
+				MilliSleep(30000);
 			}
             IncrementExtraNonce(pblock, pindexPrev, nExtraNonce);
 			nHashesDone++;
