@@ -206,5 +206,6 @@ CWalletTx GetAntiBotNetTx(CBlockIndex* pindexLast, double nMinCoinAge, CReserveK
 void SpendABN();
 double AddVector(std::string sData, std::string sDelim);
 int ReassessAllChains();
+double GetFees(CTransactionRef tx);
 
 #endif

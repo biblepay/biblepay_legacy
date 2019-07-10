@@ -149,7 +149,7 @@ UniValue SentGSCCReport(int nHeight)
 					std::string sDiary = ExtractXML(block.vtx[n]->GetTxMessage(), "<diary>", "</diary>");
 					if (CheckCampaign(sCampaignName) && !sCPK.empty() && sMyCPK == sCPK)
 					{
-						double nPoints = CalculatePoints(sCampaignName, sDiary, nCoinAge, nDonation);
+						double nPoints = CalculatePoints(sCampaignName, sDiary, nCoinAge, nDonation, sCPK);
 						std::string sReport = "Points: " + RoundToString(nPoints, 0) + ", Campaign: "+ sCampaignName 
 							+ ", CoinAge: "+ RoundToString(nCoinAge, 0) + ", Donation: "+ RoundToString((double)nDonation/COIN, 2);
 						nTotalPoints += nPoints;
@@ -327,7 +327,7 @@ bool CreateClientSideTransaction(bool fForce, bool fDiaryProjectsOnly, std::stri
 			bool fPreCheckPassed = true;
 			if (s.first == "HEALING" && sDiary.empty())
 				fPreCheckPassed = false;
-			if (fDiaryProjectsOnly && CalculatePoints(s.first, "", 1000, 1000) > 0) 
+			if (fDiaryProjectsOnly && CalculatePoints(s.first, "", 1000, 1000, s.first) > 0) 
 				fPreCheckPassed = false;
 				
 			if (Enrolled(s.first, sError1) && fPreCheckPassed)

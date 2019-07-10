@@ -2655,7 +2655,9 @@ void CWallet::AvailableCoins(std::vector<COutput>& vCoins, bool fOnlyConfirmed, 
 	std::string sData;
 	bool fDebugNotified = false;
 	bool fDebugSkips = false;
-
+	int nInputsConsumed = 0;
+	static int MAX_GSC_INPUTS = 500;  // Using more than this may break size limits
+	
     vCoins.clear();
     {
         LOCK2(cs_main, cs_wallet);
@@ -2699,6 +2701,9 @@ void CWallet::AvailableCoins(std::vector<COutput>& vCoins, bool fOnlyConfirmed, 
 			
 
 			if (dMinCoinAge > 0 && nTotalWeightFound > dMinCoinAge && nBufferFulfilled > nMinimumSpend)
+				continue;
+
+			if (dMinCoinAge > 0 && nInputsConsumed > MAX_GSC_INPUTS)
 				continue;
 
             if (!CheckFinalTx(*pcoin))
@@ -2785,6 +2790,7 @@ void CWallet::AvailableCoins(std::vector<COutput>& vCoins, bool fOnlyConfirmed, 
 							double nMyWeight = (pcoin->tx->vout[i].nValue / COIN) * nAge;
 							nTotalWeightFound += nMyWeight;
 							nBufferFulfilled += pcoin->tx->vout[i].nValue;
+							nInputsConsumed++;
 							sData += RoundToString((double)pcoin->tx->vout[i].nValue/COIN, 4) + "(" + RoundToString(nMyWeight, 2) + "),";
 						}
 					}

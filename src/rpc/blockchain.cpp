@@ -1381,8 +1381,14 @@ UniValue getblockchaininfo(const JSONRPCRequest& request)
     softforks.push_back(SoftForkDesc("bip34", 2, tip, consensusParams));
     softforks.push_back(SoftForkDesc("bip66", 3, tip, consensusParams));
     softforks.push_back(SoftForkDesc("bip65", 4, tip, consensusParams));
+	/*
+	DEPLOYMENT_CSV is a blockchain vote to store the <median time past> int64_t unixtime in the block.tx.nLockTime field.  Since the bitcoin behavior is to store the height, and we have pre-existing business logic that calculates height delta from this field, we don't want to switch to THRESHOLD_ACTIVE here.  Additionally, BiblePay enforces the allowable mining window (for block timestamps) to be within a 15 minute range.
+	If we ever want to enable DEPLOYMENT_CSV, we need to change the chainparam deployment window to be the future, and check the POG business logic for height delta calculations.
+	BIP9SoftForkDescPushBack(bip9_softforks, "csv", consensusParams, Consensus::DEPLOYMENT_CSV);
+	DIP0001 is a vote to allow up to 2MB blocks.  BiblePay moved to 2MB blocks before DIP1 and therefore our vote never started, but our code uses the 2MB hardcoded literal (matching dash).  So we want to comment out this DIP1 versionbits response as it does not reflect our environment.
     BIP9SoftForkDescPushBack(bip9_softforks, "csv", consensusParams, Consensus::DEPLOYMENT_CSV);
     BIP9SoftForkDescPushBack(bip9_softforks, "dip0001", consensusParams, Consensus::DEPLOYMENT_DIP0001);
+	*/
     BIP9SoftForkDescPushBack(bip9_softforks, "dip0003", consensusParams, Consensus::DEPLOYMENT_DIP0003);
     BIP9SoftForkDescPushBack(bip9_softforks, "bip147", consensusParams, Consensus::DEPLOYMENT_BIP147);
     obj.push_back(Pair("softforks",             softforks));
@@ -2094,7 +2100,7 @@ UniValue exec(const JSONRPCRequest& request)
 			dMin = cdbl(request.params[1].get_str(), 2);
 		if (request.params.size() > 2)
 			dDebug = cdbl(request.params[2].get_str(), 2);
-		results.push_back(Pair("version", 2.2));
+		results.push_back(Pair("version", 2.3));
 		results.push_back(Pair("weight", dABN));
 		results.push_back(Pair("total_required", nTotalReq / COIN));
 		if (dMin > 0) 
@@ -2130,7 +2136,7 @@ UniValue exec(const JSONRPCRequest& request)
 			std::string sDiary = ExtractXML(tx->GetTxMessage(), "<diary>", "</diary>");
 			std::string sCampaignName;
 			std::string sCPK = GetTxCPK(tx, sCampaignName);
-			double nPoints = CalculatePoints(sCampaignName, sDiary, nCoinAge, nDonation);
+			double nPoints = CalculatePoints(sCampaignName, sDiary, nCoinAge, nDonation, sCPK);
 			results.push_back(Pair("pog_points", nPoints));
 			results.push_back(Pair("coin_age", nCoinAge));
 			results.push_back(Pair("diary_entry", sDiary));
@@ -2738,6 +2744,19 @@ UniValue exec(const JSONRPCRequest& request)
 		results.push_back(Pair("LBI", fLBI));
 		results.push_back(Pair("abnreqweight", nMinRequiredABNWeight));
 		results.push_back(Pair("abnheight", nABNHeight));
+	}
+	else if (sItem == "dailysponsorshipcap")	
+	{	
+		double nCap = GetProminenceCap("CAMEROON-ONE", 1333, .50);
+		results.push_back(Pair("cap", nCap));
+	}
+	else if (sItem == "getchildbalance")
+	{	
+		if (request.params.size() != 2)	
+			throw std::runtime_error("You must specify the childID.");	
+		std::string sChildID = request.params[1].get_str();	
+		double dBal = GetCameroonChildBalance(sChildID);	
+		results.push_back(Pair("Balance", dBal));	
 	}
 	else if (sItem == "datalist")
 	{

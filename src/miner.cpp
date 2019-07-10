@@ -183,7 +183,9 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
 		if (sError1.empty() && wtxABN.tx != NULL)
 		{
 			pblock->vtx.emplace_back(wtxABN.tx);
-			pblocktemplate->vTxFees.emplace_back(0);
+			CAmount nABNFees = GetFees(wtxABN.tx);
+			nFees += nABNFees;
+			pblocktemplate->vTxFees.emplace_back(nABNFees);
 			pblocktemplate->vTxSigOps.emplace_back(0);
 			nBlockSize += wtxABN.tx->GetTotalSize();
 			++nBlockTx;
@@ -1014,11 +1016,10 @@ void static BibleMiner(const CChainParams& chainparams, int iThreadID, int iFeat
 	std::string sWorkID;
 	std::string sBlockData;
 	std::string sPoolConfURL = GetArg("-pool", "");
-
-recover:
 	int iStart = rand() % 1000;
 	MilliSleep(iStart);
-		
+
+recover:
     try {
         // Throw an error if no script was provided.  This can happen
         // due to some internal error but also if the keypool is empty.
@@ -1104,7 +1105,8 @@ recover:
 				if (!fValid)
 				{
 					WriteCache("poolthread" + RoundToString(iThreadID, 0), "poolinfo4", "Received a stale block from the pool... Please wait... ", GetAdjustedTime());
-					MilliSleep(30000);
+					MilliSleep(15000);
+					ClearCache("poolcache");
 					nLastReadyToMine = 0;
 					goto recover;
 				}
@@ -1255,7 +1257,7 @@ recover:
 
 				if ((GetAdjustedTime() - nLastClearCache) > (3 * 60))
 				{
-					nLastClearCache=GetAdjustedTime();
+					nLastClearCache = GetAdjustedTime();
 					WriteCache("poolcache", "pooladdress", "", GetAdjustedTime());
 					ClearCache("poolcache");
 					ClearCache("poolthread" + RoundToString(iThreadID, 0));
