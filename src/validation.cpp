@@ -3868,6 +3868,30 @@ bool ProcessNewBlock(const CChainParams& chainparams, const std::shared_ptr<cons
 	return true;
 }
 
+
+bool TestBlockValidityLite(CValidationState& state, const CChainParams& chainparams, const CBlock& block, CBlockIndex* pindexPrev, bool fCheckPOW, bool fCheckMerkleRoot, bool fMining)
+{
+    AssertLockHeld(cs_main);
+	// The following line of code can crash the entire node.
+	if (pindexPrev == NULL || chainActive.Tip() == NULL) 
+		return false;
+
+	if (pindexPrev != chainActive.Tip()) 
+		return false;
+
+	// NOTE: CheckBlockHeader is called by CheckBlock
+	if (!ContextualCheckBlockHeader(block, state, chainparams.GetConsensus(), pindexPrev, GetAdjustedTime()))
+		return error("%s: Consensus::ContextualCheckBlockHeader: %s", __func__, FormatStateMessage(state));
+	if (!CheckBlock(block, state, chainparams.GetConsensus(), fCheckPOW, fCheckMerkleRoot))
+		return error("%s: Consensus::CheckBlock: %s", __func__, FormatStateMessage(state));
+	if (!ContextualCheckBlock(block, state, chainparams.GetConsensus(), pindexPrev, fMining))
+		return error("%s: Consensus::ContextualCheckBlock: %s", __func__, FormatStateMessage(state));
+
+	return true;
+
+}
+
+
 bool TestBlockValidity(CValidationState& state, const CChainParams& chainparams, const CBlock& block, CBlockIndex* pindexPrev, bool fCheckPOW, bool fCheckMerkleRoot, bool fMining)
 {
     AssertLockHeld(cs_main);
@@ -3881,26 +3905,38 @@ bool TestBlockValidity(CValidationState& state, const CChainParams& chainparams,
     if (fCheckpointsEnabled && !CheckIndexAgainstCheckpoint(pindexPrev, state, chainparams, block.GetHash()))
         return error("%s: CheckIndexAgainstCheckpoint(): %s", __func__, state.GetRejectReason().c_str());
 
-    CCoinsViewCache viewNew(pcoinsTip);
-    CBlockIndex indexDummy(block);
-    indexDummy.pprev = pindexPrev;
-    indexDummy.nHeight = pindexPrev->nHeight + 1;
+	try
+	{
+		CCoinsViewCache viewNew(pcoinsTip);
+		CBlockIndex indexDummy(block);
+		indexDummy.pprev = pindexPrev;
+		indexDummy.nHeight = pindexPrev->nHeight + 1;
 
-    // begin tx and let it rollback
-    auto dbTx = evoDb->BeginTransaction();
+		// begin tx and let it rollback
+		auto dbTx = evoDb->BeginTransaction();
 
-    // NOTE: CheckBlockHeader is called by CheckBlock
-    if (!ContextualCheckBlockHeader(block, state, chainparams.GetConsensus(), pindexPrev, GetAdjustedTime()))
-        return error("%s: Consensus::ContextualCheckBlockHeader: %s", __func__, FormatStateMessage(state));
-    if (!CheckBlock(block, state, chainparams.GetConsensus(), fCheckPOW, fCheckMerkleRoot))
-        return error("%s: Consensus::CheckBlock: %s", __func__, FormatStateMessage(state));
-    if (!ContextualCheckBlock(block, state, chainparams.GetConsensus(), pindexPrev, fMining))
-        return error("%s: Consensus::ContextualCheckBlock: %s", __func__, FormatStateMessage(state));
-    if (!ConnectBlock(block, state, &indexDummy, viewNew, chainparams, true))
-        return false;
-    assert(state.IsValid());
+		// NOTE: CheckBlockHeader is called by CheckBlock
+		if (!ContextualCheckBlockHeader(block, state, chainparams.GetConsensus(), pindexPrev, GetAdjustedTime()))
+			return error("%s: Consensus::ContextualCheckBlockHeader: %s", __func__, FormatStateMessage(state));
+		if (!CheckBlock(block, state, chainparams.GetConsensus(), fCheckPOW, fCheckMerkleRoot))
+			return error("%s: Consensus::CheckBlock: %s", __func__, FormatStateMessage(state));
+		if (!ContextualCheckBlock(block, state, chainparams.GetConsensus(), pindexPrev, fMining))
+			return error("%s: Consensus::ContextualCheckBlock: %s", __func__, FormatStateMessage(state));
+		if (!ConnectBlock(block, state, &indexDummy, viewNew, chainparams, true))
+			return false;
+		assert(state.IsValid());
+		return true;
+	}
+    catch (const std::runtime_error &e)
+    {
+		LogPrintf("\nTestBlockValidity block %f  %s",pindexPrev->nHeight,  "Failed");
+	}
+	catch (...)
+	{
+		LogPrintf("\nTestBlockValidityGenericError block %f  %s",pindexPrev->nHeight,  "Failed");
+	}
+	return false;
 
-    return true;
 }
 
 /**

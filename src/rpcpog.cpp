@@ -293,12 +293,14 @@ std::map<std::string, CPK> GetChildMap(std::string sGSCObjType)
 {
 	std::map<std::string, CPK> mCPKMap;
 	boost::to_upper(sGSCObjType);
+	int i = 0;
 	for (auto ii : mvApplicationCache)
 	{
 		if (Contains(ii.first.first, sGSCObjType))
 		{
 			CPK k = GetCPK(ii.second.first);
-			mCPKMap.insert(std::make_pair(k.sAddress, k));
+			i++;
+			mCPKMap.insert(std::make_pair(k.sAddress + "-" + RoundToString(i, 0), k));
 		}
 	}
 	return mCPKMap;

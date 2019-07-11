@@ -1100,7 +1100,7 @@ recover:
 					goto recover;
 				}
 			    CValidationState state;
-				bool fValid = TestBlockValidity(state, chainparams, *pblock, pindexPrev, false, false, true);
+				bool fValid = TestBlockValidityLite(state, chainparams, *pblock, pindexPrev, false, false, true);
 				// Handle the edge case where the pool gave us a bad block to mine
 				if (!fValid)
 				{
