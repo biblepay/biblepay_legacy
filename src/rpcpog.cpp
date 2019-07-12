@@ -337,8 +337,10 @@ CAmount CAmountFromValue(const UniValue& value)
     return amount;
 }
 
+static CCriticalSection csReadWait;
 std::string ReadCache(std::string sSection, std::string sKey)
 {
+	LOCK(csReadWait); 
 	boost::to_upper(sSection);
 	boost::to_upper(sKey);
 	// NON-CRITICAL TODO : Find a way to eliminate this to_upper while we transition to non-financial transactions
@@ -993,8 +995,10 @@ bool CheckNonce(bool f9000, unsigned int nNonce, int nPrevHeight, int64_t nPrevB
 	return (nNonce > nMaxNonce) ? false : true;
 }
 
+static CCriticalSection csClearWait;
 void ClearCache(std::string sSection)
 {
+	LOCK(csClearWait);
 	boost::to_upper(sSection);
 	for (auto ii : mvApplicationCache) 
 	{
@@ -1005,8 +1009,10 @@ void ClearCache(std::string sSection)
 	}
 }
 
+static CCriticalSection csWriteWait;
 void WriteCache(std::string sSection, std::string sKey, std::string sValue, int64_t locktime, bool IgnoreCase)
 {
+	LOCK(csWriteWait); 
 	if (sSection.empty() || sKey.empty()) return;
 	if (IgnoreCase)
 	{
