@@ -794,8 +794,23 @@ void BusyWait()
 	}
 }
 
+std::string UsingDualABNs(bool& fUsingDualABN, bool fInternalABNOK)
+{
+	std::string sWorkerIDDefault = GetArg("-workerid", "");        // Self Supplied ABN
+	std::string sWorkerIDTurnkey = GetArg("-workeridfunded", ""); // Funded ABN workerid
+	bool fDual = (!sWorkerIDDefault.empty() && !sWorkerIDTurnkey.empty()) ? true : false;
+	if (fDual)
+	{
+		return fInternalABNOK ? sWorkerIDDefault : sWorkerIDTurnkey;
+	}
+	else
+	{
+		// Revert to old behavior; just use default workerid
+		return sWorkerIDDefault;
+	}
+}
 
-bool GetPoolMiningMode(int iThreadID, int& iFailCount, std::string& out_PoolAddress, arith_uint256& out_HashTargetPool, std::string& out_MinerGuid, std::string& out_WorkID, std::string& out_BlockData)
+bool GetPoolMiningMode(int iThreadID, int& iFailCount, std::string& out_PoolAddress, arith_uint256& out_HashTargetPool, std::string& out_MinerGuid, std::string& out_WorkID, std::string& out_BlockData, bool fInternalABNOK)
 {
 	// If user is not pool mining, return false.
 	// If user is pool mining, and pool is down, return false so that the client reverts back to solo mining mode automatically.
@@ -812,7 +827,9 @@ bool GetPoolMiningMode(int iThreadID, int& iFailCount, std::string& out_PoolAddr
 	{
 		return false;
 	}
-	std::string sWorkerID = GetArg("-workerid",""); //This is the setting reqd to communicate with the pool that points to the pools web account workerID, so the owner of the worker can receive credit for work
+	// Choose between default workerid (self-supplied ABN), or turnkey workerid (pool mining with funded ABNs)
+	bool fUsingDualABNs = false;
+	std::string sWorkerID = UsingDualABNs(fUsingDualABNs, fInternalABNOK);
 	if (sWorkerID.empty()) 
 	{
 		LogPrintf("\nWorkerID empty in config.");
@@ -841,14 +858,15 @@ bool GetPoolMiningMode(int iThreadID, int& iFailCount, std::string& out_PoolAddr
 		out_BlockData = sCachedBlockData;
 		WriteCache("poolthread" + RoundToString(iThreadID,0), "poolinfo1", out_PoolAddress, GetAdjustedTime());
 		WriteCache("poolthread" + RoundToString(iThreadID,0), "poolinfo2", "RMC_" + TimestampToHRDate(GetAdjustedTime()), GetAdjustedTime());
+		if (iThreadID == 0)
+			WriteCache("poolthread" + RoundToString(iThreadID, 0), "poolinfo1", "Pool mining with " + sWorkerID, GetAdjustedTime());
 		return true;
 	}
 
 	// Test Pool to ensure it can send us work before committing to being a pool miner
-	WriteCache("pool" + RoundToString(iThreadID, 0),"communication","1",GetAdjustedTime());
+	WriteCache("pool" + RoundToString(iThreadID, 0), "communication", "1", GetAdjustedTime());
 	std::string sResult = PoolRequest(iThreadID, "readytomine2", sPoolURL, sWorkerID, "");
-	WriteCache("pool" + RoundToString(iThreadID, 0),"communication","0",GetAdjustedTime());
-	LogPrint("pool", "POOL RESULT %s ", sResult.c_str());
+	WriteCache("pool" + RoundToString(iThreadID, 0), "communication", "0", GetAdjustedTime());
 	std::string sPoolAddress = ExtractXML(sResult,"<ADDRESS>","</ADDRESS>");
 	if (sPoolAddress.empty()) 
 	{
@@ -994,6 +1012,7 @@ void static BibleMiner(const CChainParams& chainparams, int iThreadID, int iFeat
 	int64_t POOL_MAX_MINUTES = 7 * 60;
 	int64_t nLastMiningBreak = 0;
 	int64_t STAGNANT_WORK_THRESHHOLD = 60 * 15;
+	bool fInternalABNOK = false;
 
 	int64_t nGSCFrequency = cdbl(GetSporkValue("gscclientminerfrequency"), 0);
 	if (nGSCFrequency == 0) 
@@ -1051,7 +1070,7 @@ recover:
 				if ((GetAdjustedTime() - nLastReadyToMine) > POOL_MIN_MINUTES)
 				{ 
 					nLastReadyToMine = GetAdjustedTime();
-					fPoolMiningMode = GetPoolMiningMode(iThreadID, iFailCount, sPoolMiningAddress, hashTargetPool, sMinerGuid, sWorkID, sBlockData);
+					fPoolMiningMode = GetPoolMiningMode(iThreadID, iFailCount, sPoolMiningAddress, hashTargetPool, sMinerGuid, sWorkID, sBlockData, fInternalABNOK);
 					if (fDebugSpam && !sPoolMiningAddress.empty())
 						LogPrint("pool", "Checking with Pool: Pool Address %s \r\n", sPoolMiningAddress.c_str());
 				}
@@ -1079,7 +1098,9 @@ recover:
 			}
 
 			// Create Evo block
-			bool fFunded = !sBlockData.empty();
+			bool fUsingDualABNs = false;
+			UsingDualABNs(fUsingDualABNs, false);
+			bool fFunded = !sBlockData.empty() && !fUsingDualABNs;
 	    	std::unique_ptr<CBlockTemplate> pblocktemplate(BlockAssembler(Params()).CreateNewBlock(coinbaseScript->reserveScript, sPoolMiningAddress, sMinerGuid, iThreadID, fFunded));
 			if (!pblocktemplate.get())
             {
@@ -1089,7 +1110,8 @@ recover:
             }
 
 			CBlock *pblock = &pblocktemplate->block;
-
+			fInternalABNOK = IsMyABNSufficient(*pblock, pindexPrev, pindexPrev->nHeight + 1);
+	
 			// Pool support for funded ABNs - BiblePay - R Andrews
 			if (fPoolMiningMode && !sBlockData.empty())
 			{

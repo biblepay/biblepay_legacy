@@ -3868,7 +3868,6 @@ bool ProcessNewBlock(const CChainParams& chainparams, const std::shared_ptr<cons
 	return true;
 }
 
-
 bool TestBlockValidityLite(CValidationState& state, const CChainParams& chainparams, const CBlock& block, CBlockIndex* pindexPrev, bool fCheckPOW, bool fCheckMerkleRoot, bool fMining)
 {
     AssertLockHeld(cs_main);

@@ -2472,8 +2472,8 @@ CWalletTx CreateAntiBotNetTx(CBlockIndex* pindexLast, double nMinCoinAge, CReser
 		double nTargetABNWeight = pwalletMain->GetAntiBotNetWalletWeight(nMinCoinAge, nUsed);
 		int nChangePosRet = -1;
 		bool fSubtractFeeFromAmount = true;
-		CAmount nAllocated = nUsed - (1 * COIN);
-		CRecipient recipient = {spkCPKScript, nAllocated, false, fSubtractFeeFromAmount};
+		CAmount nAllocated = nUsed - (0 * COIN);
+		CRecipient recipient = {spkCPKScript, nAllocated - (1*COIN), false, fSubtractFeeFromAmount};
 		std::vector<CRecipient> vecSend;
 		vecSend.push_back(recipient);
 		CAmount nFeeRequired = 0;
