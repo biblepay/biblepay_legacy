@@ -976,6 +976,8 @@ bool InternalABNSufficient()
 {
 	double nMinRequiredABNWeight = GetSporkDouble("requiredabnweight", 0);
 	CAmount nTotalReq = 0;
+	if (pwalletMain->IsLocked())
+		return false;
 	double dABN = pwalletMain->GetAntiBotNetWalletWeight(nMinRequiredABNWeight, nTotalReq);
 	if (dABN < nMinRequiredABNWeight) 
 			return false;
@@ -1025,7 +1027,6 @@ void static BibleMiner(const CChainParams& chainparams, int iThreadID, int iFeat
 	int64_t POOL_MAX_MINUTES = 7 * 60;
 	int64_t nLastMiningBreak = 0;
 	int64_t STAGNANT_WORK_THRESHHOLD = 60 * 15;
-	int64_t nLastDualABNSwitch = GetAdjustedTime();
 	std::string sWorkerID;
 	bool fInternalABNOK = false;
 	bool fUsingDualABNs = false;
@@ -1054,16 +1055,17 @@ void static BibleMiner(const CChainParams& chainparams, int iThreadID, int iFeat
 	std::string sPoolConfURL = GetArg("-pool", "");
 	int iStart = rand() % 1000;
 	MilliSleep(iStart);
+	nLastReadyToMine = 0;
 
 recover:
+	arith_uint256 hashTargetPool = UintToArith256(uint256S("0x0"));
+	
     try {
         // Throw an error if no script was provided.  This can happen
         // due to some internal error but also if the keypool is empty.
         // In the latter case, already the pointer is NULL.
         if (!coinbaseScript || coinbaseScript->reserveScript.empty())
             throw std::runtime_error("No coinbase script available (mining requires a wallet)");
-
-		arith_uint256 hashTargetPool = UintToArith256(uint256S("0x0"));
 
         while (true) 
 		{
@@ -1087,6 +1089,11 @@ recover:
 				if ((GetAdjustedTime() - nLastReadyToMine) > POOL_MIN_MINUTES)
 				{ 
 					nLastReadyToMine = GetAdjustedTime();
+					fInternalABNOK = InternalABNSufficient();
+					std::string sNarr = fInternalABNOK ? "Internal ABN: OK" : "Internal ABN: Invalid";
+					if (iThreadID==0)
+						WriteCache("poolthread0", "poolinfo5", sNarr + " " + RoundToString(GetAdjustedTime(), 0), GetAdjustedTime());
+		
 					fPoolMiningMode = GetPoolMiningMode(iThreadID, iFailCount, sPoolMiningAddress, hashTargetPool, sMinerGuid, sWorkID, sBlockData, fInternalABNOK, sWorkerID);
 					if (fDebugSpam && !sPoolMiningAddress.empty())
 						LogPrint("pool", "Checking with Pool: Pool Address %s \r\n", sPoolMiningAddress.c_str());
@@ -1119,14 +1126,9 @@ recover:
 	    	std::unique_ptr<CBlockTemplate> pblocktemplate(BlockAssembler(Params()).CreateNewBlock(coinbaseScript->reserveScript, sPoolMiningAddress, sMinerGuid, iThreadID, fFunded));
 			if (!pblocktemplate.get())
             {
-				WriteCache("poolthread" + RoundToString(iThreadID, 0), "poolinfo4", "No block to mine... Please wait... ", GetAdjustedTime());
+				WriteCache("poolthread" + RoundToString(iThreadID, 0), "poolinfo4", "No block to mine... Please wait... " + RoundToString(GetAdjustedTime(), 0), GetAdjustedTime());
 				MilliSleep(15000);
 				LogPrint("miner", "No block to mine %f", iThreadID);
-				if (fUsingDualABNs)
-				{
-					ClearCache("poolcache");
-					nLastReadyToMine = 0;
-				}
 				goto recover;
             }
 
@@ -1135,19 +1137,6 @@ recover:
 			// Pool support for funded ABNs - BiblePay - R Andrews
 			if (fPoolMiningMode && !sBlockData.empty())
 			{
-				int64_t nLastDualABNSwitchElapsed = GetAdjustedTime() - nLastDualABNSwitch;
-				if (nLastDualABNSwitchElapsed > POOL_MAX_MINUTES)
-				{
-					nLastDualABNSwitch = 0;
-					fInternalABNOK = InternalABNSufficient();
-					if (!sBlockData.empty() && fInternalABNOK)
-					{
-						LogPrintf("\nBiblePayMiner::Switching to internal ABN %f",GetAdjustedTime());
-						ClearCache("poolcache");
-						nLastReadyToMine = 0;
-						goto recover;
-					}
-				}
 				if (!DecodeHexBlk(pblocktemplate->block, sBlockData))
 				{
 					WriteCache("poolthread" + RoundToString(iThreadID, 0), "poolinfo4", "Failed to retrieve funded ABN from pool.", GetAdjustedTime());
@@ -1315,9 +1304,9 @@ recover:
 				{
 					nLastClearCache = GetAdjustedTime();
 					WriteCache("poolcache", "pooladdress", "", GetAdjustedTime());
-					ClearCache("poolcache");
 					ClearCache("poolthread" + RoundToString(iThreadID, 0));
 					WriteCache("pool" + RoundToString(iThreadID, 0), "communication", "0", GetAdjustedTime());
+					ClearCache("poolcache");
 					WriteCache("gsc", "errors", "", GetAdjustedTime());
 				}
 
