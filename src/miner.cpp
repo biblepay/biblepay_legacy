@@ -799,9 +799,11 @@ std::string UsingDualABNs(bool& fUsingDualABN, bool fInternalABNOK)
 	std::string sWorkerIDDefault = GetArg("-workerid", "");        // Self Supplied ABN
 	std::string sWorkerIDTurnkey = GetArg("-workeridfunded", ""); // Funded ABN workerid
 	bool fDual = (!sWorkerIDDefault.empty() && !sWorkerIDTurnkey.empty()) ? true : false;
+	std::string sChosen = fInternalABNOK ? sWorkerIDDefault : sWorkerIDTurnkey;
+	// if (fDebugSpam) LogPrintf(" workerID internalOK %f  Chosen %s ", (double)fInternalABNOK, sChosen);
 	if (fDual)
 	{
-		return fInternalABNOK ? sWorkerIDDefault : sWorkerIDTurnkey;
+		return sChosen;
 	}
 	else
 	{
