@@ -119,7 +119,7 @@ UniValue SentGSCCReport(int nHeight)
 		nHeight = chainActive.Tip()->nHeight - 1;
 
 	int nMaxDepth = nHeight;
-	int nMinDepth = nMaxDepth - BLOCKS_PER_DAY;
+	int nMinDepth = nMaxDepth - (BLOCKS_PER_DAY * 7);
 	if (nMinDepth < 1) 
 		return NullUniValue;
 
@@ -139,9 +139,11 @@ UniValue SentGSCCReport(int nHeight)
 		{
 			for (unsigned int n = 0; n < block.vtx.size(); n++)
 			{
+				std::string sCampaignName;
+				std::string sDate = TimestampToHRDate(pindex->GetBlockTime());
+
 				if (block.vtx[n]->IsGSCTransmission() && CheckAntiBotNetSignature(block.vtx[n], "gsc", ""))
 				{
-					std::string sCampaignName;
 					std::string sCPK = GetTxCPK(block.vtx[n], sCampaignName);
 					double nCoinAge = 0;
 					CAmount nDonation = 0;
@@ -151,8 +153,19 @@ UniValue SentGSCCReport(int nHeight)
 					{
 						double nPoints = CalculatePoints(sCampaignName, sDiary, nCoinAge, nDonation, sCPK);
 						std::string sReport = "Points: " + RoundToString(nPoints, 0) + ", Campaign: "+ sCampaignName 
-							+ ", CoinAge: "+ RoundToString(nCoinAge, 0) + ", Donation: "+ RoundToString((double)nDonation/COIN, 2);
+							+ ", CoinAge: "+ RoundToString(nCoinAge, 0) + ", Donation: "+ RoundToString((double)nDonation/COIN, 2) 
+							+ ", Height: "+ RoundToString(pindex->nHeight, 0) + ", Date: " + sDate;
 						nTotalPoints += nPoints;
+						results.push_back(Pair(block.vtx[n]->GetHash().GetHex(), sReport));
+					}
+				}
+				else if (block.vtx[n]->IsABN() && CheckAntiBotNetSignature(block.vtx[n], "abn", ""))
+				{
+					std::string sCPK = GetTxCPK(block.vtx[n], sCampaignName);
+					double nWeight = GetAntiBotNetWeight(pindex->GetBlockTime(), block.vtx[n], true, "");
+					if (!sCPK.empty() && sMyCPK == sCPK)
+					{
+						std::string sReport = "ABN Weight: " + RoundToString(nWeight, 2) + ", Height: "+ RoundToString(pindex->nHeight, 0) + ", Date: " + sDate;
 						results.push_back(Pair(block.vtx[n]->GetHash().GetHex(), sReport));
 					}
 				}
