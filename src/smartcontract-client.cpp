@@ -233,9 +233,20 @@ CWalletTx CreateGSCClientTransmission(std::string sCampaign, std::string sDiary,
 	CAmount nFeeRequired;
 	std::vector<CRecipient> vecSend;
 	int nChangePosRet = -1;
+	// R ANDREWS - Split change into 10 Bankroll Denominations - this makes smaller amounts available for ABNs
+	double nMinRequiredABNWeight = GetSporkDouble("requiredabnweight", 0);
 	bool fSubtractFeeFromAmount = true;
-	CRecipient recipient = {spkCPKScript, nPayment1, false, fSubtractFeeFromAmount};
-	vecSend.push_back(recipient); // This transmission is to Me
+	
+	double iQty = (nPayment1/COIN) > nMinRequiredABNWeight ? 10 : 1;
+	double nEach = (double)1 / iQty;
+	for (int i = 0; i < iQty; i++)
+	{
+		CAmount nIndividualAmount = nPayment1 * nEach;
+		// LogPrintf("SCC::CreateGSCC nDist %f loc %f amt %f", (double)nPayment1/COIN, i, (double)nIndividualAmount/COIN);
+		CRecipient recipient = {spkCPKScript, nIndividualAmount, false, fSubtractFeeFromAmount};
+		vecSend.push_back(recipient); // This transmission is to Me
+	}
+
 	CBitcoinAddress baFoundation(consensusParams.FoundationAddress);
     CScript spkFoundation = GetScriptForDestination(baFoundation.Get());
 	
