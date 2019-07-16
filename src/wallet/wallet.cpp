@@ -2650,14 +2650,6 @@ CAmount CWallet::GetImmatureWatchOnlyBalance() const
 void CWallet::AvailableCoins(std::vector<COutput>& vCoins, bool fOnlyConfirmed, const CCoinControl *coinControl, bool fIncludeZeroValue, 
 	AvailableCoinsType nCoinType, bool fUseInstantSend, double dMinCoinAge, CAmount nMinimumSpend) const
 {
-	double nTotalWeightFound = 0;
-	CAmount nBufferFulfilled = 0;
-	std::string sData;
-	bool fDebugNotified = false;
-	bool fDebugSkips = false;
-	int nInputsConsumed = 0;
-	static int MAX_GSC_INPUTS = 500;  // Using more than this may break size limits
-	
     vCoins.clear();
     {
         LOCK2(cs_main, cs_wallet);
@@ -2667,44 +2659,7 @@ void CWallet::AvailableCoins(std::vector<COutput>& vCoins, bool fOnlyConfirmed, 
             const uint256& wtxid = it->first;
             const CWalletTx* pcoin = &(*it).second;
 			
-			std::string sWalletReject;
-			if (dMinCoinAge > 0 && nTotalWeightFound > dMinCoinAge && nBufferFulfilled > nMinimumSpend && !fDebugNotified)
-			{
-				sWalletReject = "TOTAL_WEIGHT > " + RoundToString(nTotalWeightFound, 0);
-				fDebugNotified = true;
-			}
-
-            if (!CheckFinalTx(*pcoin))
-				sWalletReject = "NON_FINAL_TX";
-
-            if (fOnlyConfirmed && !pcoin->IsTrusted())
-				sWalletReject = "ONLY_CONFIRMED_NON_TRUSTED_COIN";
-
-            if (pcoin->IsCoinBase() && pcoin->GetBlocksToMaturity() > 0)
-				sWalletReject + "COINBASE_NON_MATURE";
-
             int nDepth = pcoin->GetDepthInMainChain();
-            // do not use IX for inputs that have less then nInstantSendConfirmationsRequired blockchain confirmations
-            if (fUseInstantSend && nDepth < nInstantSendConfirmationsRequired)
-				sWalletReject = "USE_IX_IMMATURE_INSTANTSEND";
-
-            if (nDepth == 0 && !pcoin->InMempool())
-				sWalletReject = "NOT_IN_MEMPOOL";
-
-			if (dMinCoinAge > 0 && !sWalletReject.empty() && fDebugSkips)
-			{
-				for (unsigned int j = 0; j < pcoin->tx->vout.size(); j++)
-				{
-					sData += "SKIPPING " + RoundToString((double)pcoin->tx->vout[j].nValue/COIN, 4) + ", #" + RoundToString(j, 0) + ", Depth: " + RoundToString(nDepth, 0) + ", BBP for reason: " + sWalletReject + ", ";
-				}
-			}
-			
-
-			if (dMinCoinAge > 0 && nTotalWeightFound > dMinCoinAge && nBufferFulfilled > nMinimumSpend)
-				continue;
-
-			if (dMinCoinAge > 0 && nInputsConsumed > MAX_GSC_INPUTS)
-				continue;
 
             if (!CheckFinalTx(*pcoin))
                 continue;
@@ -2732,23 +2687,19 @@ void CWallet::AvailableCoins(std::vector<COutput>& vCoins, bool fOnlyConfirmed, 
                 if(nCoinType == ONLY_DENOMINATED) 
 				{
                     found = CPrivateSend::IsDenominatedAmount(pcoin->tx->vout[i].nValue);
-					if (!found) sRejectReason = "Private_Send";
                 }
 				else if(nCoinType == ONLY_NONDENOMINATED) 
 				{
                     if (CPrivateSend::IsCollateralAmount(pcoin->tx->vout[i].nValue)) continue; // do not use collateral amounts
                     found = !CPrivateSend::IsDenominatedAmount(pcoin->tx->vout[i].nValue);
-					if (!found) sRejectReason = "PS_ONLY_NON_DENOMINATED";
                 }
 				else if(nCoinType == ONLY_1000) 
 				{
                     found = pcoin->tx->vout[i].nValue == SANCTUARY_COLLATERAL * COIN;
-					if (!found) sRejectReason = "SANC_COLLATERAL_ONLY";
                 }
 				else if(nCoinType == ONLY_PRIVATESEND_COLLATERAL) 
 				{
                     found = CPrivateSend::IsCollateralAmount(pcoin->tx->vout[i].nValue);
-					if (!found) sRejectReason = "ONLY_PS_COLLATERAL";
                 }
 				else 
 				{
@@ -2760,16 +2711,10 @@ void CWallet::AvailableCoins(std::vector<COutput>& vCoins, bool fOnlyConfirmed, 
 				{
 					if (pcoin->tx->vout[i].nValue <= (GSC_DUST * COIN) || nDepth < GSC_MIN_CONFIRMS || pcoin->tx->vout[i].nValue == SANCTUARY_COLLATERAL * COIN) 
 					{
-						sRejectReason = "DUST-SANC-MIN-CONFIRMS";
 						found = false;
 					}
 				}
 		
-				if (found == false && dMinCoinAge > 0 && fDebugSkips && !sRejectReason.empty() && pcoin->tx->vout[i].nValue > (1 * COIN))
-				{
-					sData += "SKIPPING " + RoundToString((double)pcoin->tx->vout[i].nValue/COIN, 4) + ", Depth: " + RoundToString(nDepth, 0) + ", BBP for reason: " + sRejectReason + ", ";
-				}
-
                 if(!found) continue;
 
                 isminetype mine = IsMine(pcoin->tx->vout[i]);
@@ -2783,40 +2728,10 @@ void CWallet::AvailableCoins(std::vector<COutput>& vCoins, bool fOnlyConfirmed, 
                                                   (coinControl && coinControl->fAllowWatchOnly && (mine & ISMINE_WATCH_SOLVABLE) != ISMINE_NO),
                                                  (mine & (ISMINE_SPENDABLE | ISMINE_WATCH_SOLVABLE)) != ISMINE_NO));
 						CTransactionRef txLocal = pcoin->tx;
-						if (dMinCoinAge > 0) 
-						{
-							double nAge = (double)(chainActive.Tip()->pprev->GetBlockTime() - pcoin->GetTxTime()) / 86400;
-							if (nAge < 0) nAge = 0;
-							double nMyWeight = (pcoin->tx->vout[i].nValue / COIN) * nAge;
-							nTotalWeightFound += nMyWeight;
-							nBufferFulfilled += pcoin->tx->vout[i].nValue;
-							nInputsConsumed++;
-							sData += RoundToString((double)pcoin->tx->vout[i].nValue/COIN, 4) + "(" + RoundToString(nMyWeight, 2) + "),";
-						}
-					}
-					else
-					{
-						if (dMinCoinAge > 0)
-						{
-							std::string sSpentType = "N/A";
-							if (mine == ISMINE_NO) sSpentType = "NOTMINE";
-							if (IsSpent(wtxid, i)) sSpentType = "SPENT";
-							if (IsLockedCoin((*it).first, i)) sSpentType = "LOCKED";
-							if (!(!coinControl || !coinControl->HasSelected() || coinControl->fAllowOtherInputs || coinControl->IsSelected(COutPoint((*it).first, i)))) sSpentType = "COIN_CONTROL";
-							if (sSpentType != "SPENT" && sSpentType != "NOTMINE" && fDebugSkips)
-								sData += "SKIPPING " + RoundToString((double)pcoin->tx->vout[i].nValue/COIN, 4) + " #" + RoundToString(i, 0) + " BBP for reason: " + sSpentType + ", ";
-						}
 					}
             }
         }
     }
-	
-	if (dMinCoinAge > 0)
-	{
-		if (fDebugSkips)
-			LogPrintf("AgeData %s", sData);
-		WriteCache("availablecoins", "age", sData, GetAdjustedTime());
-	}
 }
 
 static void ApproximateBestSubset(std::vector<std::pair<CAmount, std::pair<const CWalletTx*,unsigned int> > >vValue, const CAmount& nTotalLower, const CAmount& nTargetValue,
@@ -2867,6 +2782,29 @@ static void ApproximateBestSubset(std::vector<std::pair<CAmount, std::pair<const
         }
     }
 }
+
+double GetCoinWeight(COutput o, double& nAge)
+{
+	const CWalletTx *pcoin = o.tx;
+	CAmount nAmount = pcoin->tx->vout[o.i].nValue;
+	nAge = (double)(chainActive.Tip()->pprev->GetBlockTime() - pcoin->GetTxTime()) / 86400;
+	if (nAge < 000) nAge = 0;
+	if (nAge > 365) nAge = 365;
+	double nWeight = (nAmount / COIN) * nAge;
+	return nWeight;
+}
+
+struct CompareByCoinAge
+{
+    bool operator()(const COutput& t1,
+                    const COutput& t2) const
+    {
+		double a = 0;
+		double nWeight1 = GetCoinWeight(t1, a);
+		double nWeight2 = GetCoinWeight(t2, a);
+		return nWeight1 > nWeight2;
+    }
+};
 
 struct CompareByPriority
 {
@@ -3047,12 +2985,52 @@ bool CWallet::SelectCoinsMinConf(const CAmount& nTargetValue, const int nConfMin
     return nCoinType == ONLY_DENOMINATED ? (nValueRet - nTargetValue <= maxTxFee) : true;
 }
 
-bool CWallet::SelectCoins(const std::vector<COutput>& vAvailableCoins, const CAmount& nTargetValue, std::set<std::pair<const CWalletTx*,unsigned int> >& setCoinsRet, CAmount& nValueRet, const CCoinControl* coinControl, AvailableCoinsType nCoinType, bool fUseInstantSend) const
+bool CWallet::SelectCoins(const std::vector<COutput>& vAvailableCoins, const CAmount& nTargetValue, std::set<std::pair<const CWalletTx*,unsigned int> >& setCoinsRet, 
+	CAmount& nValueRet, const CCoinControl* coinControl, AvailableCoinsType nCoinType, bool fUseInstantSend, double nMinCoinAge, CAmount nMinSpend) const
 {
     // Note: this function should never be used for "always free" tx types like dstx
 
     std::vector<COutput> vCoins(vAvailableCoins);
+	double nFoundCoinAge = 0;
+	CAmount nTotalRequired = 0;
+	// R Andrews - BIBLEPAY - If this is an ABN or GSC, we need to sort the AvailableCoins vector by amount, and use the smallest coins first
+	if (nMinCoinAge > 0)
+	{
+		std::sort(vCoins.rbegin(), vCoins.rend(), CompareByCoinAge());
+		std::string sCache;
+		int nInputsConsumed = 0;
+		static int MAX_GSC_INPUTS = 500;  // Using more than this may break size limits
 
+		BOOST_FOREACH(const COutput& out, vAvailableCoins)
+        {
+			const CWalletTx *pcoin = out.tx;
+			if(!out.fSpendable)
+                continue;
+
+			CAmount nAmount = pcoin->tx->vout[out.i].nValue;
+			int nDepth = pcoin->GetDepthInMainChain();
+			double nAge = 0;
+			double nWeight = GetCoinWeight(out, nAge);
+			if (nWeight > 0)
+			{
+				nTotalRequired += nAmount;
+				nFoundCoinAge += nWeight;
+				std::string sData = RoundToString((double)nAmount/COIN, 4) + "(" + RoundToString(nAge, 2) + ")=[" + RoundToString(nWeight, 2) + "] depth=" + RoundToString(nDepth, 0) +", ";
+				sCache += sData + " <ROW>";
+				nValueRet += out.tx->tx->vout[out.i].nValue;
+				setCoinsRet.insert(std::make_pair(out.tx, out.i));
+				nInputsConsumed++;
+			}
+			if (nInputsConsumed > MAX_GSC_INPUTS)
+				break;
+			if (nFoundCoinAge > nMinCoinAge && nTotalRequired >= nMinSpend && nValueRet >= nTargetValue) 
+				break;
+		}
+		sCache += "<TOTALREQ>" + RoundToString((double)nTotalRequired/COIN, 2) + "</TOTALREQ><TOTALAGE>" + RoundToString(nFoundCoinAge, 0) + "</TOTALAGE>";
+		WriteCache("availablecoins", "age", sCache, GetAdjustedTime());
+		return (nValueRet >= nTargetValue);
+    }
+	
     // coin control -> return all selected outputs (we want all selected to go into the transaction for sure)
     if (coinControl && coinControl->HasSelected() && !coinControl->fAllowOtherInputs)
     {
@@ -3599,9 +3577,11 @@ double CWallet::GetAntiBotNetWalletWeight(double nMinCoinAge, CAmount& nTotalReq
 	    AvailableCoins(vAvailableCoins, true, NULL, false, ALL_COINS, fUseInstantSend, nMinCoinAge, 0);
 	}
 	double nFoundCoinAge = 0;
-	/* COutput: strprintf("COutput(%s, %d, %d) [%s]", tx->GetHash().ToString(), i, nDepth, FormatMoney(tx->tx->vout[i].nValue)); */
 	std::string sCache;
-	
+	std::sort(vAvailableCoins.rbegin(), vAvailableCoins.rend(), CompareByCoinAge());
+	int nInputsConsumed = 0;
+	static int MAX_GSC_INPUTS = 500;  // Using more than this may break size limits
+
 	BOOST_FOREACH(const COutput& out, vAvailableCoins)
     {
 		if(!out.fSpendable)
@@ -3610,23 +3590,24 @@ double CWallet::GetAntiBotNetWalletWeight(double nMinCoinAge, CAmount& nTotalReq
 		const CWalletTx *pcoin = out.tx;
 		CAmount nAmount = pcoin->tx->vout[out.i].nValue;
 		int nDepth = pcoin->GetDepthInMainChain();
-		double nAge = (double)(chainActive.Tip()->pprev->GetBlockTime() - pcoin->GetTxTime()) / 86400;
-		if (nAge < 000) nAge = 0;
-		if (nAge > 365) nAge = 365;
-		if (nAge > 0)
+		double nAge = 0;
+		double nWeight = GetCoinWeight(out, nAge);
+		if (nWeight > 0)
 		{
-			double nWeight = (nAmount / COIN) * nAge;
 			nTotalRequired += nAmount;
 			nFoundCoinAge += nWeight;
 			std::string sData = RoundToString((double)nAmount/COIN, 4) + "(" + RoundToString(nAge, 2) + ")=[" + RoundToString(nWeight, 2) + "] depth=" + RoundToString(nDepth, 0) +", ";
 			sCache += sData + " <ROW>";
+			nInputsConsumed++;
 		}
+		if (nInputsConsumed > MAX_GSC_INPUTS)
+			break;
+		if (nFoundCoinAge > nMinCoinAge && nMinCoinAge > 0) 
+			break;
 	}
-
+	sCache += "<TOTALREQ>" + RoundToString((double)nTotalRequired/COIN, 2) + "</TOTALREQ><TOTALAGE>" + RoundToString(nFoundCoinAge, 0) + "</TOTALAGE>";
 	WriteCache("coin", "age", sCache, GetAdjustedTime());
-    
 	return nFoundCoinAge;
-
 }
 
 bool CWallet::CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletTx& wtxNew, CReserveKey& reservekey, CAmount& nFeeRet,
@@ -3700,6 +3681,9 @@ bool CWallet::CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletT
         {
             std::vector<COutput> vAvailableCoins;
             AvailableCoins(vAvailableCoins, true, coinControl, false, nCoinType, fUseInstantSend, dMinCoinAge, nMinSpend);
+			if (dMinCoinAge > 0)
+				std::sort(vAvailableCoins.rbegin(), vAvailableCoins.rend(), CompareByCoinAge());
+
             int nInstantSendConfirmationsRequired = Params().GetConsensus().nInstantSendConfirmationsRequired;
 
             nFeeRet = 0;
@@ -3752,7 +3736,7 @@ bool CWallet::CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletT
                 // Choose coins to use
                 CAmount nValueIn = 0;
                 setCoins.clear();
-                if (!SelectCoins(vAvailableCoins, nValueToSelect, setCoins, nValueIn, coinControl, nCoinType, fUseInstantSend))
+                if (!SelectCoins(vAvailableCoins, nValueToSelect, setCoins, nValueIn, coinControl, nCoinType, fUseInstantSend, dMinCoinAge, nMinSpend))
                 {
                     if (nCoinType == ONLY_NONDENOMINATED) {
                         strFailReason = _("Unable to locate enough PrivateSend non-denominated funds for this transaction.");
