@@ -31,7 +31,7 @@ sudo apt-get install libdb4.8-dev libdb4.8++-dev
 ** Building Daemon and QT: **
 git clone http://github.com/biblepay/biblepay-evolution
 prefix=x86_64-pc-linux-gnu
-cd depends
+cd biblepay-evolution/depends
 make -j4 # Choose a good -j value, depending on the number of CPU cores available
 cd ..
 ./autogen.sh
