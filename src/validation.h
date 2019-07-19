@@ -162,6 +162,7 @@ extern int miGlobalDiaryIndex;
 extern SecureString msEncryptedString;
 extern std::string sOS;
 extern std::string msGithubVersion;
+extern std::string msSessionID;
 extern std::string msGlobalStatus;
 extern std::string msGlobalStatus2;
 extern std::string msGlobalStatus3;

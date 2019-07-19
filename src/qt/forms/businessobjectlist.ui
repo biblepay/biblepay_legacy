@@ -116,10 +116,36 @@
     <string>Summary View</string>
    </property>
   </widget>
+  <widget class="QLabel" name="lblLeaderboard">
+   <property name="geometry">
+    <rect>
+     <x>380</x>
+     <y>10</y>
+     <width>400</width>
+     <height>16</height>
+    </rect>
+   </property>
+   <property name="minimumSize">
+    <size>
+     <width>400</width>
+     <height>0</height>
+    </size>
+   </property>
+   <property name="font">
+    <font>
+     <weight>75</weight>
+     <bold>true</bold>
+    </font>
+   </property>
+   <property name="text">
+    <string>Leaderboard 1.0</string>
+   </property>
+  </widget>
   <zorder>label_debug</zorder>
   <zorder>tableWidget</zorder>
   <zorder>btnDetails</zorder>
   <zorder>btnSummary</zorder>
+  <zorder>lblLeaderboard</zorder>
  </widget>
  <resources/>
  <connections/>

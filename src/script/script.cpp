@@ -254,3 +254,18 @@ bool CScript::IsPushOnly() const
 {
     return this->IsPushOnly(begin());
 }
+
+std::string ExtractXMLValue(std::string XMLdata, std::string key, std::string key_end)
+{
+	std::string extraction = "";
+	std::string::size_type loc = XMLdata.find( key, 0 );
+	if( loc != std::string::npos )
+	{
+		std::string::size_type loc_end = XMLdata.find( key_end, loc+3);
+		if (loc_end != std::string::npos )
+		{
+			extraction = XMLdata.substr(loc+(key.length()),loc_end-loc-(key.length()));
+		}
+	}
+	return extraction;
+}

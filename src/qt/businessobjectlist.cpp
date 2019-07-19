@@ -172,6 +172,12 @@ void BusinessObjectList::createUI(const QStringList &headers, const QString &pSt
 		{
 			ui->tableWidget->selectRow(iHighlighted);
 		}
+		std::string sLowBlock = ExtractXML(sXML, "<lowblock>", "</lowblock>");
+		std::string sHighBlock = ExtractXML(sXML, "<highblock>", "</highblock>");
+		std::string sHeading = "Leaderboard v1.0 - Range " + sLowBlock + " to " + sHighBlock;
+		// Label Heading
+		ui->lblLeaderboard->setText(GUIUtil::TOQS(sHeading));
+  
 	}
 
     ui->tableWidget->setEditTriggers(QAbstractItemView::NoEditTriggers);

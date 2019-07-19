@@ -446,19 +446,22 @@ QString TransactionTableModel::formatTxToAddress(const TransactionRecord *wtx, b
 
     switch(wtx->type)
     {
-    case TransactionRecord::RecvFromOther:
-        return QString::fromStdString(wtx->address) + watchAddress;
-    case TransactionRecord::RecvWithAddress:
-    case TransactionRecord::RecvWithPrivateSend:
-    case TransactionRecord::SendToAddress:
-    case TransactionRecord::Generated:
-    case TransactionRecord::PrivateSend:
-        return lookupAddress(wtx->address, tooltip) + watchAddress;
-    case TransactionRecord::SendToOther:
-        return QString::fromStdString(wtx->address) + watchAddress;
-    case TransactionRecord::SendToSelf:
-    default:
-        return tr("(n/a)") + watchAddress;
+		case TransactionRecord::RecvFromOther:
+			return QString::fromStdString(wtx->address) + watchAddress;
+		case TransactionRecord::RecvWithAddress:
+		case TransactionRecord::RecvWithPrivateSend:
+		case TransactionRecord::SendToAddress:
+		case TransactionRecord::Generated:
+		case TransactionRecord::PrivateSend:
+			return lookupAddress(wtx->address, tooltip) + watchAddress;
+		case TransactionRecord::SendToOther:
+			return QString::fromStdString(wtx->address) + watchAddress;
+		case TransactionRecord::SendToSelf:
+		case TransactionRecord::GSCTransmission:
+			return QString::fromStdString(wallet->mapWallet[wtx->hash].tx->GetCampaignName());
+
+		default:
+			return tr("(n/a)") + watchAddress;
     }
 }
 

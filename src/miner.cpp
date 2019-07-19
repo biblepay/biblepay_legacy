@@ -874,7 +874,7 @@ bool GetPoolMiningMode(int iThreadID, int& iFailCount, std::string& out_PoolAddr
 		iFailCount++;
 		if (iFailCount >= 5)
 		{
-			WriteCache("poolthread" + RoundToString(iThreadID,0),"poolinfo3","POOL DOWN-REVERTING TO SOLO MINING", GetAdjustedTime());
+			WriteCache("poolthread" + RoundToString(iThreadID,0), "poolinfo3", "POOL DOWN-REVERTING TO SOLO MINING", GetAdjustedTime());
 		}
 		return false;
 	}
@@ -982,6 +982,14 @@ bool InternalABNSufficient()
 	if (dABN < nMinRequiredABNWeight) 
 			return false;
 	return true;
+}
+
+bool IsUnableToMine()
+{
+	double nMinRequiredABNWeight = GetSporkDouble("requiredabnweight", 0);
+	if (nMinRequiredABNWeight > 0 && pwalletMain->IsLocked())
+		return true;
+	return false;
 }
 
 bool IsMyABNSufficient(CBlock block, CBlockIndex* pindexPrev, int nHeight)
@@ -1126,8 +1134,10 @@ recover:
 	    	std::unique_ptr<CBlockTemplate> pblocktemplate(BlockAssembler(Params()).CreateNewBlock(coinbaseScript->reserveScript, sPoolMiningAddress, sMinerGuid, iThreadID, fFunded));
 			if (!pblocktemplate.get())
             {
-				WriteCache("poolthread" + RoundToString(iThreadID, 0), "poolinfo4", "No block to mine... Please wait... " + RoundToString(GetAdjustedTime(), 0), GetAdjustedTime());
+				std::string sSuffix = IsUnableToMine() ? "Wallet Locked/ABN Required" : "";
+				WriteCache("poolthread" + RoundToString(iThreadID, 0), "poolinfo4", "No block to mine... " + sSuffix + " Please wait... " + RoundToString(GetAdjustedTime(), 0), GetAdjustedTime());
 				MilliSleep(15000);
+				SpendABN();
 				LogPrint("miner", "No block to mine %f", iThreadID);
 				goto recover;
             }
@@ -1394,7 +1404,11 @@ void GenerateBiblecoins(bool fGenerate, int nThreads, const CChainParams& chainp
 
     minerThreads = new boost::thread_group();
 	ClearCache("poolcache");
-	int iBibleNumber = 0;			
+	int iBibleNumber = 0;
+
+	if (msSessionID.empty())
+		msSessionID = GetRandHash().GetHex();
+
     for (int i = 0; i < nThreads; i++)
 	{
 		ClearCache("poolthread" + RoundToString(i, 0));

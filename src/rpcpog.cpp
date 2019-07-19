@@ -1916,6 +1916,10 @@ std::string BiblepayHTTPSPost(bool bPost, int iThreadID, std::string sActionName
 		mapRequestHeaders["ThreadID"] = RoundToString(iThreadID, 0);
 		mapRequestHeaders["OS"] = sOS;
 
+		mapRequestHeaders["SessionID"] = msSessionID;
+		mapRequestHeaders["WorkerID1"] = GetArg("-workerid", "");
+		mapRequestHeaders["WorkerID2"] = GetArg("-workeridfunded", "");
+
 		BIO* bio;
 		SSL_CTX* ctx;
 		//   Registers the SSL/TLS ciphers and digests and starts the security layer.
@@ -2578,6 +2582,8 @@ std::string GetPOGBusinessObjectList(std::string sType, std::string sFields)
 	sData += "<my_nickname>" + myCPK.sNickName + "</my_nickname>";
 	sData += "<total_points>" + RoundToString(nTotalPoints, 0) + "</total_points>";
 	sData += "<participants>"+ RoundToString(vData.size() - 1, 0) + "</participants>";
+	sData += "<lowblock>" + RoundToString(iNextSuperblock - BLOCKS_PER_DAY, 0) + "</lowblock>";
+	sData += "<highblock>" + RoundToString(iNextSuperblock, 0)  + "</highblock>";
 	return sData;
 }
 
