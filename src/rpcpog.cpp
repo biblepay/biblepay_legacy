@@ -338,6 +338,15 @@ CAmount CAmountFromValue(const UniValue& value)
 }
 
 static CCriticalSection csReadWait;
+int64_t GetCacheEntryAge(std::string sSection, std::string sKey)
+{
+	LOCK(csReadWait);
+	std::pair<std::string, int64_t> v = mvApplicationCache[std::make_pair(sSection, sKey)];
+	int64_t nTimestamp = v.second;
+	int64_t nAge = GetAdjustedTime() - nTimestamp;
+	return nAge;
+}
+
 std::string ReadCache(std::string sSection, std::string sKey)
 {
 	LOCK(csReadWait); 
@@ -1897,13 +1906,15 @@ std::string PrepareHTTPPost(bool bPost, std::string sPage, std::string sHostHead
     return s.str();
 }
 
+static double HTTP_PROTO_VERSION = 2.0;
+
 std::string BiblepayHTTPSPost(bool bPost, int iThreadID, std::string sActionName, std::string sDistinctUser, std::string sPayload, std::string sBaseURL, std::string sPage, int iPort, 
 	std::string sSolution, int iTimeoutSecs, int iMaxSize, int iBOE)
 {
 	// The OpenSSL version of BiblepayHTTPSPost *only* works with SSL websites, hence the need for BiblePayHTTPPost(2) (using BOOST).  The dev team is working on cleaning this up before the end of 2019 to have one standard version with cleaner code and less internal parts. //
 	try
 	{
-		double dDebugLevel = cdbl(GetArg("-debuglevel", "0"), 0);
+		double dDebugLevel = cdbl(GetArg("-devdebuglevel", "0"), 0);
 	
 		std::map<std::string, std::string> mapRequestHeaders;
 		mapRequestHeaders["Miner"] = sDistinctUser;
@@ -1919,6 +1930,7 @@ std::string BiblepayHTTPSPost(bool bPost, int iThreadID, std::string sActionName
 		mapRequestHeaders["SessionID"] = msSessionID;
 		mapRequestHeaders["WorkerID1"] = GetArg("-workerid", "");
 		mapRequestHeaders["WorkerID2"] = GetArg("-workeridfunded", "");
+		mapRequestHeaders["HTTP_PROTO_VERSION"] = RoundToString(HTTP_PROTO_VERSION, 0);
 
 		BIO* bio;
 		SSL_CTX* ctx;
@@ -2738,3 +2750,14 @@ double GetFees(CTransactionRef tx)
 		LogPrintf("GetFees::ValueIn %f, ValueOut %f, nFees %f ", (double)nValueIn/COIN, (double)nValueOut/COIN, (double)nFees/COIN);
 	return nFees;
 }
+
+void LogPrintWithTimeLimit(std::string sSection, std::string sValue, int64_t nMaxAgeInSeconds)
+{
+	int64_t nAge = GetCacheEntryAge(sSection, sValue);
+	if (nAge < nMaxAgeInSeconds) 
+		return;
+	// Otherwise, print the log
+	LogPrintf("%s::%s", sSection, sValue);
+	WriteCache(sSection, sValue, sValue, GetAdjustedTime());
+}
+

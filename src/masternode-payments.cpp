@@ -1173,7 +1173,7 @@ bool CMasternodePaymentVote::CheckSignature(const CKeyID& keyIDOperator, int nVa
                 if(masternodeSync.IsMasternodeListSynced() && nBlockHeight > nValidationHeight) {
                     nDos = 20;
                 }
-                return error("CMasternodePaymentVote::CheckSignature -- Got bad Masternode payment signature, masternode=%s, error: %s",
+                return error("CMasternodePaymentVote::NewSigs::CheckSignature -- Got bad Masternode payment signature, masternode=%s, error: %s",
                             masternodeOutpoint.ToStringShort(), strError);
             }
         }
@@ -1189,8 +1189,14 @@ bool CMasternodePaymentVote::CheckSignature(const CKeyID& keyIDOperator, int nVa
             if(masternodeSync.IsMasternodeListSynced() && nBlockHeight > nValidationHeight) {
                 nDos = 20;
             }
-            return error("CMasternodePaymentVote::CheckSignature -- Got bad Masternode payment signature, masternode=%s, error: %s",
+			static std::string sLastNode = masternodeOutpoint.ToStringShort();
+			if (sLastNode != masternodeOutpoint.ToStringShort())
+			{
+				LogPrintf("CMasternodePaymentVote::CheckSignature -- Got bad Masternode payment signature, masternode=%s, error: %s",
                         masternodeOutpoint.ToStringShort(), strError);
+			}
+			sLastNode = masternodeOutpoint.ToStringShort();
+			return false;
         }
     }
 

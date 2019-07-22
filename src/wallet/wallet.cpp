@@ -1986,7 +1986,8 @@ bool CWalletTx::RelayWalletTransaction(CConnman* connman, const std::string& str
         /* GetDepthInMainChain already catches known conflicts. */
         if (InMempool() || AcceptToMemoryPool(maxTxFee, state)) {
             uint256 hash = GetHash();
-            LogPrintf("Relaying wtx %s\n", hash.ToString());
+			if (fDebugSpam)
+				LogPrintf("Relaying wtx %s\n", hash.ToString());
 
             if ((strCommand == NetMsgType::TXLOCKREQUEST) ||
                 ((CTxLockRequest(*this).IsSimple()) && CInstantSend::CanAutoLock())) {
