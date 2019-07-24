@@ -236,8 +236,11 @@ CWalletTx CreateGSCClientTransmission(std::string sCampaign, std::string sDiary,
 	// R ANDREWS - Split change into 10 Bankroll Denominations - this makes smaller amounts available for ABNs
 	double nMinRequiredABNWeight = GetSporkDouble("requiredabnweight", 0);
 	bool fSubtractFeeFromAmount = true;
-	
-	double iQty = (nPayment1/COIN) > nMinRequiredABNWeight ? 10 : 1;
+	double dChangeQty = cdbl(GetArg("-changequantity", "10"), 2);
+	if (dChangeQty < 01) dChangeQty = 1;
+	if (dChangeQty > 50) dChangeQty = 50;
+		
+	double iQty = (nPayment1/COIN) > nMinRequiredABNWeight ? dChangeQty : 1;
 	double nEach = (double)1 / iQty;
 	for (int i = 0; i < iQty; i++)
 	{
