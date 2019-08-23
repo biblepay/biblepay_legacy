@@ -1,15 +1,14 @@
-Biblepay Classic
+!! Biblepay Has Moved !!
 ===============================
 
-https://www.Biblepay.org
+Please update your github URL to:
 
-!! ATTENTION !!
+`https://github.com/biblepay/biblepay-evolution`
 
-As of July 2019, BiblePay has been moved to a new github repo!
 
-Please update your URL to:
 
-https://github.com/biblepay/biblepay-evolution
+
+
 
 
 What is Biblepay?
