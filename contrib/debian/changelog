@@ -1,5 +1,0 @@
-mainnet (1.1.6.0-xenial1) xenial; urgency=low
-
-  * Improves BOINC cmd interactions.
-    
- -- Mobile Support <mobile@biblepay.org>  Thu, 15 Nov 2018 02:22:09 -0800
