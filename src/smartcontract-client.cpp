@@ -101,6 +101,8 @@ bool CheckCampaign(std::string sName)
 		if (sCampaignName == sName)
 			return true;
 	}
+	if (sName == "BMS" || sName == "BMSUSER")
+		return true;
 	return false;
 }
 
@@ -293,8 +295,10 @@ CWalletTx CreateGSCClientTransmission(std::string sCampaign, std::string sDiary,
 double UserSetting(std::string sName, double dDefault)
 {
 	boost::to_lower(sName);
+	// Step 1:  Check the biblepay.conf setting to see if overridden
 	double dConfigSetting = cdbl(GetArg("-" + sName, "0"), 4);
-	if (dConfigSetting == 0) dConfigSetting = dDefault;
+	if (dConfigSetting == 0) 
+		dConfigSetting = dDefault;
 	return dConfigSetting;
 }
 	
@@ -323,8 +327,11 @@ bool Enrolled(std::string sCampaignName, std::string& sError)
 	return true;
 }
 
-bool CreateClientSideTransaction(bool fForce, bool fDiaryProjectsOnly, std::string sDiary, std::string& sError)
+bool CreateClientSideTransaction(bool fForce, bool fDiaryProjectsOnly, std::string sDiary, std::string& sError, CAmount nFoundationDonationOverride, std::string sSpecificCampaignName)
 {
+	// Lets only do this if its conceptually profitable
+	// Note the force flag above:  If the call is from the Miner, force=false.  If the call is from the RPC command "sendgsc", the force=true.
+
 	std::map<std::string, std::string> mCampaigns = GetSporkMap("spork", "gsccampaigns");
 	double nTransmissionFrequency = GetSporkDouble("gscclienttransmissionfrequency", (60 * 60 * 12));
 	if (sDiary.length() < 10) 
@@ -334,6 +341,8 @@ bool CreateClientSideTransaction(bool fForce, bool fDiaryProjectsOnly, std::stri
 		sError = "Sorry, you have selected diary projects only, but biblepay did not receive a diary entry.";
 		return false;
 	}
+	boost::to_upper(sSpecificCampaignName);
+
 	double nDisableClientSideTransmission = UserSetting("disablegsctransmission", 0);
 	if (nDisableClientSideTransmission == 1)
 		return false;
@@ -345,8 +354,26 @@ bool CreateClientSideTransaction(bool fForce, bool fDiaryProjectsOnly, std::stri
 		int64_t nAge = GetAdjustedTime() - nLastGSC;
 		double nDefaultCoinAgePercentage = GetSporkDouble(s.first + "defaultcoinagepercentage", .10);
 		double nDefaultTithe = GetSporkDouble(s.first + "defaulttitheamount", 0);
+		CAmount nFoundationDonation = UserSetting(s.first + "_foundationdonation", nDefaultTithe) * COIN;
+		if (nFoundationDonationOverride > 0)
+				nFoundationDonation = nFoundationDonationOverride;
+		bool fProfitable = true;  
+		if (s.first == "POG")
+		{
+			double nROI = GetROI((double)nFoundationDonation / COIN);
+			if (nROI <= 0.01)
+			{
+				fProfitable = false;
+				LogPrintf("Not participating in the %s campaign because BiblePay believes it may be unprofitable (%f percent) today. ", s.first, (double)nROI);
+			}
+			else
+			{
+				LogPrintf("\nTithing %f BBP into the Orphan Foundation for %s, because expected ROI is %f percent.", (double)nFoundationDonation/COIN,
+					s.first, (double)nROI);
+			}
+		}
 
-		if (nAge > nTransmissionFrequency || fForce)
+		if (fForce || (fProfitable && nAge > nTransmissionFrequency))
 		{
 			WriteCacheDouble(s.first + "_lastclientgsc", GetAdjustedTime());
 			// This particular campaign needs a transaction sent (if the user is in good standing and enrolled in this project)
@@ -354,16 +381,16 @@ bool CreateClientSideTransaction(bool fForce, bool fDiaryProjectsOnly, std::stri
 			bool fPreCheckPassed = true;
 			if (s.first == "HEALING" && sDiary.empty())
 				fPreCheckPassed = false;
-			if (fDiaryProjectsOnly && CalculatePoints(s.first, "", 1000, 1000, s.first) > 0) 
+			if (fDiaryProjectsOnly && s.first != "HEALING") 
 				fPreCheckPassed = false;
-				
+			if (!sSpecificCampaignName.empty() && s.first != sSpecificCampaignName)
+				fPreCheckPassed = false;
 			if (Enrolled(s.first, sError1) && fPreCheckPassed)
 			{
 				LogPrintf("\nSmartContract-Client::Creating Client side transaction for campaign %s ", s.first);
 				std::string sXML;
 				CReserveKey reservekey(pwalletMain);
 				double nCoinAgePercentage = UserSetting(s.first + "_coinagepercentage", nDefaultCoinAgePercentage);
-				CAmount nFoundationDonation = UserSetting(s.first + "_foundationdonation", nDefaultTithe) * COIN;
 				std::string sError2;
 				CWalletTx wtx = CreateGSCClientTransmission(s.first, sDiary, chainActive.Tip(), nCoinAgePercentage, nFoundationDonation, reservekey, sXML, sError2);
 				LogPrintf("\nCreated client side transmission - %s [%s] with txid %s ", sXML, sError, wtx.tx->GetHash().GetHex());

@@ -24,7 +24,7 @@ uint256 GetPAMHash(std::string sAddresses, std::string sAmounts);
 bool VoteForGSCContract(int nHeight, std::string sMyContract, std::string& sError);
 std::string ExecuteGenericSmartContractQuorumProcess();
 UniValue GetProminenceLevels(int nHeight, bool fMeOnly);
-bool NickNameExists(std::string sNickName);
+bool NickNameExists(std::string sProjectName, std::string sNickName);
 int GetRequiredQuorumLevel(int nHeight);
 void GetTransactionPoints(CBlockIndex* pindex, CTransactionRef tx, double& nCoinAge, CAmount& nDonation);
 bool ChainSynced(CBlockIndex* pindex);

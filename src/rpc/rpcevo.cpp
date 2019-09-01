@@ -1209,7 +1209,7 @@ UniValue sponsorchild(const JSONRPCRequest& request)
 		std::vector<std::string> vNarr = Split(sNarr.c_str(), "\n");
 		for (int i = 0; i < vNarr.size(); i++)
 		{
-			results.push_back(Pair("Notes " + RoundToString(i,0), vNarr[i]));
+			results.push_back(Pair("Notes " + RoundToString(i, 0), vNarr[i]));
 		}
 	}
 	return results;
@@ -1238,7 +1238,7 @@ UniValue listchildren(const JSONRPCRequest& request)
 	{
 		std::string sCPK = a.second.sAddress;
 		std::string sChildID = a.second.sOptData;
-		std::string sBIOUrl = "https://cameroonone.org/biblepay/" + sChildID + ".htm";
+		std::string sBIOUrl = "https://biblepay.cameroonone.org/" + sChildID + ".htm";
 		std::string sChildName; // We may or may not be able to retrieve this from the API (pending).
 		CPK userCPK = GetCPKFromProject("cpk", sCPK);
 		if (!sChildID.empty())
@@ -1258,6 +1258,47 @@ UniValue listchildren(const JSONRPCRequest& request)
 			}
 		}
 	}
+	return results;
+}
+
+UniValue sendgscc(const JSONRPCRequest& request)
+{
+	if (request.fHelp)
+		throw std::runtime_error(
+		"sendgscc"
+		"\nSends a generic smart contract campaign transmission and/or a donation to the foundation."
+		"\nYou must specify sendgscc campaign_name [foundation_donation_amount] [optional:diary_entry] : IE 'exec sendgscc healing 10 [\"prayed for Jane Doe who had broken ribs, this happened\"].");
+	if (request.params.size() < 1 || request.params.size() > 3)
+		throw std::runtime_error("You must specify sendgscc campaign_name [foundation_donation_amount] [optional:diary_entry] : IE 'exec sendgscc healing 10 [\"prayed for Jane Doe who had broken ribs, this happened\"].");
+	std::string sDiary;
+	std::string sCampaignName;
+	if (request.params.size() > 0)
+	{
+		sCampaignName = request.params[0].get_str();
+	}
+	CAmount nFoundationDonationOverride = 0;
+	if (request.params.size() > 1)
+	{
+		nFoundationDonationOverride = cdbl(request.params[1].get_str(), 10) * COIN;
+	}
+	if (request.params.size() > 2)
+	{
+		sDiary = request.params[2].get_str();
+		if (sDiary.length() < 10)
+			throw std::runtime_error("Diary entry incomplete (must be 10 chars or more).");
+	}
+	if (!CheckCampaign(sCampaignName))
+		throw std::runtime_error("Campaign does not exist.");
+	WriteCache("gsc", "errors", "", GetAdjustedTime());
+	std::string sError;
+    UniValue results(UniValue::VOBJ);
+	bool fCreated = CreateClientSideTransaction(true, false, sDiary, sError, nFoundationDonationOverride, sCampaignName);
+	if (!sError.empty())
+		results.push_back(Pair("Error!", sError));
+	std::string sFullError = ReadCache("gsc", "errors");
+	if (!sFullError.empty())
+		results.push_back(Pair("Error!", sFullError));
+			
 	return results;
 }
 
@@ -1383,6 +1424,7 @@ static const CRPCCommand commands[] =
 	{ "evo",                "nonfinancialtxtojson",         &nonfinancialtxtojson,          false, {}  },
 	{ "evo",                "sponsorchild",                 &sponsorchild,                  false, {}  },
 	{ "evo",                "listchildren",                 &listchildren,                  false, {}  },
+	{ "evo",                "sendgscc",                     &sendgscc,                      false, {}  },
 };
 
 void RegisterEvoRPCCommands(CRPCTable &tableRPC)

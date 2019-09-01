@@ -2308,16 +2308,33 @@ UniValue exec(const JSONRPCRequest& request)
 		if (!fAdv)
 			results.push_back(Pair("Error", sError));
 	}
-	else if (sItem == "join")
+	else if (sItem == "register")
 	{
 		if (request.params.size() != 2)
-			throw std::runtime_error("You must specify the project_name.");
+			throw std::runtime_error("The purpose of this command is to register your nickname with BMS (the decentralized biblepay web).  This feature will not be available until December 2019.  \nYou must specify your nickname.");
+		std::string sProject = "cpk-bmsuser";
+		std::string sNN;
+		sNN = request.params[1].get_str();
+		boost::to_lower(sProject);
+		std::string sError;
+		bool fAdv = AdvertiseChristianPublicKeypair(sProject, "", sNN, "", false, true, 0, "", sError);
+		results.push_back(Pair("Results", fAdv));
+		if (!fAdv)
+			results.push_back(Pair("Error", sError));
+	}
+	else if (sItem == "join")
+	{
+		if (request.params.size() != 2 && request.params.size() != 3)
+			throw std::runtime_error("You must specify the project_name.  Optionally specify your nickname or sanctuary IP address.");
 		std::string sProject = request.params[1].get_str();
+		std::string sOptData;
+		if (request.params.size() > 2)
+			sOptData = request.params[2].get_str();
 		boost::to_lower(sProject);
 		std::string sError;
 		if (!CheckCampaign(sProject))
 			throw std::runtime_error("Campaign does not exist.");
-		bool fAdv = AdvertiseChristianPublicKeypair("cpk-" + sProject, "", "", "", false, false, 0, "", sError);
+		bool fAdv = AdvertiseChristianPublicKeypair("cpk-" + sProject, "", sOptData, "", false, false, 0, "", sError);
 		results.push_back(Pair("Results", fAdv));
 		if (!fAdv)
 			results.push_back(Pair("Error", sError));
@@ -2362,24 +2379,6 @@ UniValue exec(const JSONRPCRequest& request)
 		{
 			results.push_back(Pair("TXID", sTxId));
 		}
-	}
-	else if (sItem == "sendgscc")
-	{
-		if (request.params.size() > 2)
-			throw std::runtime_error("You must specify sendgscc [diary_entry]: IE 'exec sendgscc [prayed for Jane Doe who had broken ribs, this happened].");
-		std::string sDiary;
-		if (request.params.size() > 1)
-		{
-			sDiary = request.params[1].get_str();
-			if (sDiary.length() < 10)
-				throw std::runtime_error("Diary entry incomplete (must be 10 chars or more).");
-		}
-		
-		std::string sError;
-		bool fCreated = CreateClientSideTransaction(true, false, sDiary, sError);
-		if (!sError.empty())
-			results.push_back(Pair("Error!", sError));
-
 	}
 	else if (sItem == "health")
 	{

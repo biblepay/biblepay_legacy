@@ -1713,7 +1713,7 @@ void MemorizeBlockChainPrayers(bool fDuringConnectBlock, bool fSubThread, bool f
 		LogPrintf("Memorizing prayers tip height %f @ time %f deserialized height %f ", chainActive.Tip()->nHeight, GetAdjustedTime(), nDeserializedHeight);
 
 	int nMaxDepth = chainActive.Tip()->nHeight;
-	int nMinDepth = fDuringConnectBlock ? nMaxDepth - 2 : nMaxDepth - (BLOCKS_PER_DAY * 30 * 12);  // One year
+	int nMinDepth = fDuringConnectBlock ? nMaxDepth - 2 : nMaxDepth - (BLOCKS_PER_DAY * 30 * 12 * 7);  // Seven years
 	if (fDuringSanctuaryQuorum) nMinDepth = nMaxDepth - (BLOCKS_PER_DAY * 14); // Two Weeks
 	if (nDeserializedHeight > 0 && nDeserializedHeight < nMaxDepth) nMinDepth = nDeserializedHeight;
 	if (nMinDepth < 0) nMinDepth = 0;
@@ -2207,6 +2207,31 @@ std::string GetCPKData(std::string sProjectId, std::string sPK)
 bool AdvertiseChristianPublicKeypair(std::string sProjectId, std::string sNickName, std::string sEmail, std::string sVendorType, bool fUnJoin, bool fForce, CAmount nFee, std::string sOptData, std::string &sError)
 {	
 	std::string sCPK = DefaultRecAddress("Christian-Public-Key");
+	boost::to_lower(sProjectId);
+
+	if (sProjectId == "cpk-bmsuser")
+	{
+		sCPK = DefaultRecAddress("PUBLIC-FUNDING-ADDRESS");
+		bool fExists = NickNameExists(sProjectId, sNickName);
+		if (fExists && false) 
+		{
+			sError = "Sorry, BMS Nick Name is already taken.";
+			return false;
+		}
+	}
+	else
+	{
+		if (!sNickName.empty())
+		{
+			bool fExists = NickNameExists("cpk", sNickName);
+			if (fExists) 
+			{
+				sError = "Sorry, NickName is already taken.";
+				return false;
+			}
+		}
+	}
+
 	std::string sRec = GetCPKData(sProjectId, sCPK);
 	if (fUnJoin)
 	{
@@ -2221,17 +2246,9 @@ bool AdvertiseChristianPublicKeypair(std::string sProjectId, std::string sNickNa
 		return false;
     }
 
-	if (!sNickName.empty())
-	{
-		bool fExists = NickNameExists(sNickName);
-		if (fExists) 
-		{
-			sError = "Sorry, NickName is already taken.";
-			return false;
-		}
-	}
+	
 
-	if (sNickName.length() > 10 && sVendorType.empty())
+	if (sNickName.length() > 20 && sVendorType.empty())
 	{
 		sError = "Sorry, nickname length must be 10 characters or less.";
 		return false;
@@ -2761,3 +2778,38 @@ void LogPrintWithTimeLimit(std::string sSection, std::string sValue, int64_t nMa
 	WriteCache(sSection, sValue, sValue, GetAdjustedTime());
 }
 
+double GetROI(double nTitheAmount)
+{
+	// For a given Tithe Amount, return the conceptual ROI
+	const Consensus::Params& consensusParams = Params().GetConsensus();
+	int iNextSuperblock = 0;
+	int iLastSuperblock = GetLastGSCSuperblockHeight(chainActive.Tip()->nHeight, iNextSuperblock);
+	CAmount nPaymentsLimit = CSuperblock::GetPaymentsLimit(iLastSuperblock);
+	nPaymentsLimit -= MAX_BLOCK_SUBSIDY * COIN;
+	std::string sContract = GetGSCContract(iLastSuperblock, false);
+	std::string sData = ExtractXML(sContract, "<DATA>", "</DATA>");
+	std::vector<std::string> vData = Split(sData.c_str(), "\n");
+	double dTotalPaid = 0;
+	double nTotalPoints = 0;
+	for (int i = 0; i < vData.size(); i++)
+	{
+		std::vector<std::string> vRow = Split(vData[i].c_str(), "|");
+		if (vRow.size() >= 6)
+		{
+			double nPoints = cdbl(vRow[2], 2);
+			double nProminence = cdbl(vRow[3], 4) * 100;
+			double nPayment = cdbl(vRow[5], 4);
+			CAmount nOwed = nPaymentsLimit * (nProminence / 100);
+			dTotalPaid += nPayment;
+			nTotalPoints += nPoints;
+		}
+	}
+
+	double dPPP = dTotalPaid / nTotalPoints;
+	CAmount nTotalReq;
+	double dCoinAge = pwalletMain->GetAntiBotNetWalletWeight(0, nTotalReq);
+	double nPoints = cbrt(nTitheAmount) * dCoinAge;
+	double nEarned = (dPPP * nPoints) - nTitheAmount;
+	double nROI = (nEarned / nTitheAmount) * 100;
+	return nROI;
+}

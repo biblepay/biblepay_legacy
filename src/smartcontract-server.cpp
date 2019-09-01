@@ -463,9 +463,9 @@ bool VoteForGobject(uint256 govobj, std::string sVoteOutcome, std::string& sErro
    
 }
 
-bool NickNameExists(std::string sNickName)
+bool NickNameExists(std::string sProjectName, std::string sNickName)
 {
-	std::map<std::string, CPK> mAllCPKs = GetGSCMap("cpk", "", true);
+	std::map<std::string, CPK> mAllCPKs = GetGSCMap(sProjectName, "", true);
 	boost::to_upper(sNickName);
 	for (std::pair<std::string, CPK> a : mAllCPKs)
 	{
