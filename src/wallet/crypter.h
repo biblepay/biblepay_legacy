@@ -9,6 +9,7 @@
 #include "serialize.h"
 #include "support/allocators/secure.h"
 #include "base58.h"
+#include "utilstrencodings.h"
 
 class uint256;
 
@@ -111,7 +112,11 @@ public:
 };
 
 bool EncryptAES256(const SecureString& sKey, const SecureString& sPlaintext, const std::string& sIV, std::string& sCiphertext);
+std::string EncryptAES256(std::string sPlaintext, std::string sKey);
+
 bool DecryptAES256(const SecureString& sKey, const std::string& sCiphertext, const std::string& sIV, SecureString& sPlaintext);
+std::string DecryptAES256(std::string s64, std::string sKey);
+
 bool BibleDecrypt(const std::vector<unsigned char>& vchCiphertext,std::vector<unsigned char>& vchPlaintext);
 bool BibleEncrypt(std::vector<unsigned char> vchPlaintext, std::vector<unsigned char> &vchCiphertext);
 std::vector<unsigned char> StringToVector(std::string sData);

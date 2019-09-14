@@ -1156,6 +1156,7 @@ bool CMasternodePaymentVote::CheckSignature(const CKeyID& keyIDOperator, int nVa
     // do not ban by default
     nDos = 0;
     std::string strError = "";
+	static std::string sLastNode = masternodeOutpoint.ToStringShort();
 
     if (sporkManager.IsSporkActive(SPORK_6_NEW_SIGS)) {
         uint256 hash = GetSignatureHash();
@@ -1173,8 +1174,12 @@ bool CMasternodePaymentVote::CheckSignature(const CKeyID& keyIDOperator, int nVa
                 if(masternodeSync.IsMasternodeListSynced() && nBlockHeight > nValidationHeight) {
                     nDos = 20;
                 }
-                return error("CMasternodePaymentVote::NewSigs::CheckSignature -- Got bad Masternode payment signature, masternode=%s, error: %s",
+				if (sLastNode != masternodeOutpoint.ToStringShort())
+				{
+					  LogPrintf("CMasternodePaymentVote::NewSigs::CheckSignature -- Got bad Masternode payment signature, masternode=%s, error: %s",
                             masternodeOutpoint.ToStringShort(), strError);
+         		}
+				return false;
             }
         }
     } else {
@@ -1189,7 +1194,6 @@ bool CMasternodePaymentVote::CheckSignature(const CKeyID& keyIDOperator, int nVa
             if(masternodeSync.IsMasternodeListSynced() && nBlockHeight > nValidationHeight) {
                 nDos = 20;
             }
-			static std::string sLastNode = masternodeOutpoint.ToStringShort();
 			if (sLastNode != masternodeOutpoint.ToStringShort())
 			{
 				LogPrintf("CMasternodePaymentVote::CheckSignature -- Got bad Masternode payment signature, masternode=%s, error: %s",

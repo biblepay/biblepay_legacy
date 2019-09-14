@@ -133,7 +133,6 @@ bool CCrypter::Decrypt(const std::vector<unsigned char>& vchCiphertext, CKeyingM
     return true;
 }
 
-
 static bool EncryptSecret(const CKeyingMaterial& vMasterKey, const CKeyingMaterial &vchPlaintext, const uint256& nIV, std::vector<unsigned char> &vchCiphertext)
 {
     CCrypter cKeyCrypter;
@@ -144,6 +143,44 @@ static bool EncryptSecret(const CKeyingMaterial& vMasterKey, const CKeyingMateri
     return cKeyCrypter.Encrypt(*((const CKeyingMaterial*)&vchPlaintext), vchCiphertext);
 }
 
+std::string RPAD(std::string sUnpadded, int nLength)
+{
+	sUnpadded += "0000000000000000000000000000000000000000000000000000000000000000";
+	sUnpadded = sUnpadded.substr(0, nLength);
+	return sUnpadded;
+}
+
+std::string DecryptAES256(std::string s64, std::string sKey)
+{
+	std::string sIV = "eb5a781ea9da2ef3";
+	std::string sEnc = DecodeBase64(s64);
+	sKey = RPAD(sKey, 32);
+
+	SecureString sSCKey(sKey.c_str());
+    SecureString sValue;
+    if(!DecryptAES256(sSCKey, sEnc, sIV, sValue))
+    {
+		return std::string();
+    }
+    return sValue.c_str();
+}
+
+std::string EncryptAES256(std::string sPlaintext, std::string sKey)
+{
+	std::string sIV = "eb5a781ea9da2ef3";
+	sKey = RPAD(sKey, 32);
+	SecureString sSCKey(sKey.c_str());
+
+	std::string sCipherValue;
+	SecureString SCPlainText(sPlaintext.c_str());
+	bool fSuccess = EncryptAES256(sSCKey, SCPlainText, sIV, sCipherValue);
+	if (!fSuccess)
+	{
+		return std::string();
+	}
+	std::string sEnc = EncodeBase64(sCipherValue);
+	return sEnc;
+}
 
 // General secure AES 256 CBC encryption routine
 bool EncryptAES256(const SecureString& sKey, const SecureString& sPlaintext, const std::string& sIV, std::string& sCiphertext)

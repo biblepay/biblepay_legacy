@@ -1205,6 +1205,9 @@ UniValue sponsorchild(const JSONRPCRequest& request)
 			"\nNOTE: Please paste the BiblePay hex child ID #" + sChildId + " in the Paypal NOTES textbox before submitting the payment."
 			"\nOption 3:  GlobalGiving Match:"
 			"\nTo use Global Giving, see this page https://www.globalgiving.org/recurring-donations-matched/ and set up a recurring donation, then notify Anna with CameroonONE <Anna.Cavolowsky@cameroonone.org> with your ChildID and verify the recurring donation is set up."
+			"\nOption 4:  Pay in BBP:"
+			"\nTo pay with BiblePay, send the converted amount (based on the midpoint of our coinmarketcap value) to Cameroon-One's wallet:  BHRiFZYUpHj2r3gxw7pHyvByTUk1dGb8vz"
+			"\nThen send an e-mail to 'Todd Finklestone <todd.justin@cameroonone.org>' with the BBP Amount sent, the TXID, and the Child ID you are paying for."
 			"\n";
 		std::vector<std::string> vNarr = Split(sNarr.c_str(), "\n");
 		for (int i = 0; i < vNarr.size(); i++)
@@ -1238,7 +1241,7 @@ UniValue listchildren(const JSONRPCRequest& request)
 	{
 		std::string sCPK = a.second.sAddress;
 		std::string sChildID = a.second.sOptData;
-		std::string sBIOUrl = "https://biblepay.cameroonone.org/" + sChildID + ".htm";
+		std::string sBIOUrl = "https://biblepay.cameroonone.org/bios/" + sChildID + ".htm";
 		std::string sChildName; // We may or may not be able to retrieve this from the API (pending).
 		CPK userCPK = GetCPKFromProject("cpk", sCPK);
 		if (!sChildID.empty())

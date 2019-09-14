@@ -2925,15 +2925,20 @@ void CNode::AskFor(const CInv& inv)
 {
     if (mapAskFor.size() > MAPASKFOR_MAX_SZ || setAskFor.size() > SETASKFOR_MAX_SZ) {
         int64_t nNow = GetTime();
-        if(nNow - nLastWarningTime > WARNING_INTERVAL) {
-            LogPrintf("CNode::AskFor -- WARNING: inventory message dropped: mapAskFor.size = %d, setAskFor.size = %d, MAPASKFOR_MAX_SZ = %d, SETASKFOR_MAX_SZ = %d, nSkipped = %d, peer=%d\n",
+        if(nNow - nLastWarningTime > WARNING_INTERVAL) 
+		{
+			LogPrintf("CNode::AskFor -- WARNING: inventory message dropped: mapAskFor.size = %d, setAskFor.size = %d, MAPASKFOR_MAX_SZ = %d, SETASKFOR_MAX_SZ = %d, nSkipped = %d, peer=%d\n",
                       mapAskFor.size(), setAskFor.size(), MAPASKFOR_MAX_SZ, SETASKFOR_MAX_SZ, nNumWarningsSkipped, id);
-            nLastWarningTime = nNow;
-            nNumWarningsSkipped = 0;
-        }
-        else {
-            ++nNumWarningsSkipped;
-        }
+			nLastWarningTime = nNow;
+			nNumWarningsSkipped = 0;
+			// This is abusive behavior - R Andrews
+			// Misbehaving(this->GetId(), 10);
+			fDisconnect = true;
+		}
+		else 
+		{
+			++nNumWarningsSkipped;
+	    }
         return;
     }
     // a peer may not have multiple non-responded queue positions for a single inv item

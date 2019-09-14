@@ -161,6 +161,7 @@ extern int miGlobalPrayerIndex;
 extern int miGlobalDiaryIndex;
 extern SecureString msEncryptedString;
 extern std::string sOS;
+extern std::string msMasterNodeLegacyPrivKey;
 extern std::string msGithubVersion;
 extern std::string msSessionID;
 extern std::string msGlobalStatus;

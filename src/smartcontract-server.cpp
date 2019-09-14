@@ -105,10 +105,12 @@ double GetProminenceCap(std::string sCampaignName, double nPoints, double nPromi
 		// Cap is in effect, so reverse engineer the payment to the actual market value
 		double nProjectedBBP = nUSDSpent / nPrice;
 		double nProjectedProminence = nProjectedBBP / nPaymentsLimit;
-		LogPrintf(" GetProminenceCap Exceeded - new prominence %f ", nProjectedProminence);
+		if (fDebugSpam)
+			LogPrintf(" GetProminenceCap Exceeded - new prominence %f ", nProjectedProminence);
 		nProminence = nProjectedProminence;
 	}
-	LogPrintf("\n GetProminenceCap Points %f, Prominence %f, USD Price %f, UserReward %f  ", nPoints, nProminence, nPrice, nRewardUSD);
+	if (fDebugSpam)
+		LogPrintf("\n GetProminenceCap Points %f, Prominence %f, USD Price %f, UserReward %f  ", nPoints, nProminence, nPrice, nRewardUSD);
 	return nProminence;
 }
 
@@ -393,7 +395,8 @@ double CalculatePoints(std::string sCampaign, std::string sDiary, double nCoinAg
 					double nCameroonOneMonthlyRate = GetSporkDouble("cameroononemonthlyrate", 40);
 					double nDailyCharges = nCameroonOneMonthlyRate / 30;
 					nTotalPoints += (nDailyCharges * 1000);
-					LogPrintf("\nFound Cameroon-One Child %s for CPK %s, crediting Daily Charges %f, TotalPoints %f ", sChildID, sSponsorCPK, nDailyCharges, nTotalPoints);
+					if (fDebugSpam)
+						LogPrintf("\nFound Cameroon-One Child %s for CPK %s, crediting Daily Charges %f, TotalPoints %f ", sChildID, sSponsorCPK, nDailyCharges, nTotalPoints);
 				}
 			}
 		}
@@ -402,9 +405,15 @@ double CalculatePoints(std::string sCampaign, std::string sDiary, double nCoinAg
 	return 0;
 }
 
-bool VoteForGobject(uint256 govobj, std::string sVoteOutcome, std::string& sError)
+bool VoteForGobject(uint256 govobj, std::string sVoteSignal, std::string sVoteOutcome, std::string& sError)
 {
-	vote_signal_enum_t eVoteSignal = CGovernanceVoting::ConvertVoteSignal("funding");
+	if (sVoteSignal != "funding" && sVoteSignal != "delete")
+	{
+		LogPrintf("Sanctuary tried to vote in a way that is prohibited.  Vote failed. %s", sVoteSignal);
+		return false;
+	}
+
+	vote_signal_enum_t eVoteSignal = CGovernanceVoting::ConvertVoteSignal(sVoteSignal);
 	vote_outcome_enum_t eVoteOutcome = CGovernanceVoting::ConvertVoteOutcome(sVoteOutcome);
 	int nSuccessful = 0;
 	int nFailed = 0;
@@ -824,29 +833,43 @@ bool VoteForGSCContract(int nHeight, std::string sMyContract, std::string& sErro
 	for (int i = 0; i < vPropByGov.size(); i++)
 	{
 		CGovernanceObject* myGov = governance.FindGovernanceObject(vPropByGov[i].second);
-		sAction = (i==0) ? "yes" : "no";
-		if (fOverBudget) 
-			sAction = "no";
 		iVotes = myGov->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING);
 		LogPrintf("\nSmartContract-Server::VoteForGSCContractOrderedByHash::Voting %s for govHash %s, with pre-existing-votes %f (created %f) Overbudget %f ",
 			sAction, myGov->GetHash().GetHex(), iVotes, myGov->GetCreationTime(), (double)fOverBudget);
-		VoteForGobject(myGov->GetHash(), sAction, sError);
-		break;
+		if (i == 0)
+		{
+			sAction = fOverBudget ? "no" : "yes";
+			VoteForGobject(myGov->GetHash(), "funding", sAction, sError);
+		}
+		int64_t nAge = GetAdjustedTime() - myGov->GetCreationTime();
+		if (nAge > (60 * 60 * 1) && iVotes == 0 && i > 1)
+		{
+			// This will cause the cleaner thread to remove the object
+			VoteForGobject(myGov->GetHash(), "delete", "yes", sError);
+		}
 	}
 	// Phase 2: Vote against contracts at this height that do not match our hash
-	bool bFeatureOff = false;
-	if (!bFeatureOff && uPamHash != uint256S("0x0"))
+	bool bFeatureOn = true;
+	if (bFeatureOn && uPamHash != uint256S("0x0"))
 	{
 		vPropByGov = GetGSCSortedByGov(nHeight, uPamHash, true);
 		for (int i = 0; i < vPropByGov.size(); i++)
 		{
 			CGovernanceObject* myGovForRemoval = governance.FindGovernanceObject(vPropByGov[i].second);
-			sAction = "no";
 			int iVotes = myGovForRemoval->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING);
 			LogPrintf("\nSmartContract-Server::VoteDownBadGCCContracts::Voting %s for govHash %s, with pre-existing-votes %f (created %f)",
 				sAction, myGovForRemoval->GetHash().GetHex(), iVotes, myGovForRemoval->GetCreationTime());
-			VoteForGobject(myGovForRemoval->GetHash(), sAction, sError);
-			break;
+			if (i == 0)
+			{
+				VoteForGobject(myGovForRemoval->GetHash(), "funding", "no", sError);
+			}
+			// R Andrews - BiblePay - Remove duplicate contracts - these occur when more than one sanc created a contract during the same second - All praise and glory to Jesus
+			int64_t nAge = GetAdjustedTime() - myGovForRemoval->GetCreationTime();
+			if (iVotes == 0 && nAge > (60 * 60 * 4) && i > 1)
+			{
+				// This will cause the cleaner thread to remove the object
+				VoteForGobject(myGovForRemoval->GetHash(), "delete", "yes", sError);
+			}
 		}
 	}
 
@@ -1255,6 +1278,7 @@ std::string ExecuteGenericSmartContractQuorumProcess()
 		std::string sWatchman = WatchmanOnTheWall(false, sContr);
 		if (fDebugSpam)
 			LogPrintf("WatchmanOnTheWall::Status %s Contract %s", sWatchman, sContr);
+		UpdateHealthInformation();
 	}
 	bool fStratisExport = (chainActive.Tip()->nHeight % BLOCKS_PER_DAY == 0) && fMasternodeMode;
 	if (fStratisExport)
@@ -1269,6 +1293,13 @@ std::string ExecuteGenericSmartContractQuorumProcess()
 	int nCascadeHeight = GetRandInt(chainActive.Tip()->nHeight);
 	bool fWarmingPeriod = nBlocksSinceLastEpoch < WARMING_DURATION;
 	int nQuorumAssessmentHeight = fWarmingPeriod ? nCascadeHeight : chainActive.Tip()->nHeight;
+
+	int nCreateWindow = chainActive.Tip()->nHeight * .25;
+	bool fPrivilegeToCreate = nCascadeHeight < nCreateWindow;
+
+	if (!fProd)
+		fPrivilegeToCreate = true;
+
 	bool fQuorum = (nQuorumAssessmentHeight % 5 == 0);
 	if (!fQuorum)
 		return "NTFQ_";
@@ -1321,7 +1352,7 @@ std::string ExecuteGenericSmartContractQuorumProcess()
 		}
 	}
 
-	if (uGovObjHash == uint256S("0x0"))
+	if (uGovObjHash == uint256S("0x0") && fPrivilegeToCreate)
 	{
 		std::string sQuorumTrigger = SerializeSanctuaryQuorumTrigger(iLastSuperblock, iNextSuperblock, sContract);
 		std::string sGobjectHash;

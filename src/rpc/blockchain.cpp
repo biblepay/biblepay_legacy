@@ -2757,6 +2757,27 @@ UniValue exec(const JSONRPCRequest& request)
 		double dBal = GetCameroonChildBalance(sChildID);	
 		results.push_back(Pair("Balance", dBal));	
 	}
+	else if (sItem == "tuhi")
+	{
+		UpdateHealthInformation();
+	}
+	else if (sItem == "blscommand")
+	{
+		if (request.params.size() != 2)	
+			throw std::runtime_error("You must specify blscommand masternodeprivkey masternodeblsprivkey.");	
+
+		std::string sMNP = request.params[1].get_str();
+		std::string sMNBLSPrivKey = request.params[2].get_str();
+		std::string sCommand = "masternodeblsprivkey=" + sMNBLSPrivKey;
+		std::string sEnc = EncryptAES256(sCommand, sMNP);
+		std::string sCPK = DefaultRecAddress("Christian-Public-Key");
+		std::string sXML = "<blscommand>" + sEnc + "</blscommand>";
+		std::string sError;
+		std::string sResult = SendBlockchainMessage("bls", sCPK, sXML, 1, false, "", sError);
+		if (!sError.empty())
+			results.push_back(Pair("Errors", sError));
+		results.push_back(Pair("blsmessage", sXML));
+	}
 	else if (sItem == "datalist")
 	{
 		if (request.params.size() != 2 && request.params.size() != 3)

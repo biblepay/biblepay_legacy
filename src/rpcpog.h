@@ -209,5 +209,7 @@ int ReassessAllChains();
 double GetFees(CTransactionRef tx);
 void LogPrintWithTimeLimit(std::string sSection, std::string sValue, int64_t nMaxAgeInSeconds);
 double GetROI(double nTitheAmount);
+void ProcessBLSCommand(CTransactionRef tx);
+void UpdateHealthInformation();
 
 #endif

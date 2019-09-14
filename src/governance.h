@@ -177,6 +177,7 @@ public: // Types
         bool fStatusOK;
     };
 
+	void PoseBan(CGovernanceObject govobj);
 
     typedef std::map<uint256, CGovernanceObject> object_m_t;
 

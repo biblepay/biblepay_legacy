@@ -1995,6 +1995,16 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
         return InitError(_("You can not start a masternode in lite mode."));
     }
 
+	// R Andrews; Apollon Support
+	if (fMasternodeMode || true)
+	{
+		msMasterNodeLegacyPrivKey = GetArg("-masternodeprivkey", "");
+		if (!msMasterNodeLegacyPrivKey.empty())
+		{
+			LogPrintf("\nSetting masternodeprivkey. %f", 1);
+		}
+	}
+
     if(fMasternodeMode) {
         LogPrintf("MASTERNODE:\n");
 
@@ -2113,6 +2123,20 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
 
             strDBName = "governance.dat";
             uiInterface.InitMessage(_("Loading governance cache..."));
+
+			// Bloat Prevention of governance.dat:
+			// During forensic analysis the BiblePay Team has discovered that this file will grow bigger each time we deserialize governance objects, therefore we need to clear it if its bigger than 25 megs, and let it get reindexed.
+			boost::filesystem::path pathGov = GetDataDir() / "governance.dat";
+			int64_t nGovSz = GetFileSize(pathGov.c_str());
+			LogPrintf("Governance file size %f", nGovSz);
+			if (nGovSz > 25000000)
+			{
+				LogPrintf("Removing bloated governance file %f", nGovSz);
+				if(boost::filesystem::exists(pathGov))
+					boost::filesystem::remove(pathGov); 
+			}
+			// End of Bloat Prevention
+
             CFlatDB<CGovernanceManager> flatdb3(strDBName, "magicGovernanceCache");
             if(!flatdb3.Load(governance)) {
                 return InitError(_("Failed to load governance cache from") + "\n" + (pathDB / strDBName).string());

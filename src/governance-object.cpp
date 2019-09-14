@@ -360,15 +360,18 @@ bool CGovernanceObject::CheckSignature(const CKeyID& keyID) const
 
             if (!CMessageSigner::VerifyMessage(keyID, vchSig, strMessage, strError)) {
                 // nope, not in old format either
-                LogPrintf("CGovernance::CheckSignature -- VerifyMessage() failed, error: %s\n", strError);
+				if (fDebugSpam)
+					LogPrintf("CGovernance::CheckSignature[New] -- VerifyMessage() failed, error: %s\n", strError);
                 return false;
             }
         }
     } else {
         std::string strMessage = GetSignatureMessage();
 
-        if (!CMessageSigner::VerifyMessage(keyID, vchSig, strMessage, strError)) {
-            LogPrintf("CGovernance::CheckSignature -- VerifyMessage() failed, error: %s\n", strError);
+        if (!CMessageSigner::VerifyMessage(keyID, vchSig, strMessage, strError)) 
+		{
+			if (fDebugSpam)
+				LogPrintf("CGovernance::CheckSignature[Legacy] -- VerifyMessage() failed, error: %s\n", strError);
             return false;
         }
     }

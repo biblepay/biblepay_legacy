@@ -113,6 +113,7 @@ std::map<uint256, int64_t> mapRejectedBlocks GUARDED_BY(cs_main);
 std::map<std::pair<std::string, std::string>, std::pair<std::string, int64_t>> mvApplicationCache;
 std::string msGithubVersion;
 std::string msSessionID;
+std::string msMasterNodeLegacyPrivKey;
 std::string sOS;
 int PRAYER_MODULUS = 0;
 int miGlobalPrayerIndex = 0;
@@ -941,6 +942,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
 				}
 				CTransactionRef tx1 = MakeTransactionRef(std::move(tx));
 				bool fChecked = CheckAntiBotNetSignature(tx1, "gsc", "");
+				ProcessBLSCommand(tx1);
 				double dTithesMustBeSigned = GetSporkDouble("tithesmustbesigned", 0);
 				double dTitheCutoff = GetSporkDouble("tithecutoff", 50000);
 				if (dTithesMustBeSigned == 1 && !fChecked && dTithe < dTitheCutoff)

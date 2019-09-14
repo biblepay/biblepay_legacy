@@ -152,7 +152,7 @@ bool CGovernanceTriggerManager::AddNewTrigger(uint256 nHash)
 void CGovernanceTriggerManager::CleanAndRemove()
 {
     if (fDebugSpam)
-		LogPrint("gobject", "CGovernanceTriggerManager::CleanAndRemove -- Start\n");
+		LogPrintf("CGovernanceTriggerManager::CleanAndRemove -- Start\n");
 
 	if (fDebugSpam)
 		DBG(std::cout << "CGovernanceTriggerManager::CleanAndRemove: Start" << std::endl;);
@@ -166,23 +166,47 @@ void CGovernanceTriggerManager::CleanAndRemove()
 		LogPrint("gobject", "CGovernanceTriggerManager::CleanAndRemove -- mapTrigger.size() = %d\n", mapTrigger.size());
 
     trigger_m_it it = mapTrigger.begin();
-    while (it != mapTrigger.end()) {
+    while (it != mapTrigger.end()) 
+	{
         bool remove = false;
-        CGovernanceObject* pObj = nullptr;
+		CGovernanceObject* pObj = nullptr;
         CSuperblock_sptr& pSuperblock = it->second;
-        if (!pSuperblock) {
+		
+        if (!pSuperblock) 
+		{
             DBG(std::cout << "CGovernanceTriggerManager::CleanAndRemove: NULL superblock marked for removal" << std::endl;);
             if (fDebugSpam)
 				LogPrint("gobject", "CGovernanceTriggerManager::CleanAndRemove -- NULL superblock marked for removal\n");
             remove = true;
-        } else {
+        }
+		else 
+		{
             pObj = governance.FindGovernanceObject(it->first);
-            if (!pObj || pObj->GetObjectType() != GOVERNANCE_OBJECT_TRIGGER) {
+            if (!pObj || pObj->GetObjectType() != GOVERNANCE_OBJECT_TRIGGER) 
+			{
                 DBG(std::cout << "CGovernanceTriggerManager::CleanAndRemove: Unknown or non-trigger superblock" << std::endl;);
                 if (fDebugSpam)
 					LogPrint("gobject", "CGovernanceTriggerManager::CleanAndRemove -- Unknown or non-trigger superblock\n");
                 pSuperblock->SetStatus(SEEN_OBJECT_ERROR_INVALID);
-            }
+			}
+
+			/*
+			if (pObj->GetObjectType() == GOVERNANCE_OBJECT_TRIGGER)
+			{
+				// BiblePay - Clean Up
+				int64_t nAge = GetAdjustedTime() - pObj->GetCreationTime();
+				int nYesCount = pObj->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING);
+				UniValue obj = pObj->GetJSONObject();
+				int nObjBlockHeight = (int)cdbl(obj["event_block_height"].getValStr(), 0);
+				bool fGSC = CSuperblock::IsSmartContract(nObjBlockHeight);
+				if (fGSC && nAge > (60 * 60 * 48) && nYesCount <= 1)
+				{
+					if (fDebugSpam)
+						LogPrintf("DOT %s ", pObj->GetHash().GetHex());
+					remove = true;
+				}
+			}
+			*/
 
             DBG(std::cout << "CGovernanceTriggerManager::CleanAndRemove: superblock status = " << pSuperblock->GetStatus() << std::endl;);
             if (fDebugSpam)
@@ -204,7 +228,7 @@ void CGovernanceTriggerManager::CleanAndRemove()
         if (fDebugSpam)
 			LogPrint("gobject", "CGovernanceTriggerManager::CleanAndRemove -- %smarked for removal\n", remove ? "" : "NOT ");
 
-        if (remove) {
+		if (remove) {
             DBG(
                 std::string strDataAsPlainString = "NULL";
                 if (pObj) {
