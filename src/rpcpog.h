@@ -107,7 +107,7 @@ std::string StoreBusinessObjectWithPK(UniValue& oBusinessObject, std::string& sE
 std::string StoreBusinessObject(UniValue& oBusinessObject, std::string& sError);
 bool is_email_valid(const std::string& e);
 double GetSporkDouble(std::string sName, double nDefault);
-int64_t GetFileSize(std::string sPath);
+int64_t GetFileSizeB(std::string sPath);
 std::string AddBlockchainMessages(std::string sAddress, std::string sType, std::string sPrimaryKey, 
 	std::string sHTML, CAmount nAmount, double minCoinAge, std::string& sError);
 std::string ReadCache(std::string sSection, std::string sKey);

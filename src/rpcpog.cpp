@@ -984,8 +984,7 @@ std::string StoreBusinessObject(UniValue& oBusinessObject, std::string& sError)
 }
 */
 
-
-int64_t GetFileSize(std::string sPath)
+int64_t GetFileSizeB(std::string sPath)
 {
 	if (!boost::filesystem::exists(sPath)) return 0;
 	return (int64_t)boost::filesystem::file_size(sPath);
