@@ -842,11 +842,6 @@ bool VoteForGSCContract(int nHeight, std::string sMyContract, std::string& sErro
 			VoteForGobject(myGov->GetHash(), "funding", sAction, sError);
 		}
 		int64_t nAge = GetAdjustedTime() - myGov->GetCreationTime();
-		if (nAge > (60 * 60 * 1) && iVotes == 0 && i > 1)
-		{
-			// This will cause the cleaner thread to remove the object
-			VoteForGobject(myGov->GetHash(), "delete", "yes", sError);
-		}
 	}
 	// Phase 2: Vote against contracts at this height that do not match our hash
 	bool bFeatureOn = true;
@@ -865,11 +860,28 @@ bool VoteForGSCContract(int nHeight, std::string sMyContract, std::string& sErro
 			}
 			// R Andrews - BiblePay - Remove duplicate contracts - these occur when more than one sanc created a contract during the same second - All praise and glory to Jesus
 			int64_t nAge = GetAdjustedTime() - myGovForRemoval->GetCreationTime();
-			if (iVotes == 0 && nAge > (60 * 60 * 4) && i > 1)
+			if (iVotes == 0 && nAge > (60 * 60 * 8) && i > 1)
 			{
 				// This will cause the cleaner thread to remove the object
 				VoteForGobject(myGovForRemoval->GetHash(), "delete", "yes", sError);
+				break;
 			}
+		}
+	}
+	//Phase 3:  Vote to delete very old contracts
+	int iNextSuperblock = 0;
+	int iLastSuperblock = GetLastGSCSuperblockHeight(chainActive.Tip()->nHeight, iNextSuperblock);
+	vPropByGov = GetGSCSortedByGov(iLastSuperblock, uPamHash, true);
+	for (int i = 0; i < vPropByGov.size(); i++)
+	{
+		CGovernanceObject* myGovYesterday = governance.FindGovernanceObject(vPropByGov[i].second);
+		int iVotes = myGovYesterday->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING);
+		LogPrintf("\nSmartContract-Server::DeleteYesterdaysEmptyGSCContracts::Voting %s for govHash %s, with pre-existing-votes %f (created %f)",
+				sAction, myGovYesterday->GetHash().GetHex(), iVotes, myGovYesterday->GetCreationTime());
+		int64_t nAge = GetAdjustedTime() - myGovYesterday->GetCreationTime();
+		if (iVotes == 0 && nAge > (60 * 60 * 24))
+		{
+			VoteForGobject(myGovYesterday->GetHash(), "delete", "yes", sError);
 		}
 	}
 

@@ -444,8 +444,11 @@ UniValue protx_register(const JSONRPCRequest& request)
         pwalletMain->LockCoin(ptx.collateralOutpoint);
     }
 
-    if (request.params[paramIdx].get_str() != "") {
-        if (!Lookup(request.params[paramIdx].get_str().c_str(), ptx.addr, Params().GetDefaultPort(), false)) {
+    if (request.params[paramIdx].get_str() != "") 
+	{
+		// R Andrews - DefaultPortEnforcement - Verification before sending ProTx
+        if (!Lookup(request.params[paramIdx].get_str().c_str(), ptx.addr, Params().GetDefaultPort(), false)) 
+		{
             throw std::runtime_error(strprintf("invalid network address %s", request.params[paramIdx].get_str()));
         }
     }

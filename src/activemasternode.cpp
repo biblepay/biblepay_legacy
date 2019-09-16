@@ -373,8 +373,11 @@ void CActiveLegacyMasternodeManager::ManageStateInitial(CConnman& connman)
     }
 
     int mainnetDefaultPort = Params(CBaseChainParams::MAIN).GetDefaultPort();
-    if (Params().NetworkIDString() == CBaseChainParams::MAIN) {
-        if (activeMasternodeInfo.service.GetPort() != mainnetDefaultPort) {
+    if (Params().NetworkIDString() == CBaseChainParams::MAIN) 
+	{
+        if (activeMasternodeInfo.service.GetPort() != mainnetDefaultPort) 
+		{
+			// R Andrews - DefaultPortEnforcement - Active Local Sanctuary Initialization Routine
             nState = ACTIVE_MASTERNODE_NOT_CAPABLE;
             strNotCapableReason = strprintf("Invalid port: %u - only %d is supported on mainnet.", activeMasternodeInfo.service.GetPort(), mainnetDefaultPort);
             LogPrintf("CActiveLegacyMasternodeManager::ManageStateInitial -- %s: %s\n", GetStateString(), strNotCapableReason);
