@@ -50,17 +50,24 @@ namespace Cnv
                 while (sr.EndOfStream == false)
                 {
                     string sLine = sr.ReadLine();
-                    string sPrefix = sLine.Substring(0, 6);
-                    string sOrig = sLine.Substring(0, 6);
+                    int iMaxLen = 8;
+                    if (sLine.Length < 8) iMaxLen = sLine.Length;
+
+                    string sPrefix = sLine.Substring(0, iMaxLen);
+                    string sOrig = sLine.Substring(0, iMaxLen);
                     sPrefix = sPrefix.Replace(".", "|");
+                    int iLoc = sPrefix.IndexOf(" ");
+                    sPrefix = sPrefix.Insert(iLoc, "|");
+
+
                     sLine = sLine.Replace(sOrig, sPrefix);
                     sLine = sLine.Replace("  ", " ");
                     sLine = sLine.Replace(sTab, "");
                     sLine = sLine.Replace("　", "");
                     sLine = sLine.Replace("“", "'");
                     sLine = sLine.Replace("”", "'");
-
-                    string sFormatted = "verse[" + iVerse.ToString() + "]=\"" + vBooks[x] + "|" + sLine + "~" + "\";";
+                    
+                    string sFormatted = "     verse[" + iVerse.ToString() + "]=\"" + vBooks[x] + "|" + sLine + "~" + "\";";
                     iVerse++;
                     sData += sFormatted + "\r\n";
                 }

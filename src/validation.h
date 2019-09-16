@@ -163,6 +163,7 @@ extern SecureString msEncryptedString;
 extern std::string sOS;
 extern std::string msMasterNodeLegacyPrivKey;
 extern std::string msGithubVersion;
+extern std::string msLanguage;
 extern std::string msSessionID;
 extern std::string msGlobalStatus;
 extern std::string msGlobalStatus2;

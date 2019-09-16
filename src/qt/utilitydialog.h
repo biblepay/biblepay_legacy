@@ -45,6 +45,7 @@ private Q_SLOTS:
     void on_okButton_accepted();
 	void on_comboBookClicked(int iClick);
 	void on_comboChapterClicked(int iClick);
+	void on_comboLanguagesClicked(int iClick);
 };
 
 

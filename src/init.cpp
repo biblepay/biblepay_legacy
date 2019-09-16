@@ -1704,8 +1704,11 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
         nMaxOutboundLimit = GetArg("-maxuploadtarget", DEFAULT_MAX_UPLOAD_TARGET)*1024*1024;
     }
 	// ********************************************************* Step 7: Load KJV Bible
-	uiInterface.InitMessage(_("Loading KJV Bible..."));
+	uiInterface.InitMessage(_("Loading English (KJV) Bible..."));
 	initkjv();
+
+	uiInterface.InitMessage(_("Loading Chinese (CNV) Bible..."));
+	initcnv();
 	
 
     // ********************************************************* Step 7a: check lite mode and load sporks

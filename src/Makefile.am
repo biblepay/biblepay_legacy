@@ -133,6 +133,7 @@ BITCOIN_CORE_H = \
   httpserver.h \
   indirectmap.h \
   kjv.h \
+  cnv.h \
   rpcpog.h \
   rpcpodc.h \
   smartcontract-client.h \
@@ -245,6 +246,7 @@ libbiblepay_server_a_SOURCES = \
   httprpc.cpp \
   httpserver.cpp \
   kjv.cpp \
+  cnv.cpp \
   rpcpog.cpp \
   rpcpodc.cpp \
   smartcontract-client.cpp \

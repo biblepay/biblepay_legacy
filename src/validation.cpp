@@ -112,6 +112,7 @@ std::map<uint256, int64_t> mapRejectedBlocks GUARDED_BY(cs_main);
 // BIBLEPAY
 std::map<std::pair<std::string, std::string>, std::pair<std::string, int64_t>> mvApplicationCache;
 std::string msGithubVersion;
+std::string msLanguage;
 std::string msSessionID;
 std::string msMasterNodeLegacyPrivKey;
 std::string sOS;
