@@ -2784,19 +2784,6 @@ UniValue exec(const JSONRPCRequest& request)
 			results.push_back(Pair("Errors", sError));
 		results.push_back(Pair("blsmessage", sXML));
 	}
-	else if (sItem == "datalist")
-	{
-		if (request.params.size() != 2 && request.params.size() != 3)
-			throw std::runtime_error("You must specify type: IE 'exec datalist PRAYER'.  Optionally you may enter a lookback period in days: IE 'exec datalist PRAYER 30'.");
-		std::string sType = request.params[1].get_str();
-		double dDays = 30;
-		if (request.params.size() == 3)
-			dDays = cdbl(request.params[2].get_str(),0);
-		int iSpecificEntry = 0;
-		std::string sEntry = "";
-		UniValue aDataList = GetDataList(sType, (int)dDays, iSpecificEntry, "", sEntry);
-		return aDataList;
-	}
 	else if (sItem == "testhttps")
 	{
 		std::string sURL = "https://" + GetSporkValue("pool");

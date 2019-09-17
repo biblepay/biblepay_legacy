@@ -1307,6 +1307,20 @@ UniValue autounlockpasswordlength(const JSONRPCRequest& request)
 	return obj;
 }
 
+UniValue datalist(const JSONRPCRequest& request)
+{
+	if (request.fHelp || (request.params.size() != 1 && request.params.size() != 2))
+			throw std::runtime_error("You must specify type: IE 'datalist PRAYER'.  Optionally you may enter a lookback period in days: IE 'exec datalist PRAYER 30'.");
+	std::string sType = request.params[0].get_str();
+	double dDays = 30;
+	if (request.params.size() > 1)
+		dDays = cdbl(request.params[1].get_str(),0);
+	int iSpecificEntry = 0;
+	std::string sEntry;
+	UniValue aDataList = GetDataList(sType, (int)dDays, iSpecificEntry, "", sEntry);
+	return aDataList;
+}
+
 UniValue leaderboard(const JSONRPCRequest& request)
 {
     if (request.fHelp || (request.params.size() != 0 && request.params.size() != 1 && request.params.size() != 2))
@@ -1389,6 +1403,7 @@ static const CRPCCommand commands[] =
     { "biblepay",               "gobject",                 &gobject,                 true,  {} },
 	{ "biblepay",               "autounlockpasswordlength",&autounlockpasswordlength,true,  {} },
     { "biblepay",               "leaderboard",             &leaderboard,             true,  {} },
+	{ "biblepay",               "datalist",                &datalist,                true,  {} },
     { "biblepay",               "setautounlockpassword",   &setautounlockpassword,   true,  {} },
     { "biblepay",               "voteraw",                 &voteraw,                 true,  {} },
 
