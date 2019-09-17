@@ -10,6 +10,7 @@
 #include "rpc/server.h"
 #include "utilmoneystr.h"
 #include "validation.h"
+#include "kjv.h"
 
 #ifdef ENABLE_WALLET
 #include "wallet/coincontrol.h"
@@ -1280,6 +1281,35 @@ UniValue getchildbalance(const JSONRPCRequest& request)
 	return results;
 }
 
+UniValue bookname(const JSONRPCRequest& request)
+{
+	if (request.fHelp || request.params.size() != 1)	
+	{
+		throw std::runtime_error("bookname short_book_name:  Shows the long Bible Book Name corresponding to the short name.  IE: bookname JDE.");
+	}
+    UniValue results(UniValue::VOBJ);
+	std::string sBookName = request.params[0].get_str();
+	std::string sReversed = GetBookByName(sBookName);
+	results.push_back(Pair(sBookName, sReversed));
+	return results;
+}
+
+UniValue books(const JSONRPCRequest& request)
+{
+	if (request.fHelp)	
+	{
+		throw std::runtime_error("books:  Shows the book names of the Bible.");
+	}
+    UniValue results(UniValue::VOBJ);
+	for (int i = 0; i <= BIBLE_BOOKS_COUNT; i++)
+	{
+		std::string sBookName = GetBook(i);
+		std::string sReversed = GetBookByName(sBookName);
+		results.push_back(Pair(sBookName, sReversed));
+	}
+	return results;
+}
+
 UniValue sendgscc(const JSONRPCRequest& request)
 {
 	if (request.fHelp)
@@ -1437,6 +1467,8 @@ UniValue _bls(const JSONRPCRequest& request)
 static const CRPCCommand commands[] =
 { //  category              name                      actor (function)         okSafeMode
   //  --------------------- ------------------------  -----------------------  ----------
+	{ "evo",                "bookname",                     &bookname,                      false, {}  },
+	{ "evo",                "books",                        &books,                         false, {}  },
     { "evo",                "bls",                          &_bls,                          false, {}  },
     { "evo",                "protx",                        &protx,                         false, {}  },
 	{ "evo",                "createnonfinancialtransaction",&createnonfinancialtransaction, false, {}  },

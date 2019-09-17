@@ -1930,21 +1930,6 @@ UniValue exec(const JSONRPCRequest& request)
 			}
 		}
 	}
-	else if (sItem == "bookname")
-	{
-		std::string sBookName = request.params[1].get_str();
-		std::string sReversed = GetBookByName(sBookName);
-		results.push_back(Pair(sBookName, sReversed));
-	}
-	else if (sItem == "books")
-	{
-		for (int i = 0; i <= BIBLE_BOOKS_COUNT; i++)
-		{
-			std::string sBookName = GetBook(i);
-			std::string sReversed = GetBookByName(sBookName);
-			results.push_back(Pair(sBookName, sReversed));
-		}
-	}
 	else if (sItem == "ipfstest1")
 	{
 		std::string sResult = BiblePayHTTPSPost2(true, "5001", "192.168.0.153", "BiblePayGui/Welcome", "na", "gear.png");
