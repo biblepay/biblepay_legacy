@@ -2755,14 +2755,6 @@ UniValue exec(const JSONRPCRequest& request)
 		double nCap = GetProminenceCap("CAMEROON-ONE", 1333, .50);
 		results.push_back(Pair("cap", nCap));
 	}
-	else if (sItem == "getchildbalance")
-	{	
-		if (request.params.size() != 2)	
-			throw std::runtime_error("You must specify the childID.");	
-		std::string sChildID = request.params[1].get_str();	
-		double dBal = GetCameroonChildBalance(sChildID);	
-		results.push_back(Pair("Balance", dBal));	
-	}
 	else if (sItem == "tuhi")
 	{
 		UpdateHealthInformation();

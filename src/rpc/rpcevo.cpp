@@ -1267,6 +1267,19 @@ UniValue listchildren(const JSONRPCRequest& request)
 	return results;
 }
 
+UniValue getchildbalance(const JSONRPCRequest& request)
+{
+	if (request.fHelp || request.params.size() != 1)	
+	{
+		throw std::runtime_error("getchildbalance:  Shows the balance in USD for a given child.  IE: getchildbalance childid.");
+	}
+    UniValue results(UniValue::VOBJ);
+	std::string sChildID = request.params[0].get_str();
+	double dBal = GetCameroonChildBalance(sChildID);	
+	results.push_back(Pair("Balance", dBal));
+	return results;
+}
+
 UniValue sendgscc(const JSONRPCRequest& request)
 {
 	if (request.fHelp)
@@ -1427,6 +1440,7 @@ static const CRPCCommand commands[] =
     { "evo",                "bls",                          &_bls,                          false, {}  },
     { "evo",                "protx",                        &protx,                         false, {}  },
 	{ "evo",                "createnonfinancialtransaction",&createnonfinancialtransaction, false, {}  },
+	{ "evo",                "getchildbalance",              &getchildbalance,               false, {}  },
 	{ "evo",                "nonfinancialtxtojson",         &nonfinancialtxtojson,          false, {}  },
 	{ "evo",                "sponsorchild",                 &sponsorchild,                  false, {}  },
 	{ "evo",                "listchildren",                 &listchildren,                  false, {}  },
