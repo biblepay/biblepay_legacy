@@ -1734,61 +1734,6 @@ void AppendSanctuaryFile(std::string sFile, std::string sData)
     fclose(configFile);
 }
 
-
-
-static std::map<std::string, double> mvBlockVersion;
-void ScanBlockChainVersion(int nLookback)
-{
-    mvBlockVersion.clear();
-    int nMaxDepth = chainActive.Tip()->nHeight;
-    int nMinDepth = (nMaxDepth - nLookback);
-    if (nMinDepth < 1) nMinDepth = 1;
-    CBlock block;
-    CBlockIndex* pblockindex = chainActive.Tip();
- 	const Consensus::Params& consensusParams = Params().GetConsensus();
-    while (pblockindex->nHeight > nMinDepth)
-    {
-         if (!pblockindex || !pblockindex->pprev) return;
-         pblockindex = pblockindex->pprev;
-         if (ReadBlockFromDisk(block, pblockindex, consensusParams)) 
-		 {
-			std::string sVersion = RoundToString(GetBlockVersion(block.vtx[0]->vout[0].sTxOutMessage), 0);
-			mvBlockVersion[sVersion]++;
-		 }
-    }
-}
-
-UniValue GetVersionReport()
-{
-	UniValue ret(UniValue::VOBJ);
-    //Returns a report of the BiblePay version that has been solving blocks over the last N blocks
-	ScanBlockChainVersion(BLOCKS_PER_DAY);
-    std::string sBlockVersion;
-    std::string sReport = "Version, Popularity\r\n";
-    std::string sRow;
-    double dPct = 0;
-    ret.push_back(Pair("Version","Popularity,Percent %"));
-    double Votes = 0;
-	for (auto ii : mvBlockVersion) 
-    {
-		double Popularity = mvBlockVersion[ii.first];
-		Votes += Popularity;
-    }
-    for (auto ii : mvBlockVersion)
-	{
-		double Popularity = mvBlockVersion[ii.first];
-		sBlockVersion = ii.first;
-        if (Popularity > 0)
-        {
-			sRow = sBlockVersion + "," + RoundToString(Popularity, 0);
-            sReport += sRow + "\r\n";
-            dPct = Popularity / (Votes+.01) * 100;
-            ret.push_back(Pair(sBlockVersion,RoundToString(Popularity, 0) + "; " + RoundToString(dPct, 2) + "%"));
-        }
-    }
-	return ret;
-}
-
 UniValue exec(const JSONRPCRequest& request)
 {
     if (request.fHelp || (request.params.size() != 1 && request.params.size() != 2  && request.params.size() != 3 && request.params.size() != 4 
@@ -2817,11 +2762,6 @@ UniValue exec(const JSONRPCRequest& request)
         UniValue objTx(UniValue::VOBJ);
         TxToJSON(tx, uint256(), objTx);
         results.push_back(objTx);
-	}
-	else if (sItem == "versionreport")
-	{
-		UniValue uVersionReport = GetVersionReport();
-		return uVersionReport;
 	}
 	else if (sItem == "hextxtojson2")
 	{

@@ -1164,6 +1164,69 @@ UniValue createnonfinancialtransaction(const JSONRPCRequest& request)
 	return SignAndSendSpecialTx(tx);
 }
 
+static std::map<std::string, double> mvBlockVersion;
+void ScanBlockChainVersion(int nLookback)
+{
+    mvBlockVersion.clear();
+    int nMaxDepth = chainActive.Tip()->nHeight;
+    int nMinDepth = (nMaxDepth - nLookback);
+    if (nMinDepth < 1) nMinDepth = 1;
+    CBlock block;
+    CBlockIndex* pblockindex = chainActive.Tip();
+ 	const Consensus::Params& consensusParams = Params().GetConsensus();
+    while (pblockindex->nHeight > nMinDepth)
+    {
+         if (!pblockindex || !pblockindex->pprev) return;
+         pblockindex = pblockindex->pprev;
+         if (ReadBlockFromDisk(block, pblockindex, consensusParams)) 
+		 {
+			std::string sVersion = RoundToString(GetBlockVersion(block.vtx[0]->vout[0].sTxOutMessage), 0);
+			mvBlockVersion[sVersion]++;
+		 }
+    }
+}
+
+UniValue GetVersionReport()
+{
+	UniValue ret(UniValue::VOBJ);
+    //Returns a report of the BiblePay version that has been solving blocks over the last N blocks
+	ScanBlockChainVersion(BLOCKS_PER_DAY);
+    std::string sBlockVersion;
+    std::string sReport = "Version, Popularity\r\n";
+    std::string sRow;
+    double dPct = 0;
+    ret.push_back(Pair("Version","Popularity,Percent %"));
+    double Votes = 0;
+	for (auto ii : mvBlockVersion) 
+    {
+		double Popularity = mvBlockVersion[ii.first];
+		Votes += Popularity;
+    }
+    for (auto ii : mvBlockVersion)
+	{
+		double Popularity = mvBlockVersion[ii.first];
+		sBlockVersion = ii.first;
+        if (Popularity > 0)
+        {
+			sRow = sBlockVersion + "," + RoundToString(Popularity, 0);
+            sReport += sRow + "\r\n";
+            dPct = Popularity / (Votes+.01) * 100;
+            ret.push_back(Pair(sBlockVersion,RoundToString(Popularity, 0) + "; " + RoundToString(dPct, 2) + "%"));
+        }
+    }
+	return ret;
+}
+
+UniValue versionreport(const JSONRPCRequest& request)
+{
+	if (request.fHelp)
+	{
+		throw std::runtime_error("versionreport:  Shows a list of the versions of software running on BiblePay users machines ranked by percent.  This information is gleaned from the last 205 mined blocks.");
+	}
+	UniValue uVersionReport = GetVersionReport();
+	return uVersionReport;
+}
+
 UniValue sponsorchild(const JSONRPCRequest& request)
 {
 	// Sponsor a CameroonOne Child
@@ -1477,6 +1540,7 @@ static const CRPCCommand commands[] =
 	{ "evo",                "sponsorchild",                 &sponsorchild,                  false, {}  },
 	{ "evo",                "listchildren",                 &listchildren,                  false, {}  },
 	{ "evo",                "sendgscc",                     &sendgscc,                      false, {}  },
+	{ "evo",                "versionreport",                &versionreport,                 false, {}  },
 };
 
 void RegisterEvoRPCCommands(CRPCTable &tableRPC)
