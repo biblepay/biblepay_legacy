@@ -1149,7 +1149,17 @@ bool ChainSynced(CBlockIndex* pindex)
 	return (nAge > (60 * 60)) ? false : true;
 }
 
-UniValue GetProminenceLevels(int nHeight, bool fMeOnly)
+bool Included(std::string sFilterNickName, std::string sCPK)
+{
+	CPK oPrimary = GetCPKFromProject("cpk", sCPK);
+	std::string sNickName = Caption(oPrimary.sNickName, 10);
+	bool fIncluded = false;
+	if (((sNickName == sFilterNickName || oPrimary.sNickName == sFilterNickName) && !sFilterNickName.empty()) || (sFilterNickName.empty()))
+		fIncluded = true;
+	return fIncluded;
+}
+
+UniValue GetProminenceLevels(int nHeight, std::string sFilterNickName)
 {
 	UniValue results(UniValue::VOBJ);
 	if (nHeight == 0) 
@@ -1165,7 +1175,7 @@ UniValue GetProminenceLevels(int nHeight, bool fMeOnly)
 	std::vector<std::string> vData = Split(sData.c_str(), "\n");
 	std::vector<std::string> vDetails = Split(sDetails.c_str(), "\n");
 	std::vector<std::string> vDiaries = Split(sDiaries.c_str(), "\n");
-	results.push_back(Pair("Prominence", "Details"));
+	results.push_back(Pair("Prominence v1.1", "Details"));
 	// DETAIL ROW FORMAT: sCampaignName + "|" + Members.Address + "|" + nPoints + "|" + nProminence + "|" + NickName + "|\n";
 	std::string sMyCPK = DefaultRecAddress("Christian-Public-Key");
 
@@ -1183,8 +1193,7 @@ UniValue GetProminenceLevels(int nHeight, bool fMeOnly)
 			if (sNickName.empty())
 				sNickName = "N/A";
 			std::string sNarr = sCampaignName + ": " + sCPK + " [" + sNickName + "], Pts: " + RoundToString(nPoints, 2);
-
-			if ((fMeOnly && sCPK == sMyCPK) || (!fMeOnly))
+			if (Included(sFilterNickName, sCPK))
 				results.push_back(Pair(sNarr, RoundToString(nProminence, 2) + "%"));
 		}
 	}
@@ -1196,8 +1205,8 @@ UniValue GetProminenceLevels(int nHeight, bool fMeOnly)
 		if (vRow.size() >= 2)
 		{
 			std::string sCPK = vRow[0];
-			if ((fMeOnly && sCPK == sMyCPK) || (!fMeOnly))
-				results.push_back(Pair(vRow[1], vRow[2]));
+			if (Included(sFilterNickName, sCPK))
+				results.push_back(Pair(Caption(vRow[1], 10), vRow[2]));
 		}
 	}
 
@@ -1219,9 +1228,9 @@ UniValue GetProminenceLevels(int nHeight, bool fMeOnly)
 			if (sNickName.empty())
 				sNickName = "N/A";
 			CAmount nOwed = nPaymentsLimit * (nProminence / 100) * nMaxContractPercentage;
-			std::string sNarr = sCampaign + ": " + sCPK + " [" + sNickName + "]" + ", Pts: " + RoundToString(nPoints, 2) 
+			std::string sNarr = sCampaign + ": " + sCPK + " [" + Caption(sNickName, 10) + "]" + ", Pts: " + RoundToString(nPoints, 2) 
 				+ ", Reward: " + RoundToString(nPayment, 3);
-			if ((fMeOnly && sCPK == sMyCPK) || (!fMeOnly))
+			if (Included(sFilterNickName, sCPK))
 				results.push_back(Pair(sNarr, RoundToString(nProminence, 3) + "%"));
 		}
 	}

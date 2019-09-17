@@ -2654,7 +2654,7 @@ UniValue exec(const JSONRPCRequest& request)
 		int nHeight = cdbl(request.params[1].get_str(), 0);
 		std::string sNickName = request.params[2].get_str();
 		WriteCache("analysis", "user", sNickName, GetAdjustedTime());
-		UniValue p = GetProminenceLevels(nHeight + BLOCKS_PER_DAY, false);
+		UniValue p = GetProminenceLevels(nHeight + BLOCKS_PER_DAY, "");
 		std::string sData1 = ReadCache("analysis", "data_1");
 		std::string sData2 = ReadCache("analysis", "data_2");
 		results.push_back(Pair("Totals", sData2));

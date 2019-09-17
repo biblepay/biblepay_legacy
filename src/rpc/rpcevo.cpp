@@ -1258,7 +1258,7 @@ UniValue listchildren(const JSONRPCRequest& request)
 				results.push_back(Pair("Balance", nBalance));
 				if (nBalance == -999)
 					results.push_back(Pair("Notes", "This child is not provisioned yet."));
-				results.push_back(Pair("Nickname", userCPK.sNickName));
+				results.push_back(Pair("Nickname", Caption(userCPK.sNickName, 10)));
 				if (!sChildName.empty())
 					results.push_back(Pair("Child Name", sChildName));
 			}

@@ -1314,7 +1314,7 @@ UniValue leaderboard(const JSONRPCRequest& request)
         throw std::runtime_error(
             "leaderboard\n"
             "Returns an object containing the campaign participants prominence levels per project, and global totals.\n"
-			"\nYou must specify leaderboard [me_only=true/false] [height || last || future]. The default is leaderboard false future."
+			"\nYou must specify leaderboard [all || nickname] [height || last || future]. The default is leaderboard false future."
             + HelpExampleCli("leaderboard", "")
             );
     }
@@ -1322,9 +1322,13 @@ UniValue leaderboard(const JSONRPCRequest& request)
 	int iNextSuperblock = 0;
 	int iLastSuperblock = GetLastGSCSuperblockHeight(chainActive.Tip()->nHeight, iNextSuperblock);
 	std::string sLHF;
-	bool fMeOnly = false;
+	std::string sNickName;
 	if (request.params.size() > 0)
-		fMeOnly = request.params[0].get_str() == "true" ? true : false;
+		sNickName = request.params[0].get_str();
+
+	if (sNickName == "all")
+		sNickName = "";
+
 	if (request.params.size() > 1)
 		sLHF = request.params[1].get_str();
 	int nHeight = 0;
@@ -1338,12 +1342,14 @@ UniValue leaderboard(const JSONRPCRequest& request)
 	}
 	else if (cdbl(sLHF, 0) > 0)
 	{
-		nHeight = cdbl(sLHF, 0);
+		nHeight = cdbl(sLHF, 0) - 205;
+		if (nHeight < 1) 
+			nHeight = 1;
 	}
 		
 	if (nHeight == 0)
 		nHeight = iNextSuperblock;
-	UniValue p = GetProminenceLevels(nHeight, fMeOnly);
+	UniValue p = GetProminenceLevels(nHeight, sNickName);
 	return p;
 }
 
