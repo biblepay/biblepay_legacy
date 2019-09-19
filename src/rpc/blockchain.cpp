@@ -1837,39 +1837,6 @@ UniValue exec(const JSONRPCRequest& request)
 	{
 		results.push_back(Pair("Length", (double)msEncryptedString.size()));
 	}
-	else if (sItem == "readverse")
-	{
-		if (request.params.size() != 3 && request.params.size() != 4 && request.params.size() != 5)
-			throw std::runtime_error("You must specify Book and Chapter: IE 'readverse CO2 10'.  \nOptionally you may enter the Language (EN/CN) IE 'readverse CO2 10 CN'. \nOptionally you may enter the VERSE #, IE: 'readverse CO2 10 EN 2'.  To see a list of books: run getbooks.");
-		std::string sBook = request.params[1].get_str();
-		int iChapter = cdbl(request.params[2].get_str(),0);
-		int iVerse = 0;
-		msLanguage = "EN";
-		if (request.params.size() > 3)
-		{
-			msLanguage = request.params[3].get_str();
-		}
-		
-		if (request.params.size() > 4)
-			iVerse = cdbl(request.params[4].get_str(), 0);
-		results.push_back(Pair("Book", sBook));
-		results.push_back(Pair("Chapter", iChapter));
-		results.push_back(Pair("Language", msLanguage));
-		if (iVerse > 0) results.push_back(Pair("Verse", iVerse));
-		int iStart = 0;
-		int iEnd = 0;
-		GetBookStartEnd(sBook, iStart, iEnd);
-		for (int i = iVerse; i < BIBLE_VERSE_COUNT; i++)
-		{
-			std::string sVerse = GetVerseML(msLanguage, sBook, iChapter, i, iStart - 1, iEnd);
-			if (iVerse > 0 && i > iVerse) break;
-			if (!sVerse.empty())
-			{
-				std::string sKey = sBook + " " + RoundToString(iChapter, 0) + ":" + RoundToString(i, 0);
-			    results.push_back(Pair(sKey, sVerse));
-			}
-		}
-	}
 	else if (sItem == "ipfstest1")
 	{
 		std::string sResult = BiblePayHTTPSPost2(true, "5001", "192.168.0.153", "BiblePayGui/Welcome", "na", "gear.png");

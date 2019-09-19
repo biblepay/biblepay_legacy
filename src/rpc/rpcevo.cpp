@@ -1241,6 +1241,44 @@ UniValue sins(const JSONRPCRequest& request)
 	return myMortalSins;
 }
 
+UniValue readverse(const JSONRPCRequest& request)
+{
+	if (request.params.size() != 2 && request.params.size() != 3 && request.params.size() != 4)
+			throw std::runtime_error("readverse:  Empowers the user to read a specific bible verse from a specific chatper.  You must specify Book and Chapter: IE 'readverse CO2 10'.  \nOptionally you may enter the Language (EN/CN) IE 'readverse CO2 10 CN'. \nOptionally you may enter the VERSE #, IE: 'readverse CO2 10 EN 2'.  To see a list of books: type getbooks.");
+
+	std::string sBook = request.params[0].get_str();
+	int iChapter = cdbl(request.params[1].get_str(),0);
+	int iVerse = 0;
+	msLanguage = "EN";
+	if (request.params.size() > 2)
+	{
+		msLanguage = request.params[2].get_str();
+	}
+	
+	if (request.params.size() > 3)
+		iVerse = cdbl(request.params[3].get_str(), 0);
+	UniValue results(UniValue::VOBJ);
+	results.push_back(Pair("Book", sBook));
+	results.push_back(Pair("Chapter", iChapter));
+	results.push_back(Pair("Language", msLanguage));
+	if (iVerse > 0) results.push_back(Pair("Verse", iVerse));
+	int iStart = 0;
+	int iEnd = 0;
+	GetBookStartEnd(sBook, iStart, iEnd);
+	for (int i = iVerse; i < BIBLE_VERSE_COUNT; i++)
+	{
+		std::string sVerse = GetVerseML(msLanguage, sBook, iChapter, i, iStart - 1, iEnd);
+		if (iVerse > 0 && i > iVerse)
+			break;
+		if (!sVerse.empty())
+		{
+			std::string sKey = sBook + " " + RoundToString(iChapter, 0) + ":" + RoundToString(i, 0);
+		    results.push_back(Pair(sKey, sVerse));
+		}
+	}
+	return results;
+}
+
 UniValue sponsorchild(const JSONRPCRequest& request)
 {
 	// Sponsor a CameroonOne Child
@@ -1553,6 +1591,7 @@ static const CRPCCommand commands[] =
 	{ "evo",                "nonfinancialtxtojson",         &nonfinancialtxtojson,          false, {}  },
 	{ "evo",                "sponsorchild",                 &sponsorchild,                  false, {}  },
 	{ "evo",                "listchildren",                 &listchildren,                  false, {}  },
+	{ "evo",                "readverse",                    &readverse,                     false, {}  },
 	{ "evo",                "sendgscc",                     &sendgscc,                      false, {}  },
 	{ "sins",               "sins",                         &sins,                          false, {}  },
 	{ "evo",                "versionreport",                &versionreport,                 false, {}  },
