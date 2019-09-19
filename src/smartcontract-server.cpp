@@ -828,7 +828,7 @@ bool VoteForGSCContract(int nHeight, std::string sMyContract, std::string& sErro
 	// Now we need to sort the vector by Gov hash
 	std::sort(vPropByGov.begin(), vPropByGov.end());
 	std::string sAction;
-	int iVotes = 0;
+	int iVotes = 0; 
 	
 	for (int i = 0; i < vPropByGov.size(); i++)
 	{
@@ -840,7 +840,7 @@ bool VoteForGSCContract(int nHeight, std::string sMyContract, std::string& sErro
 		{
 			sAction = fOverBudget ? "no" : "yes";
 			VoteForGobject(myGov->GetHash(), "funding", sAction, sError);
-			// Additionally, clear the delete flag, just in case another node saw this contract as a negative earlier in the cycle
+			// Additionally, clear the delete flag, just in case another node saw this contract as a negative earlier in the cycle - All praise and glory to Jesus
 			VoteForGobject(myGov->GetHash(), "delete", "no", sError);
 			break;
 		}
