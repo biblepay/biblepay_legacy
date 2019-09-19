@@ -1828,13 +1828,6 @@ UniValue exec(const JSONRPCRequest& request)
 		results.push_back(Pair("Current_version", sCurrentVersion));
 		if (!sNarr.empty()) results.push_back(Pair("Alert", sNarr));
 	}
-	else if (sItem == "sins")
-	{
-		std::string sEntry = "";
-		int iSpecificEntry = 0;
-		UniValue aDataList = GetDataList("SIN", 7, iSpecificEntry, "", sEntry);
-		return aDataList;
-	}
 	else if (sItem == "reassesschains")
 	{
 		int iWorkDone = ReassessAllChains();
@@ -1851,10 +1844,12 @@ UniValue exec(const JSONRPCRequest& request)
 		std::string sBook = request.params[1].get_str();
 		int iChapter = cdbl(request.params[2].get_str(),0);
 		int iVerse = 0;
+		msLanguage = "EN";
 		if (request.params.size() > 3)
 		{
 			msLanguage = request.params[3].get_str();
 		}
+		
 		if (request.params.size() > 4)
 			iVerse = cdbl(request.params[4].get_str(), 0);
 		results.push_back(Pair("Book", sBook));

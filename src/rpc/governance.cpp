@@ -782,8 +782,6 @@ UniValue ListObjects(const std::string& strCachedSignal, const std::string& strT
 			bObj.push_back(Pair("fCachedFunding",  pGovObj->IsSetCachedFunding()));
 			bObj.push_back(Pair("fCachedDelete",  pGovObj->IsSetCachedDelete()));
 			bObj.push_back(Pair("fCachedEndorsed",  pGovObj->IsSetCachedEndorsed()));
-		
-
 			objResult.push_back(Pair(pGovObj->GetHash().ToString(), bObj));
 		}
     }

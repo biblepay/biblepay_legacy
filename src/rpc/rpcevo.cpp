@@ -1227,6 +1227,20 @@ UniValue versionreport(const JSONRPCRequest& request)
 	return uVersionReport;
 }
 
+UniValue sins(const JSONRPCRequest& request)
+{
+	if (request.fHelp)
+		throw std::runtime_error("sins:  Lists the 39 mortal sins that could send a person to Hell (If they do not repent).");
+	UniValue myMortalSins(UniValue::VOBJ);
+	for (int i = 0; i < 39; i++)
+	{
+		std::string out_Description;
+		std::string sSin = GetSin(i, out_Description);
+		myMortalSins.push_back(Pair(sSin, out_Description));
+	}
+	return myMortalSins;
+}
+
 UniValue sponsorchild(const JSONRPCRequest& request)
 {
 	// Sponsor a CameroonOne Child
@@ -1540,6 +1554,7 @@ static const CRPCCommand commands[] =
 	{ "evo",                "sponsorchild",                 &sponsorchild,                  false, {}  },
 	{ "evo",                "listchildren",                 &listchildren,                  false, {}  },
 	{ "evo",                "sendgscc",                     &sendgscc,                      false, {}  },
+	{ "sins",               "sins",                         &sins,                          false, {}  },
 	{ "evo",                "versionreport",                &versionreport,                 false, {}  },
 };
 
