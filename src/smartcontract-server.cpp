@@ -840,8 +840,10 @@ bool VoteForGSCContract(int nHeight, std::string sMyContract, std::string& sErro
 		{
 			sAction = fOverBudget ? "no" : "yes";
 			VoteForGobject(myGov->GetHash(), "funding", sAction, sError);
+			// Additionally, clear the delete flag, just in case another node saw this contract as a negative earlier in the cycle
+			VoteForGobject(myGov->GetHash(), "delete", "no", sError);
+			break;
 		}
-		int64_t nAge = GetAdjustedTime() - myGov->GetCreationTime();
 	}
 	// Phase 2: Vote against contracts at this height that do not match our hash
 	bool bFeatureOn = true;
@@ -857,13 +859,6 @@ bool VoteForGSCContract(int nHeight, std::string sMyContract, std::string& sErro
 			if (i == 0)
 			{
 				VoteForGobject(myGovForRemoval->GetHash(), "funding", "no", sError);
-			}
-			// R Andrews - BiblePay - Remove duplicate contracts - these occur when more than one sanc created a contract during the same second - All praise and glory to Jesus
-			int64_t nAge = GetAdjustedTime() - myGovForRemoval->GetCreationTime();
-			if (iVotes == 0 && nAge > (60 * 60 * 8) && i > 1)
-			{
-				// This will cause the cleaner thread to remove the object
-				VoteForGobject(myGovForRemoval->GetHash(), "delete", "yes", sError);
 				break;
 			}
 		}
