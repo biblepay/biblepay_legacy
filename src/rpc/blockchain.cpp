@@ -57,6 +57,7 @@ void ScriptPubKeyToJSON(const CScript& scriptPubKey, UniValue& out, bool fInclud
 UniValue protx_register(const JSONRPCRequest& request);
 UniValue protx(const JSONRPCRequest& request);
 UniValue _bls(const JSONRPCRequest& request);
+UniValue gobject_vote_many(const JSONRPCRequest& request);
 
 double GetDifficulty(const CBlockIndex* blockindex)
 {
@@ -1908,6 +1909,65 @@ UniValue exec(const JSONRPCRequest& request)
 		results.push_back(Pair("vote_result", bRes));
 		results.push_back(Pair("vote_error", sError));
 	}
+	else if (sItem == "gobjectcleanuputil")
+	{
+		std::map<std::string, double> mvOutpointCount;
+		mvOutpointCount.clear();
+		// Cleans up old gobjects older than 1 day with 0 votes that have not been deleted
+		// This is helpful to save bandwidth while we are waiting for the supermajority to upgrade
+	    LOCK2(cs_main, governance.cs);
+		std::vector<const CGovernanceObject*> objs = governance.GetAllNewerThan(0);
+		int iCounted = 0;
+		int iTotal = 0;
+		for (const CGovernanceObject* pGovObj : objs) 
+		{
+			CGovernanceObject* myGov = governance.FindGovernanceObject(pGovObj->GetHash());
+			int64_t nAge = GetAdjustedTime() - myGov->GetCreationTime();
+			int iYes = myGov->GetYesCount(VOTE_SIGNAL_FUNDING);
+			int iDeleted = myGov->GetYesCount(VOTE_SIGNAL_DELETE);
+			if (iYes == 0 && nAge > (60 * 60 * 24 * 1) && iDeleted == 0 && pGovObj->GetObjectType() == GOVERNANCE_OBJECT_TRIGGER)
+			{
+				JSONRPCRequest myVote;
+				myVote.params.setArray();
+				myVote.params.push_back("vote-many");
+				myVote.params.push_back(myGov->GetHash().GetHex());
+				myVote.params.push_back("delete");
+				myVote.params.push_back("yes");
+				UniValue myResult = gobject_vote_many(myVote);
+				if (iCounted == 0)
+				{
+					results.push_back(Pair("Response", myResult));
+				}
+
+				results.push_back(Pair(pGovObj->GetHash().GetHex(), nAge));
+				iCounted++;
+			}
+			else
+			{
+				iTotal++;
+				/*
+				results.push_back(Pair("SAV: " + pGovObj->GetHash().GetHex(), nAge));
+				results.push_back(Pair("DLV", iDeleted));
+				results.push_back(Pair("YV", iYes));
+				*/
+			}
+			// Tally signing masternodes for summary report
+			const COutPoint& masternodeOutpoint = myGov->GetMasternodeOutpoint();
+			if (masternodeOutpoint != COutPoint()) 
+			{
+				mvOutpointCount[masternodeOutpoint.ToStringShort()]++;
+			}
+
+		}
+		results.push_back(Pair("Total Votes", iCounted));
+		results.push_back(Pair("Total Counted", iTotal));
+	    for (auto ii : mvOutpointCount)
+		{
+			double nCount = mvOutpointCount[ii.first];
+			std::string sOutpoint = ii.first;
+	        results.push_back(Pair("SANC " + sOutpoint, nCount));
+	    }
+    }
 	else if (sItem == "hexblocktocoinbase")
 	{
 		// This call is used by pools (pool.biblepay.org and purepool) to verify a serialized solution
