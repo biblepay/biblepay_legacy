@@ -1431,9 +1431,9 @@ UniValue sendgscc(const JSONRPCRequest& request)
 		throw std::runtime_error(
 		"sendgscc"
 		"\nSends a generic smart contract campaign transmission and/or a donation to the foundation."
-		"\nYou must specify sendgscc campaign_name [foundation_donation_amount] [optional:diary_entry] : IE 'exec sendgscc healing 10 [\"prayed for Jane Doe who had broken ribs, this happened\"].");
+		"\nYou must specify sendgscc campaign_name [foundation_donation_amount] [optional:diary_entry] : IE sendgscc healing 10 [\"prayed for Jane Doe who had broken ribs, this happened\"].");
 	if (request.params.size() < 1 || request.params.size() > 3)
-		throw std::runtime_error("You must specify sendgscc campaign_name [foundation_donation_amount] [optional:diary_entry] : IE 'exec sendgscc healing 10 [\"prayed for Jane Doe who had broken ribs, this happened\"].");
+		throw std::runtime_error("You must specify sendgscc campaign_name [foundation_donation_amount] [optional:diary_entry] : IE sendgscc healing 10 [\"prayed for Jane Doe who had broken ribs, this happened\"].");
 	std::string sDiary;
 	std::string sCampaignName;
 	if (request.params.size() > 0)
