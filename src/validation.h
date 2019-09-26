@@ -139,6 +139,9 @@ bool LateBlock(const CBlock& block, const CBlockIndex* pindexPrev, int iMinutes)
 int64_t LateBlockIndex(const CBlockIndex* pindexPrev, int iMinutes);
 
 /** Biblepay-Classic Settings **/
+extern std::map<std::string, double> mvNetworkMonitor;
+extern bool fEnforceSanctuaryPort;
+
 static const std::string BUSINESS_OBJECTS = "BUSINESS_OBJECTS";
 static const int MINIMUM_EMAIL_LENGTH = 5; 
 static const int BLOCKS_PER_DAY = 205;
@@ -162,6 +165,7 @@ extern int miGlobalDiaryIndex;
 extern SecureString msEncryptedString;
 extern std::string sOS;
 extern std::string msMasterNodeLegacyPrivKey;
+extern bool fNetworkMonitor;
 extern std::string msGithubVersion;
 extern std::string msLanguage;
 extern std::string msSessionID;

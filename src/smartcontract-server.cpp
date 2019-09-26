@@ -840,8 +840,6 @@ bool VoteForGSCContract(int nHeight, std::string sMyContract, std::string& sErro
 		{
 			sAction = fOverBudget ? "no" : "yes";
 			VoteForGobject(myGov->GetHash(), "funding", sAction, sError);
-			// Additionally, clear the delete flag, just in case another node saw this contract as a negative earlier in the cycle - All praise and glory to Jesus
-			VoteForGobject(myGov->GetHash(), "delete", "no", sError);
 			break;
 		}
 	}
@@ -863,7 +861,8 @@ bool VoteForGSCContract(int nHeight, std::string sMyContract, std::string& sErro
 			}
 		}
 	}
-	//Phase 3:  Vote to delete very old contracts
+	/*
+	//Phase 3:  Vote to delete very old contracts - This causes too much spam - this is now moved to the cache delete sub
 	int iNextSuperblock = 0;
 	int iLastSuperblock = GetLastGSCSuperblockHeight(chainActive.Tip()->nHeight, iNextSuperblock);
 	vPropByGov = GetGSCSortedByGov(iLastSuperblock, uPamHash, true);
@@ -879,6 +878,7 @@ bool VoteForGSCContract(int nHeight, std::string sMyContract, std::string& sErro
 			VoteForGobject(myGovYesterday->GetHash(), "delete", "yes", sError);
 		}
 	}
+	*/
 
 	return sError.empty() ? true : false;
 }
@@ -1236,24 +1236,70 @@ UniValue GetProminenceLevels(int nHeight, std::string sFilterNickName)
 void SendDistressSignal()
 {
 	static int64_t nLastReset = 0;
-	if (GetAdjustedTime() - nLastReset > (60 * 30))
+	if (GetAdjustedTime() - nLastReset > (60 * 60 * 1))
 	{
 		// Node will try to pull the gobjects again
-		/*
-		LogPrintf("SmartContract-Server::SendDistressSignal: Node is missing a gobject, pulling...%f\n", GetAdjustedTime());
+		LogPrintf("SmartContract-Server::SendDistressSignal: Node is missing a gobject, retrying...%f\n", GetAdjustedTime());
 		masternodeSync.Reset();
 		masternodeSync.SwitchToNextAsset(*g_connman);
 		nLastReset = GetAdjustedTime();
-		*/
 	}
 }
 
-void CheckGSCHealth()
+std::string CheckLastQuorumPopularHash()
 {
-	// This is for Non-Sancs
+	if (!fProd)
+		return "SUCCESS";
+	std::string sURL = "https://" + GetSporkValue("pool");
+	std::string sRestfulURL = "Action.aspx?action=gethash";
+	std::string sResponse = BiblepayHTTPSPost(false, 0, "", "", "", sURL, sRestfulURL, 443, "", 25, 10000, 1);
+	std::string sQuorumHash = ExtractXML(sResponse, "<hash>", "</hash>");
+	int iBlock = (int)cdbl(ExtractXML(sResponse, "<blocks>", "</blocks>"), 0);
+	// This is the hash of the top 100 sanctuaries for the block that occurred % 10:
+	if (iBlock == 0 || sQuorumHash.empty() || sQuorumHash == "0")
+	{
+		return "SUCCESS";
+	}
+	// Test against local hash to see if we are in sync with the sanctuaries
+	uint256 myHash = uint256();
+	GetBlockHash(myHash, iBlock);
+	std::string sMyLocalHash = myHash.GetHex();
+	if (sMyLocalHash != sQuorumHash)
+	{
+		return "FAIL";
+	}
+	if (fDebug)
+		LogPrintf("Localhash %s, qh %s ", sMyLocalHash, sQuorumHash);
+	return "SUCCESS";
+}
+
+static int64_t nLastQuorumHashCheckup = GetAdjustedTime();
+std::string CheckGSCHealth()
+{
+	double nCheckGSCOptionDisabled = GetSporkDouble("disablegschealthcheck", 0);
+	if (nCheckGSCOptionDisabled == 1)
+		return "DISABLED";
+
 	bool bImpossible = (!masternodeSync.IsSynced() || fLiteMode);
 	if (bImpossible)
-		return;
+		return "IMPOSSIBLE";
+
+	int64_t nQHAge = GetAdjustedTime() - nLastQuorumHashCheckup;
+	if (nQHAge > (60 * 60 * 4))
+	{
+		std::string QH = CheckLastQuorumPopularHash();
+		nLastQuorumHashCheckup = GetAdjustedTime();
+		if (QH == "FAIL")
+		{
+			double nReassessOption = cdbl(GetArg("-disablereassesschains", "0"), 0);
+			if (nReassessOption == 0)
+			{
+				SendDistressSignal();
+				ReassessAllChains();
+			}
+		}
+	}
+
 	int iNextSuperblock = 0;
 	int iLastSuperblock = GetLastGSCSuperblockHeight(chainActive.Tip()->nHeight, iNextSuperblock);
 	std::string sAddresses;
@@ -1262,18 +1308,42 @@ void CheckGSCHealth()
 	uint256 uGovObjHash = uint256S("0x0");
 	uint256 uPAMHash = uint256S("0x0");
 	GetGSCGovObjByHeight(iNextSuperblock, uPAMHash, iVotes, uGovObjHash, sAddresses, sAmounts);
-	int iRequiredVotes = GetRequiredQuorumLevel(iNextSuperblock);
+	uint256 hPam = GetPAMHash(sAddresses, sAmounts);
+	std::string sContract = GetGSCContract(iLastSuperblock, true);
+	uint256 hPAMHash2 = GetPAMHashByContract(sContract);
 	int nBlocksLeft = iNextSuperblock - chainActive.Tip()->nHeight;
 	if (nBlocksLeft < BLOCKS_PER_DAY / 2)
 	{
-		if (uGovObjHash == uint256S("0x0"))
+		if (uGovObjHash == uint256S("0x0") || (hPAMHash2 != hPam))
+		{
 			SendDistressSignal();
+			return "DISTRESS";
+		}
 	}
+	return "HEALTHY";
 }
 
+bool VerifyChild(std::string childID)
+{
+	std::map<std::string, CPK> cp1 = GetChildMap("cpk|cameroon-one");
+	std::string sMyCPK = DefaultRecAddress("Christian-Public-Key");
+	for (std::pair<std::string, CPK> a : cp1)
+	{
+		std::string sChildID = a.second.sOptData;
+		if (childID == sChildID)
+			return true;
+	}
+	return false;
+}
 
 std::string ExecuteGenericSmartContractQuorumProcess()
 {
+	bool fHealthCheckup = (chainActive.Tip()->nHeight % 10 == 0);
+	if (fHealthCheckup)
+	{
+		CheckGSCHealth();
+	}
+
 	if (!chainActive.Tip()) 
 		return "INVALID_CHAIN";
 

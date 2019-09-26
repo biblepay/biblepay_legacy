@@ -201,7 +201,7 @@ public:
 		consensus.nBudgetPaymentsCycleBlocks = BLOCKS_PER_DAY * 30; // Monthly
 		consensus.nBudgetPaymentsWindowBlocks = 100;
 		//  RANDREWS:  This is removed in Evo - consensus.nBudgetProposalEstablishingTime = 60 * 60 * 24;  // One Day
-		consensus.nInstantSendConfirmationsRequired = 6;
+		consensus.nInstantSendConfirmationsRequired = 1;
 		consensus.nSuperblockStartBlock = 21710; // The first superblock
 		consensus.nSuperblockCycle = BLOCKS_PER_DAY * 30; // Monthly
 		consensus.nDCCSuperblockStartBlock = 33451; //F11000 CUTOVER HEIGHT + 11
@@ -377,7 +377,7 @@ public:
 		consensus.nMasternodePaymentsStartBlock = 2001;
 		consensus.nMasternodePaymentsIncreaseBlock = 2001;
 		consensus.nMasternodePaymentsIncreasePeriod = BLOCKS_PER_DAY * 30;
-		consensus.nInstantSendConfirmationsRequired = 6;
+		consensus.nInstantSendConfirmationsRequired = 1;
 		consensus.nInstantSendKeepLock = 6;
 		consensus.nBudgetPaymentsStartBlock = 2002;
 		consensus.QTHeight = 31000;

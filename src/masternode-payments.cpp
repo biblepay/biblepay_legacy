@@ -512,8 +512,10 @@ void CMasternodePayments::ProcessMessage(CNode* pfrom, const std::string& strCom
         }
 
         std::string strError = "";
-        if(!vote.IsValid(pfrom, nCachedBlockHeight, strError, connman)) {
+        if(!vote.IsValid(pfrom, nCachedBlockHeight, strError, connman)) 
+		{
             LogPrint("mnpayments", "MASTERNODEPAYMENTVOTE -- invalid message, error: %s\n", strError);
+			Misbehaving(pfrom->GetId(), 1);
             return;
         }
 

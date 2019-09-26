@@ -31,10 +31,11 @@ static bool CheckService(const uint256& proTxHash, const ProTx& proTx, CValidati
     if (Params().NetworkIDString() == CBaseChainParams::MAIN) 
 	{
 		// R Andrews - DefaultPortEnforcement - Reject ProTx's from nonstandard ports
-        if (proTx.addr.GetPort() != mainnetDefaultPort) {
+        if (proTx.addr.GetPort() != mainnetDefaultPort && fEnforceSanctuaryPort) 
+		{
             return state.DoS(10, false, REJECT_INVALID, "bad-protx-addr-port");
         }
-    } else if (proTx.addr.GetPort() == mainnetDefaultPort) {
+    } else if (Params().NetworkIDString() != CBaseChainParams::MAIN && proTx.addr.GetPort() == mainnetDefaultPort) {
         return state.DoS(10, false, REJECT_INVALID, "bad-protx-addr-port");
     }
 

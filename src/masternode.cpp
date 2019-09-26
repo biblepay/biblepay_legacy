@@ -423,12 +423,15 @@ bool CMasternodeBroadcast::Create(const std::string& strService, const std::stri
     if (Params().NetworkIDString() == CBaseChainParams::MAIN) 
 	{
 		// R Andrews - DefaultPortEnforcement - Broadcaster
-        if (service.GetPort() != mainnetDefaultPort)
+        if (service.GetPort() != mainnetDefaultPort && fEnforceSanctuaryPort)
 		{
             return Log(strprintf("Invalid port %u for masternode %s, only %d is supported on mainnet.", service.GetPort(), strService, mainnetDefaultPort));
 		}
-    } else if (service.GetPort() == mainnetDefaultPort)
+    } 
+	else if (Params().NetworkIDString() != CBaseChainParams::MAIN && service.GetPort() == mainnetDefaultPort)
+	{
         return Log(strprintf("Invalid port %u for masternode %s, %d is the only supported on mainnet.", service.GetPort(), strService, mainnetDefaultPort));
+	}
 
     return Create(outpoint, service, keyCollateralAddressNew, pubKeyCollateralAddressNew, keyMasternodeNew, pubKeyMasternodeNew, strErrorRet, mnbRet);
 }
@@ -527,8 +530,10 @@ bool CMasternodeBroadcast::SimpleCheck(int& nDos)
     if(Params().NetworkIDString() == CBaseChainParams::MAIN) 
 	{
 		// R Andrews - DefaultPortEnforcement - Sanctuary Side - Verify Broadcast
-        if(addr.GetPort() != mainnetDefaultPort) return false;
-    } else if(addr.GetPort() == mainnetDefaultPort) return false;
+        if (addr.GetPort() != mainnetDefaultPort && fEnforceSanctuaryPort)
+			return false;
+    }
+	else if(Params().NetworkIDString() != CBaseChainParams::MAIN && addr.GetPort() == mainnetDefaultPort) return false;
 
     return true;
 }

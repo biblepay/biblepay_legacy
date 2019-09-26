@@ -179,6 +179,8 @@ public: // Types
 
 	void PoseBan(CGovernanceObject govobj);
 
+	UniValue VoteCleanup1();
+
     typedef std::map<uint256, CGovernanceObject> object_m_t;
 
     typedef object_m_t::iterator object_m_it;

@@ -1909,6 +1909,35 @@ UniValue exec(const JSONRPCRequest& request)
 		results.push_back(Pair("vote_result", bRes));
 		results.push_back(Pair("vote_error", sError));
 	}
+	else if (sItem == "disablenetworkmonitor")
+	{
+		mvNetworkMonitor.clear();
+		results.push_back(Pair("disabled", 1));
+		fNetworkMonitor = false;
+	}
+	else if (sItem == "enablenetworkmonitor")
+	{
+		fNetworkMonitor = true;
+		results.push_back(Pair("enabled", fNetworkMonitor));
+	}
+	else if (sItem == "networkmonitor")
+	{
+		results.push_back(Pair("NetworkMonitor", fNetworkMonitor));
+
+	    for (auto ii : mvNetworkMonitor)
+		{
+			double nBytes = mvNetworkMonitor[ii.first];
+			std::string sMessageType = ii.first;
+	        results.push_back(Pair("Message Type " + sMessageType, nBytes));
+	    }
+	}
+	else if (sItem == "votecleanuputil")
+	{
+
+		UniValue a = governance.VoteCleanup1();
+		return a;
+
+	}
 	else if (sItem == "gobjectcleanuputil")
 	{
 		std::map<std::string, double> mvOutpointCount;
@@ -2338,6 +2367,78 @@ UniValue exec(const JSONRPCRequest& request)
 			results.push_back(Pair("TXID", sTxId));
 		}
 	}
+	else if (sItem == "paycameroon")
+	{
+		if (request.params.size() != 4)
+			throw std::runtime_error("You must specify childid amount_in_USD send_mode.  IE: exec paycameroon childID 40 [test/authorize].");
+		std::string sError;
+	   	std::string sCPK = DefaultRecAddress("Christian-Public-Key");
+		std::string sChildID = request.params[1].get_str();
+		double nAmountUSD = cdbl(request.params[2].get_str(), 2);
+		std::string sSendMode = request.params[3].get_str();
+		double dPriorPrice = 0;
+		double dPriorPhase = 0;
+		double dCurPhase = GetQTPhase(false, -1, chainActive.Tip()->nHeight, dPriorPrice, dPriorPhase);
+		if (dPriorPrice < .00001)
+		{
+			sError = "BBP Price too low to use feature.  Price must be above .00001USD/BBP ";
+			dPriorPrice = .00001;
+		}
+
+		if (nAmountUSD < 1)
+		{
+			sError += "You must enter a USD value greater than $1.00 to use this feature. ";
+			nAmountUSD = .01;
+		}
+
+		bool fGood = VerifyChild(sChildID);
+		if (!fGood || sChildID.empty())
+			sError += "Invalid Child ID. (Not sponsored). ";
+
+		if (sSendMode != "authorize")
+		{
+			sError += "Running in dry run mode. ";
+		}
+
+		double nAmount = cdbl(RoundToString(nAmountUSD / dPriorPrice, 2), 2);
+
+		results.push_back(Pair("BBP/USD_Price", dPriorPrice));
+
+		std::string sXML = "<cpk>" + sCPK + "</cpk><childid> " + sChildID + "</childid><amount_usd>" + RoundToString(nAmountUSD, 2) 
+			+ "</amount_usd><amount>" + RoundToString(nAmount, 2) + "</amount>";
+		std::string sDest = "BHRiFZYUpHj2r3gxw7pHyvByTUk1dGb8vz";
+		CBitcoinAddress baDest(sDest);
+
+		bool fSubtractFee = false;
+		bool fInstantSend = false;
+		CWalletTx wtx;
+		bool fSent = false;
+		if (sError.empty() && sSendMode == "authorize")
+		{
+			fSent = RPCSendMoney(sError, baDest.Get(), nAmount * COIN, fSubtractFee, wtx, fInstantSend, sXML);
+		}
+
+		if (!fSent)
+		{
+			results.push_back(Pair("Error", sError));
+			results.push_back(Pair("BBPAmount", nAmount));
+			results.push_back(Pair("USDAmount", nAmountUSD));
+		}
+		else
+		{
+			results.push_back(Pair("txid", wtx.GetHash().GetHex()));
+			results.push_back(Pair("childid", sChildID));
+			results.push_back(Pair("BBPAmount", nAmount));
+			results.push_back(Pair("USDAmount", nAmountUSD));
+		}
+	}
+	else if (sItem == "gschealth")
+	{
+		std::string sQH = CheckLastQuorumPopularHash();
+		std::string sGSCH = CheckGSCHealth();
+		results.push_back(Pair("QH", sQH));
+		results.push_back(Pair("GSCH", sGSCH));
+	}
 	else if (sItem == "health")
 	{
 		// This command pulls the best-superblock (the one with the highest votes for the next height)
@@ -2479,6 +2580,7 @@ UniValue exec(const JSONRPCRequest& request)
 		// Step 1: Fund the protx fee
 		// 1a. Create the new deterministic-sanctuary reward address
 		std::string sPayAddress = DefaultRecAddress(sSancName + "-d"); //d means deterministic
+
 		CBitcoinAddress baPayAddress(sPayAddress);
 		std::string sVotingAddress = DefaultRecAddress(sSancName + "-v"); //v means voting
 		CBitcoinAddress baVotingAddress(sVotingAddress);

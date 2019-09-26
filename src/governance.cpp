@@ -232,9 +232,10 @@ void CGovernanceManager::ProcessMessage(CNode* pfrom, const std::string& strComm
             } 
 			else 
 			{
-				if (fDebugSpam)
+				if (fDebug)
 					LogPrintf("MNGOVERNANCEOBJECT -- Governance object is invalid - %s\n", strError);
-				// We can't ban the node here, because then we will perpetually loop in mnsync step 4.
+				// We can partially ban the node here.
+				Misbehaving(pfrom->GetId(), 1);
 		    }
 
             return;
@@ -249,8 +250,10 @@ void CGovernanceManager::ProcessMessage(CNode* pfrom, const std::string& strComm
         vRecv >> vote;
 
         // TODO remove this check after full DIP3 deployment
-        if (vote.GetTimestamp() < GetMinVoteTime()) {
+        if (vote.GetTimestamp() < GetMinVoteTime()) 
+		{
             // Ignore votes pre-DIP3
+			LogPrintf("\nIPD3V%f",1);
             return;
         }
 
@@ -403,8 +406,34 @@ void CGovernanceManager::AddGovernanceObject(CGovernanceObject& govobj, CConnman
     // SEND NOTIFICATION TO SCRIPT/ZMQ
     GetMainSignals().NotifyGovernanceObject(govobj);
 
-
     DBG(std::cout << "CGovernanceManager::AddGovernanceObject END" << std::endl;);
+}
+
+UniValue CGovernanceManager::VoteCleanup1()
+{
+	    UniValue results(UniValue::VOBJ);
+	    const object_ref_cm_t::list_t& listItems = cmapVoteToObject.GetItemList();
+	    object_ref_cm_t::list_cit lit = listItems.begin();
+		//results.push_back(Pair("VoteCleanup", cmapVoteToObject.size()));
+		int iTotal = 0;
+		while (lit != listItems.end()) 
+		{
+			uint256 nKey = lit->key;
+		    CGovernanceObject* pGovobj = nullptr;
+			cmapVoteToObject.Get(nKey, pGovobj);
+			if (pGovobj != nullptr)
+			{
+				results.push_back(Pair(nKey.GetHex(), pGovobj->GetHash().GetHex()));
+				iTotal++;
+			}
+			else
+			{
+				results.push_back(Pair(nKey.GetHex(), "00000"));
+			}
+			++lit;
+		}
+		results.push_back(Pair("Total", iTotal));
+		return results;
 }
 
 void CleanupTypeII()
@@ -780,8 +809,11 @@ void CGovernanceManager::SyncSingleObjAndItsVotes(CNode* pnode, const uint256& n
 
     // single valid object and its valid votes
     object_m_it it = mapObjects.find(nProp);
-    if (it == mapObjects.end()) {
+    if (it == mapObjects.end()) 
+	{
         LogPrint("gobject", "CGovernanceManager::%s -- no matching object for hash %s, peer=%d\n", __func__, nProp.ToString(), pnode->id);
+		if (GetAdjustedTime() % 10 == 0)
+			Misbehaving(pnode->GetId(), 1);
         return;
     }
     CGovernanceObject& govobj = it->second;

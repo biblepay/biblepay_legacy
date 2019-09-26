@@ -2133,7 +2133,7 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
 			boost::filesystem::path pathGov = GetDataDir() / "governance.dat";
 			int64_t nGovSz = GetFileSizeB(pathGov.string());
 			LogPrintf("Governance file size %f", nGovSz);
-			if (nGovSz > 25000000)
+			if (nGovSz > 35000000)
 			{
 				LogPrintf("Removing bloated governance file %f", nGovSz);
 				if(boost::filesystem::exists(pathGov))

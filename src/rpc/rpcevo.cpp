@@ -450,7 +450,8 @@ UniValue protx_register(const JSONRPCRequest& request)
 		// R Andrews - DefaultPortEnforcement - Verification before sending ProTx
         if (!Lookup(request.params[paramIdx].get_str().c_str(), ptx.addr, Params().GetDefaultPort(), false)) 
 		{
-            throw std::runtime_error(strprintf("invalid network address %s", request.params[paramIdx].get_str()));
+			if (fEnforceSanctuaryPort)
+				throw std::runtime_error(strprintf("invalid network address %s", request.params[paramIdx].get_str()));
         }
     }
 
@@ -600,8 +601,10 @@ UniValue protx_update_service(const JSONRPCRequest& request)
     ptx.nVersion = CProRegTx::CURRENT_VERSION;
     ptx.proTxHash = ParseHashV(request.params[1], "proTxHash");
 
-    if (!Lookup(request.params[2].get_str().c_str(), ptx.addr, Params().GetDefaultPort(), false)) {
-        throw std::runtime_error(strprintf("invalid network address %s", request.params[2].get_str()));
+    if (!Lookup(request.params[2].get_str().c_str(), ptx.addr, Params().GetDefaultPort(), false)) 
+	{
+		if (fEnforceSanctuaryPort)
+			throw std::runtime_error(strprintf("invalid network address %s", request.params[2].get_str()));
     }
 
     CBLSSecretKey keyOperator = ParseBLSSecretKey(request.params[3].get_str(), "operatorKey");

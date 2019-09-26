@@ -1275,11 +1275,14 @@ void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParam
                     CDataStream ss(SER_NETWORK, pfrom->GetSendVersion());
                     bool topush = false;
                     {
-                        if(governance.HaveVoteForHash(inv.hash)) {
-                            ss.reserve(1000);
-                            if(governance.SerializeVoteForHash(inv.hash, ss)) {
-                                topush = true;
-                            }
+						// R Andrews - ToDo:  Verify that we don't push invalid votes here:
+						if (governance.HaveVoteForHash(inv.hash)) 
+						{
+							ss.reserve(1000);
+							if (governance.SerializeVoteForHash(inv.hash, ss)) 
+							{
+								topush = true;
+						    }
                         }
                     }
                     if(topush) {
@@ -1389,6 +1392,11 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
 {
     if (fDebugSpam)
 		LogPrint("net", "received: %s (%u bytes) peer=%d\n", SanitizeString(strCommand), vRecv.size(), pfrom->id);
+
+	if (fNetworkMonitor)
+	{
+		mvNetworkMonitor[strCommand] += vRecv.size();
+	}
 
     if (IsArgSet("-dropmessagestest") && GetRand(GetArg("-dropmessagestest", 0)) == 0)
     {
@@ -1510,10 +1518,21 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         if (!vRecv.empty())
             vRecv >> fRelay;
 
-        if ((nVersion < nMinPeerProtoVersion) || (!fProd && nVersion < MIN_PEER_TESTNET_PROTO_VERSION))
+		double nMinPeerProdVersion = GetSporkDouble("min_peer_prod_version", 0);
+		if (fProd && nMinPeerProdVersion > 1000 && nVersion < nMinPeerProdVersion)
+		{
+			if (fDebug)
+				LogPrintf("peer=%d using obsolete version %i; disconnecting\n", pfrom->id, nVersion);
+            connman.PushMessage(pfrom, CNetMsgMaker(INIT_PROTO_VERSION).Make(NetMsgType::REJECT, strCommand, REJECT_OBSOLETE,
+                               strprintf("Version must be %d or greater", nMinPeerProtoVersion)));
+            pfrom->fDisconnect = true;
+            return false;
+        }
+
+        if ((fProd && nVersion < nMinPeerProtoVersion) || (!fProd && nVersion < MIN_PEER_TESTNET_PROTO_VERSION))
         {
             // disconnect from peers older than this proto version
-			if (fDebugSpam)
+			if (fDebug)
 				LogPrintf("peer=%d using obsolete version %i; disconnecting\n", pfrom->id, nVersion);
             connman.PushMessage(pfrom, CNetMsgMaker(INIT_PROTO_VERSION).Make(NetMsgType::REJECT, strCommand, REJECT_OBSOLETE,
                                strprintf("Version must be %d or greater", nMinPeerProtoVersion)));
@@ -1569,7 +1588,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
 
 		// BIBLEPAY
 		double dPeerVersion = GetPeerVersion(pfrom->cleanSubVer);
-		if (dPeerVersion < 1428 && !fProd && dPeerVersion > 1000)
+		if (!fProd && dPeerVersion < 1428 && dPeerVersion > 1000)
 		{
 		    LogPrint("net", "Disconnecting unauthorized peer in TestNet using old version %f\r\n", (double)dPeerVersion);
 			Misbehaving(pfrom->GetId(), 1);
@@ -1577,6 +1596,15 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
 			return false;
 		}
 
+		double nMinPeerVersionProd = GetSporkDouble("min_peer_version", 1447);
+		if (fProd && dPeerVersion < nMinPeerVersionProd && dPeerVersion > 1000)
+		{
+		    LogPrint("net", "Disconnecting unauthorized peer in Prod using old version %f\r\n", (double)dPeerVersion);
+			Misbehaving(pfrom->GetId(), 1);
+        	pfrom->fDisconnect = true;
+			return false;
+		}
+		
 		int64_t nTimeDrift = std::abs(GetAdjustedTime() - nTime);
         if (nTimeDrift > (5 * 60))
         {
@@ -3178,8 +3206,9 @@ bool ProcessMessages(CNode* pfrom, CConnman& connman, const std::atomic<bool>& i
             if (strstr(e.what(), "end of data"))
             {
                 // Allow exceptions from under-length message on vRecv
-				if (fDebugSpam)
-					LogPrintf("%s(%s, %u bytes): Exception '%s' caught, normally caused by a message being shorter than its stated length\n", __func__, SanitizeString(strCommand), nMessageSize, e.what());
+				if (true)
+					LogPrintf("\nios_base::failure::eod::%s(%s, %u bytes): Exception '%s' caught, normally caused by a message being shorter than its stated length\n", 
+					__func__, SanitizeString(strCommand), nMessageSize, e.what());
 				// R Andrews - We have two messages in classic (mnp, 147 bytes) && (govobjvote, 155 bytes) throwing this error; we can remove the debug master after the supermajority upgrades
             }
             else if (strstr(e.what(), "size too large"))
@@ -3189,10 +3218,11 @@ bool ProcessMessages(CNode* pfrom, CConnman& connman, const std::atomic<bool>& i
 				{
 					// This placeholder is reserved for a Log Message.  We must wait until all biblepay-classic sanctuaries are retired (as they are still sending this oversized message).
 					// We have confirmed the deterministic nodes can cope with this temporary spam.
+					LogPrintf("\nios_base::failure::mnw::caught::%s(%s, %u bytes): Exception '%s' caught\n", __func__, SanitizeString(strCommand), nMessageSize, e.what());
 				}
 				else
 				{
-					LogPrintf("%s(%s, %u bytes): Exception '%s' caught\n", __func__, SanitizeString(strCommand), nMessageSize, e.what());
+					LogPrintf("\nios_base::failure::size_too_large::%s(%s, %u bytes): Exception '%s' caught\n", __func__, SanitizeString(strCommand), nMessageSize, e.what());
 				}
             }
             else if (strstr(e.what(), "non-canonical ReadCompactSize()"))
@@ -3213,10 +3243,11 @@ bool ProcessMessages(CNode* pfrom, CConnman& connman, const std::atomic<bool>& i
 
         if (!fRet) 
 		{
-			if (strCommand != "mnw" && strCommand != "govobjvote")
+			if ((true) || (strCommand != "mnw" && strCommand != "govobjvote"))
 			{				
-				LogPrintf("%s(%s, %u bytes) FAILED peer=%d\n", __func__, SanitizeString(strCommand), nMessageSize, pfrom->id);
-			}
+				LogPrintf("\nios_base_failure::mesg_fail::%s(%s, %u bytes) FAILED peer=%d\n", __func__, SanitizeString(strCommand), nMessageSize, pfrom->id);
+			    Misbehaving(pfrom->id, 1);
+            }
         }
 
         LOCK(cs_main);

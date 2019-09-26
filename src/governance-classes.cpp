@@ -12,6 +12,7 @@
 #include "rpcpog.h"
 #include "smartcontract-server.h"
 #include <boost/algorithm/string.hpp>
+#include "masternodeman.h"
 
 #include <univalue.h>
 
@@ -165,6 +166,10 @@ void CGovernanceTriggerManager::CleanAndRemove()
 	if (fDebugSpam)
 		LogPrint("gobject", "CGovernanceTriggerManager::CleanAndRemove -- mapTrigger.size() = %d\n", mapTrigger.size());
 
+	int nMnCount = mnodeman.CountMasternodes();
+	
+	int nAbsVoteReq = std::max(Params().GetConsensus().nGovernanceMinQuorum, nMnCount / 10);
+    
     trigger_m_it it = mapTrigger.begin();
     while (it != mapTrigger.end()) 
 	{
@@ -189,25 +194,35 @@ void CGovernanceTriggerManager::CleanAndRemove()
 					LogPrint("gobject", "CGovernanceTriggerManager::CleanAndRemove -- Unknown or non-trigger superblock\n");
                 pSuperblock->SetStatus(SEEN_OBJECT_ERROR_INVALID);
 			}
-
-			/*
-			if (pObj->GetObjectType() == GOVERNANCE_OBJECT_TRIGGER)
+			else if (pObj && pSuperblock && pObj->GetObjectType() == GOVERNANCE_OBJECT_TRIGGER)
 			{
-				// BiblePay - Clean Up
-				int64_t nAge = GetAdjustedTime() - pObj->GetCreationTime();
-				int nYesCount = pObj->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING);
-				UniValue obj = pObj->GetJSONObject();
-				int nObjBlockHeight = (int)cdbl(obj["event_block_height"].getValStr(), 0);
-				bool fGSC = CSuperblock::IsSmartContract(nObjBlockHeight);
-				if (fGSC && nAge > (60 * 60 * 48) && nYesCount <= 1)
+				// Gobject CleanUp - Type I
+				try
 				{
-					if (fDebugSpam)
-						LogPrintf("DOT %s ", pObj->GetHash().GetHex());
-					remove = true;
+					int nHeight = pSuperblock->GetBlockHeight();
+					int64_t nAge = GetAdjustedTime() - pObj->GetCreationTime();
+					int nYesCount = pObj->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING);
+					bool fGSC = CSuperblock::IsSmartContract(nHeight);
+					if (fGSC && nAge > (60 * 60 * 12))
+					{
+						if (nYesCount < (nAbsVoteReq * .10))
+						{
+							if (fDebug)
+								LogPrintf("\nDOT %s  Height %f", pSuperblock->GetHash().GetHex(), (double)nHeight);
+							remove = true;
+						}
+					}
+				}
+		        catch (const std::exception& e) 
+				{
+					LogPrintf("\nClean&Remove::StdError%f", 1);
+				}
+				catch(...)
+				{
+					LogPrintf("\nClean&Remove::Error%f", 1);
 				}
 			}
-			*/
-
+		
             DBG(std::cout << "CGovernanceTriggerManager::CleanAndRemove: superblock status = " << pSuperblock->GetStatus() << std::endl;);
             if (fDebugSpam)
 				LogPrint("gobject", "CGovernanceTriggerManager::CleanAndRemove -- superblock status = %d\n", pSuperblock->GetStatus());
@@ -960,7 +975,7 @@ bool CSuperblock::IsExpired()
         nExpirationBlocks = Params().GetConsensus().nSuperblockCycle;
         break;
     case SEEN_OBJECT_IS_VALID:
-        nExpirationBlocks = 576;
+        nExpirationBlocks = BLOCKS_PER_DAY;
         break;
     default:
         nExpirationBlocks = 24;
