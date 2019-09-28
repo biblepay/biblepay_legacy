@@ -107,7 +107,7 @@ bool CheckCampaign(std::string sName)
 }
 
 
-UniValue SentGSCCReport(int nHeight)
+UniValue SentGSCCReport(int nHeight, std::string sMyCPK)
 {
 	UniValue results(UniValue::VOBJ);
 	
@@ -127,7 +127,7 @@ UniValue SentGSCCReport(int nHeight)
 
 	CBlockIndex* pindex = FindBlockByHeight(nMinDepth);
 	const Consensus::Params& consensusParams = Params().GetConsensus();
-	std::string sMyCPK = DefaultRecAddress("Christian-Public-Key");
+
 	double nTotalPoints = 0;
 	if (sMyCPK.empty())
 		return NullUniValue;

@@ -1930,6 +1930,8 @@ std::string BiblepayHTTPSPost(bool bPost, int iThreadID, std::string sActionName
 		mapRequestHeaders["WorkerID1"] = GetArg("-workerid", "");
 		mapRequestHeaders["WorkerID2"] = GetArg("-workeridfunded", "");
 		mapRequestHeaders["HTTP_PROTO_VERSION"] = RoundToString(HTTP_PROTO_VERSION, 0);
+		int iActivePort = cdbl(GetArg("-port", RoundToString(chainparams.GetDefaultPort(), 0)), 0);
+		mapRequestHeaders["port"] = RoundToString(iActivePort, 0);
 
 		BIO* bio;
 		SSL_CTX* ctx;
@@ -2509,14 +2511,28 @@ CWalletTx CreateAntiBotNetTx(CBlockIndex* pindexLast, double nMinCoinAge, CReser
 		double nTargetABNWeight = pwalletMain->GetAntiBotNetWalletWeight(nMinCoinAge, nUsed);
 		int nChangePosRet = -1;
 		bool fSubtractFeeFromAmount = true;
-		CAmount nAllocated = nUsed - (0 * COIN);
-		CRecipient recipient = {spkCPKScript, nAllocated - (1*COIN), false, fSubtractFeeFromAmount};
+		CAmount nAllocated = nUsed;
+		CAmount nSpending = nAllocated - (1 * COIN);
+		CAmount nConsumed = 0;
 		std::vector<CRecipient> vecSend;
-		vecSend.push_back(recipient);
+				
+		double dChangeQty = cdbl(GetArg("-changequantity", "10"), 2);
+		if (dChangeQty < 01) dChangeQty = 1;
+		if (dChangeQty > 50) dChangeQty = 50;
+		double iQty = (nAllocated / COIN) > nMinCoinAge ? dChangeQty : 1;
+		double nEach = (double)1 / iQty;
+		for (int i = 0; i < iQty; i++)
+		{
+			CAmount nIndividualAmount = nSpending * nEach;
+			CRecipient recipient = {spkCPKScript, nIndividualAmount, false, fSubtractFeeFromAmount};
+			vecSend.push_back(recipient);
+			nConsumed += nIndividualAmount;
+		}
+
 		CAmount nFeeRequired = 0;
 		fCreated = pwalletMain->CreateTransaction(vecSend, wtx, reservekey, nFeeRequired, nChangePosRet, strError, NULL, true, ALL_COINS, false, 0, sXML, nMinCoinAge, nAllocated);
 		double nTest = GetAntiBotNetWeight(chainActive.Tip()->GetBlockTime(), wtx.tx, true, "");
-		sDebugInfo = "TargetWeight=" + RoundToString(nTargetABNWeight, 0) + ", UsingBBP=" + RoundToString((double)nUsed/COIN, 2) 
+		sDebugInfo = "TargetWeight=" + RoundToString(nTargetABNWeight, 0) + ", UsingBBP=" + RoundToString((double)nConsumed/COIN, 2) 
 				+ ", SpendingBBP=" + RoundToString((double)nAllocated/COIN, 2) + ", NeededWeight=" + RoundToString(nMinCoinAge, 0) + ", GotWeight=" + RoundToString(nTest, 2);
 		sMiningInfo = "[" + RoundToString(nMinCoinAge, 0) + " ABN OK] Amount=" + RoundToString(nUsed/COIN, 2) + ", Weight=" + RoundToString(nTest, 2);
 		if (fDebug)
@@ -2615,8 +2631,8 @@ std::string GetPOGBusinessObjectList(std::string sType, std::string sFields)
 	sData += "<my_nickname>" + myCPK.sNickName + "</my_nickname>";
 	sData += "<total_points>" + RoundToString(nTotalPoints, 0) + "</total_points>";
 	sData += "<participants>"+ RoundToString(vData.size() - 1, 0) + "</participants>";
-	sData += "<lowblock>" + RoundToString(iNextSuperblock - BLOCKS_PER_DAY, 0) + "</lowblock>";
-	sData += "<highblock>" + RoundToString(iNextSuperblock, 0)  + "</highblock>";
+	sData += "<lowblock>" + RoundToString(iNextSuperblock, 0) + "</lowblock>";
+	sData += "<highblock>" + RoundToString(iNextSuperblock + BLOCKS_PER_DAY - 1, 0)  + "</highblock>";
 	return sData;
 }
 
@@ -2887,4 +2903,48 @@ void UpdateHealthInformation()
 	std::string sResponseInner = ExtractXML(sResponse,"<RESPONSE>","</RESPONSE>");
 	if (fDebugSpam)
 		LogPrintf("UpdateHealthInformation %s %s", sError, sResponseInner);
+}
+
+std::string SearchChain(int nBlocks, std::string sDest)
+{
+	if (!chainActive.Tip()) 
+		return std::string();
+	int nMaxDepth = chainActive.Tip()->nHeight;
+	int nMinDepth = nMaxDepth - nBlocks;
+	if (nMinDepth < 1) 
+		nMinDepth = 1;
+	const Consensus::Params& consensusParams = Params().GetConsensus();
+	std::string sData;
+	CBlockIndex* pindex = FindBlockByHeight(nMinDepth);
+	while (pindex && pindex->nHeight < nMaxDepth)
+	{
+		if (pindex->nHeight < chainActive.Tip()->nHeight) 
+			pindex = chainActive.Next(pindex);
+		CBlock block;
+		if (ReadBlockFromDisk(block, pindex, consensusParams)) 
+		{
+			for (unsigned int n = 0; n < block.vtx.size(); n++)
+			{
+				std::string sMsg = GetTransactionMessage(block.vtx[n]);
+				std::string sCPK = ExtractXML(sMsg, "<cpk>", "</cpk>");
+				std::string sUSD = ExtractXML(sMsg, "<amount_usd>", "</amount_usd>");
+				std::string sChildID = ExtractXML(sMsg, "<childid>", "</childid>");
+				boost::trim(sChildID);
+
+				for (int i = 0; i < block.vtx[n]->vout.size(); i++)
+				{
+					double dAmount = block.vtx[n]->vout[i].nValue / COIN;
+					std::string sPK = PubKeyToAddress(block.vtx[n]->vout[i].scriptPubKey);
+					if (sPK == sDest && dAmount > 0 && !sChildID.empty())
+					{
+						std::string sRow = "<row><block>" + RoundToString(pindex->nHeight, 0) + "</block><destination>" + sPK + "</destination><cpk>" + sCPK + "</cpk><childid>" 
+							+ sChildID + "</childid><amount>" + RoundToString(dAmount, 2) + "</amount><amount_usd>" 
+							+ sUSD + "</amount_usd><txid>" + block.vtx[n]->GetHash().GetHex() + "</txid></row>";
+						sData += sRow;
+					}
+				}
+			}
+		}
+	}
+	return sData;
 }

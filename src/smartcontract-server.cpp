@@ -710,7 +710,8 @@ std::string AssessBlocks(int nHeight, bool fCreatingContract)
 
 	sData = "<PAYMENTS>" + sPayments + "</PAYMENTS><ADDRESSES>" + sAddresses + "</ADDRESSES><DATA>" + sGenData + "</DATA><LIMIT>" 
 		+ RoundToString(nPaymentsLimit/COIN, 4) + "</LIMIT><TOTALPROMINENCE>" + RoundToString(nTotalProminence, 2) + "</TOTALPROMINENCE><TOTALPAYOUT>" + RoundToString(nTotalPayments, 2) 
-		+ "</TOTALPAYOUT><TOTALPOINTS>" + RoundToString(nTotalPoints, 2) + "</TOTALPOINTS><DIARIES>" 
+		+ "</TOTALPAYOUT><TOTALPOINTS>" + RoundToString(nTotalPoints, 2) + "</TOTALPOINTS><MINDEPTH>" 
+		+ RoundToString(nMinDepth, 0) + "</MINDEPTH><MAXDEPTH>" + RoundToString(nMaxDepth, 0) + "</MAXDEPTH><DIARIES>" 
 		+ sDiaries + "</DIARIES><DETAILS>" + sDetails + "</DETAILS>" + QTData + sProminenceExport + sCPKList + sStratisNodes;
 	if (dDebugLevel == 1)
 		LogPrintf("XML %s", sData);
@@ -1171,6 +1172,10 @@ UniValue GetProminenceLevels(int nHeight, std::string sFilterNickName)
 	std::vector<std::string> vDetails = Split(sDetails.c_str(), "\n");
 	std::vector<std::string> vDiaries = Split(sDiaries.c_str(), "\n");
 	results.push_back(Pair("Prominence v1.1", "Details"));
+	std::string nMinDepth = ExtractXML(sContract, "<MINDEPTH>", "</MINDEPTH>");
+	std::string nMaxDepth = ExtractXML(sContract, "<MAXDEPTH>", "</MAXDEPTH>");
+	results.push_back(Pair("Block Range", nMinDepth + "-" + nMaxDepth));
+
 	// DETAIL ROW FORMAT: sCampaignName + "|" + Members.Address + "|" + nPoints + "|" + nProminence + "|" + NickName + "|\n";
 	std::string sMyCPK = DefaultRecAddress("Christian-Public-Key");
 
@@ -1273,9 +1278,12 @@ std::string CheckLastQuorumPopularHash()
 	return "SUCCESS";
 }
 
-static int64_t nLastQuorumHashCheckup = GetAdjustedTime();
+static int64_t nLastQuorumHashCheckup = 0;
 std::string CheckGSCHealth()
 {
+	if (nLastQuorumHashCheckup == 0)
+		nLastQuorumHashCheckup = GetAdjustedTime();
+
 	double nCheckGSCOptionDisabled = GetSporkDouble("disablegschealthcheck", 0);
 	if (nCheckGSCOptionDisabled == 1)
 		return "DISABLED";

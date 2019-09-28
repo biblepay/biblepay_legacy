@@ -211,5 +211,6 @@ void LogPrintWithTimeLimit(std::string sSection, std::string sValue, int64_t nMa
 double GetROI(double nTitheAmount);
 void ProcessBLSCommand(CTransactionRef tx);
 void UpdateHealthInformation();
+std::string SearchChain(int nBlocks, std::string sDest);
 
 #endif

@@ -2552,7 +2552,18 @@ UniValue exec(const JSONRPCRequest& request)
 	}
 	else if (sItem == "sentgsc")
 	{
-		UniValue s = SentGSCCReport(0);
+		if (request.params.size() > 3)
+			throw std::runtime_error("sentgsc: Reports on the GSC transmissions and ABN transmissions over the last 7 days.  You may optionally specify the CPK and the height: sentgsc cpk height.");
+		std::string sMyCPK;
+		if (request.params.size() > 1)
+			sMyCPK = request.params[1].get_str();
+		if (sMyCPK.empty())
+			sMyCPK = DefaultRecAddress("Christian-Public-Key");
+		double nHeight = 0;
+		if (request.params.size() > 2)
+			nHeight = cdbl(request.params[2].get_str(), 0);
+
+		UniValue s = SentGSCCReport(nHeight, sMyCPK);
 		return s;
 	}
 	else if (sItem == "upgradesanc")
@@ -2721,6 +2732,13 @@ UniValue exec(const JSONRPCRequest& request)
 	}
 	else if (sItem == "roi")
 	{
+		if (request.params.size() != 1 && request.params.size() != 2)
+			throw std::runtime_error("roi:  Shows the estimated return on investment for a given donation in the POG campage.  You may optionally specify a specific tithe amount.  IE: roi [bbpamount].");
+		double dSpecificAmount = 0;
+
+		if (request.params.size() > 1)
+			dSpecificAmount = cdbl(request.params[1].get_str(), 2);
+	
 		const Consensus::Params& consensusParams = Params().GetConsensus();
 		int iNextSuperblock = 0;
 		int iLastSuperblock = GetLastGSCSuperblockHeight(chainActive.Tip()->nHeight, iNextSuperblock);
@@ -2751,7 +2769,16 @@ UniValue exec(const JSONRPCRequest& request)
 		double dPPP = dTotalPaid / nTotalPoints;
 		results.push_back(Pair("Payment Per Point", dPPP));
 		CAmount nTotalReq;
-		double dCoinAge = pwalletMain->GetAntiBotNetWalletWeight(0, nTotalReq);
+		// Honor default coin age percentage
+		double nDefaultCoinAgePercentage = GetSporkDouble("pogdefaultcoinagepercentage", .10);
+		double nCoinAgePercentage = UserSetting("pog_coinagepercentage", nDefaultCoinAgePercentage);
+		
+		double dCoinAgeIn = pwalletMain->GetAntiBotNetWalletWeight(0, nTotalReq);
+		double dTargetAge = dCoinAgeIn * nCoinAgePercentage;
+		double dCoinAge = pwalletMain->GetAntiBotNetWalletWeight(dTargetAge, nTotalReq);
+		
+		results.push_back(Pair("My Coin Age Percentage", nCoinAgePercentage));
+		
 		results.push_back(Pair("My Current Coin Age", dCoinAge));
 		results.push_back(Pair("My free balance", nTotalReq / COIN));
 		CBlockIndex* bindex = FindBlockByHeight(iLastSuperblock - 1);
@@ -2761,7 +2788,16 @@ UniValue exec(const JSONRPCRequest& request)
 		results.push_back(Pair("Sanctuary Reward @" + RoundToString(iLastSuperblock - 1, 2), nSanc / COIN));
 		double nSancROI = ((double)(nSanc/COIN) / SANCTUARY_COLLATERAL) * 100 * 365;
 		results.push_back(Pair("Sanctuary ROI Annualized %", nSancROI));
-		for (double nTitheAmount = 2; nTitheAmount < 50000; nTitheAmount += 1000)
+		double nLowAmount = 2;
+		double nHighAmount = 50000;
+		double nStep = 1000;
+		if (dSpecificAmount > 0)
+		{
+			nLowAmount = dSpecificAmount;
+			nHighAmount = dSpecificAmount + 1;
+			nStep = 1;
+		}
+		for (double nTitheAmount = nLowAmount; nTitheAmount < nHighAmount; nTitheAmount += nStep)
 		{
 			double nPoints = cbrt(nTitheAmount) * dCoinAge;
 			if (nTitheAmount > 10000)
@@ -2812,6 +2848,43 @@ UniValue exec(const JSONRPCRequest& request)
 	else if (sItem == "tuhi")
 	{
 		UpdateHealthInformation();
+	}
+	else if (sItem == "cameroon_payments")
+	{
+		if (request.params.size() !=2)
+			throw std::runtime_error("You must specify cameroon_payments type [XML/Auto].");
+		std::string sType = request.params[1].get_str();
+		std::string sDest = "BHRiFZYUpHj2r3gxw7pHyvByTUk1dGb8vz";
+		std::string CP = SearchChain(BLOCKS_PER_DAY * 31, sDest);
+		int payment_id = 0;
+		if (sType == "XML")
+		{
+			results.push_back(Pair("payments", CP));
+		}
+		else
+		{
+			std::vector<std::string> vRows = Split(CP.c_str(), "<row>");
+			for (int i = 0; i < vRows.size(); i++)
+			{
+				std::string sCPK = ExtractXML(vRows[i], "<cpk>", "</cpk>");
+				std::string sChildID = ExtractXML(vRows[i], "<childid>", "</childid>");
+				std::string sAmount = ExtractXML(vRows[i], "<amount>", "</amount>");
+				std::string sUSD = ExtractXML(vRows[i], "<amount_usd>", "</amount_usd>");
+				std::string sBlock = ExtractXML(vRows[i], "<block>", "</block>");
+				std::string sTXID = ExtractXML(vRows[i], "<txid>", "</txid>");
+				if (!sChildID.empty())
+				{
+					payment_id++;
+					results.push_back(Pair("Payment #", payment_id));
+					results.push_back(Pair("CPK", sCPK));
+					results.push_back(Pair("childid", sChildID));
+					results.push_back(Pair("Amount", sAmount));
+					results.push_back(Pair("Amount_USD", sUSD));
+					results.push_back(Pair("Block #", sBlock));
+					results.push_back(Pair("TXID", sTXID));
+				}
+			}
+		}
 	}
 	else if (sItem == "blscommand")
 	{
