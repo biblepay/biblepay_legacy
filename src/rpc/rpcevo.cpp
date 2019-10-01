@@ -1370,6 +1370,7 @@ UniValue listchildren(const JSONRPCRequest& request)
 		{
 			if (fAll || a.second.sAddress == sMyCPK)
 			{
+				results.push_back(Pair("---------", "--------------------------------------------------"));
 				results.push_back(Pair("Child ID", sChildID));
 				results.push_back(Pair("CPK", a.second.sAddress));
 				results.push_back(Pair("Biography", sBIOUrl));
