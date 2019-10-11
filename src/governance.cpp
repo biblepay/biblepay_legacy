@@ -1633,6 +1633,12 @@ void CGovernanceManager::RemoveDuplicateVotes()
 
 	for (const auto& uVote : duplicateVotes) 
 	{
+		uint256 voteHash = uVote;
+		cmapVoteToObject.Erase(voteHash);
+		cmapInvalidVotes.Erase(voteHash);
+		cmmapOrphanVotes.Erase(voteHash);
+		setRequestedVotes.erase(voteHash);
+		iDeleted++;
     }
 
 	LogPrintf("\nBiblePay::RemoveDuplicates::Removed %f out of %f ", iDeleted, iTotal);
