@@ -1933,10 +1933,8 @@ UniValue exec(const JSONRPCRequest& request)
 	}
 	else if (sItem == "votecleanuputil")
 	{
-
 		UniValue a = governance.VoteCleanup1();
 		return a;
-
 	}
 	else if (sItem == "gobjectcleanuputil")
 	{
@@ -2733,7 +2731,7 @@ UniValue exec(const JSONRPCRequest& request)
 	else if (sItem == "roi")
 	{
 		if (request.params.size() != 1 && request.params.size() != 2)
-			throw std::runtime_error("roi:  Shows the estimated return on investment for a given donation in the POG campage.  You may optionally specify a specific tithe amount.  IE: roi [bbpamount].");
+			throw std::runtime_error("roi:  Shows the estimated return on investment for a given donation in the POG campaign.  You may optionally specify a specific tithe amount.  IE: roi [bbpamount].");
 		double dSpecificAmount = 0;
 
 		if (request.params.size() > 1)
@@ -2989,6 +2987,16 @@ UniValue exec(const JSONRPCRequest& request)
 		results.push_back(Pair("blockhex", sBlockHex));
 		results.push_back(Pair("txhex", sTxCoinbaseHex));
 	}
+	else if (sItem == "pobh")
+	{
+		std::string sInput = request.params[1].get_str();
+		double d1 = cdbl(request.params[2].get_str(), 0);
+		uint256 hSource = uint256S("0x" + sInput);
+		uint256 h = BibleHashDebug(hSource, d1 == 1);
+		results.push_back(Pair("in-hash", hSource.GetHex()));
+		results.push_back(Pair("out-hash", h.GetHex()));
+
+	}
 	else if (sItem == "XBBP")
 	{
 		std::string smd1 = "BiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePay";
@@ -3010,6 +3018,11 @@ UniValue exec(const JSONRPCRequest& request)
 		uint256 hSMD10 = Sha256001(1,170001,smd2);
 	    uint256 h1 = SerializeHash(vch1); 
 		uint256 hSMD2 = SerializeHash(vch2);
+		uint256 i1 = uint256S("0x1");
+		std::vector<unsigned char> ivch1 = std::vector<unsigned char>(i1.begin(), i1.end());
+		uint256 hi1 = SerializeHash(ivch1);
+		results.push_back(Pair("0x1_sha256",  hi1.GetHex()));
+		
 		uint256 h2 = HashBiblePay(vch1.begin(),vch1.end());
 		uint256 h3 = HashBiblePay(h2.begin(),h2.end());
 		uint256 h4 = HashBiblePay(h3.begin(),h3.end());
@@ -3065,6 +3078,23 @@ UniValue exec(const JSONRPCRequest& request)
 		results.push_back(Pair("h3",h3.GetHex()));
 		results.push_back(Pair("h4",h4.GetHex()));
 		results.push_back(Pair("h5",h5.GetHex()));
+		// Moving on to uint256 multiplication and division
+		uint256 hM1 = uint256S("0x1000000000000000000000000000000000000000000000000000000000121416");
+		// Multiply
+		arith_uint256 bnM1 = UintToArith256(hM1);
+		bnM1 *= 420;
+		//	 bnHash /= nDivisor;
+		uint256 hM2 = ArithToUint256(bnM1);
+		results.push_back(Pair("multipl_m1", hM1.GetHex()));
+		results.push_back(Pair("multiply_m2", hM2.GetHex()));
+		// Now divide
+		arith_uint256 bnM3 = UintToArith256(hM2);
+		int nDivisor = 1777; //Taken from POBH
+		bnM3 /= nDivisor;
+		uint256 hM3 = ArithToUint256(bnM3);
+		results.push_back(Pair("divide_m3", hM3.GetHex()));
+		
+
 	}
 	else
 	{

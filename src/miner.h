@@ -26,6 +26,7 @@ namespace Consensus { struct Params; };
 static const bool DEFAULT_PRINTPRIORITY = false;
 
 void GenerateBiblecoins(bool fGenerate, int nThreads, const CChainParams& chainparams);
+std::string CreateBlockForStratum(std::string& sError, std::string& sTarget);
 
 struct CBlockTemplate
 {

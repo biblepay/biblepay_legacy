@@ -23,5 +23,6 @@ bool BibleEncryptE(std::vector<unsigned char> vchPlaintext, std::vector<unsigned
 extern std::string GetBibleHashVerses(uint256 hash, uint64_t nBlockTime, uint64_t nPrevBlockTime, int nPrevHeight, CBlockIndex* pindexPrev);
 std::string GetBibleHashVerseNumber(uint256 hash, uint64_t nBlockTime, uint64_t nPrevBlockTime, int nPrevHeight, CBlockIndex* pindexPrev, int iVerseNumber);
 std::string GetVerseML(std::string sLanguage, std::string sBook, int iChapter, int iVerse, int iBookStart, int iBookEnd);
+uint256 BibleHashDebug(uint256 hash, bool fLate);
 
 #endif

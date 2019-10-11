@@ -460,6 +460,7 @@ private:
     void RequestOrphanObjects(CConnman& connman);
 
     void CleanOrphanObjects();
+	void RemoveDuplicateVotes();
 
     void RemoveInvalidProposalVotes();
 

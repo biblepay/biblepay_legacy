@@ -347,7 +347,11 @@ void TransactionRecord::updateStatus(const CWalletTx &wtx)
     else
     {
         status.lockedByInstantSend = wtx.IsLockedByInstantSend();
-		if (wtx.IsABN())
+		if (instantsend.IsLockedInstantSendTransaction(wtx.GetHash())) 
+		{
+			status.status = TransactionStatus::Confirmed;
+		}
+		else if (wtx.IsABN())
 		{
 			status.status = TransactionStatus::Abandoned;
 		}

@@ -992,7 +992,7 @@ int64_t GetFileSizeB(std::string sPath)
 
 bool CheckNonce(bool f9000, unsigned int nNonce, int nPrevHeight, int64_t nPrevBlockTime, int64_t nBlockTime, const Consensus::Params& params)
 {
-	if (!f9000) return true;
+	if (!f9000 || nPrevHeight > params.EVOLUTION_CUTOVER_HEIGHT) return true;
 	int64_t MAX_AGE = 30 * 60;
 	int NONCE_FACTOR = 256;
 	int MAX_NONCE = 512;

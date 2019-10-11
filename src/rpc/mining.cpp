@@ -369,6 +369,20 @@ std::string gbt_vb_name(const Consensus::DeploymentPos pos) {
     return s;
 }
 
+UniValue getblockforstratum(const JSONRPCRequest& request)
+{
+	if (request.fHelp)
+		throw std::runtime_error("getblockforstratum::Generates a block for p2pool/stratum with or without ABN support.  Returns block hex.  Returns 'ERROR' populated with an error.");
+	std::string sError;
+	std::string sTarget;
+	std::string sHex = CreateBlockForStratum(sError, sTarget);
+	UniValue results(UniValue::VOBJ);
+	results.push_back(Pair("hex", sHex));
+	results.push_back(Pair("target", sTarget));
+	results.push_back(Pair("error1", sError));
+	return results;
+}
+
 UniValue getblocktemplate(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() > 1)
@@ -1057,6 +1071,7 @@ static const CRPCCommand commands[] =
     { "mining",             "getmininginfo",          &getmininginfo,          true,  {"details"} },
     { "mining",             "prioritisetransaction",  &prioritisetransaction,  true,  {"txid","priority_delta","fee_delta"} },
     { "mining",             "getblocktemplate",       &getblocktemplate,       true,  {"template_request"} },
+	{ "mining",             "getblockforstratum",     &getblockforstratum,     true,  {"hexdata"} },
     { "mining",             "submitblock",            &submitblock,            true,  {"hexdata","parameters"} },
     { "generating",         "generate",               &generate,               true,  {"nblocks","maxtries"} },
     { "generating",         "generatetoaddress",      &generatetoaddress,      true,  {"nblocks","address","maxtries"} },

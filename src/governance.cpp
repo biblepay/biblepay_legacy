@@ -409,13 +409,47 @@ void CGovernanceManager::AddGovernanceObject(CGovernanceObject& govobj, CConnman
     DBG(std::cout << "CGovernanceManager::AddGovernanceObject END" << std::endl;);
 }
 
+std::vector<CGovernanceVote> GetVoteByHash(uint256 governanceHash, uint256 voteHash, int& out_iPos) 
+{
+	out_iPos = -1;
+    std::vector<CGovernanceVote> vecVotes = governance.GetMatchingVotes(governanceHash);
+	for (int i  = 0; i < vecVotes.size(); i++)
+	{
+		if (vecVotes[i].GetHash() == voteHash)
+		{
+			out_iPos = i;
+			return vecVotes;
+		}
+    }
+	return vecVotes;
+}
+
+int GetVoteCountByOutpointAndGovernanceHashAndSignal(uint256 governanceHash, COutPoint cOutpoint, std::string sVoteSignal, uint256 voteHash)
+{
+	int iFound = 0;
+    std::vector<CGovernanceVote> vecVotes = governance.GetMatchingVotes(governanceHash);
+	for (int i  = 0; i < vecVotes.size(); i++)
+	{
+		std::string sLocSig = CGovernanceVoting::ConvertSignalToString(vecVotes[i].GetSignal());
+		if (vecVotes[i].GetMasternodeOutpoint() == cOutpoint && sLocSig == sVoteSignal)
+		{
+			iFound++;
+			if (iFound == 1 && vecVotes[i].GetHash() == voteHash)
+				return 0;
+		}
+    }
+	return iFound;
+}
+
 UniValue CGovernanceManager::VoteCleanup1()
 {
+		std::map<std::string, double> mvOutpointCount;
+		mvOutpointCount.clear();
 	    UniValue results(UniValue::VOBJ);
 	    const object_ref_cm_t::list_t& listItems = cmapVoteToObject.GetItemList();
 	    object_ref_cm_t::list_cit lit = listItems.begin();
-		//results.push_back(Pair("VoteCleanup", cmapVoteToObject.size()));
 		int iTotal = 0;
+		int iInvVotes = 0;
 		while (lit != listItems.end()) 
 		{
 			uint256 nKey = lit->key;
@@ -423,16 +457,39 @@ UniValue CGovernanceManager::VoteCleanup1()
 			cmapVoteToObject.Get(nKey, pGovobj);
 			if (pGovobj != nullptr)
 			{
-				results.push_back(Pair(nKey.GetHex(), pGovobj->GetHash().GetHex()));
-				iTotal++;
-			}
-			else
-			{
-				results.push_back(Pair(nKey.GetHex(), "00000"));
+				int iPos = 0;
+				std::vector<CGovernanceVote> myVoteVec = GetVoteByHash(pGovobj->GetHash(), nKey, iPos);
+				if (iPos > -1)
+				{
+					// Who is the signing masternode on this vote?
+					if (cmapInvalidVotes.HasKey(nKey)) 
+						iInvVotes++;
+					mvOutpointCount[myVoteVec[iPos].GetMasternodeOutpoint().ToStringShort()]++;
+					iTotal++;
+					std::string sOP = myVoteVec[iPos].GetMasternodeOutpoint().ToStringShort();
+					if (true)
+					{
+						// Audit individual sanctuary 
+						std::string sSignal = CGovernanceVoting::ConvertSignalToString(myVoteVec[iPos].GetSignal());
+						std::string sVote = "T:"+ RoundToString(pGovobj->GetObjectType(), 0)  + "SIG:" + sSignal;
+						int iCt = GetVoteCountByOutpointAndGovernanceHashAndSignal(pGovobj->GetHash(), myVoteVec[iPos].GetMasternodeOutpoint(), sSignal, myVoteVec[iPos].GetHash());
+						std::string sRow = "SANC:" + myVoteVec[iPos].GetMasternodeOutpoint().ToStringShort() + ", gobj: " + pGovobj->GetHash().GetHex() + ", Vote:" + sVote + ", PriorVoteCount: " + RoundToString(iCt, 0);
+						results.push_back(Pair(nKey.GetHex(), sRow));
+					}
+				}
 			}
 			++lit;
 		}
 		results.push_back(Pair("Total", iTotal));
+		results.push_back(Pair("Invalid Votes", iInvVotes));
+
+	    for (auto ii : mvOutpointCount)
+		{
+			double nCount = mvOutpointCount[ii.first];
+			std::string sOutpoint = ii.first;
+	        results.push_back(Pair("SANC " + sOutpoint, nCount));
+	    }
+
 		return results;
 }
 
@@ -724,6 +781,9 @@ void CGovernanceManager::DoMaintenance(CConnman& connman)
         ClearPreDIP3Votes();
         RemoveInvalidProposalVotes();
     }
+	// BiblePay
+	RemoveDuplicateVotes();
+	// End of BiblePay
 
     // CHECK OBJECTS WE'VE ASKED FOR, REMOVE OLD ENTRIES
 	
@@ -1530,6 +1590,55 @@ void CGovernanceManager::CleanOrphanObjects()
         }
     }
 }
+
+void CGovernanceManager::RemoveDuplicateVotes()
+{
+    LOCK(cs);
+	LogPrintf("\nRemoveDuplicateVotes %f", 1);
+
+    std::vector<uint256> duplicateVotes;
+	int iTotal = 0;
+	int iDeleted = 0;
+	int iMarked = 0;
+    const object_ref_cm_t::list_t& listItems = cmapVoteToObject.GetItemList();
+    object_ref_cm_t::list_cit lit = listItems.begin();
+	while (lit != listItems.end()) 
+	{
+		uint256 nKey = lit->key;
+	    CGovernanceObject* pGovobj = nullptr;
+		cmapVoteToObject.Get(nKey, pGovobj);
+		if (pGovobj != nullptr)
+		{
+			int iPos = 0;
+			std::vector<CGovernanceVote> myVoteVec = GetVoteByHash(pGovobj->GetHash(), nKey, iPos);
+			if (iPos > -1)
+			{
+				iTotal++;
+				std::string sSignal = CGovernanceVoting::ConvertSignalToString(myVoteVec[iPos].GetSignal());
+				std::string sVote = "T:"+ RoundToString(pGovobj->GetObjectType(), 0)  + "SIG:" + sSignal;
+				int iCt = GetVoteCountByOutpointAndGovernanceHashAndSignal(pGovobj->GetHash(), myVoteVec[iPos].GetMasternodeOutpoint(), sSignal, nKey);
+				if (iCt >= 7)
+				{
+					// This sanc has voted at least 7 times for the same object with the same signal (IE causing many duplicate votes to be transmitted around the network)
+					// Delete most of the duplicates, but leave the first vote
+			        duplicateVotes.emplace_back(nKey);
+					iMarked++;
+				}
+			}
+		}
+		++lit;
+	}
+
+	LogPrintf("\nMarked %f out of %f", iMarked, iTotal);
+
+	for (const auto& uVote : duplicateVotes) 
+	{
+    }
+
+	LogPrintf("\nBiblePay::RemoveDuplicates::Removed %f out of %f ", iDeleted, iTotal);
+}
+
+
 
 void CGovernanceManager::RemoveInvalidProposalVotes()
 {
