@@ -1669,6 +1669,7 @@ static const CRPCCommand commands[] =
     { "evo",                "protx",                        &protx,                         false, {}  },
 	{ "evo",                "createnonfinancialtransaction",&createnonfinancialtransaction, false, {}  },
 	{ "evo",                "hexblocktocoinbase",           &hexblocktocoinbase,            false, {}  },
+	{ "evo",                "getpobhhash",                  &getpobhhash,                   false, {}  },
 	{ "evo",                "getchildbalance",              &getchildbalance,               false, {}  },
 	{ "evo",                "nonfinancialtxtojson",         &nonfinancialtxtojson,          false, {}  },
 	{ "evo",                "sponsorchild",                 &sponsorchild,                  false, {}  },
