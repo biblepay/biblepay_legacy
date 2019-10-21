@@ -1192,7 +1192,7 @@ UniValue GetProminenceLevels(int nHeight, std::string sFilterNickName)
 			std::string sNickName = Caption(oPrimary.sNickName, 10);
 			if (sNickName.empty())
 				sNickName = "N/A";
-			std::string sNarr = sCampaignName + ": " + sCPK + " [" + sNickName + "], Pts: " + RoundToString(nPoints, 2);
+			std::string sNarr = sCampaignName + ": " + sCPK + " [" + sNickName + "], KPts: " + RoundToString(nPoints / 1000, 2);
 			if (Included(sFilterNickName, sCPK))
 				results.push_back(Pair(sNarr, RoundToString(nProminence, 2) + "%"));
 		}
@@ -1228,7 +1228,7 @@ UniValue GetProminenceLevels(int nHeight, std::string sFilterNickName)
 			if (sNickName.empty())
 				sNickName = "N/A";
 			CAmount nOwed = nPaymentsLimit * (nProminence / 100) * nMaxContractPercentage;
-			std::string sNarr = sCampaign + ": " + sCPK + " [" + Caption(sNickName, 10) + "]" + ", Pts: " + RoundToString(nPoints, 2) 
+			std::string sNarr = sCampaign + ": " + sCPK + " [" + Caption(sNickName, 10) + "]" + ", KPts: " + RoundToString(nPoints / 1000, 2) 
 				+ ", Reward: " + RoundToString(nPayment, 3);
 			if (Included(sFilterNickName, sCPK))
 				results.push_back(Pair(sNarr, RoundToString(nProminence, 3) + "%"));

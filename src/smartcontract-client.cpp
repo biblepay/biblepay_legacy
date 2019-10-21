@@ -208,6 +208,11 @@ CWalletTx CreateGSCClientTransmission(std::string sCampaign, std::string sDiary,
 		sError = "Sorry, your balance is lower than the required GSC Transmission amount.";
 		return wtx;
 	}
+	if (nCoinAgePercentage == -1)
+	{
+		sError = "User has disabled this campaign [" + sCampaign + "] via coinagepercentage=-1";
+		return wtx;
+	}
 	if (nTargetSpend < (1*COIN))
 	{
 		sError = "Sorry, no coins available for a GSC Transmission.";

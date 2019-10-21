@@ -22,7 +22,7 @@ QStringList BusinessObjectList::GetHeaders(std::string sFields)
 {
 	QStringList pHeaders;
 
-	sFields = "campaign,nickname,cpk,points,owed,prominence";
+	sFields = "campaign,nickname,cpk,kpoints,owed,prominence";
 	sHeaderFields = sFields;
 
 	std::vector<std::string> vFields = Split(sFields.c_str(), ",");

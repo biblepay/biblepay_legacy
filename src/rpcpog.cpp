@@ -2619,7 +2619,7 @@ std::string GetPOGBusinessObjectList(std::string sType, std::string sFields)
 			double nOwed = (sType=="_pog") ?  cdbl(vRow[5], 4) : dLimit * nProminence / 100;
 			if (sCPK == myCPK.sAddress)
 				nMyPoints += nPoints;
-			std::string sRow = sCampaign + "<col>" + sNickName + "<col>" + sCPK + "<col>" + RoundToString(nPoints, 2) 
+			std::string sRow = sCampaign + "<col>" + sNickName + "<col>" + sCPK + "<col>" + RoundToString(nPoints / 1000, 2) 
 				+ "<col>" + RoundToString(nOwed, 2) 
 				+ "<col>" + RoundToString(nProminence, 2) + "<object>";
 			sData += sRow;

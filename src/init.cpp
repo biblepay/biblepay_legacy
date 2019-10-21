@@ -1177,7 +1177,7 @@ bool AppInitParameterInteraction()
 
 	
 	LogPrintf("***************************************** BIBLEPAY  *************************************************** \n");
-	LogPrintf("ProdMode: Prod %f",(double)fProd);
+	LogPrintf("ProdMode: Prod %f, OS: %s", (double)fProd, sOS);
 	LogPrintf("BiblePayVersion %s (%s)\n", FormatFullVersion().c_str(), CLIENT_NAME.c_str());
     LogPrintf("Using OpenSSL version %s\n", SSLeay_version(SSLEAY_VERSION));
 

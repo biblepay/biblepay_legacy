@@ -995,38 +995,30 @@ bool IsMyABNSufficient(CBlock block, CBlockIndex* pindexPrev, int nHeight)
 	return true;
 }
 
-std::string CreateBlockForStratum(std::string& sError, std::string& sHexDifficulty)
+bool CreateBlockForStratum(std::string sAddress, std::string& sError, CBlock& blockX)
 {
-		// Create Evo block
-		bool fFunded = false;
-		std::string sPoolMiningAddress;
-		std::string sMinerGuid;
-		int iThreadID = 0;
-		boost::shared_ptr<CReserveScript> coinbaseScript;
-        GetMainSignals().ScriptForMining(coinbaseScript);
+	// Create Evo block
+	bool fFunded = false;
+	std::string sMinerGuid;
+	int iThreadID = 0;
+	boost::shared_ptr<CReserveScript> coinbaseScript;
+    GetMainSignals().ScriptForMining(coinbaseScript);
+	std::unique_ptr<CBlockTemplate> pblocktemplate(BlockAssembler(Params()).CreateNewBlock(coinbaseScript->reserveScript, 
+		sAddress, sMinerGuid, iThreadID, fFunded));
+	if (!pblocktemplate.get())
+    {
+		LogPrint("miner", "CreateBlockForStratum::No block to mine %f", iThreadID);
+		sError = "Wallet Locked/ABN Required";
+		SpendABN();
+		return false;
+    }
 
-	   	std::unique_ptr<CBlockTemplate> pblocktemplate(BlockAssembler(Params()).CreateNewBlock(coinbaseScript->reserveScript, 
-			sPoolMiningAddress, sMinerGuid, iThreadID, fFunded));
-		if (!pblocktemplate.get())
-        {
-				LogPrint("miner", "CreateBlockForStratum::No block to mine %f", iThreadID);
-				sError = "Wallet Locked/ABN Required";
-				SpendABN();
-				return "";
-        }
-
-		CBlock *pblock = &pblocktemplate->block;
-	    unsigned int nExtraNonce = 7;
-		CBlockIndex* pindexPrev = chainActive.Tip();
-            
-		IncrementExtraNonce(pblock, pindexPrev, nExtraNonce);
-		CDataStream ssBlock(SER_NETWORK, PROTOCOL_VERSION);
-		CBlock block1 = const_cast<CBlock&>(*pblock);
-		ssBlock << block1;
-		std::string sBlockHex1 = HexStr(ssBlock.begin(), ssBlock.end());
-		arith_uint256 hashTarget = arith_uint256().SetCompact(pblock->nBits);
-		sHexDifficulty = hashTarget.GetHex();
-		return sBlockHex1;
+	CBlock *pblock = &pblocktemplate->block;
+    unsigned int nExtraNonce = 7;
+	CBlockIndex* pindexPrev = chainActive.Tip();
+	IncrementExtraNonce(pblock, pindexPrev, nExtraNonce);
+	blockX = const_cast<CBlock&>(*pblock);
+	return true;
 }	
 
 void static BibleMiner(const CChainParams& chainparams, int iThreadID, int iFeatureSet)

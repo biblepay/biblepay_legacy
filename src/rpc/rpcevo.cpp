@@ -1433,6 +1433,79 @@ UniValue books(const JSONRPCRequest& request)
 	return results;
 }
 
+UniValue getpobhhash(const JSONRPCRequest& request)
+{
+	if (request.fHelp || request.params.size() != 1)
+		throw std::runtime_error("getpobhhash: returns a pobh hash for a given x11 hash");
+	std::string sInput = request.params[0].get_str();
+	uint256 hSource = uint256S("0x" + sInput);
+	uint256 h = BibleHashDebug(hSource, 0);
+    UniValue results(UniValue::VOBJ);
+	results.push_back(Pair("inhash", hSource.GetHex()));
+	results.push_back(Pair("outhash", h.GetHex()));
+	return results;
+}
+
+UniValue hexblocktocoinbase(const JSONRPCRequest& request)
+{
+	if (request.fHelp || request.params.size() != 1)
+		throw std::runtime_error("hexblocktocoinbase: returns block information used by the pool(s) for a given serialized hexblock.");
+
+	// This call is used by pools (pool.biblepay.org and purepool) to verify a serialized solution
+	std::string sBlockHex = request.params[0].get_str();
+	CBlock block;
+    if (!DecodeHexBlk(block, sBlockHex))
+           throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "Block decode failed");
+
+	UniValue results(UniValue::VOBJ);
+	
+    results.push_back(Pair("txid", block.vtx[0]->GetHash().GetHex()));
+	results.push_back(Pair("recipient", PubKeyToAddress(block.vtx[0]->vout[0].scriptPubKey)));
+	CBlockIndex* pindexPrev = chainActive.Tip();
+	bool f7000;
+	bool f8000;
+	bool f9000;
+	bool fTitheBlocksActive;
+	GetMiningParams(pindexPrev->nHeight, f7000, f8000, f9000, fTitheBlocksActive);
+	const Consensus::Params& consensusParams = Params().GetConsensus();
+	uint256 hash = BibleHashClassic(block.GetHash(), block.GetBlockTime(), pindexPrev->nTime, true, pindexPrev->nHeight, NULL, false, f7000, f8000, f9000, fTitheBlocksActive, block.nNonce, consensusParams);
+	results.push_back(Pair("biblehash", hash.GetHex()));
+	results.push_back(Pair("blockhash", block.GetHash().GetHex()));
+	results.push_back(Pair("nonce", (uint64_t)block.nNonce));
+	results.push_back(Pair("version", block.nVersion));
+	results.push_back(Pair("versionHex", strprintf("%08x", block.nVersion)));
+	results.push_back(Pair("nTime", block.GetBlockTime()));
+	results.push_back(Pair("subsidy", block.vtx[0]->vout[0].nValue/COIN));
+	results.push_back(Pair("blockversion", GetBlockVersion(block.vtx[0]->vout[0].sTxOutMessage)));
+	std::string sMsg;
+	for (unsigned int i = 0; i < block.vtx[0]->vout.size(); i++)
+	{
+		sMsg += block.vtx[0]->vout[i].sTxOutMessage;
+	}
+	// Include abn weight in the reply
+	double nABNWeight = GetABNWeight(block, false);
+	double nMinRequiredABNWeight = GetSporkDouble("requiredabnweight", 0);
+	double nABNHeight = GetSporkDouble("abnheight", 0);
+	bool fABNPassed = true;
+	if (nABNHeight > consensusParams.ABNHeight && pindexPrev->nHeight > nABNHeight && nMinRequiredABNWeight > 0 && !LateBlock(block, pindexPrev, 60) && !LateBlockIndex(pindexPrev, 60))
+	{
+	    if (nABNWeight < nMinRequiredABNWeight) 
+			fABNPassed = false;
+	} 
+	results.push_back(Pair("requiredabnweight", nMinRequiredABNWeight));
+	results.push_back(Pair("block_abn_weight", nABNWeight));
+	results.push_back(Pair("abn_passed", fABNPassed));
+	results.push_back(Pair("blockmessage", sMsg));
+	results.push_back(Pair("height", pindexPrev->nHeight + 1));
+	arith_uint256 hashTarget = arith_uint256().SetCompact(block.nBits);
+	results.push_back(Pair("target", hashTarget.GetHex()));
+	results.push_back(Pair("bits", strprintf("%08x", block.nBits)));
+	results.push_back(Pair("merkleroot", block.hashMerkleRoot.GetHex()));
+	return results;
+}
+
+
+
 UniValue sendgscc(const JSONRPCRequest& request)
 {
 	if (request.fHelp)
@@ -1595,6 +1668,7 @@ static const CRPCCommand commands[] =
     { "evo",                "bls",                          &_bls,                          false, {}  },
     { "evo",                "protx",                        &protx,                         false, {}  },
 	{ "evo",                "createnonfinancialtransaction",&createnonfinancialtransaction, false, {}  },
+	{ "evo",                "hexblocktocoinbase",           &hexblocktocoinbase,            false, {}  },
 	{ "evo",                "getchildbalance",              &getchildbalance,               false, {}  },
 	{ "evo",                "nonfinancialtxtojson",         &nonfinancialtxtojson,          false, {}  },
 	{ "evo",                "sponsorchild",                 &sponsorchild,                  false, {}  },

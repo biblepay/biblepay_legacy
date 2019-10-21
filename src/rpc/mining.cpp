@@ -374,11 +374,35 @@ UniValue getblockforstratum(const JSONRPCRequest& request)
 	if (request.fHelp)
 		throw std::runtime_error("getblockforstratum::Generates a block for p2pool/stratum with or without ABN support.  Returns block hex.  Returns 'ERROR' populated with an error.");
 	std::string sError;
-	std::string sTarget;
-	std::string sHex = CreateBlockForStratum(sError, sTarget);
+	std::string sHexDifficulty;
+	int nBits = 0;
+	std::string sAddress;
+	if (request.params.size() > 0)
+    {
+        sAddress = request.params[0].get_str();
+	}
 	UniValue results(UniValue::VOBJ);
-	results.push_back(Pair("hex", sHex));
-	results.push_back(Pair("target", sTarget));
+	CBlock blockX;
+
+	bool fCreated = CreateBlockForStratum(sAddress, sError, blockX);
+	if (!fCreated)
+	{
+		results.push_back(Pair("error1", sError));
+		return results;
+	}
+
+	CDataStream ssBlock(SER_NETWORK, PROTOCOL_VERSION);
+	ssBlock << blockX;
+	std::string sBlockHex1 = HexStr(ssBlock.begin(), ssBlock.end());
+	arith_uint256 hashTarget = arith_uint256().SetCompact(blockX.nBits);
+	sHexDifficulty = hashTarget.GetHex();
+	
+	results.push_back(Pair("hex", sBlockHex1));
+	results.push_back(Pair("target", sHexDifficulty));
+	results.push_back(Pair("height", chainActive.Tip()->nHeight + 1));
+	results.push_back(Pair("curtime", GetAdjustedTime()));
+	results.push_back(Pair("bits", strprintf("%08x", blockX.nBits)));
+   	results.push_back(Pair("merkleroot", blockX.hashMerkleRoot.GetHex()));
 	results.push_back(Pair("error1", sError));
 	return results;
 }

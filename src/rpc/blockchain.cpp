@@ -58,6 +58,7 @@ UniValue protx_register(const JSONRPCRequest& request);
 UniValue protx(const JSONRPCRequest& request);
 UniValue _bls(const JSONRPCRequest& request);
 UniValue gobject_vote_many(const JSONRPCRequest& request);
+UniValue hexblocktocoinbase(const JSONRPCRequest& request);
 
 double GetDifficulty(const CBlockIndex* blockindex)
 {
@@ -1997,47 +1998,13 @@ UniValue exec(const JSONRPCRequest& request)
     }
 	else if (sItem == "hexblocktocoinbase")
 	{
-		// This call is used by pools (pool.biblepay.org and purepool) to verify a serialized solution
-		std::string sBlockHex = request.params[1].get_str();
-		CBlock block;
-        if (!DecodeHexBlk(block, sBlockHex))
-                throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "Block decode failed");
-		if (block.vtx.size() < 1)
-		    throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "Deserialization Error");
-    	results.push_back(Pair("txid", block.vtx[0]->GetHash().GetHex()));
-		results.push_back(Pair("recipient", PubKeyToAddress(block.vtx[0]->vout[0].scriptPubKey)));
-		CBlockIndex* pindexPrev = chainActive.Tip();
-		bool f7000;
-		bool f8000;
-		bool f9000;
-		bool fTitheBlocksActive;
-		GetMiningParams(pindexPrev->nHeight, f7000, f8000, f9000, fTitheBlocksActive);
-		const Consensus::Params& consensusParams = Params().GetConsensus();
-
-		uint256 hash = BibleHashClassic(block.GetHash(), block.GetBlockTime(), pindexPrev->nTime, true, pindexPrev->nHeight, NULL, false, f7000, f8000, f9000, fTitheBlocksActive, block.nNonce, consensusParams);
-		results.push_back(Pair("biblehash", hash.GetHex()));
-		results.push_back(Pair("subsidy", block.vtx[0]->vout[0].nValue/COIN));
-		results.push_back(Pair("blockversion", GetBlockVersion(block.vtx[0]->vout[0].sTxOutMessage)));
-		std::string sMsg;
-		for (unsigned int i = 0; i < block.vtx[0]->vout.size(); i++)
-		{
-			sMsg += block.vtx[0]->vout[i].sTxOutMessage;
-		}
-		// Include abn weight in the reply
-		double nABNWeight = GetABNWeight(block, false);
-		double nMinRequiredABNWeight = GetSporkDouble("requiredabnweight", 0);
-		double nABNHeight = GetSporkDouble("abnheight", 0);
-		bool fABNPassed = true;
-		if (nABNHeight > consensusParams.ABNHeight && pindexPrev->nHeight > nABNHeight && nMinRequiredABNWeight > 0 && !LateBlock(block, pindexPrev, 60) && !LateBlockIndex(pindexPrev, 60))
-		{
-			if (nABNWeight < nMinRequiredABNWeight) 
-				fABNPassed = false;
-		} 
-		results.push_back(Pair("requiredabnweight", nMinRequiredABNWeight));
-		results.push_back(Pair("block_abn_weight", nABNWeight));
-		results.push_back(Pair("abn_passed", fABNPassed));
-		results.push_back(Pair("blockmessage", sMsg));
-	}
+		if (request.params.size() != 2)
+			throw std::runtime_error("You must specify the block serialization hex.");
+		JSONRPCRequest myCommand;
+		myCommand.params.setArray();
+		myCommand.params.push_back(request.params[1].get_str());
+		results = hexblocktocoinbase(myCommand);
+    }
 	else if (sItem == "search")
 	{
 		if (request.params.size() != 2 && request.params.size() != 3)
@@ -2995,7 +2962,12 @@ UniValue exec(const JSONRPCRequest& request)
 		uint256 h = BibleHashDebug(hSource, d1 == 1);
 		results.push_back(Pair("in-hash", hSource.GetHex()));
 		results.push_back(Pair("out-hash", h.GetHex()));
-
+	}
+	else if (sItem == "arg")
+	{
+		std::string sArgName = request.params[1].get_str();
+		double dSetting = cdbl(GetArg("-" + sArgName, "0"), 4);
+		results.push_back(Pair(sArgName, dSetting));
 	}
 	else if (sItem == "XBBP")
 	{
