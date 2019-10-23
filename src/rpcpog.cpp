@@ -2337,15 +2337,18 @@ bool CheckAntiBotNetSignature(CTransactionRef tx, std::string sType, std::string
 			return false;
 		}
 	}
+
 	for (unsigned int i = 0; i < tx->vout.size(); i++)
 	{
 		const CTxOut& txout = tx->vout[i];
 		std::string sAddr = PubKeyToAddress(txout.scriptPubKey);
 		std::string sError;
 		bool fSigned = CheckStakeSignature(sAddr, sSig, sMessage, sError);
+
 		if (fSigned)
 			return true;
 	}
+
 	return false;
 }
 
@@ -2561,7 +2564,10 @@ double GetABNWeight(const CBlock& block, bool fMining)
 	std::string sMsg = GetTransactionMessage(block.vtx[0]);
 	std::string sSolver = PubKeyToAddress(block.vtx[0]->vout[0].scriptPubKey);
 	int nABNLocator = (int)cdbl(ExtractXML(sMsg, "<abnlocator>", "</abnlocator>"), 0);
-	if (block.vtx.size() < nABNLocator) return 0;
+
+	if ((block.vtx.size() - 1) < nABNLocator)
+		return 0;
+
 	CTransactionRef tx = block.vtx[nABNLocator];
 	double dWeight = GetAntiBotNetWeight(block.GetBlockTime(), tx, true, sSolver);
 	return dWeight;
@@ -2569,11 +2575,13 @@ double GetABNWeight(const CBlock& block, bool fMining)
 
 bool CheckABNSignature(const CBlock& block, std::string& out_CPK)
 {
-	if (block.vtx.size() < 1) return 0;
+	if (block.vtx.size() < 1)
+		return 0;
 	std::string sSolver = PubKeyToAddress(block.vtx[0]->vout[0].scriptPubKey);
 	std::string sMsg = GetTransactionMessage(block.vtx[0]);
 	int nABNLocator = (int)cdbl(ExtractXML(sMsg, "<abnlocator>", "</abnlocator>"), 0);
-	if (block.vtx.size() < nABNLocator) return 0;
+	if ((block.vtx.size() - 1) < nABNLocator)
+		return 0;
 	CTransactionRef tx = block.vtx[nABNLocator];
 	out_CPK = ExtractXML(tx->GetTxMessage(), "<abncpk>", "</abncpk>");
 	return CheckAntiBotNetSignature(tx, "abn", sSolver);
