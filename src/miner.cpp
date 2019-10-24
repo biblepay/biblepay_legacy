@@ -1012,9 +1012,9 @@ bool CreateBlockForStratum(std::string sAddress, std::string& sError, CBlock& bl
 		SpendABN();
 		return false;
     }
-
 	CBlock *pblock = &pblocktemplate->block;
-    unsigned int nExtraNonce = 7;
+	int iStart = rand() % 65536;
+	unsigned int nExtraNonce = GetAdjustedTime() + iStart; // This is the Extra Nonce (not the nonce); this helps put every miner on their own private hash in the pool (since they don't have a distinct receiving address)
 	CBlockIndex* pindexPrev = chainActive.Tip();
 	IncrementExtraNonce(pblock, pindexPrev, nExtraNonce);
 	blockX = const_cast<CBlock&>(*pblock);
