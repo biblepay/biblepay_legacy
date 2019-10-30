@@ -2276,17 +2276,20 @@ UniValue exec(const JSONRPCRequest& request)
 	}
 	else if (sItem == "join")
 	{
-		if (request.params.size() != 2 && request.params.size() != 3)
-			throw std::runtime_error("You must specify the project_name.  Optionally specify your nickname or sanctuary IP address.");
+		if (request.params.size() != 2 && request.params.size() != 3 && request.params.size() != 4)
+			throw std::runtime_error("Join v1.1: You must specify the project_name.  Optionally specify your nickname or sanctuary IP address.  Optionally specify force=true/false.");
 		std::string sProject = request.params[1].get_str();
 		std::string sOptData;
 		if (request.params.size() > 2)
 			sOptData = request.params[2].get_str();
+		bool fForce = false;
+		if (request.params.size() > 3)
+			fForce = request.params[3].get_str() == "true" ? true : false;
 		boost::to_lower(sProject);
 		std::string sError;
 		if (!CheckCampaign(sProject))
 			throw std::runtime_error("Campaign does not exist.");
-		bool fAdv = AdvertiseChristianPublicKeypair("cpk-" + sProject, "", sOptData, "", false, false, 0, "", sError);
+		bool fAdv = AdvertiseChristianPublicKeypair("cpk-" + sProject, "", sOptData, "", false, fForce, 0, "", sError);
 		results.push_back(Pair("Results", fAdv));
 		if (!fAdv)
 			results.push_back(Pair("Error", sError));
