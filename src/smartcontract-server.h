@@ -39,5 +39,6 @@ double GetProminenceCap(std::string sCampaignName, double nPoints, double nPromi
 std::string CheckGSCHealth();
 std::string CheckLastQuorumPopularHash();
 bool VerifyChild(std::string childID);
+double GetBBPPrice();
 
 #endif

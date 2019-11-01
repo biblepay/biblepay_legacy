@@ -2344,13 +2344,12 @@ UniValue exec(const JSONRPCRequest& request)
 		std::string sChildID = request.params[1].get_str();
 		double nAmountUSD = cdbl(request.params[2].get_str(), 2);
 		std::string sSendMode = request.params[3].get_str();
-		double dPriorPrice = 0;
-		double dPriorPhase = 0;
-		double dCurPhase = GetQTPhase(false, -1, chainActive.Tip()->nHeight, dPriorPrice, dPriorPhase);
-		if (dPriorPrice < .00001)
+		double nPrice = GetBBPPrice();
+		
+		if (nPrice < .00001)
 		{
 			sError = "BBP Price too low to use feature.  Price must be above .00001USD/BBP ";
-			dPriorPrice = .00001;
+			nPrice = .00001;
 		}
 
 		if (nAmountUSD < 1)
@@ -2368,9 +2367,9 @@ UniValue exec(const JSONRPCRequest& request)
 			sError += "Running in dry run mode. ";
 		}
 
-		double nAmount = cdbl(RoundToString(nAmountUSD / dPriorPrice, 2), 2);
+		double nAmount = cdbl(RoundToString(nAmountUSD / nPrice, 2), 2);
 
-		results.push_back(Pair("BBP/USD_Price", dPriorPrice));
+		results.push_back(Pair("BBP/USD_Price", nPrice));
 
 		std::string sXML = "<cpk>" + sCPK + "</cpk><childid> " + sChildID + "</childid><amount_usd>" + RoundToString(nAmountUSD, 2) 
 			+ "</amount_usd><amount>" + RoundToString(nAmount, 2) + "</amount>";
@@ -2500,23 +2499,38 @@ UniValue exec(const JSONRPCRequest& request)
 	}
 	else if (sItem == "price")
 	{
-		double dPriorPrice = 0;
-		double dPriorPhase = 0;
-		double dCurPhase = GetQTPhase(false, -1, chainActive.Tip()->nHeight, dPriorPrice, dPriorPhase);
-		results.push_back(Pair("consensus_price", dPriorPrice));
-		results.push_back(Pair("qt_phase", dCurPhase));
-		results.push_back(Pair("qt_prior_phase", dPriorPhase));
-		double out_BTC = 0;
-		double dPrice = GetPBase(out_BTC);
-		double dFuturePhase = GetQTPhase(true, dPrice, chainActive.Tip()->nHeight, dPriorPrice, dPriorPhase);
-		results.push_back(Pair("qt_future_phase", dFuturePhase));
 		bool fEnabled = sporkManager.IsSporkActive(SPORK_20_QUANTITATIVE_TIGHTENING_ENABLED);
-		results.push_back(Pair("qt_enabled", fEnabled));
-		results.push_back(Pair("cur_price", RoundToString(dPrice, 12)));
-		double dBBP = GetCryptoPrice("bbp");
-		double dBTC = GetCryptoPrice("btc");
-		results.push_back(Pair("BBP/BTC", RoundToString(dBBP, 12)));
-		results.push_back(Pair("BTC/USD", dBTC));
+		double nMaxPerc = GetSporkDouble("qtmaxpercentage", 0);
+	
+		if (fEnabled && nMaxPerc > 0)
+		{
+			double dPriorPrice = 0;
+			double dPriorPhase = 0;
+			double dCurPhase = GetQTPhase(false, -1, chainActive.Tip()->nHeight, dPriorPrice, dPriorPhase);
+			results.push_back(Pair("consensus_price", dPriorPrice));
+			results.push_back(Pair("qt_phase", dCurPhase));
+			results.push_back(Pair("qt_prior_phase", dPriorPhase));
+			double out_BTC = 0;
+			double dPrice = GetPBase(out_BTC);
+			double dFuturePhase = GetQTPhase(true, dPrice, chainActive.Tip()->nHeight, dPriorPrice, dPriorPhase);
+			results.push_back(Pair("qt_future_phase", dFuturePhase));
+			results.push_back(Pair("qt_enabled", fEnabled));
+			results.push_back(Pair("cur_price", RoundToString(dPrice, 12)));
+			double dBBP = GetCryptoPrice("bbp");
+			double dBTC = GetCryptoPrice("btc");
+			results.push_back(Pair("BBP/BTC", RoundToString(dBBP, 12)));
+			results.push_back(Pair("BTC/USD", dBTC));
+		}
+		else
+		{
+			double dBBP = GetCryptoPrice("bbp");
+			double dBTC = GetCryptoPrice("btc");
+			results.push_back(Pair("QT", "Disabled"));
+			results.push_back(Pair("BBP/BTC", RoundToString(dBBP, 12)));
+			results.push_back(Pair("BTC/USD", dBTC));
+			double nPrice = GetBBPPrice();
+			results.push_back(Pair("BBP/USD", nPrice));
+		}
 	}
 	else if (sItem == "sentgsc")
 	{
