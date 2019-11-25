@@ -66,7 +66,7 @@ double GetBBPPrice()
 	static int64_t nLastPriceCheck = 0;
 	int64_t nElapsed = GetAdjustedTime() - nLastPriceCheck;
 	static double nLastPrice = 0;
-	if (nElapsed < (60 * 60))
+	if (nElapsed < (60 * 60) && nLastPrice > 0)
 	{
 		return nLastPrice;
 	}
@@ -125,7 +125,7 @@ std::string GetCameroonOneChildData()
 	}
 	std::string sURL = GetSporkValue("cameroonone");
 	std::string sRestfulURL = GetSporkValue("childapi");
-	sCache = BiblepayHTTPSPost(false, 0, "", "", "", sURL, sRestfulURL, 443, "", 25, 10000, 1);
+	sCache = BiblepayHTTPSPost(false, 0, "", "", "", sURL, sRestfulURL, 443, "", 60, 512000, 1);
 	nLastQuery = GetAdjustedTime();
 	return sCache;
 }

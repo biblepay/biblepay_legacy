@@ -2345,7 +2345,7 @@ UniValue exec(const JSONRPCRequest& request)
 		double nAmountUSD = cdbl(request.params[2].get_str(), 2);
 		std::string sSendMode = request.params[3].get_str();
 		double nPrice = GetBBPPrice();
-		
+		std::string sCameroonAddress = GetSporkValue("cameroonaddress");
 		if (nPrice < .00001)
 		{
 			sError = "BBP Price too low to use feature.  Price must be above .00001USD/BBP ";
@@ -2373,8 +2373,10 @@ UniValue exec(const JSONRPCRequest& request)
 
 		std::string sXML = "<cpk>" + sCPK + "</cpk><childid> " + sChildID + "</childid><amount_usd>" + RoundToString(nAmountUSD, 2) 
 			+ "</amount_usd><amount>" + RoundToString(nAmount, 2) + "</amount>";
-		std::string sDest = "BHRiFZYUpHj2r3gxw7pHyvByTUk1dGb8vz";
-		CBitcoinAddress baDest(sDest);
+		
+		CBitcoinAddress baDest(sCameroonAddress);
+		if (!baDest.IsValid())
+			throw std::runtime_error("Destination address invalid.");
 
 		bool fSubtractFee = false;
 		bool fInstantSend = false;
