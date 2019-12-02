@@ -26,6 +26,7 @@ class CGovernanceObject;
 class CGovernanceVote;
 
 // BiblePay - During Evolution Cutover we transition to v70718
+// We must release a version of 70749 to peer with the 0.14.0.4 branch in prod for a smooth mandatory upgrade on Christmas 2019
 static const int MIN_GOVERNANCE_PEER_PROTO_VERSION = 70718;
 static const int GOVERNANCE_FILTER_PROTO_VERSION = 70718;
 
