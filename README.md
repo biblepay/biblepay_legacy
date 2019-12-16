@@ -1,4 +1,4 @@
-BiblePay Core staging tree 0.13.0
+BiblePay Core staging tree 0.14.0
 ===============================
 
 `master:` [![Build Status](https://travis-ci.org/biblepay/biblepay.svg?branch=master)](https://travis-ci.org/biblepay/biblepay) `develop:` [![Build Status](https://travis-ci.org/biblepay/biblepay.svg?branch=develop)](https://travis-ci.org/biblepay/biblepay/branches)

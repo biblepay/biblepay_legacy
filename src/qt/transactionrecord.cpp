@@ -1,5 +1,6 @@
 // Copyright (c) 2011-2015 The Bitcoin Core developers
-// Copyright (c) 2014-2017 The BiblePay Core developers
+// Copyright (c) 2014-2018 The Dash Core developers
+// Copyright (c) 2017-2019 The BiblePay Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -11,7 +12,6 @@
 #include "timedata.h"
 #include "wallet/wallet.h"
 
-#include "instantx.h"
 #include "privatesend.h"
 
 #include <stdint.h>
@@ -69,7 +69,10 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
 				sub.IsGSCPayment = wtx.tx->IsGSCPayment();
 				sub.IsSuperblockPayment = wtx.tx->IsSuperblockPayment();
 				sub.IsABN = wtx.tx->IsABN();
-				
+				sub.IsWhaleStake = wtx.tx->IsWhaleStake();
+				std::string sAmount = RoundToString((double)wtx.tx->vout[i].nValue/COIN, 4);
+				sub.IsWhaleReward = Contains(sAmount, ".1527");
+		
                 if (ExtractDestination(txout.scriptPubKey, address) && IsMine(*wallet, address))
                 {
                     // Received by Biblepay Address
@@ -85,7 +88,11 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                 if (wtx.IsCoinBase())
                 {
                     // BiblePay - RANDREWS - Check if one of our subtypes
-					if (sub.IsGSCPayment && i != 0)
+					if (sub.IsWhaleReward && i != 0)
+					{
+						sub.type = TransactionRecord::WhaleReward;
+					}
+					else if (sub.IsGSCPayment && i != 0)
 					{
 						sub.type = TransactionRecord::GSCPayment;
 					}
@@ -188,6 +195,11 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
 					sub.type = TransactionRecord::CPKAssociation;  
 				if (wtx.tx->IsGSCTransmission())
 					sub.type = TransactionRecord::GSCTransmission;
+				if (wtx.tx->IsWhaleStake())
+					sub.type = TransactionRecord::WhaleStake;
+				if (wtx.tx->IsWhaleReward())
+					sub.type = TransactionRecord::WhaleReward;
+
             }
 
             CAmount nChange = wtx.GetChange();
@@ -246,6 +258,10 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
 					{
 						sub.type = TransactionRecord::GSCTransmission;
 					}
+					else if (wtx.tx->IsWhaleStake())
+					{
+						sub.type = TransactionRecord::WhaleStake;
+					}
 			    }
                 else
                 {
@@ -284,7 +300,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
     return parts;
 }
 
-void TransactionRecord::updateStatus(const CWalletTx &wtx)
+void TransactionRecord::updateStatus(const CWalletTx &wtx, int numISLocks, int chainLockHeight)
 {
     AssertLockHeld(cs_main);
     // Determine transaction status
@@ -304,7 +320,8 @@ void TransactionRecord::updateStatus(const CWalletTx &wtx)
     status.countsForBalance = wtx.IsTrusted() && !(wtx.GetBlocksToMaturity() > 0);
     status.depth = wtx.GetDepthInMainChain();
     status.cur_num_blocks = chainActive.Height();
-    status.cur_num_ix_locks = nCompleteTXLocks;
+    status.cachedNumISLocks = numISLocks;
+    status.cachedChainLockHeight = chainLockHeight;
 
     if (!CheckFinalTx(wtx))
     {
@@ -320,8 +337,8 @@ void TransactionRecord::updateStatus(const CWalletTx &wtx)
         }
     }
     // For generated transactions, determine maturity
-	else if(type == TransactionRecord::Generated || type == TransactionRecord::SuperBlockPayment || type == TransactionRecord::GSCPayment)
-    {
+    else if (type == TransactionRecord::Generated || type == TransactionRecord::SuperBlockPayment || type == TransactionRecord::GSCPayment || type == TransactionRecord::WhaleReward)
+	{
         if (wtx.GetBlocksToMaturity() > 0)
         {
             status.status = TransactionStatus::Immature;
@@ -347,11 +364,7 @@ void TransactionRecord::updateStatus(const CWalletTx &wtx)
     else
     {
         status.lockedByInstantSend = wtx.IsLockedByInstantSend();
-		if (instantsend.IsLockedInstantSendTransaction(wtx.GetHash())) 
-		{
-			status.status = TransactionStatus::Confirmed;
-		}
-		else if (wtx.IsABN())
+		if (wtx.IsABN())
 		{
 			status.status = TransactionStatus::Abandoned;
 		}
@@ -369,7 +382,7 @@ void TransactionRecord::updateStatus(const CWalletTx &wtx)
             if (wtx.isAbandoned())
                 status.status = TransactionStatus::Abandoned;
         }
-        else if (status.depth < RecommendedNumConfirmations)
+        else if (status.depth < RecommendedNumConfirmations && !wtx.IsChainLocked())
         {
             status.status = TransactionStatus::Confirming;
         }
@@ -381,10 +394,12 @@ void TransactionRecord::updateStatus(const CWalletTx &wtx)
 
 }
 
-bool TransactionRecord::statusUpdateNeeded()
+bool TransactionRecord::statusUpdateNeeded(int numISLocks, int chainLockHeight)
 {
     AssertLockHeld(cs_main);
-    return status.cur_num_blocks != chainActive.Height() || status.cur_num_ix_locks != nCompleteTXLocks;
+    return status.cur_num_blocks != chainActive.Height()
+        || status.cachedNumISLocks != numISLocks
+        || status.cachedChainLockHeight != chainLockHeight;
 }
 
 QString TransactionRecord::getTxID() const

@@ -1,4 +1,5 @@
-// Copyright (c) 2014-2017 The BiblePay Core developers
+// Copyright (c) 2014-2018 The Dash Core developers
+// Copyright (c) 2017-2019 The BiblePay Core developers
 // Distributed under the MIT software license, see the accompanying
 #ifndef BIBLEPAY_HDCHAIN_H
 #define BIBLEPAY_HDCHAIN_H

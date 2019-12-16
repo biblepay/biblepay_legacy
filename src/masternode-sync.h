@@ -1,4 +1,5 @@
-// Copyright (c) 2014-2017 The BiblePay Core developers
+// Copyright (c) 2014-2019 The Dash Core developers
+// Copyright (c) 2017-2019 The BiblePay Core developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 #ifndef MASTERNODE_SYNC_H
@@ -12,15 +13,13 @@ class CMasternodeSync;
 static const int MASTERNODE_SYNC_FAILED          = -1;
 static const int MASTERNODE_SYNC_INITIAL         = 0; // sync just started, was reset recently or still in IDB
 static const int MASTERNODE_SYNC_WAITING         = 1; // waiting after initial to see if we can get more headers/blocks
-static const int MASTERNODE_SYNC_LIST            = 2;
-static const int MASTERNODE_SYNC_MNW             = 3;
 static const int MASTERNODE_SYNC_GOVERNANCE      = 4;
 static const int MASTERNODE_SYNC_GOVOBJ          = 10;
 static const int MASTERNODE_SYNC_GOVOBJ_VOTE     = 11;
 static const int MASTERNODE_SYNC_FINISHED        = 999;
 
-static const int MASTERNODE_SYNC_TICK_SECONDS    = 7;
-static const int MASTERNODE_SYNC_TIMEOUT_SECONDS = 60;
+static const int MASTERNODE_SYNC_TICK_SECONDS    = 6;
+static const int MASTERNODE_SYNC_TIMEOUT_SECONDS = 30; // our blocks are 2.5 minutes so 30 seconds should be fine
 
 extern CMasternodeSync masternodeSync;
 
@@ -53,8 +52,6 @@ public:
 
     bool IsFailed() { return nCurrentAsset == MASTERNODE_SYNC_FAILED; }
     bool IsBlockchainSynced() { return nCurrentAsset > MASTERNODE_SYNC_WAITING; }
-    bool IsMasternodeListSynced() { return nCurrentAsset > MASTERNODE_SYNC_LIST; }
-    bool IsWinnersListSynced() { return nCurrentAsset > MASTERNODE_SYNC_MNW; }
     bool IsSynced() { return nCurrentAsset == MASTERNODE_SYNC_FINISHED; }
 
     int GetAssetID() { return nCurrentAsset; }

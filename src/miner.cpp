@@ -40,6 +40,7 @@
 #include "evo/deterministicmns.h"
 
 #include "llmq/quorums_blockprocessor.h"
+#include "llmq/quorums_chainlocks.h"
 
 #include <algorithm>
 #include <boost/thread.hpp>
@@ -87,22 +88,43 @@ int64_t UpdateTime(CBlockHeader* pblock, const Consensus::Params& consensusParam
     return nNewTime - nOldTime;
 }
 
-BlockAssembler::BlockAssembler(const CChainParams& _chainparams)
-    : chainparams(_chainparams)
-{
-    // Largest block you're willing to create:
-    nBlockMaxSize = GetArg("-blockmaxsize", DEFAULT_BLOCK_MAX_SIZE);
 
-    if (IsArgSet("-blockmintxfee")) {
-        CAmount n = 0;
-        ParseMoney(GetArg("-blockmintxfee", ""), n);
-        blockMinFeeRate = CFeeRate(n);
-    } else {
-        blockMinFeeRate = CFeeRate(DEFAULT_BLOCK_MIN_TX_FEE);
+BlockAssembler::Options::Options() {	
+    blockMinFeeRate = CFeeRate(DEFAULT_BLOCK_MIN_TX_FEE);	    
+    nBlockMaxSize = DEFAULT_BLOCK_MAX_SIZE;	
+}
+
+
+
+BlockAssembler::BlockAssembler(const CChainParams& params, const Options& options) : chainparams(params)	
+{
+    blockMinFeeRate = options.blockMinFeeRate;	   
+    // Limit size to between 1K and MaxBlockSize()-1K for sanity:	 
+    nBlockMaxSize = std::max((unsigned int)1000, std::min((unsigned int)(MaxBlockSize(fDIP0001ActiveAtTip) - 1000), (unsigned int)options.nBlockMaxSize));	
+}
+
+
+static BlockAssembler::Options DefaultOptions(const CChainParams& params)	
+{	
+    // Block resource limits	
+    BlockAssembler::Options options;	
+    options.nBlockMaxSize = DEFAULT_BLOCK_MAX_SIZE;	
+    if (IsArgSet("-blockmaxsize")) 
+	{	
+        options.nBlockMaxSize = GetArg("-blockmaxsize", DEFAULT_BLOCK_MAX_SIZE);	
     }
 
-    // Limit to between 1K and MAX_BLOCK_SIZE-1K for sanity:
-    nBlockMaxSize = std::max((unsigned int)1000, std::min((unsigned int)(MaxBlockSize(fDIP0001ActiveAtTip)-1000), nBlockMaxSize));
+    if (IsArgSet("-blockmintxfee")) 
+	{
+        CAmount n = 0;
+        ParseMoney(GetArg("-blockmintxfee", ""), n);
+		options.blockMinFeeRate = CFeeRate(n);
+    }
+	else 
+	{
+        options.blockMinFeeRate = CFeeRate(DEFAULT_BLOCK_MIN_TX_FEE);
+    }
+	return options;
 }
 
 void BlockAssembler::resetBlock()
@@ -116,10 +138,9 @@ void BlockAssembler::resetBlock()
     // These counters do not include coinbase tx
     nBlockTx = 0;
     nFees = 0;
-
-    lastFewTxs = 0;
-    blockFinished = false;
 }
+
+BlockAssembler::BlockAssembler(const CChainParams& params) : BlockAssembler(params, DefaultOptions(params)) {}
 
 std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn, std::string sPoolMiningPublicKey, std::string sMinerGuid, int iThreadId, bool fFunded)
 {
@@ -139,12 +160,11 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     pblocktemplate->vTxSigOps.push_back(-1); // updated at end
 
     LOCK2(cs_main, mempool.cs);
-
-    bool fDIP0003Active_context = VersionBitsState(chainActive.Tip(), chainparams.GetConsensus(), Consensus::DEPLOYMENT_DIP0003, versionbitscache) == THRESHOLD_ACTIVE;
-
+	    
     CBlockIndex* pindexPrev = chainActive.Tip();
     nHeight = pindexPrev->nHeight + 1;
-
+	bool fDIP0003Active_context = nHeight >= chainparams.GetConsensus().DIP0003Height;	
+    bool fDIP0008Active_context = VersionBitsState(chainActive.Tip(), chainparams.GetConsensus(), Consensus::DEPLOYMENT_DIP0008, versionbitscache) == THRESHOLD_ACTIVE;
     pblock->nVersion = ComputeBlockVersion(pindexPrev, chainparams.GetConsensus(), chainparams.BIP9CheckMasternodesUpgraded());
     // -regtest only: allow overriding block.nVersion with
     // -blockversion=N to test forking scenarios
@@ -159,7 +179,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
                        : pblock->GetBlockTime();
 
     if (fDIP0003Active_context) {
-        for (auto& p : Params().GetConsensus().llmqs) {
+        for (auto& p : chainparams.GetConsensus().llmqs) {
             CTransactionRef qcTx;
             if (llmq::quorumBlockProcessor->GetMinableCommitmentTx(p.first, nHeight, qcTx)) {
                 pblock->vtx.emplace_back(qcTx);
@@ -172,8 +192,10 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     }
 
 	// BiblePay Anti-Bot-Net System
-	double nMinCoinAge = GetSporkDouble("requiredabnweight", 0);
 	std::string sABNLocator;
+	
+	/*
+	double nMinCoinAge = GetSporkDouble("requiredabnweight", 0);
 	if (nMinCoinAge > 0 && !fFunded)
 	{
 		CReserveKey reserve1(pwalletMain);
@@ -196,12 +218,13 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
 		{
 			WriteCache("poolthread" + RoundToString(iThreadId, 0), "poolinfo4", "Unable to Create ABN: " + sError1, GetAdjustedTime());
 			if (fDebugSpam)
-				LogPrintf("\n***** CreateNewBlock::Unable to add ABN because %s *****", sError1.c_str());
+				LogPrintf("\n***** CreateNewBlock::Unable to add ABN because %s *****\n", sError1.c_str());
 		}
 	}
+	*/
 
-    addPriorityTxs();
 
+    
     int nPackagesSelected = 0;
     int nDescendantsUpdated = 0;
     addPackageTxs(nPackagesSelected, nDescendantsUpdated);
@@ -243,13 +266,23 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
         coinbaseTx.nType = TRANSACTION_COINBASE;
 
         CCbTx cbTx;
+		if (fDIP0008Active_context) {	
+            cbTx.nVersion = 2;	
+        } else {	
+            cbTx.nVersion = 1;	
+        }
+
         cbTx.nHeight = nHeight;
 
         CValidationState state;
         if (!CalcCbTxMerkleRootMNList(*pblock, pindexPrev, cbTx.merkleRootMNList, state)) {
-            throw std::runtime_error(strprintf("%s: CalcSMLMerkleRootForNewBlock failed: %s", __func__, FormatStateMessage(state)));
-        }
-
+			 throw std::runtime_error(strprintf("%s: CalcCbTxMerkleRootMNList failed: %s", __func__, FormatStateMessage(state)));
+	    }	
+        if (fDIP0008Active_context) {	
+            if (!CalcCbTxMerkleRootQuorums(*pblock, pindexPrev, cbTx.merkleRootQuorums, state)) {	
+                throw std::runtime_error(strprintf("%s: CalcCbTxMerkleRootQuorums failed: %s", __func__, FormatStateMessage(state)));        
+			}
+		}
         SetTxPayload(coinbaseTx, cbTx);
     }
 
@@ -290,17 +323,6 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     return std::move(pblocktemplate);
 }
 
-bool BlockAssembler::isStillDependent(CTxMemPool::txiter iter)
-{
-    BOOST_FOREACH(CTxMemPool::txiter parent, mempool.GetMemPoolParents(iter))
-    {
-        if (!inBlock.count(parent)) {
-            return true;
-        }
-    }
-    return false;
-}
-
 void BlockAssembler::onlyUnconfirmed(CTxMemPool::setEntries& testSet)
 {
     for (CTxMemPool::setEntries::iterator iit = testSet.begin(); iit != testSet.end(); ) {
@@ -325,52 +347,15 @@ bool BlockAssembler::TestPackage(uint64_t packageSize, unsigned int packageSigOp
 
 // Perform transaction-level checks before adding to block:
 // - transaction finality (locktime)
+// - safe TXs in regard to ChainLocks
 bool BlockAssembler::TestPackageTransactions(const CTxMemPool::setEntries& package)
 {
     BOOST_FOREACH (const CTxMemPool::txiter it, package) {
         if (!IsFinalTx(it->GetTx(), nHeight, nLockTimeCutoff))
             return false;
+		 if (!llmq::chainLocksHandler->IsTxSafeForMining(it->GetTx().GetHash())) 
+			 return false;
     }
-    return true;
-}
-
-bool BlockAssembler::TestForBlock(CTxMemPool::txiter iter)
-{
-    if (nBlockSize + iter->GetTxSize() >= nBlockMaxSize) {
-        // If the block is so close to full that no more txs will fit
-        // or if we've tried more than 50 times to fill remaining space
-        // then flag that the block is finished
-        if (nBlockSize >  nBlockMaxSize - 100 || lastFewTxs > 50) {
-             blockFinished = true;
-             return false;
-        }
-        // Once we're within 1000 bytes of a full block, only look at 50 more txs
-        // to try to fill the remaining space.
-        if (nBlockSize > nBlockMaxSize - 1000) {
-            lastFewTxs++;
-        }
-        return false;
-    }
-
-    unsigned int nMaxBlockSigOps = MaxBlockSigOps(fDIP0001ActiveAtTip);
-    if (nBlockSigOps + iter->GetSigOpCount() >= nMaxBlockSigOps) {
-        // If the block has room for no more sig ops then
-        // flag that the block is finished
-        if (nBlockSigOps > nMaxBlockSigOps - 2) {
-            blockFinished = true;
-            return false;
-        }
-        // Otherwise attempt to find another tx with fewer sigops
-        // to put in the block.
-        return false;
-    }
-
-    // Must check that lock times are still valid
-    // This can be removed once MTP is always enforced
-    // as long as reorgs keep the mempool consistent.
-    if (!IsFinalTx(iter->GetTx(), nHeight, nLockTimeCutoff))
-        return false;
-
     return true;
 }
 
@@ -387,11 +372,7 @@ void BlockAssembler::AddToBlock(CTxMemPool::txiter iter)
 
     bool fPrintPriority = GetBoolArg("-printpriority", DEFAULT_PRINTPRIORITY);
     if (fPrintPriority) {
-        double dPriority = iter->GetPriority(nHeight);
-        CAmount dummy;
-        mempool.ApplyDeltas(iter->GetTx().GetHash(), dPriority, dummy);
-        LogPrintf("priority %.1f fee %s txid %s\n",
-                  dPriority,
+        LogPrintf("fee %s txid %s\n",
                   CFeeRate(iter->GetModifiedFee(), iter->GetTxSize()).ToString(),
                   iter->GetTx().GetHash().ToString());
     }
@@ -562,7 +543,7 @@ void BlockAssembler::addPackageTxs(int &nPackagesSelected, int &nDescendantsUpda
         onlyUnconfirmed(ancestors);
         ancestors.insert(iter);
 
-        // Test if all tx's are Final
+        // Test if all tx's are Final and safe
         if (!TestPackageTransactions(ancestors)) {
             if (fUsingModified) {
                 mapModifiedTx.get<ancestor_score>().erase(modit);
@@ -591,79 +572,6 @@ void BlockAssembler::addPackageTxs(int &nPackagesSelected, int &nDescendantsUpda
     }
 }
 
-void BlockAssembler::addPriorityTxs()
-{
-    // How much of the block should be dedicated to high-priority transactions,
-    // included regardless of the fees they pay
-    unsigned int nBlockPrioritySize = GetArg("-blockprioritysize", DEFAULT_BLOCK_PRIORITY_SIZE);
-    nBlockPrioritySize = std::min(nBlockMaxSize, nBlockPrioritySize);
-
-    if (nBlockPrioritySize == 0) {
-        return;
-    }
-
-    // This vector will be sorted into a priority queue:
-    std::vector<TxCoinAgePriority> vecPriority;
-    TxCoinAgePriorityCompare pricomparer;
-    std::map<CTxMemPool::txiter, double, CTxMemPool::CompareIteratorByHash> waitPriMap;
-    typedef std::map<CTxMemPool::txiter, double, CTxMemPool::CompareIteratorByHash>::iterator waitPriIter;
-    double actualPriority = -1;
-
-    vecPriority.reserve(mempool.mapTx.size());
-    for (CTxMemPool::indexed_transaction_set::iterator mi = mempool.mapTx.begin();
-         mi != mempool.mapTx.end(); ++mi)
-    {
-        double dPriority = mi->GetPriority(nHeight);
-        CAmount dummy;
-        mempool.ApplyDeltas(mi->GetTx().GetHash(), dPriority, dummy);
-        vecPriority.push_back(TxCoinAgePriority(dPriority, mi));
-    }
-    std::make_heap(vecPriority.begin(), vecPriority.end(), pricomparer);
-
-    CTxMemPool::txiter iter;
-    while (!vecPriority.empty() && !blockFinished) { // add a tx from priority queue to fill the blockprioritysize
-        iter = vecPriority.front().second;
-        actualPriority = vecPriority.front().first;
-        std::pop_heap(vecPriority.begin(), vecPriority.end(), pricomparer);
-        vecPriority.pop_back();
-
-        // If tx already in block, skip
-        if (inBlock.count(iter)) {
-            assert(false); // shouldn't happen for priority txs
-            continue;
-        }
-
-        // If tx is dependent on other mempool txs which haven't yet been included
-        // then put it in the waitSet
-        if (isStillDependent(iter)) {
-            waitPriMap.insert(std::make_pair(iter, actualPriority));
-            continue;
-        }
-
-        // If this tx fits in the block add it, otherwise keep looping
-        if (TestForBlock(iter)) {
-            AddToBlock(iter);
-
-            // If now that this txs is added we've surpassed our desired priority size
-            // or have dropped below the AllowFreeThreshold, then we're done adding priority txs
-            if (nBlockSize >= nBlockPrioritySize || !AllowFree(actualPriority)) {
-                break;
-            }
-
-            // This tx was successfully added, so
-            // add transactions that depend on this one to the priority queue to try again
-            BOOST_FOREACH(CTxMemPool::txiter child, mempool.GetMemPoolChildren(iter))
-            {
-                waitPriIter wpiter = waitPriMap.find(child);
-                if (wpiter != waitPriMap.end()) {
-                    vecPriority.push_back(TxCoinAgePriority(wpiter->second,child));
-                    std::push_heap(vecPriority.begin(), vecPriority.end(), pricomparer);
-                    waitPriMap.erase(wpiter);
-                }
-            }
-        }
-    }
-}
 
 void IncrementExtraNonce(CBlock* pblock, const CBlockIndex* pindexPrev, unsigned int& nExtraNonce)
 {
@@ -767,11 +675,10 @@ void UpdatePoolProgress(const CBlock* pblock, std::string sPoolAddress, arith_ui
 		// Clear the pool cache
 		ClearCache("poolcache");
 		std::string sResult = PoolRequest(iThreadID, "solution", sPoolURL, sWorkerID, sSolution);
-		WriteCache("poolthread"+RoundToString(iThreadID,0),"poolinfo2","Submitting Solution " + TimestampToHRDate(GetAdjustedTime()),GetAdjustedTime());
+		WriteCache("poolthread"+RoundToString(iThreadID,0), "poolinfo2", "Submitting Solution " + TimestampToHRDate(GetAdjustedTime()),GetAdjustedTime());
 		LogPrint("pool", "PoolStatus: %s, URL %s, workerid %s, solu %s ",sResult.c_str(), sPoolURL.c_str(), sWorkerID.c_str(), sSolution.c_str());
 	}
 }
-
 
 std::string UsingDualABNs(bool& fUsingDualABN, bool fInternalABNOK)
 {
@@ -779,6 +686,7 @@ std::string UsingDualABNs(bool& fUsingDualABN, bool fInternalABNOK)
 	std::string sWorkerIDTurnkey = GetArg("-workeridfunded", ""); // Funded ABN workerid
 	bool fDual = (!sWorkerIDDefault.empty() && !sWorkerIDTurnkey.empty()) ? true : false;
 	std::string sChosen = fInternalABNOK ? sWorkerIDDefault : sWorkerIDTurnkey;
+	
 	if (fDual)
 	{
 		return sChosen;
@@ -798,16 +706,15 @@ bool GetPoolMiningMode(int iThreadID, int& iFailCount, std::string& out_PoolAddr
 	// If user is pool mining, and pool is down, return false so that the client reverts back to solo mining mode automatically.
 	// Honor TestNet and RegTestNet when communicating with pools, so we support all three NetworkID types for robust support/testing.
 	LOCK(csBusyWait); 
-
 	std::string sPoolURL = GetArg("-pool", "");
-
 	// If pool URL is empty, user is not pool mining
 	if (sPoolURL.empty())
 		return false;
-
+	
 	// Choose between default workerid (self-supplied ABN), or turnkey workerid (pool mining with funded ABNs)
 	bool fUsingDualABNs = false;
 	out_sWorkerID = UsingDualABNs(fUsingDualABNs, fInternalABNOK);
+
 	if (out_sWorkerID.empty()) 
 	{
 		LogPrintf("\nWorkerID empty in config.");
@@ -828,24 +735,26 @@ bool GetPoolMiningMode(int iThreadID, int& iFailCount, std::string& out_PoolAddr
 	if (!out_PoolAddress.empty() && !sCachedHashTargetPool.empty() && !out_MinerGuid.empty() && !out_WorkID.empty())
 	{
 		iFailCount = 0;
-	    out_HashTargetPool = UintToArith256(uint256S("0x" + sCachedHashTargetPool));
+		out_HashTargetPool = UintToArith256(uint256S("0x" + sCachedHashTargetPool));
 		if (!fUsingDualABNs)
 			WriteCache("poolthread" + RoundToString(iThreadID,0), "poolinfo1", out_PoolAddress, GetAdjustedTime());
 		WriteCache("poolthread" + RoundToString(iThreadID,0), "poolinfo2", "RMC_" + TimestampToHRDate(GetAdjustedTime()), GetAdjustedTime());
 		if (iThreadID == 0)
 			WriteCache("poolthread" + RoundToString(iThreadID, 0), "poolinfo1", "Pool mining with " + out_sWorkerID, GetAdjustedTime());
+
 		return true;
 	}
 
 	// Test Pool to ensure it can send us work before committing to being a pool miner
 	std::string sResult = PoolRequest(iThreadID, "readytomine2", sPoolURL, out_sWorkerID, "");
+	LogPrint("pool", "POOL RESULT %s ", sResult.c_str());
 	std::string sPoolAddress = ExtractXML(sResult,"<ADDRESS>","</ADDRESS>");
 	if (sPoolAddress.empty()) 
 	{
 		iFailCount++;
 		if (iFailCount >= 5)
 		{
-			WriteCache("poolthread" + RoundToString(iThreadID, 0), "poolinfo3", "POOL DOWN-REVERTING TO SOLO MINING", GetAdjustedTime());
+			WriteCache("poolthread" + RoundToString(iThreadID,0), "poolinfo3", "POOL DOWN-REVERTING TO SOLO MINING", GetAdjustedTime());
 		}
 		return false;
 	}
@@ -861,7 +770,7 @@ bool GetPoolMiningMode(int iThreadID, int& iFailCount, std::string& out_PoolAddr
 		 std::string sHashTarget = ExtractXML(sResult,"<HASHTARGET>", "</HASHTARGET>");
 		 if (sHashTarget.empty() || sHashTarget.length() != 64)
 		 {
-	 		 WriteCache("poolthread" + RoundToString(iThreadID,0), "poolinfo3", "POOL HAS NO AVAILABLE WORK", GetAdjustedTime());
+	 		 WriteCache("poolthread" + RoundToString(iThreadID, 0), "poolinfo3", "POOL HAS NO AVAILABLE WORK", GetAdjustedTime());
 			 return false; //Revert to solo mining
 		 }
 		 out_HashTargetPool = UintToArith256(uint256S("0x" + sHashTarget));
@@ -883,6 +792,7 @@ bool GetPoolMiningMode(int iThreadID, int& iFailCount, std::string& out_PoolAddr
 		 }
 		 out_PoolAddress = sPoolAddress;
 		 // Start Pool Mining
+		 WriteCache("poolthread" + RoundToString(iThreadID,0), "poolinfo1", sPoolAddress, GetAdjustedTime());
 		 WriteCache("poolthread" + RoundToString(iThreadID,0), "poolinfo2", "RM_" + TimestampToHRDate(GetAdjustedTime()), GetAdjustedTime());
 		 iFailCount = 0;
 		 // Cache pool mining settings to share across threads to decrease pool load
@@ -893,9 +803,9 @@ bool GetPoolMiningMode(int iThreadID, int& iFailCount, std::string& out_PoolAddr
 		 WriteCache("poolcache", "blockdata", out_BlockData, GetAdjustedTime());
 		 WriteCache("poolcache", "deadline", RoundToString(out_nDeadline, 0), GetAdjustedTime());
 		 WriteCache("poolcache", "poolcommand", out_sPoolCommand, GetAdjustedTime());
+
 		 if (iThreadID == 0)
 			 WriteCache("poolthread" + RoundToString(iThreadID, 0), "poolinfo1", "Pool mining with " + out_sWorkerID, GetAdjustedTime());
-	
 		 return true;
 	}
 	return false;
@@ -969,28 +879,13 @@ bool IsUnableToMine()
 
 bool IsMyABNSufficient(CBlock block, CBlockIndex* pindexPrev, int nHeight)
 {
-	const Consensus::Params& consensusParams = Params().GetConsensus();
-	double dDiff = GetDifficulty(pindexPrev);
-	double dDiffThreshhold = fProd ? 1000 : 1;
-	bool fActivateAdvancedFeatures = dDiff > dDiffThreshhold;
-	if (fActivateAdvancedFeatures)
+	// Rule #2 for Smart Contracts - Resist mining a bad smart contract unless we absolutely have to (this prevents bad blocks from being generated on testnet and regtestnet)
+	bool bIsSuperblock = CSuperblock::IsSmartContract(nHeight);
+	CAmount nPayments = block.vtx[0]->GetValueOut();
+	if (bIsSuperblock && nPayments < ((MAX_BLOCK_SUBSIDY + 1) * COIN) && !LateBlock(block, pindexPrev, (60 * 60 * 8)))
 	{
-		double nMinRequiredABNWeight = GetSporkDouble("requiredabnweight", 0);
-		double nABNHeight = GetSporkDouble("abnheight", 0);
-		// Rule #1 - Resist generating blocks with low ABN weight
-		if (nABNHeight > 0 && nHeight > consensusParams.ABNHeight && nHeight > nABNHeight && nMinRequiredABNWeight > 0 && !LateBlock(block, pindexPrev, 60))
-		{
-			double nABNWeight = GetABNWeight(block, true);
-			if (nABNWeight < nMinRequiredABNWeight) return false;
-		}
-		// Rule #2 for Smart Contracts - Resist mining a bad smart contract unless we absolutely have to (this prevents bad blocks from being generated on testnet and regtestnet)
-		bool bIsSuperblock = CSuperblock::IsValidBlockHeight(nHeight) || CSuperblock::IsSmartContract(nHeight);
-		CAmount nPayments = block.vtx[0]->GetValueOut();
-		if (bIsSuperblock && nPayments < ((MAX_BLOCK_SUBSIDY + 1) * COIN) && !LateBlock(block, pindexPrev, 30))
-		{
-			LogPrintf("\nMiner::IsMyAbnSufficient, Block Height %f, This superblock has no recipients!  Recreating block...", (double)nHeight);
-			return false;
-		}
+		LogPrintf("\nMiner::IsMyAbnSufficient, Block Height %f, This superblock has no recipients!  Recreating block...", (double)nHeight);
+		return false;
 	}
 	return true;
 }
@@ -1023,6 +918,26 @@ bool CreateBlockForStratum(std::string sAddress, std::string& sError, CBlock& bl
 
 void static BibleMiner(const CChainParams& chainparams, int iThreadID, int iFeatureSet)
 {
+
+	/*
+					if (fPoolMiningMode)
+					{
+						if (UintToArith256(hash) <= hashTargetPool)
+						{
+							bool fNonce = CheckNonce(f9000, pblock->nNonce, pindexPrev->nHeight, pindexPrev->nTime, pblock->GetBlockTime(), consensusParams);
+							if (UintToArith256(hash) <= hashTargetPool && fNonce && hashTargetPool > 0)
+							{
+								nLastShareSubmitted = GetAdjustedTime();
+								UpdatePoolProgress(pblock, sPoolMiningAddress, hashTargetPool, pindexPrev, sMinerGuid, sWorkID, iThreadID, nThreadWork, nThreadStart, pblock->nNonce, sWorkerID);
+								hashTargetPool = UintToArith256(uint256S("0x0"));
+								nThreadStart = GetTimeMillis();
+								nThreadWork = 0;
+								nLastPoolShareSolved = GetAdjustedTime();
+							}
+						}
+					}
+	*/
+
 	LogPrintf("BibleMiner -- started thread %f \n", (double)iThreadID);
     int64_t nThreadStart = GetTimeMillis();
 	int64_t nLastGSC = GetAdjustedTime();
@@ -1038,8 +953,9 @@ void static BibleMiner(const CChainParams& chainparams, int iThreadID, int iFeat
 	int64_t STAGNANT_WORK_THRESHHOLD = 60 * 15;
 	int64_t nDeadline = 0;
 	std::string sPoolCommand;
-	std::string sWorkerID;
+
 	bool fInternalABNOK = false;
+	std::string sWorkerID;
 	bool fUsingDualABNs = false;
 	UsingDualABNs(fUsingDualABNs, false);
 
@@ -1070,7 +986,7 @@ void static BibleMiner(const CChainParams& chainparams, int iThreadID, int iFeat
 
 recover:
 	arith_uint256 hashTargetPool = UintToArith256(uint256S("0x0"));
-	
+
     try {
         // Throw an error if no script was provided.  This can happen
         // due to some internal error but also if the keypool is empty.
@@ -1078,19 +994,23 @@ recover:
         if (!coinbaseScript || coinbaseScript->reserveScript.empty())
             throw std::runtime_error("No coinbase script available (mining requires a wallet)");
 
+		arith_uint256 hashTargetPool = UintToArith256(uint256S("0x0"));
+
         while (true) 
 		{
-            if (chainparams.MiningRequiresPeers() || fReindex) 
+            if (chainparams.MiningRequiresPeers() || fReindex)
 			{
                 // Busy-wait for the network to come online so we don't waste time mining
                 // on an obsolete chain. In regtest mode we expect to fly solo.
                 while(true)
 				{
-		            if (PeersExist() && !IsInitialBlockDownload() && masternodeSync.IsSynced() && !fReindex) 
+		            if (PeersExist() && !IsInitialBlockDownload() && masternodeSync.IsSynced() && !fReindex)
 						break;
 					if (dJackrabbitStart == 1) 
 						break;
+                    
                     MilliSleep(1000);
+                    
                 } 
             }
 
@@ -1100,18 +1020,19 @@ recover:
 				if ((GetAdjustedTime() - nLastReadyToMine) > POOL_MIN_MINUTES)
 				{ 
 					nLastReadyToMine = GetAdjustedTime();
+
 					fInternalABNOK = InternalABNSufficient();
 					std::string sNarr = fInternalABNOK ? "Internal ABN: OK" : "Internal ABN: Invalid";
 					if (iThreadID==0)
 						WriteCache("poolthread0", "poolinfo5", sNarr + " " + RoundToString(GetAdjustedTime(), 0), GetAdjustedTime());
-		
+
 					fPoolMiningMode = GetPoolMiningMode(iThreadID, iFailCount, sPoolMiningAddress, hashTargetPool, sMinerGuid, sWorkID, sBlockData, fInternalABNOK, sWorkerID, nDeadline, sPoolCommand);
-					if (fDebugSpam && !sPoolMiningAddress.empty())
-						LogPrint("pool", "Checking with Pool: Pool Address %s \r\n", sPoolMiningAddress.c_str());
 					if (!sPoolCommand.empty())
 					{
 						LogPrintf("Miner::GetPoolMiningMode::Received Command %s %f", sPoolCommand, GetAdjustedTime());
 					}
+					if (fDebugSpam && !sPoolMiningAddress.empty())
+						LogPrint("pool", "Checking with Pool: Pool Address %s \r\n", sPoolMiningAddress.c_str());
 				}
 			}
 		    
@@ -1123,24 +1044,33 @@ recover:
             CBlockIndex* pindexPrev = chainActive.Tip();
             if(!pindexPrev) break;
 
-			// POG - R ANDREWS - 12/6/2018 - Once every gscclientminerfrequency, call the gsc client side and create applicable transactions
-			int64_t nGSCAge = GetAdjustedTime() - nLastGSC;
-			if (iThreadID == 0 && (nGSCAge > nGSCFrequency))
+			// R Andrews - 10-31-2018 - Move this to the main thread, so we can support external mining programs:
+			/*
+			if (false)
 			{
-				nLastGSC = GetAdjustedTime();
-				std::string sError;
-				// Let's only do this if its conceptually profitable:
-
-				bool fCreated = CreateClientSideTransaction(false, false, "", sError);
-				if (!fCreated)
+				// POG - R ANDREWS - 12/6/2018 - Once every gscclientminerfrequency, call the gsc client side and create applicable transactions
+				int64_t nGSCAge = GetAdjustedTime() - nLastGSC;
+				if (iThreadID == 0 && (nGSCAge > nGSCFrequency))
 				{
-					LogPrintf("\nBibleMiner::Unable to create client side GSC transaction. (See Log [%s]). %f", sError, iThreadID);
+					nLastGSC = GetAdjustedTime();
+					std::string sError;
+					bool fCreated = ientSideTransaction(false, false, "", sError);
+					if (!fCreated)
+					{
+						LogPrintf("\nBibleMiner::Unable to create client side GSC transaction. (See Log [%s]). %f", sError, iThreadID);
+					}
 				}
 			}
+			*/
 
+
+			if (!fProd && mempool.size() == 0 && GetSporkDouble("SLEEP_DURING_EMPTY_BLOCKS", 0) == 1)
+                MilliSleep(1000 * 60 * 7);
+           
 			// Create Evo block
 			bool fFunded = !sBlockData.empty();
-	    	std::unique_ptr<CBlockTemplate> pblocktemplate(BlockAssembler(Params()).CreateNewBlock(coinbaseScript->reserveScript, sPoolMiningAddress, sMinerGuid, iThreadID, fFunded));
+
+			std::unique_ptr<CBlockTemplate> pblocktemplate(BlockAssembler(Params()).CreateNewBlock(coinbaseScript->reserveScript, sPoolMiningAddress, sMinerGuid, iThreadID, fFunded));
 			if (!pblocktemplate.get())
             {
 				std::string sSuffix = IsUnableToMine() ? "Wallet Locked/ABN Required" : "";
@@ -1152,15 +1082,15 @@ recover:
             }
 
 			CBlock *pblock = &pblocktemplate->block;
-	
+		
 			// Pool support for funded ABNs - BiblePay - R Andrews
 			if (fPoolMiningMode && !sBlockData.empty())
 			{
 				if (!DecodeHexBlk(pblocktemplate->block, sBlockData))
 				{
 					WriteCache("poolthread" + RoundToString(iThreadID, 0), "poolinfo4", "Failed to retrieve funded ABN from pool.", GetAdjustedTime());
-					MilliSleep(30000);
 					SpendABN();
+					MilliSleep(30000);
 					goto recover;
 				}
 			    CValidationState state;
@@ -1214,27 +1144,10 @@ recover:
 					// the BibleHash of the blockhash must be less than the target.
 					// The BibleHash is generated from chained bible verses, AES encryption, MD5, X11, and the custom biblepay.c hash
 					uint256 x11_hash = pblock->GetHash();
-					uint256 hash;
-					hash = BibleHashClassic(x11_hash, pblock->GetBlockTime(), pindexPrev->nTime, true, pindexPrev->nHeight, NULL, false, f7000, f8000, f9000, fTitheBlocksActive, pblock->nNonce, consensusParams);
+					uint256 hash = BibleHashV2(x11_hash, pblock->GetBlockTime(), pindexPrev->nTime, true, pindexPrev->nHeight);
+
 					nHashesDone += 1;
 					nThreadWork += 1;
-					
-					if (fPoolMiningMode)
-					{
-						if (UintToArith256(hash) <= hashTargetPool)
-						{
-							bool fNonce = CheckNonce(f9000, pblock->nNonce, pindexPrev->nHeight, pindexPrev->nTime, pblock->GetBlockTime(), consensusParams);
-							if (UintToArith256(hash) <= hashTargetPool && fNonce && hashTargetPool > 0)
-							{
-								nLastShareSubmitted = GetAdjustedTime();
-								UpdatePoolProgress(pblock, sPoolMiningAddress, hashTargetPool, pindexPrev, sMinerGuid, sWorkID, iThreadID, nThreadWork, nThreadStart, pblock->nNonce, sWorkerID);
-								hashTargetPool = UintToArith256(uint256S("0x0"));
-								nThreadStart = GetTimeMillis();
-								nThreadWork = 0;
-								nLastPoolShareSolved = GetAdjustedTime();
-							}
-						}
-					}
 
 					if (UintToArith256(hash) <= hashTarget)
 					{
@@ -1264,7 +1177,7 @@ recover:
 						
 					pblock->nNonce += 1;
 			
-					if ((pblock->nNonce & 0xFF) == 0)
+					if ((pblock->nNonce & 0xFFF) == 0)
 					{
 						// If the user is pool mining, and has not found a share in 15 minutes, get new work
 						int64_t nStagnantWorkElapsedTime = GetAdjustedTime() - nLastPoolShareSolved;
@@ -1335,8 +1248,8 @@ recover:
 				{
 					nLastClearCache = GetAdjustedTime();
 					WriteCache("poolcache", "pooladdress", "", GetAdjustedTime());
-					ClearCache("poolthread" + RoundToString(iThreadID, 0));
 					ClearCache("poolcache");
+					ClearCache("poolthread" + RoundToString(iThreadID, 0));
 					WriteCache("gsc", "errors", "", GetAdjustedTime());
 				}
 
@@ -1424,11 +1337,11 @@ void GenerateBiblecoins(bool fGenerate, int nThreads, const CChainParams& chainp
 
     minerThreads = new boost::thread_group();
 	ClearCache("poolcache");
-	int iBibleNumber = 0;
-
-	if (msSessionID.empty())
+	
+ 	if (msSessionID.empty())
 		msSessionID = GetRandHash().GetHex();
 
+	int iBibleNumber = 0;			
     for (int i = 0; i < nThreads; i++)
 	{
 		ClearCache("poolthread" + RoundToString(i, 0));

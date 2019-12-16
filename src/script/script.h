@@ -351,7 +351,6 @@ public:
         return result;
     }
 
-
 private:
     static int64_t set_vch(const std::vector<unsigned char>& vch)
     {
@@ -451,16 +450,16 @@ public:
         else if (b.size() <= 0xffff)
         {
             insert(end(), OP_PUSHDATA2);
-            uint8_t data[2];
-            WriteLE16(data, b.size());
-            insert(end(), data, data + sizeof(data));
+            uint8_t _data[2];
+            WriteLE16(_data, b.size());
+            insert(end(), _data, _data + sizeof(_data));
         }
         else
         {
             insert(end(), OP_PUSHDATA4);
-            uint8_t data[4];
-            WriteLE32(data, b.size());
-            insert(end(), data, data + sizeof(data));
+            uint8_t _data[4];
+            WriteLE32(_data, b.size());
+            insert(end(), _data, _data + sizeof(_data));
         }
         insert(end(), b.begin(), b.end());
         return *this;
@@ -647,6 +646,15 @@ public:
     {
         // The default std::vector::clear() does not release memory.
         CScriptBase().swap(*this);
+    }
+
+    template<typename Stream>
+    void Serialize(Stream& s) const {
+        s << *(CScriptBase*)this;
+    }
+    template<typename Stream>
+    void Unserialize(Stream& s) {
+        s >> *(CScriptBase*)this;
     }
 };
 

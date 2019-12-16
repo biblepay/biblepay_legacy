@@ -3,7 +3,6 @@
 #include "masternodeconfig.h"
 #include "util.h"
 #include "chainparams.h"
-#include "validation.h"
 
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
@@ -66,9 +65,7 @@ bool CMasternodeConfig::read(std::string& strErrRet) {
             return false;
         }
         int mainnetDefaultPort = Params(CBaseChainParams::MAIN).GetDefaultPort();
-        if(Params().NetworkIDString() == CBaseChainParams::MAIN) 
-		{
-			// R Andrews - DefaultPortEnforcement - Initial Read of Masternode.conf
+        if(Params().NetworkIDString() == CBaseChainParams::MAIN) {
             if(port != mainnetDefaultPort && fEnforceSanctuaryPort) 
 			{
                 strErrRet = _("Invalid port detected in masternode.conf") + "\n" +
@@ -78,8 +75,7 @@ bool CMasternodeConfig::read(std::string& strErrRet) {
                 streamConfig.close();
                 return false;
             }
-        } else if(Params().NetworkIDString() != CBaseChainParams::MAIN && port == mainnetDefaultPort) 
-		{
+        } else if(Params().NetworkIDString() != CBaseChainParams::MAIN && port == mainnetDefaultPort) {
             strErrRet = _("Invalid port detected in masternode.conf") + "\n" +
                     strprintf(_("Line: %d"), linenumber) + "\n\"" + line + "\"" + "\n" +
                     strprintf(_("(%d could be used only on mainnet)"), mainnetDefaultPort);

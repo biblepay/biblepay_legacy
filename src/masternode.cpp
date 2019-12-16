@@ -214,7 +214,9 @@ void CMasternode::Check(bool fForce)
     }
 
     // don't expire if we are still in "waiting for ping" mode unless it's our own masternode
-    if(!fWaitForPing || fOurMasternode) {
+    if(!fWaitForPing || fOurMasternode) 
+	{
+
 
         if(!IsPingedWithin(MASTERNODE_NEW_START_REQUIRED_SECONDS)) {
             nActiveState = MASTERNODE_NEW_START_REQUIRED;
@@ -422,16 +424,13 @@ bool CMasternodeBroadcast::Create(const std::string& strService, const std::stri
     int mainnetDefaultPort = Params(CBaseChainParams::MAIN).GetDefaultPort();
     if (Params().NetworkIDString() == CBaseChainParams::MAIN) 
 	{
-		// R Andrews - DefaultPortEnforcement - Broadcaster
-        if (service.GetPort() != mainnetDefaultPort && fEnforceSanctuaryPort)
+        if (service.GetPort() != mainnetDefaultPort)
 		{
-            return Log(strprintf("Invalid port %u for masternode %s, only %d is supported on mainnet.", service.GetPort(), strService, mainnetDefaultPort));
+			if (fEnforceSanctuaryPort)
+				return Log(strprintf("Invalid port %u for masternode %s, only %d is supported on mainnet.", service.GetPort(), strService, mainnetDefaultPort));
 		}
-    } 
-	else if (Params().NetworkIDString() != CBaseChainParams::MAIN && service.GetPort() == mainnetDefaultPort)
-	{
+    } else if (Params().NetworkIDString() != CBaseChainParams::MAIN && service.GetPort() == mainnetDefaultPort)
         return Log(strprintf("Invalid port %u for masternode %s, %d is the only supported on mainnet.", service.GetPort(), strService, mainnetDefaultPort));
-	}
 
     return Create(outpoint, service, keyCollateralAddressNew, pubKeyCollateralAddressNew, keyMasternodeNew, pubKeyMasternodeNew, strErrorRet, mnbRet);
 }
@@ -529,11 +528,11 @@ bool CMasternodeBroadcast::SimpleCheck(int& nDos)
     int mainnetDefaultPort = Params(CBaseChainParams::MAIN).GetDefaultPort();
     if(Params().NetworkIDString() == CBaseChainParams::MAIN) 
 	{
-		// R Andrews - DefaultPortEnforcement - Sanctuary Side - Verify Broadcast
-        if (addr.GetPort() != mainnetDefaultPort && fEnforceSanctuaryPort)
+        if(fEnforceSanctuaryPort && addr.GetPort() != mainnetDefaultPort)
 			return false;
     }
-	else if(Params().NetworkIDString() != CBaseChainParams::MAIN && addr.GetPort() == mainnetDefaultPort) return false;
+	else if(Params().NetworkIDString() != CBaseChainParams::MAIN && addr.GetPort() == mainnetDefaultPort)
+		return false;
 
     return true;
 }
@@ -883,8 +882,9 @@ bool CMasternodePing::SimpleCheck(int& nDos)
     {
         AssertLockHeld(cs_main);
         BlockMap::iterator mi = mapBlockIndex.find(blockHash);
-        if (mi == mapBlockIndex.end()) {
-			if (fDebugSpam)
+        if (mi == mapBlockIndex.end()) 
+		{
+            if (fDebugSpam)
 				LogPrint("masternode", "CMasternodePing::SimpleCheck -- Masternode ping is invalid, unknown block hash: masternode=%s blockHash=%s\n", masternodeOutpoint.ToStringShort(), blockHash.ToString());
             // maybe we stuck or forked so we shouldn't ban this node, just fail to accept this ping
             // TODO: or should we also request this block?
@@ -933,7 +933,8 @@ bool CMasternodePing::CheckAndUpdate(CMasternode* pmn, bool fFromNewBroadcast, i
 
     {
         BlockMap::iterator mi = mapBlockIndex.find(blockHash);
-        if ((*mi).second && (*mi).second->nHeight < chainActive.Height() - 24) {
+        if ((*mi).second && (*mi).second->nHeight < chainActive.Height() - 24) 
+		{
 			if (fDebugSpam)
 				LogPrintf("CMasternodePing::CheckAndUpdate -- Masternode ping is invalid, block hash is too old: masternode=%s  blockHash=%s\n", masternodeOutpoint.ToStringShort(), blockHash.ToString());
             // nDos = 1;

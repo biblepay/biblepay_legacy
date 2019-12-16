@@ -99,7 +99,7 @@ OptionsDialog::OptionsDialog(QWidget *parent, bool enableWallet) :
     ui->theme->addItem(QString("biblepay-blue"), QVariant("drkblue"));
     ui->theme->addItem(QString("biblepay-bezaleel"), QVariant("bezaleel"));
     ui->theme->addItem(QString("biblepay-traditional"), QVariant("trad"));
-    
+
     /* Language selector */
     QDir translations(":translations");
 

@@ -9,6 +9,7 @@
 #include "hash.h"
 #include "net.h"
 #include "utilstrencodings.h"
+#include "validation.h"
 #include <univalue.h>
 
 class CWallet;
@@ -37,9 +38,89 @@ struct CPK
   std::string sError;
   std::string sChildId;
   std::string sOptData;
+  std::string cpid;
   double nProminence = 0;
   double nPoints = 0;
   bool fValid = false;
+};
+
+struct BBPResult
+{
+	std::string Response;
+	bool fError = false;
+	std::string ErrorCode;
+};
+
+struct Researcher
+{
+	std::string nickname;
+	int teamid = 0;
+	std::string country;
+	int64_t creationtime = 0;
+	double totalcredit = 0;
+	double wcgpoints = 0;
+	double rac = 0;
+	int id = 0;
+	std::string cpid;
+	bool found = false;
+	bool unbanked = false;
+	double CoinAge = 0;
+	std::string CPK;
+};
+
+struct BBPVin
+{
+	COutPoint OutPoint;
+	uint256 HashBlock = uint256S("0x0");
+	int64_t BlockTime = 0;
+	double CoinAge = 0;
+	CAmount Amount = 0;
+	std::string Destination = std::string();
+	bool Found = false;
+	CTransactionRef TxRef;
+};
+
+struct WhaleStake
+{
+	double Amount = 0;
+	double RewardAmount = 0;
+	double TotalOwed = 0;
+	int64_t BurnTime = 0;
+	int BurnHeight = 0;
+	int Duration = 0;
+	double DWU = 0;
+	double ActualDWU = 0;
+	int64_t MaturityTime = 0;
+	int MaturityHeight = 0;
+	std::string CPK = std::string();
+	uint256 TXID = uint256S("0x0");
+	std::string XML = std::string();
+	std::string ReturnAddress = std::string();
+	bool found = false;
+	bool paid = false;
+};
+
+static double MAX_DAILY_WHALE_COMMITMENTS = 5000000;
+static double MAX_WHALE_DWU = 2.0;
+struct WhaleMetric
+{
+	double nTotalFutureCommitments = 0;
+	double nTotalGrossFutureCommitments = 0;
+	
+	double nTotalCommitmentsDueToday = 0;
+	double nTotalGrossCommitmentsDueToday = 0;
+
+	double nTotalBurnsToday = 0;
+	double nTotalGrossBurnsToday = 0;
+
+	double nTotalMonthlyCommitments = 0;
+	double nTotalGrossMonthlyCommitments = 0;
+
+	double nTotalAnnualReward = 0;
+
+	double nSaturationPercentAnnual = 0;
+	double nSaturationPercentMonthly = 0;
+	double DWU = 0;
 };
 
 struct BiblePayProposal
@@ -86,7 +167,6 @@ CAmount GetDailyMinerEmissions(int nHeight);
 std::string CreateBankrollDenominations(double nQuantity, CAmount denominationAmount, std::string& sError);
 std::string DefaultRecAddress(std::string sType);
 std::string GenerateNewAddress(std::string& sError, std::string sName);
-CAmount SelectCoinsForTithing(const CBlockIndex* pindex);
 CAmount GetTitheTotal(CTransaction tx);
 bool IsTitheLegal(CTransaction ctx, CBlockIndex* pindex, CAmount tithe_amount);
 void GetTxTimeAndAmountAndHeight(uint256 hashInput, int hashInputOrdinal, int64_t& out_nTime, CAmount& out_caAmount, int& out_height);
@@ -107,7 +187,7 @@ std::string StoreBusinessObjectWithPK(UniValue& oBusinessObject, std::string& sE
 std::string StoreBusinessObject(UniValue& oBusinessObject, std::string& sError);
 bool is_email_valid(const std::string& e);
 double GetSporkDouble(std::string sName, double nDefault);
-int64_t GetFileSizeB(std::string sPath);
+int64_t GetFileSize(std::string sPath);
 std::string AddBlockchainMessages(std::string sAddress, std::string sType, std::string sPrimaryKey, 
 	std::string sHTML, CAmount nAmount, double minCoinAge, std::string& sError);
 std::string ReadCache(std::string sSection, std::string sKey);
@@ -153,8 +233,9 @@ std::string ExtractXML(std::string XMLdata, std::string key, std::string key_end
 bool Contains(std::string data, std::string instring);
 std::string GetVersionAlert();
 bool CheckNonce(bool f9000, unsigned int nNonce, int nPrevHeight, int64_t nPrevBlockTime, int64_t nBlockTime, const Consensus::Params& params);
-bool RPCSendMoney(std::string& sError, const CTxDestination &address, CAmount nValue, bool fSubtractFeeFromAmount, CWalletTx& wtxNew, bool fUseInstantSend=false, std::string sOptionalData = "");
-
+bool RPCSendMoney(std::string& sError, const CTxDestination &address, CAmount nValue, bool fSubtractFeeFromAmount, CWalletTx& wtxNew, bool fUseInstantSend=false, std::string sOptionalData = "", double nCoinAge = 0);
+bool FundWithExternalPurse(std::string& sError, const CTxDestination &address, CAmount nValue, bool fSubtractFeeFromAmount, CWalletTx& wtxNew, 
+	bool fUseInstantSend, CAmount nExactAmount, std::string sOptionalData, double dMinCoinAge, std::string sPursePubKey);
 
 std::vector<char> ReadBytesAll(char const* filename);
 std::string VectToString(std::vector<unsigned char> v);
@@ -207,10 +288,35 @@ void SpendABN();
 double AddVector(std::string sData, std::string sDelim);
 int ReassessAllChains();
 double GetFees(CTransactionRef tx);
+int64_t GetCacheEntryAge(std::string sSection, std::string sKey);
 void LogPrintWithTimeLimit(std::string sSection, std::string sValue, int64_t nMaxAgeInSeconds);
-double GetROI(double nTitheAmount);
+std::vector<std::string> GetVectorOfFilesInDirectory(const std::string &dirPath, const std::vector<std::string> dirSkipList);
+std::string GetAttachmentData(std::string sPath);
+std::string BIPFS_UploadSingleFile(std::string sPath, std::string sWebPath);
+std::string Path_Combine(std::string sPath, std::string sFileName);
+std::string DSQL_Ansi92Query(std::string sSQL);
 void ProcessBLSCommand(CTransactionRef tx);
-void UpdateHealthInformation();
-std::string SearchChain(int nBlocks, std::string sDest);
+void UpdateHealthInformation(int iType);
+BBPResult GetDecentralizedURL();
+std::string BIPFS_Payment(CAmount nAmount, std::string sTXID, std::string sXML);
+BBPResult DSQL_ReadOnlyQuery(std::string sXMLSource);
+int LoadResearchers();
+std::string TeamToName(int iTeamID);
+std::string GetResearcherCPID(std::string sSearch);
+bool CreateExternalPurse(std::string& sError);
+bool VerifyMemoryPoolCPID(CTransaction tx);
+std::string GetEPArg(bool fPublic);
+std::vector<WhaleStake> GetDWS(bool fIncludeMemoryPool);
+WhaleMetric GetWhaleMetrics(int nHeight, bool fIncludeMemoryPool);
+bool VerifyDynamicWhaleStake(CTransactionRef tx, std::string& sError);
+double GetDWUBasedOnMaturity(double nDuration, double dDWU);
+double GetOwedBasedOnMaturity(double nDuration, double dDWU, double dAmount);
+std::vector<WhaleStake> GetPayableWhaleStakes(int nHeight, double& nOwed);
+BBPVin GetBBPVIN(COutPoint o, int64_t nTxTime);
+bool GetTxBBP(uint256 txid, CTransactionRef& tx1);
+double GetWhaleStakesInMemoryPool(std::string sCPK);
+std::string GetCPKByCPID(std::string sCPID);
+int GetNextPODCTransmissionHeight(int height);
+int GetWhaleStakeSuperblockHeight(int nHeight);
 
 #endif

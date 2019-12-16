@@ -78,7 +78,6 @@ public:
         return corruptionPossible;
     }
 	bool fDontLog;
-
     unsigned int GetRejectCode() const { return chRejectCode; }
     std::string GetRejectReason() const { return strRejectReason; }
     std::string GetDebugMessage() const { return strDebugMessage; }

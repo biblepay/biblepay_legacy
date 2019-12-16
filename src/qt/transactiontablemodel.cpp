@@ -196,13 +196,13 @@ public:
             if(lockMain)
             {
                 TRY_LOCK(wallet->cs_wallet, lockWallet);
-                if(lockWallet && rec->statusUpdateNeeded())
+                if(lockWallet && (rec->statusUpdateNeeded(parent->getNumISLocks(), parent->getChainLockHeight())))
                 {
                     std::map<uint256, CWalletTx>::iterator mi = wallet->mapWallet.find(rec->hash);
 
                     if(mi != wallet->mapWallet.end())
                     {
-                        rec->updateStatus(mi->second);
+                        rec->updateStatus(mi->second, parent->getNumISLocks(), parent->getChainLockHeight());
                     }
                 }
             }
@@ -282,6 +282,27 @@ void TransactionTableModel::updateConfirmations()
     //  visible rows.
     Q_EMIT dataChanged(index(0, Status), index(priv->size()-1, Status));
     Q_EMIT dataChanged(index(0, ToAddress), index(priv->size()-1, ToAddress));
+}
+
+void TransactionTableModel::updateNumISLocks(int numISLocks)
+{
+    cachedNumISLocks = numISLocks;
+}
+
+void TransactionTableModel::updateChainLockHeight(int chainLockHeight)
+{
+    cachedChainLockHeight = chainLockHeight;
+    updateConfirmations();
+}
+
+int TransactionTableModel::getNumISLocks() const
+{
+    return cachedNumISLocks;
+}
+
+int TransactionTableModel::getChainLockHeight() const
+{
+    return cachedChainLockHeight;
 }
 
 int TransactionTableModel::rowCount(const QModelIndex &parent) const
@@ -377,6 +398,10 @@ QString TransactionTableModel::formatTxType(const TransactionRecord *wtx) const
         return tr("Received from");
     case TransactionRecord::RecvWithPrivateSend:
         return tr("Received via PrivateSend");
+	case TransactionRecord::WhaleStake:
+		return tr("Dynamic Whale Stake");
+	case TransactionRecord::WhaleReward:
+		return tr("Dynamic Whale Reward");
 	case TransactionRecord::GSCTransmission:
 		return tr("GSC Transmission");
     case TransactionRecord::SendToAddress:
@@ -413,6 +438,10 @@ QVariant TransactionTableModel::txAddressDecoration(const TransactionRecord *wtx
     QString theme = GUIUtil::getThemeName();
     switch(wtx->type)
     {
+		case TransactionRecord::WhaleReward:
+			return QIcon(":/icons/drkblue/whale3232");
+		case TransactionRecord::WhaleStake:
+			return QIcon(":/icons/drkblue/whale3232");
 		case TransactionRecord::SuperBlockPayment:
 			return QIcon(":/icons/drkblue/account32");
 		case TransactionRecord::GSCPayment:
@@ -446,22 +475,21 @@ QString TransactionTableModel::formatTxToAddress(const TransactionRecord *wtx, b
 
     switch(wtx->type)
     {
-		case TransactionRecord::RecvFromOther:
-			return QString::fromStdString(wtx->address) + watchAddress;
-		case TransactionRecord::RecvWithAddress:
-		case TransactionRecord::RecvWithPrivateSend:
-		case TransactionRecord::SendToAddress:
-		case TransactionRecord::Generated:
-		case TransactionRecord::PrivateSend:
-			return lookupAddress(wtx->address, tooltip) + watchAddress;
-		case TransactionRecord::SendToOther:
-			return QString::fromStdString(wtx->address) + watchAddress;
-		case TransactionRecord::SendToSelf:
-		case TransactionRecord::GSCTransmission:
-			return QString::fromStdString(wallet->mapWallet[wtx->hash].tx->GetCampaignName());
-
-		default:
-			return tr("(n/a)") + watchAddress;
+    case TransactionRecord::RecvFromOther:
+        return QString::fromStdString(wtx->address) + watchAddress;
+    case TransactionRecord::RecvWithAddress:
+    case TransactionRecord::RecvWithPrivateSend:
+    case TransactionRecord::SendToAddress:
+    case TransactionRecord::Generated:
+    case TransactionRecord::PrivateSend:
+        return lookupAddress(wtx->address, tooltip) + watchAddress;
+    case TransactionRecord::SendToOther:
+        return QString::fromStdString(wtx->address) + watchAddress;
+    case TransactionRecord::SendToSelf:
+	case TransactionRecord::GSCTransmission:
+        return QString::fromStdString(wallet->mapWallet[wtx->hash].tx->GetCampaignName());
+    default:
+        return tr("(n/a)") + watchAddress;
     }
 }
 

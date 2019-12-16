@@ -16,7 +16,7 @@
 //! These need to be macros, as clientversion.cpp's and biblepay*-res.rc's voodoo requires it
 #define CLIENT_VERSION_MAJOR 1
 #define CLIENT_VERSION_MINOR 4
-#define CLIENT_VERSION_REVISION 5
+#define CLIENT_VERSION_REVISION 8
 #define CLIENT_VERSION_BUILD 4
 
 //! Set to true for release, false for prerelease or test build

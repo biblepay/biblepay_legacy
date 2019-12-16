@@ -32,7 +32,7 @@ $ make HOST=x86_64-apple-darwin11 -j4
 When building BiblePay Core, use
 
 ```bash
-$ ./configure --prefix `pwd`/depends/x86_64-apple-darwin11
+$ ./configure --prefix=`pwd`/depends/x86_64-apple-darwin11
 ```
 
 Windows 64bit/32bit Cross-compilation
@@ -68,7 +68,7 @@ $ make HOST=x86_64-w64-mingw32 -j4
 When building BiblePay Core, use
 
 ```bash
-$ ./configure --prefix `pwd`/depends/x86_64-w64-mingw32
+$ ./configure --prefix=`pwd`/depends/x86_64-w64-mingw32
 ```
 
 These commands will build for Windows 64bit. If you want to compile for 32bit,
@@ -91,5 +91,28 @@ $ make HOST=arm-linux-gnueabihf -j4
 When building BiblePay Core, use
 
 ```bash
-$ ./configure --prefix `pwd`/depends/arm-linux-gnueabihf
+$ ./configure --prefix=`pwd`/depends/arm-linux-gnueabihf
 ```
+
+Linux 32-bit Cross-compilation in a Linux 64-bit system
+-------------------
+Cross-compiling to 32-bit-Linux in 64-bit Linux requires a few additional packages to be installed:
+
+```bash
+$ sudo apt-get install gcc-multilib g++-multilib
+$ sudo apt-get install gcc-4.8-multilib g++-4.8-multilib
+$ sudo apt-get install libx11-6:i386 libfontconfig1-dev:i386 libfreetype6-dev:i386 libx11-dev:i386 libxcursor-dev:i386 libxext-dev:i386 libxfixes-dev:i386 libxft-dev:i386 libxi-dev:i386 libxrandr-dev:i386 libxrender-dev:i3
+```
+
+When building the dependencies, as described in [build-generic](build-generic.md), use
+
+```bash
+$ make HOST=i686-pc-linux-gnu -j4
+```
+
+When building BiblePay Core, use
+
+```bash
+$ ./configure --prefix `pwd`/depends/i686-pc-linux-gnu
+```
+

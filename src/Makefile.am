@@ -10,6 +10,29 @@ AM_CXXFLAGS = $(HARDENED_CXXFLAGS) $(ERROR_CXXFLAGS)
 AM_CPPFLAGS = $(HARDENED_CPPFLAGS)
 EXTRA_LIBRARIES =
 
+if ENABLE_STACKTRACES
+if STACKTRACE_WRAPPED_CXX_ABI
+# Wrap internal C++ ABI's so that we can attach stacktraces to exceptions
+LDFLAGS_WRAP_EXCEPTIONS = -Wl,-wrap,__cxa_allocate_exception -Wl,-wrap,__cxa_free_exception
+if TARGET_WINDOWS
+LDFLAGS_WRAP_EXCEPTIONS += -Wl,-wrap,_assert -Wl,-wrap,_wassert
+else
+LDFLAGS_WRAP_EXCEPTIONS += -Wl,-wrap,__assert_fail
+endif
+endif
+
+if RDYNAMIC_SUPPORTED
+# This gives better stacktraces
+AM_CXXFLAGS += -rdynamic
+endif
+
+if TARGET_WINDOWS
+BACKTRACE_LIB = -ldbghelp -lbacktrace
+else
+BACKTRACE_LIB = -lbacktrace
+endif
+endif
+
 if EMBEDDED_UNIVALUE
 LIBUNIVALUE = univalue/libunivalue.la
 
@@ -85,6 +108,7 @@ BITCOIN_CORE_H = \
   addrman.h \
   alert.h \
   base58.h \
+  batchedlogger.h \
   bip39.h \
   bip39_english.h \
   blockencodings.h \
@@ -109,12 +133,14 @@ BITCOIN_CORE_H = \
   core_memusage.h \
   cuckoocache.h \
   ctpl.h \
-  evo/evodb.h \
-  evo/specialtx.h \
-  evo/providertx.h \
-  evo/deterministicmns.h \
+  cxxtimer.hpp \
   evo/cbtx.h \
+  evo/deterministicmns.h \
+  evo/evodb.h \
+  evo/mnauth.h \
+  evo/providertx.h \
   evo/simplifiedmns.h \
+  evo/specialtx.h \
   privatesend.h \
   privatesend-client.h \
   privatesend-server.h \
@@ -136,6 +162,8 @@ BITCOIN_CORE_H = \
   cnv.h \
   rpcpog.h \
   rpcpodc.h \
+  bbpsocket.h \
+  pose.h \
   smartcontract-client.h \
   smartcontract-server.h \
   init.h \
@@ -145,16 +173,23 @@ BITCOIN_CORE_H = \
   keystore.h \
   dbwrapper.h \
   limitedmap.h \
-  llmq/quorums_commitment.h \
+  llmq/quorums.h \
   llmq/quorums_blockprocessor.h \
-  llmq/quorums_dummydkg.h \
-  llmq/quorums_utils.h \
+  llmq/quorums_commitment.h \
+  llmq/quorums_chainlocks.h \
+  llmq/quorums_debug.h \
+  llmq/quorums_dkgsessionhandler.h \
+  llmq/quorums_dkgsessionmgr.h \
+  llmq/quorums_dkgsession.h \
   llmq/quorums_init.h \
-  masternode.h \
+  llmq/quorums_instantsend.h \
+  llmq/quorums_signing.h \
+  llmq/quorums_signing_shares.h \
+  llmq/quorums_utils.h \
+  masternode-meta.h \
   masternode-payments.h \
   masternode-sync.h \
-  masternodeman.h \
-  masternodeconfig.h \
+  masternode-utils.h \
   memusage.h \
   merkleblock.h \
   messagesigner.h \
@@ -176,12 +211,14 @@ BITCOIN_CORE_H = \
   rpc/protocol.h \
   rpc/server.h \
   rpc/register.h \
+  saltedhasher.h \
   scheduler.h \
   script/sigcache.h \
   script/sign.h \
   script/standard.h \
   script/ismine.h \
   spork.h \
+  stacktraces.h \
   streams.h \
   support/allocators/mt_pooled_secure.h \
   support/allocators/pooled_secure.h \
@@ -199,6 +236,7 @@ BITCOIN_CORE_H = \
   txmempool.h \
   ui_interface.h \
   undo.h \
+  unordered_lru_cache.h \
   util.h \
   utilmoneystr.h \
   utiltime.h \
@@ -232,23 +270,27 @@ libbiblepay_server_a_SOURCES = \
   addrman.cpp \
   addrdb.cpp \
   alert.cpp \
+  batchedlogger.cpp \
   bloom.cpp \
   blockencodings.cpp \
   chain.cpp \
   checkpoints.cpp \
   dsnotificationinterface.cpp \
-  evo/evodb.cpp \
-  evo/specialtx.cpp \
-  evo/providertx.cpp \
-  evo/deterministicmns.cpp \
   evo/cbtx.cpp \
+  evo/deterministicmns.cpp \
+  evo/evodb.cpp \
+  evo/mnauth.cpp \
+  evo/providertx.cpp \
   evo/simplifiedmns.cpp \
+  evo/specialtx.cpp \
   httprpc.cpp \
   httpserver.cpp \
   kjv.cpp \
   cnv.cpp \
   rpcpog.cpp \
   rpcpodc.cpp \
+  bbpsocket.cpp \
+  pose.cpp \
   smartcontract-client.cpp \
   smartcontract-server.cpp \
   init.cpp \
@@ -260,16 +302,23 @@ libbiblepay_server_a_SOURCES = \
   governance-validators.cpp \
   governance-vote.cpp \
   governance-votedb.cpp \
-  llmq/quorums_commitment.cpp \
+  llmq/quorums.cpp \
   llmq/quorums_blockprocessor.cpp \
-  llmq/quorums_dummydkg.cpp \
-  llmq/quorums_utils.cpp \
+  llmq/quorums_commitment.cpp \
+  llmq/quorums_chainlocks.cpp \
+  llmq/quorums_debug.cpp \
+  llmq/quorums_dkgsessionhandler.cpp \
+  llmq/quorums_dkgsessionmgr.cpp \
+  llmq/quorums_dkgsession.cpp \
   llmq/quorums_init.cpp \
-  masternode.cpp \
+  llmq/quorums_instantsend.cpp \
+  llmq/quorums_signing.cpp \
+  llmq/quorums_signing_shares.cpp \
+  llmq/quorums_utils.cpp \
+  masternode-meta.cpp \
   masternode-payments.cpp \
   masternode-sync.cpp \
-  masternodeconfig.cpp \
-  masternodeman.cpp \
+  masternode-utils.cpp \
   merkleblock.cpp \
   messagesigner.cpp \
   miner.cpp \
@@ -291,6 +340,7 @@ libbiblepay_server_a_SOURCES = \
   rpc/net.cpp \
   rpc/rawtransaction.cpp \
   rpc/rpcevo.cpp \
+  rpc/rpcquorums.cpp \
   rpc/server.cpp \
   script/sigcache.cpp \
   script/ismine.cpp \
@@ -379,8 +429,8 @@ crypto_libbiblepay_crypto_a_SOURCES += \
   crypto/sph_shavite.h \
   crypto/sph_simd.h \
   crypto/sph_skein.h \
-  crypto/sph_types.h
-
+  crypto/sph_types.h 
+ 
 # consensus: shared between all executables that validate any consensus rules.
 libbiblepay_consensus_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
 libbiblepay_consensus_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
@@ -437,6 +487,7 @@ libbiblepay_common_a_SOURCES = \
   netaddress.cpp \
   netbase.cpp \
   protocol.cpp \
+  saltedhasher.cpp \
   scheduler.cpp \
   script/sign.cpp \
   script/standard.cpp \
@@ -449,6 +500,7 @@ libbiblepay_common_a_SOURCES = \
 libbiblepay_util_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
 libbiblepay_util_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbiblepay_util_a_SOURCES = \
+  bls/bls_batchverifier.h \
   bls/bls_ies.cpp \
   bls/bls_ies.h \
   bls/bls_worker.cpp \
@@ -461,6 +513,7 @@ libbiblepay_util_a_SOURCES = \
   compat/strnlen.cpp \
   random.cpp \
   rpc/protocol.cpp \
+  stacktraces.cpp \
   support/cleanse.cpp \
   sync.cpp \
   threadinterrupt.cpp \
@@ -489,7 +542,7 @@ nodist_libbiblepay_util_a_SOURCES = $(srcdir)/obj/build.h
 biblepayd_SOURCES = biblepayd.cpp
 biblepayd_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
 biblepayd_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
-biblepayd_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
+biblepayd_LDFLAGS = $(LDFLAGS_WRAP_EXCEPTIONS) $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
 
 if TARGET_WINDOWS
 biblepayd_SOURCES += biblepayd-res.rc
@@ -508,13 +561,13 @@ biblepayd_LDADD = \
   $(LIBMEMENV) \
   $(LIBSECP256K1)
 
-biblepayd_LDADD += $(BOOST_LIBS) $(BDB_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(MINIUPNPC_LIBS) $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) $(ZMQ_LIBS) $(BLS_LIBS)
+biblepayd_LDADD += $(BACKTRACE_LIB) $(BOOST_LIBS) $(BDB_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(MINIUPNPC_LIBS) $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) $(ZMQ_LIBS) $(BLS_LIBS)
 
 # biblepay-cli binary #
 biblepay_cli_SOURCES = biblepay-cli.cpp
 biblepay_cli_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(EVENT_CFLAGS)
 biblepay_cli_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
-biblepay_cli_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
+biblepay_cli_LDFLAGS = $(LDFLAGS_WRAP_EXCEPTIONS) $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
 
 if TARGET_WINDOWS
 biblepay_cli_SOURCES += biblepay-cli-res.rc
@@ -525,14 +578,15 @@ biblepay_cli_LDADD = \
   $(LIBUNIVALUE) \
   $(LIBBITCOIN_UTIL) \
   $(LIBBITCOIN_CRYPTO)
-biblepay_cli_LDADD += $(BOOST_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(EVENT_LIBS) $(BLS_LIBS)
+
+biblepay_cli_LDADD += $(BACKTRACE_LIB) $(BOOST_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(EVENT_LIBS) $(BLS_LIBS)
 #
 
 # biblepay-tx binary #
 biblepay_tx_SOURCES = biblepay-tx.cpp
 biblepay_tx_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
 biblepay_tx_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
-biblepay_tx_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
+biblepay_tx_LDFLAGS = $(LDFLAGS_WRAP_EXCEPTIONS) $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
 
 if TARGET_WINDOWS
 biblepay_tx_SOURCES += biblepay-tx-res.rc
@@ -546,7 +600,7 @@ biblepay_tx_LDADD = \
   $(LIBBITCOIN_CRYPTO) \
   $(LIBSECP256K1)
 
-biblepay_tx_LDADD += $(BOOST_LIBS) $(CRYPTO_LIBS) $(BLS_LIBS)
+biblepay_tx_LDADD += $(BACKTRACE_LIB) $(BOOST_LIBS) $(CRYPTO_LIBS) $(BLS_LIBS)
 #
 
 # biblepayconsensus library #

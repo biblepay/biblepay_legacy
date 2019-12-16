@@ -26,6 +26,7 @@
 #include "utilstrencodings.h"
 #include "instantx.h"
 #ifdef ENABLE_WALLET
+#include "wallet/rpcwallet.h"
 #include "wallet/wallet.h"
 #endif
 
@@ -33,6 +34,8 @@
 #include "evo/providertx.h"
 #include "evo/cbtx.h"
 #include "llmq/quorums_commitment.h"
+#include "llmq/quorums_chainlocks.h"
+#include "llmq/quorums_instantsend.h"
 #include "rpcpodc.h"
 
 #include <stdint.h>
@@ -191,7 +194,7 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
             entry.push_back(Pair("cNonFinancialTx", obj));
         }
     }
-
+	bool chainLock = false;
     if (!hashBlock.IsNull()) {
         entry.push_back(Pair("blockhash", hashBlock.GetHex()));
         BlockMap::iterator mi = mapBlockIndex.find(hashBlock);
@@ -202,6 +205,7 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
                 entry.push_back(Pair("confirmations", 1 + chainActive.Height() - pindex->nHeight));
                 entry.push_back(Pair("time", pindex->GetBlockTime()));
                 entry.push_back(Pair("blocktime", pindex->GetBlockTime()));
+				chainLock = llmq::chainLocksHandler->HasChainLock(pindex->nHeight, pindex->GetBlockHash());
             } else {
                 entry.push_back(Pair("height", -1));
                 entry.push_back(Pair("confirmations", 0));
@@ -209,7 +213,10 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
         }
     }
     bool fLocked = instantsend.IsLockedInstantSendTransaction(txid);
-    entry.push_back(Pair("instantlock", fLocked));
+	bool fLLMQLocked = llmq::quorumInstantSendManager->IsLocked(txid);	    entry.push_back(Pair("instantlock", fLocked));
+    entry.push_back(Pair("instantlock", fLocked || fLLMQLocked || chainLock));	
+    entry.push_back(Pair("instantlock_internal", fLocked || fLLMQLocked));	
+    entry.push_back(Pair("chainlock", chainLock));
 }
 
 UniValue getrawtransaction(const JSONRPCRequest& request)
@@ -694,6 +701,10 @@ static void TxInErrorToJSON(const CTxIn& txin, UniValue& vErrorsRet, const std::
 
 UniValue signrawtransaction(const JSONRPCRequest& request)
 {
+#ifdef ENABLE_WALLET
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);	
+#endif
+
     if (request.fHelp || request.params.size() < 1 || request.params.size() > 4)
         throw std::runtime_error(
             "signrawtransaction \"hexstring\" ( [{\"txid\":\"id\",\"vout\":n,\"scriptPubKey\":\"hex\",\"redeemScript\":\"hex\"},...] [\"privatekey1\",...] sighashtype )\n"
@@ -701,11 +712,10 @@ UniValue signrawtransaction(const JSONRPCRequest& request)
             "The second optional argument (may be null) is an array of previous transaction outputs that\n"
             "this transaction depends on but may not yet be in the block chain.\n"
             "The third optional argument (may be null) is an array of base58-encoded private\n"
-            "keys that, if given, will be the only keys used to sign the transaction.\n"
+            "keys that, if given, will be the only keys used to sign the transaction.\n" 
 #ifdef ENABLE_WALLET
-            + HelpRequiringPassphrase() + "\n"
+			+ HelpRequiringPassphrase(pwallet) + "\n"
 #endif
-
             "\nArguments:\n"
             "1. \"hexstring\"     (string, required) The transaction hex string\n"
             "2. \"prevtxs\"       (string, optional) An json array of previous dependent transaction outputs\n"
@@ -753,7 +763,7 @@ UniValue signrawtransaction(const JSONRPCRequest& request)
         );
 
 #ifdef ENABLE_WALLET
-    LOCK2(cs_main, pwalletMain ? &pwalletMain->cs_wallet : NULL);
+    LOCK2(cs_main, pwallet ? &pwallet->cs_wallet : NULL);
 #else
     LOCK(cs_main);
 #endif
@@ -814,8 +824,8 @@ UniValue signrawtransaction(const JSONRPCRequest& request)
         }
     }
 #ifdef ENABLE_WALLET
-    else if (pwalletMain)
-        EnsureWalletIsUnlocked();
+    else if (pwallet)
+        EnsureWalletIsUnlocked(pwallet);
 #endif
 
     // Add previous txouts given in the RPC call:
@@ -881,7 +891,7 @@ UniValue signrawtransaction(const JSONRPCRequest& request)
     }
 
 #ifdef ENABLE_WALLET
-    const CKeyStore& keystore = ((fGivenKeys || !pwalletMain) ? tempKeystore : *pwalletMain);
+    const CKeyStore& keystore = ((fGivenKeys || !pwallet) ? tempKeystore : *pwallet);
 #else
     const CKeyStore& keystore = tempKeystore;
 #endif

@@ -1,4 +1,4 @@
-BiblePay Core 0.13.0
+BiblePay Core 0.14.0
 =====================
 
 This is the official reference wallet for Biblepay digital currency and comprises the backbone of the Biblepay peer-to-peer network. You can [download BiblePay Core](https://www.biblepay.org/downloads/) or [build it yourself](#building) using the guides below.
@@ -28,6 +28,11 @@ Drag Biblepay-Qt to your applications folder, and then run Biblepay-Qt.
 for help and more information.
 * Ask for help on [Biblepay Nation Discord](http://biblepaychat.org)
 * Ask for help on the [Biblepay Forum](https://biblepay.org/forum)
+=======
+* See the [Dash Developer Documentation](https://dash-docs.github.io/) 
+for technical specifications and implementation details.
+* Ask for help on [Dash Nation Discord](http://dashchat.org)
+* Ask for help on the [Dash Forum](https://dash.org/forum)
 
 Building
 ---------------------

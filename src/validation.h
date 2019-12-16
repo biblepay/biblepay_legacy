@@ -1,6 +1,7 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2015 The Bitcoin Core developers
-// Copyright (c) 2014-2017 The BiblePay Core developers
+// Copyright (c) 2014-2018 The Dash Core developers
+// Copyright (c) 2017-2019 The BiblePay Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -19,6 +20,7 @@
 #include "sync.h"
 #include "versionbits.h"
 #include "spentindex.h"
+#include "pose.h"
 
 #include <algorithm>
 #include <exception>
@@ -129,6 +131,7 @@ static const int64_t BLOCK_DOWNLOAD_TIMEOUT_PER_PEER = 500000;
 static const unsigned int DEFAULT_LIMITFREERELAY = 0;
 static const bool DEFAULT_RELAYPRIORITY = true;
 static const int64_t DEFAULT_MAX_TIP_AGE = 24 * 60 * 60; // ~144 blocks behind -> 2 x fork detection time, was 24 * 60 * 60 in bitcoin
+
 /** Maximum age of our tip in seconds for us to be considered current for fee estimation */
 static const int64_t MAX_FEE_ESTIMATION_TIP_AGE = 3 * 60 * 60;
 
@@ -139,9 +142,6 @@ bool LateBlock(const CBlock& block, const CBlockIndex* pindexPrev, int iMinutes)
 int64_t LateBlockIndex(const CBlockIndex* pindexPrev, int iMinutes);
 
 /** Biblepay-Classic Settings **/
-extern std::map<std::string, double> mvNetworkMonitor;
-extern bool fEnforceSanctuaryPort;
-
 static const std::string BUSINESS_OBJECTS = "BUSINESS_OBJECTS";
 static const int MINIMUM_EMAIL_LENGTH = 5; 
 static const int BLOCKS_PER_DAY = 205;
@@ -159,16 +159,17 @@ static const int BIBLE_BOOKS_COUNT = 65;
 static const int BIBLE_VERSE_COUNT = 99;
 static const int GSC_MIN_CONFIRMS = 5;
 static const double GSC_DUST = .01;
+
 extern int PRAYER_MODULUS;
 extern int miGlobalPrayerIndex;
 extern int miGlobalDiaryIndex;
 extern SecureString msEncryptedString;
 extern std::string sOS;
-extern std::string msMasterNodeLegacyPrivKey;
-extern bool fNetworkMonitor;
+extern bool fEnforceSanctuaryPort;
 extern std::string msGithubVersion;
 extern std::string msLanguage;
 extern std::string msSessionID;
+extern std::string msMasterNodeLegacyPrivKey;
 extern std::string msGlobalStatus;
 extern std::string msGlobalStatus2;
 extern std::string msGlobalStatus3;
@@ -222,7 +223,9 @@ extern CScript COINBASE_FLAGS;
 extern CCriticalSection cs_main;
 extern CTxMemPool mempool;
 typedef boost::unordered_map<uint256, CBlockIndex*, BlockHasher> BlockMap;
+typedef std::unordered_multimap<uint256, CBlockIndex*, BlockHasher> PrevBlockMap;
 extern BlockMap mapBlockIndex;
+extern PrevBlockMap mapPrevBlockIndex;
 extern uint64_t nLastBlockTx;
 extern uint64_t nLastBlockSize;
 extern const std::string strMessageMagic;
@@ -254,7 +257,13 @@ extern bool fLargeWorkInvalidChainFound;
 
 extern std::map<uint256, int64_t> mapRejectedBlocks;
 extern std::map<std::pair<std::string, std::string>, std::pair<std::string, int64_t>> mvApplicationCache;
+
+struct POSEScore;
+struct Researcher;
+
+extern std::map<std::string, POSEScore> mvPOSEScore;
 extern std::atomic<bool> fDIP0001ActiveAtTip;
+extern std::map<std::string, Researcher> mvResearchers;
 
 /** Block hash whose ancestors we will assume to have valid scripts without checking them. */
 extern uint256 hashAssumeValid;
@@ -407,7 +416,7 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CValidationState &state, const CTransa
 
 /** (try to) add transaction to memory pool with a specified acceptance time **/
 bool AcceptToMemoryPoolWithTime(CTxMemPool& pool, CValidationState &state, const CTransactionRef &tx, bool fLimitFree,
-                                bool* pfMissingInputs, int64_t nAcceptTime, bool fOverrideMempoolLimit=false, 
+                                bool* pfMissingInputs, int64_t nAcceptTime, bool fOverrideMempoolLimit=false,
                                 const CAmount nAbsurdFee=0, bool fDryRun=false);
 
 bool GetUTXOCoin(const COutPoint& outpoint, Coin& coin);
@@ -574,7 +583,7 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
 
 /** Check a block is completely valid from start to finish (only works on top of our current best block, with cs_main held) */
 bool TestBlockValidity(CValidationState& state, const CChainParams& chainparams, const CBlock& block, CBlockIndex* pindexPrev, bool fCheckPOW = true, bool fCheckMerkleRoot = true, bool fMining = false);
-bool TestBlockValidityLite(CValidationState& state, const CChainParams& chainparams, const CBlock& block, CBlockIndex* pindexPrev, bool fCheckPOW = true, bool fCheckMerkleRoot = true, bool fMining = false, bool fLog = true);
+bool TestBlockValidityLite(CValidationState& state, const CChainParams& chainparams, const CBlock& block, CBlockIndex* pindexPrev, bool fCheckPOW, bool fCheckMerkleRoot, bool fMining, bool fLog = true);
 
 /** RAII wrapper for VerifyDB: Verify consistency of the block and coin databases */
 class CVerifyDB {

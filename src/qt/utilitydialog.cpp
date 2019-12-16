@@ -1,5 +1,6 @@
 // Copyright (c) 2011-2015 The Bitcoin Core developers
-// Copyright (c) 2014-2017 The BiblePay Core developers
+// Copyright (c) 2014-2019 The Dash Core developers
+// Copyright (c) 2017-2019 The BiblePay Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -73,7 +74,6 @@ HelpMessageDialog::HelpMessageDialog(QWidget *parent, HelpMode helpMode, int iPr
 		ui->lblBook->setVisible(false);
 		ui->lblLanguages->setVisible(false);
 		ui->comboLanguages->setVisible(false);
-
 	}
 	else if (helpMode == readbible)
 	{
@@ -87,10 +87,9 @@ HelpMessageDialog::HelpMessageDialog(QWidget *parent, HelpMode helpMode, int iPr
 		ui->lblLanguages->setVisible(true);
 		ui->comboLanguages->setVisible(true);
 
-		// Load the Languages
+ 		// Load the Languages
 		ui->comboLanguages->addItem("English");
 		ui->comboLanguages->addItem("Chinese");
-
 		// Load the books of the bible in
 		for (int i = 0; i <= BIBLE_BOOKS_COUNT; i++)
 		{
@@ -104,7 +103,6 @@ HelpMessageDialog::HelpMessageDialog(QWidget *parent, HelpMode helpMode, int iPr
 		connect(ui->comboBook, SIGNAL(currentIndexChanged(int)), SLOT(on_comboBookClicked(int)));
 		connect(ui->comboChapter, SIGNAL(currentIndexChanged(int)), SLOT(on_comboChapterClicked(int)));
 		connect(ui->comboLanguages, SIGNAL(currentIndexChanged(int)), SLOT(on_comboLanguagesClicked(int)));
-
 		std::string sTitle = "READ THE BIBLE";
 		std::string sPage = "Choose a Bible Book and Chapter below.";
 	    setWindowTitle(QString::fromStdString(sTitle));
@@ -150,7 +148,6 @@ HelpMessageDialog::HelpMessageDialog(QWidget *parent, HelpMode helpMode, int iPr
 		ui->lblBook->setVisible(false);
 		ui->lblLanguages->setVisible(false);
 		ui->comboLanguages->setVisible(false);
-
     }
 	else if (helpMode == cmdline) 
 	{

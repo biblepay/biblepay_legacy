@@ -10,6 +10,7 @@
         <file alias="send">res/icons/drkblue/send.png</file>
         <file alias="donation32">res/icons/drkblue/donation32.png</file>
         <file alias="cross3232">res/icons/drkblue/cross3232.png</file>
+        <file alias="whale3232">res/icons/drkblue/whale3232.png</file>
         <file alias="account32">res/icons/drkblue/account32.png</file>
         <file alias="connect_0">res/icons/drkblue/connect0_16.png</file>
         <file alias="connect_1">res/icons/drkblue/connect1_16.png</file>
@@ -69,6 +70,7 @@
         <file alias="send">res/icons/bezaleel/send.png</file>
         <file alias="donation32">res/icons/bezaleel/donation32.png</file>
         <file alias="cross3232">res/icons/bezaleel/cross3232.png</file>
+        <file alias="whale3232">res/icons/bezaleel/whale3232.png</file>
         <file alias="account32">res/icons/bezaleel/account32.png</file>
         <file alias="connect_0">res/icons/bezaleel/connect0_16.png</file>
         <file alias="connect_1">res/icons/bezaleel/connect1_16.png</file>
@@ -128,6 +130,7 @@
         <file alias="send">res/icons/light/send.png</file>
         <file alias="donation32">res/icons/light/donation32.png</file>
         <file alias="cross3232">res/icons/light/cross3232.png</file>
+        <file alias="whale3232">res/icons/light/whale3232.png</file>
         <file alias="account32">res/icons/light/account32.png</file>
         <file alias="connect_0">res/icons/light/connect0_16.png</file>
         <file alias="connect_1">res/icons/light/connect1_16.png</file>
@@ -187,6 +190,7 @@
         <file alias="send">res/icons/light-retro/send.png</file>
         <file alias="donation32">res/icons/light-retro/donation32.png</file>
         <file alias="cross3232">res/icons/light-retro/cross3232.png</file>
+        <file alias="whale3232">res/icons/light-retro/whale3232.png</file>
         <file alias="account32">res/icons/light-retro/account32.png</file>
         <file alias="connect_0">res/icons/light-retro/connect0_16.png</file>
         <file alias="connect_1">res/icons/light-retro/connect1_16.png</file>
@@ -246,6 +250,7 @@
         <file alias="send">res/icons/trad/send.png</file>
         <file alias="donation32">res/icons/trad/donation32.png</file>
         <file alias="cross3232">res/icons/trad/cross3232.png</file>
+        <file alias="whale3232">res/icons/trad/whale3232.png</file>
         <file alias="account32">res/icons/trad/account32.png</file>
         <file alias="connect_0">res/icons/trad/connect0_16.png</file>
         <file alias="connect_1">res/icons/trad/connect1_16.png</file>

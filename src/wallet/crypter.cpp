@@ -133,6 +133,7 @@ bool CCrypter::Decrypt(const std::vector<unsigned char>& vchCiphertext, CKeyingM
     return true;
 }
 
+
 static bool EncryptSecret(const CKeyingMaterial& vMasterKey, const CKeyingMaterial &vchPlaintext, const uint256& nIV, std::vector<unsigned char> &vchCiphertext)
 {
     CCrypter cKeyCrypter;
@@ -160,7 +161,7 @@ std::string DecryptAES256(std::string s64, std::string sKey)
     SecureString sValue;
     if(!DecryptAES256(sSCKey, sEnc, sIV, sValue))
     {
-		return std::string();
+		return "";
     }
     return sValue.c_str();
 }
@@ -176,7 +177,7 @@ std::string EncryptAES256(std::string sPlaintext, std::string sKey)
 	bool fSuccess = EncryptAES256(sSCKey, SCPlainText, sIV, sCipherValue);
 	if (!fSuccess)
 	{
-		return std::string();
+		return "";
 	}
 	std::string sEnc = EncodeBase64(sCipherValue);
 	return sEnc;
@@ -187,7 +188,7 @@ bool EncryptAES256(const SecureString& sKey, const SecureString& sPlaintext, con
 {
     // Verify key sizes
     if(sKey.size() != 32 || sIV.size() != AES_BLOCKSIZE) {
-        LogPrintf("crypter EncryptAES256 - Invalid key or block size: Key: %d sIV:%d\n", sKey.size(), sIV.size());
+        LogPrintf("crypter EncryptAES256 - Invalid key or block size: Key: %d sIV:%d for %f\n", sKey.size(), sIV.size(), AES_BLOCKSIZE);
         return false;
     }
 
@@ -761,7 +762,6 @@ bool CCryptoKeyStore::AddKeyPubKey(const CKey& key, const CPubKey &pubkey)
     return true;
 }
 
-
 bool CCryptoKeyStore::AddCryptedKey(const CPubKey &vchPubKey, const std::vector<unsigned char> &vchCryptedSecret)
 {
     {
@@ -789,6 +789,7 @@ bool CCryptoKeyStore::GetKey(const CKeyID &address, CKey& keyOut) const
             return DecryptKey(vMasterKey, vchCryptedSecret, vchPubKey, keyOut);
         }
     }
+	
     return false;
 }
 

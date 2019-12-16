@@ -24,6 +24,7 @@
 #include "primitives/transaction.h"
 #include "random.h"
 #include "tinyformat.h"
+#include "txdb.h"
 #include "txmempool.h"
 #include "ui_interface.h"
 #include "util.h"
@@ -37,17 +38,23 @@
 #include "instantx.h"
 #include "masternode-payments.h"
 #include "masternode-sync.h"
-#include "masternodeman.h"
+#include "masternode-meta.h"
 #ifdef ENABLE_WALLET
 #include "privatesend-client.h"
 #endif // ENABLE_WALLET
 #include "privatesend-server.h"
 
 #include "evo/deterministicmns.h"
+#include "evo/mnauth.h"
 #include "evo/simplifiedmns.h"
-#include "llmq/quorums_commitment.h"
-#include "llmq/quorums_dummydkg.h"
 #include "llmq/quorums_blockprocessor.h"
+#include "llmq/quorums_commitment.h"
+#include "llmq/quorums_chainlocks.h"
+#include "llmq/quorums_dkgsessionmgr.h"
+#include "llmq/quorums_init.h"
+#include "llmq/quorums_instantsend.h"
+#include "llmq/quorums_signing.h"
+#include "llmq/quorums_signing_shares.h"
 
 #include <boost/thread.hpp>
 
@@ -71,15 +78,26 @@ struct COrphanTx {
     CTransactionRef tx;
     NodeId fromPeer;
     int64_t nTimeExpire;
+    size_t nTxSize;
 };
-std::map<uint256, COrphanTx> mapOrphanTransactions GUARDED_BY(cs_main);
-std::map<COutPoint, std::set<std::map<uint256, COrphanTx>::iterator, IteratorComparator>> mapOrphanTransactionsByPrev GUARDED_BY(cs_main);
-void EraseOrphansFor(NodeId peer) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
+static CCriticalSection g_cs_orphans;
+std::map<uint256, COrphanTx> mapOrphanTransactions GUARDED_BY(g_cs_orphans);
+std::map<COutPoint, std::set<std::map<uint256, COrphanTx>::iterator, IteratorComparator>> mapOrphanTransactionsByPrev GUARDED_BY(g_cs_orphans);
+size_t nMapOrphanTransactionsSize = 0;
+void EraseOrphansFor(NodeId peer);
 
-static size_t vExtraTxnForCompactIt = 0;
-static std::vector<std::pair<uint256, CTransactionRef>> vExtraTxnForCompact GUARDED_BY(cs_main);
+static size_t vExtraTxnForCompactIt GUARDED_BY(g_cs_orphans) = 0;
+static std::vector<std::pair<uint256, CTransactionRef>> vExtraTxnForCompact GUARDED_BY(g_cs_orphans);
 
 static const uint64_t RANDOMIZER_ID_ADDRESS_RELAY = 0x3cac0035b5866b90ULL; // SHA256("main address relay")[0:8]
+
+/// Age after which a stale block will no longer be served if requested as
+/// protection against fingerprinting. Set to one month, denominated in seconds.
+static const int STALE_RELAY_AGE_LIMIT = 30 * 24 * 60 * 60;
+
+/// Age after which a block is considered historical for purposes of rate
+/// limiting block relay. Set to one week, denominated in seconds.
+static const int HISTORICAL_BLOCK_AGE = 7 * 24 * 60 * 60;
 
 // Internal stuff
 namespace {
@@ -135,6 +153,13 @@ namespace {
 
     /** Number of peers from which we're downloading blocks. */
     int nPeersWithValidatedDownloads = 0;
+
+    /* This comment is here to force a merge conflict when bitcoin#11560 is backported
+	 * It introduces this member as int64_t while bitcoin#11824 changes it to atomic<int64_t>.
+	 * bitcoin#11824 is partially backported already, which means you'll have to take the atomic
+	 * version when you encounter this merge conflict!
+    std::atomic<int64_t> g_last_tip_update(0);
+    */
 
     /** Relay map, protected by cs_main. */
     typedef std::map<uint256, CTransactionRef> MapRelay;
@@ -265,8 +290,15 @@ void PushNodeVersion(CNode *pnode, CConnman& connman, int64_t nTime)
     CAddress addrYou = (addr.IsRoutable() && !IsProxy(addr) ? addr : CAddress(CService(), addr.nServices));
     CAddress addrMe = CAddress(CService(), nLocalNodeServices);
 
+    uint256 mnauthChallenge;
+    GetRandBytes(mnauthChallenge.begin(), mnauthChallenge.size());
+    {
+        LOCK(pnode->cs_mnauth);
+        pnode->sentMNAuthChallenge = mnauthChallenge;
+    }
+
     connman.PushMessage(pnode, CNetMsgMaker(INIT_PROTO_VERSION).Make(NetMsgType::VERSION, PROTOCOL_VERSION, (uint64_t)nLocalNodeServices, nTime, addrYou, addrMe,
-            nonce, strSubVersion, nNodeStartingHeight, ::fRelayTxes));
+            nonce, strSubVersion, nNodeStartingHeight, ::fRelayTxes, mnauthChallenge));
 
     if (fLogIPs)
 	{
@@ -605,7 +637,7 @@ void UnregisterNodeSignals(CNodeSignals& nodeSignals)
 // mapOrphanTransactions
 //
 
-void AddToCompactExtraTransactions(const CTransactionRef& tx)
+void AddToCompactExtraTransactions(const CTransactionRef& tx) EXCLUSIVE_LOCKS_REQUIRED(g_cs_orphans)
 {
     size_t max_extra_txn = GetArg("-blockreconstructionextratxn", DEFAULT_BLOCK_RECONSTRUCTION_EXTRA_TXN);
     if (max_extra_txn <= 0)
@@ -616,7 +648,7 @@ void AddToCompactExtraTransactions(const CTransactionRef& tx)
     vExtraTxnForCompactIt = (vExtraTxnForCompactIt + 1) % max_extra_txn;
 }
 
-bool AddOrphanTx(const CTransactionRef& tx, NodeId peer) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
+bool AddOrphanTx(const CTransactionRef& tx, NodeId peer) EXCLUSIVE_LOCKS_REQUIRED(g_cs_orphans)
 {
     const uint256& hash = tx->GetHash();
     if (mapOrphanTransactions.count(hash))
@@ -636,7 +668,7 @@ bool AddOrphanTx(const CTransactionRef& tx, NodeId peer) EXCLUSIVE_LOCKS_REQUIRE
         return false;
     }
 
-    auto ret = mapOrphanTransactions.emplace(hash, COrphanTx{tx, peer, GetTime() + ORPHAN_TX_EXPIRE_TIME});
+    auto ret = mapOrphanTransactions.emplace(hash, COrphanTx{tx, peer, GetTime() + ORPHAN_TX_EXPIRE_TIME, sz});
     assert(ret.second);
     BOOST_FOREACH(const CTxIn& txin, tx->vin) {
         mapOrphanTransactionsByPrev[txin.prevout].insert(ret.first);
@@ -644,12 +676,14 @@ bool AddOrphanTx(const CTransactionRef& tx, NodeId peer) EXCLUSIVE_LOCKS_REQUIRE
 
     AddToCompactExtraTransactions(tx);
 
+    nMapOrphanTransactionsSize += sz;
+
     LogPrint("mempool", "stored orphan tx %s (mapsz %u outsz %u)\n", hash.ToString(),
              mapOrphanTransactions.size(), mapOrphanTransactionsByPrev.size());
     return true;
 }
 
-int static EraseOrphanTx(uint256 hash) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
+int static EraseOrphanTx(uint256 hash) EXCLUSIVE_LOCKS_REQUIRED(g_cs_orphans)
 {
     std::map<uint256, COrphanTx>::iterator it = mapOrphanTransactions.find(hash);
     if (it == mapOrphanTransactions.end())
@@ -663,12 +697,15 @@ int static EraseOrphanTx(uint256 hash) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
         if (itPrev->second.empty())
             mapOrphanTransactionsByPrev.erase(itPrev);
     }
+    assert(nMapOrphanTransactionsSize >= it->second.nTxSize);
+    nMapOrphanTransactionsSize -= it->second.nTxSize;
     mapOrphanTransactions.erase(it);
     return 1;
 }
 
 void EraseOrphansFor(NodeId peer)
 {
+    LOCK(g_cs_orphans);
     int nErased = 0;
     std::map<uint256, COrphanTx>::iterator iter = mapOrphanTransactions.begin();
     while (iter != mapOrphanTransactions.end())
@@ -683,8 +720,10 @@ void EraseOrphansFor(NodeId peer)
 }
 
 
-unsigned int LimitOrphanTxSize(unsigned int nMaxOrphans) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
+unsigned int LimitOrphanTxSize(unsigned int nMaxOrphansSize)
 {
+    LOCK(g_cs_orphans);
+
     unsigned int nEvicted = 0;
     static int64_t nNextSweep;
     int64_t nNow = GetTime();
@@ -706,7 +745,7 @@ unsigned int LimitOrphanTxSize(unsigned int nMaxOrphans) EXCLUSIVE_LOCKS_REQUIRE
         nNextSweep = nMinExpTime + ORPHAN_TX_EXPIRE_INTERVAL;
         if (nErased > 0) LogPrint("mempool", "Erased %d orphan tx due to expiration\n", nErased);
     }
-    while (mapOrphanTransactions.size() > nMaxOrphans)
+    while (!mapOrphanTransactions.empty() && nMapOrphanTransactionsSize > nMaxOrphansSize)
     {
         // Evict a random orphan:
         uint256 randomhash = GetRandHash();
@@ -739,7 +778,17 @@ void Misbehaving(NodeId pnode, int howmuch)
         LogPrintf("%s: %s peer=%d (%d -> %d)\n", __func__, state->name, pnode, state->nMisbehavior-howmuch, state->nMisbehavior);
 }
 
-
+// Requires cs_main.
+bool IsBanned(NodeId pnode)
+{
+    CNodeState *state = State(pnode);
+    if (state == NULL)
+        return false;
+    if (state->fShouldBan) {
+        return true;
+    }
+    return false;
+}
 
 
 
@@ -751,6 +800,19 @@ void Misbehaving(NodeId pnode, int howmuch)
 // blockchain -> download logic notification
 //
 
+// To prevent fingerprinting attacks, only send blocks/headers outside of the
+// active chain if they are no more than a month older (both in time, and in
+// best equivalent proof of work) than the best header chain we know about and
+// we fully-validated them at some point.
+static bool BlockRequestAllowed(const CBlockIndex* pindex, const Consensus::Params& consensusParams)
+{
+    AssertLockHeld(cs_main);
+    if (chainActive.Contains(pindex)) return true;
+    return pindex->IsValid(BLOCK_VALID_SCRIPTS) && (pindexBestHeader != nullptr) &&
+        (pindexBestHeader->GetBlockTime() - pindex->GetBlockTime() < STALE_RELAY_AGE_LIMIT) &&
+        (GetBlockProofEquivalentTime(*pindexBestHeader, *pindex, *pindexBestHeader, consensusParams) < STALE_RELAY_AGE_LIMIT);
+}
+
 PeerLogicValidation::PeerLogicValidation(CConnman* connmanIn) : connman(connmanIn) {
     // Initialize global variables that cannot be constructed at startup.
     recentRejects.reset(new CRollingBloomFilter(120000, 0.000001));
@@ -760,7 +822,7 @@ void PeerLogicValidation::SyncTransaction(const CTransaction& tx, const CBlockIn
     if (nPosInBlock == CMainSignals::SYNC_TRANSACTION_NOT_IN_BLOCK)
         return;
 
-    LOCK(cs_main);
+    LOCK(g_cs_orphans);
 
     std::vector<uint256> vOrphanErase;
     // Which orphan pool entries must we evict?
@@ -784,6 +846,7 @@ void PeerLogicValidation::SyncTransaction(const CTransaction& tx, const CBlockIn
     }
 }
 
+// All of the following cache a recent block, and are protected by cs_most_recent_block
 static CCriticalSection cs_most_recent_block;
 static std::shared_ptr<const CBlock> most_recent_block;
 static std::shared_ptr<const CBlockHeaderAndShortTxIDs> most_recent_compact_block;
@@ -916,22 +979,33 @@ bool static AlreadyHave(const CInv& inv) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
                 recentRejects->reset();
             }
 
-            return recentRejects->contains(inv.hash) ||
+            {
+                LOCK(g_cs_orphans);
+                if (mapOrphanTransactions.count(inv.hash)) return true;
+            }
+
+            // When we receive an islock for a previously rejected transaction, we have to
+            // drop the first-seen tx (which such a locked transaction was conflicting with)
+            // and re-request the locked transaction (which did not make it into the mempool
+            // previously due to txn-mempool-conflict rule). This means that we must ignore
+            // recentRejects filter for such locked txes here.
+            return (recentRejects->contains(inv.hash) && !llmq::quorumInstantSendManager->IsLocked(inv.hash)) ||
                    mempool.exists(inv.hash) ||
-                   mapOrphanTransactions.count(inv.hash) ||
                    pcoinsTip->HaveCoinInCache(COutPoint(inv.hash, 0)) || // Best effort: only try output 0 and 1
-                   pcoinsTip->HaveCoinInCache(COutPoint(inv.hash, 1));
+                   pcoinsTip->HaveCoinInCache(COutPoint(inv.hash, 1)) ||
+                   (fTxIndex && pblocktree->HasTxIndex(inv.hash));
         }
 
     case MSG_BLOCK:
         return mapBlockIndex.count(inv.hash);
+
 
     /* 
         Biblepay Related Inventory Messages
 
         --
 
-        We shouldn't update the sync times for each of the messages when we already have it. 
+        We shouldn't update the sync times for each of the messages when we already have it.
         We're going to be asking many nodes upfront for the full inventory list, so we'll get duplicates of these.
         We want to only update the time on new hits, so that we can time out appropriately if needed.
     */
@@ -947,21 +1021,6 @@ bool static AlreadyHave(const CInv& inv) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
             return sporkManager.GetSporkByHash(inv.hash, spork);
         }
 
-    case MSG_MASTERNODE_PAYMENT_VOTE:
-        return mnpayments.mapMasternodePaymentVotes.count(inv.hash);
-
-    case MSG_MASTERNODE_PAYMENT_BLOCK:
-        {
-            BlockMap::iterator mi = mapBlockIndex.find(inv.hash);
-            return mi != mapBlockIndex.end() && mnpayments.mapMasternodeBlocks.find(mi->second->nHeight) != mnpayments.mapMasternodeBlocks.end();
-        }
-
-    case MSG_MASTERNODE_ANNOUNCE:
-        return mnodeman.mapSeenMasternodeBroadcast.count(inv.hash) && !mnodeman.IsMnbRecoveryRequested(inv.hash);
-
-    case MSG_MASTERNODE_PING:
-        return mnodeman.mapSeenMasternodePing.count(inv.hash);
-
     case MSG_DSTX: {
         return static_cast<bool>(CPrivateSend::GetDSTX(inv.hash));
     }
@@ -970,15 +1029,19 @@ bool static AlreadyHave(const CInv& inv) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
     case MSG_GOVERNANCE_OBJECT_VOTE:
         return ! governance.ConfirmInventoryRequest(inv);
 
-    case MSG_MASTERNODE_VERIFY:
-        return mnodeman.mapSeenMasternodeVerification.count(inv.hash);
-
     case MSG_QUORUM_FINAL_COMMITMENT:
         return llmq::quorumBlockProcessor->HasMinableCommitment(inv.hash);
-    case MSG_QUORUM_DUMMY_COMMITMENT:
-        return llmq::quorumDummyDKG->HasDummyCommitment(inv.hash);
-    case MSG_QUORUM_DUMMY_CONTRIBUTION:
-        return llmq::quorumDummyDKG->HasDummyContribution(inv.hash);
+    case MSG_QUORUM_CONTRIB:
+    case MSG_QUORUM_COMPLAINT:
+    case MSG_QUORUM_JUSTIFICATION:
+    case MSG_QUORUM_PREMATURE_COMMITMENT:
+        return llmq::quorumDKGSessionManager->AlreadyHave(inv);
+    case MSG_QUORUM_RECOVERED_SIG:
+        return llmq::quorumSigningManager->AlreadyHave(inv);
+    case MSG_CLSIG:
+        return llmq::chainLocksHandler->AlreadyHave(inv);
+    case MSG_ISLOCK:
+        return llmq::quorumInstantSendManager->AlreadyHave(inv);
     }
 
     // Don't know what it is, just say we already got one
@@ -1021,324 +1084,317 @@ static void RelayAddress(const CAddress& addr, bool fReachable, CConnman& connma
     connman.ForEachNodeThen(std::move(sortfunc), std::move(pushfunc));
 }
 
+void static ProcessGetBlockData(CNode* pfrom, const Consensus::Params& consensusParams, const CInv& inv, CConnman& connman, const std::atomic<bool>& interruptMsgProc)
+{
+    bool send = false;
+    std::shared_ptr<const CBlock> a_recent_block;
+    std::shared_ptr<const CBlockHeaderAndShortTxIDs> a_recent_compact_block;
+    {
+        LOCK(cs_most_recent_block);
+        a_recent_block = most_recent_block;
+        a_recent_compact_block = most_recent_compact_block;
+    }
+
+    bool need_activate_chain = false;
+    {
+        LOCK(cs_main);
+        BlockMap::iterator mi = mapBlockIndex.find(inv.hash);
+        if (mi != mapBlockIndex.end())
+        {
+            if (mi->second->nChainTx && !mi->second->IsValid(BLOCK_VALID_SCRIPTS) &&
+                    mi->second->IsValid(BLOCK_VALID_TREE)) {
+                // If we have the block and all of its parents, but have not yet validated it,
+                // we might be in the middle of connecting it (ie in the unlock of cs_main
+                // before ActivateBestChain but after AcceptBlock).
+                // In this case, we need to run ActivateBestChain prior to checking the relay
+                // conditions below.
+                need_activate_chain = true;
+            }
+        }
+    } // release cs_main before calling ActivateBestChain
+    if (need_activate_chain) {
+        CValidationState dummy;
+        ActivateBestChain(dummy, Params(), a_recent_block);
+    }
+
+    LOCK(cs_main);
+    BlockMap::iterator mi = mapBlockIndex.find(inv.hash);
+    if (mi != mapBlockIndex.end()) {
+        send = BlockRequestAllowed(mi->second, consensusParams);
+        if (!send) {
+            LogPrintf("%s: ignoring request from peer=%i for old block that isn't in the main chain\n", __func__, pfrom->GetId());
+        }
+    }
+    const CNetMsgMaker msgMaker(pfrom->GetSendVersion());
+    // disconnect node in case we have reached the outbound limit for serving historical blocks
+    // never disconnect whitelisted nodes
+    if (send && connman.OutboundTargetReached(true) && ( ((pindexBestHeader != NULL) && (pindexBestHeader->GetBlockTime() - mi->second->GetBlockTime() > HISTORICAL_BLOCK_AGE)) || inv.type == MSG_FILTERED_BLOCK) && !pfrom->fWhitelisted)
+    {
+        LogPrint("net", "historical block serving limit reached, disconnect peer=%d\n", pfrom->GetId());
+
+        //disconnect node
+        pfrom->fDisconnect = true;
+        send = false;
+    }
+    // Pruned nodes may have deleted the block, so check whether
+    // it's available before trying to send.
+    if (send && (mi->second->nStatus & BLOCK_HAVE_DATA))
+    {
+        std::shared_ptr<const CBlock> pblock;
+        if (a_recent_block && a_recent_block->GetHash() == (*mi).second->GetBlockHash()) {
+            pblock = a_recent_block;
+        } else {
+            // Send block from disk
+            std::shared_ptr<CBlock> pblockRead = std::make_shared<CBlock>();
+            if (!ReadBlockFromDisk(*pblockRead, (*mi).second, consensusParams))
+                assert(!"cannot load block from disk");
+            pblock = pblockRead;
+        }
+        if (inv.type == MSG_BLOCK)
+            connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::BLOCK, *pblock));
+        else if (inv.type == MSG_FILTERED_BLOCK)
+        {
+            bool sendMerkleBlock = false;
+            CMerkleBlock merkleBlock;
+            {
+                LOCK(pfrom->cs_filter);
+                if (pfrom->pfilter) {
+                    sendMerkleBlock = true;
+                    merkleBlock = CMerkleBlock(*pblock, *pfrom->pfilter);
+                }
+            }
+            if (sendMerkleBlock) {
+                connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::MERKLEBLOCK, merkleBlock));
+                // CMerkleBlock just contains hashes, so also push any transactions in the block the client did not see
+                // This avoids hurting performance by pointlessly requiring a round-trip
+                // Note that there is currently no way for a node to request any single transactions we didn't send here -
+                // they must either disconnect and retry or request the full block.
+                // Thus, the protocol spec specified allows for us to provide duplicate txn here,
+                // however we MUST always provide at least what the remote peer needs
+                typedef std::pair<unsigned int, uint256> PairType;
+                BOOST_FOREACH(PairType& pair, merkleBlock.vMatchedTxn)
+                    connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::TX, *pblock->vtx[pair.first]));
+            }
+            // else
+                // no response
+        }
+        else if (inv.type == MSG_CMPCT_BLOCK)
+        {
+            // If a peer is asking for old blocks, we're almost guaranteed
+            // they won't have a useful mempool to match against a compact block,
+            // and we don't feel like constructing the object for them, so
+            // instead we respond with the full, non-compact block.
+            if (CanDirectFetch(consensusParams) && mi->second->nHeight >= chainActive.Height() - MAX_CMPCTBLOCK_DEPTH) {
+                if (a_recent_compact_block && a_recent_compact_block->header.GetHash() == mi->second->GetBlockHash()) {
+                    connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::CMPCTBLOCK, *a_recent_compact_block));
+                } else {
+                    CBlockHeaderAndShortTxIDs cmpctblock(*pblock);
+                    connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::CMPCTBLOCK, cmpctblock));
+                }
+            } else {
+                connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::BLOCK, *pblock));
+            }
+        }
+
+        // Trigger the peer node to send a getblocks request for the next batch of inventory
+        if (inv.hash == pfrom->hashContinue)
+        {
+            // Bypass PushInventory, this must send even if redundant,
+            // and we want it right after the last block so they don't
+            // wait for other stuff first.
+            std::vector<CInv> vInv;
+            vInv.push_back(CInv(MSG_BLOCK, chainActive.Tip()->GetBlockHash()));
+            connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::INV, vInv));
+            pfrom->hashContinue.SetNull();
+        }
+    }
+}
+
 void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParams, CConnman& connman, const std::atomic<bool>& interruptMsgProc)
 {
+    AssertLockNotHeld(cs_main);
+
     std::deque<CInv>::iterator it = pfrom->vRecvGetData.begin();
     std::vector<CInv> vNotFound;
     const CNetMsgMaker msgMaker(pfrom->GetSendVersion());
-    LOCK(cs_main);
+    {
+        LOCK(cs_main);
 
-    while (it != pfrom->vRecvGetData.end()) {
-        // Don't bother if send buffer is too full to respond anyway
-        if (pfrom->fPauseSend)
-            break;
-
-        const CInv &inv = *it;
-		if (fDebugSpam)
-			LogPrint("net", "ProcessGetData -- inv = %s\n", inv.ToString());
-        {
+        while (it != pfrom->vRecvGetData.end() && it->IsKnownType()) {
             if (interruptMsgProc)
                 return;
+            // Don't bother if send buffer is too full to respond anyway
+            if (pfrom->fPauseSend)
+                break;
 
+            const CInv &inv = *it;
+            if (inv.type == MSG_BLOCK || inv.type == MSG_FILTERED_BLOCK || inv.type == MSG_CMPCT_BLOCK) {
+                break;
+            }
             it++;
 
-            if (inv.type == MSG_BLOCK || inv.type == MSG_FILTERED_BLOCK || inv.type == MSG_CMPCT_BLOCK)
-            {
-                bool send = false;
-                BlockMap::iterator mi = mapBlockIndex.find(inv.hash);
-                if (mi != mapBlockIndex.end())
-                {
-                    if (mi->second->nChainTx && !mi->second->IsValid(BLOCK_VALID_SCRIPTS) &&
-                            mi->second->IsValid(BLOCK_VALID_TREE)) {
-                        // If we have the block and all of its parents, but have not yet validated it,
-                        // we might be in the middle of connecting it (ie in the unlock of cs_main
-                        // before ActivateBestChain but after AcceptBlock).
-                        // In this case, we need to run ActivateBestChain prior to checking the relay
-                        // conditions below.
-                        std::shared_ptr<const CBlock> a_recent_block;
-                        {
-                            LOCK(cs_most_recent_block);
-                            a_recent_block = most_recent_block;
-                        }
-                        CValidationState dummy;
-                        ActivateBestChain(dummy, Params(), a_recent_block);
-                    }
-                    if (chainActive.Contains(mi->second)) {
-                        send = true;
-                    } else {
-                        static const int nOneMonth = 30 * 24 * 60 * 60;
-                        // To prevent fingerprinting attacks, only send blocks outside of the active
-                        // chain if they are valid, and no more than a month older (both in time, and in
-                        // best equivalent proof of work) than the best header chain we know about.
-                        send = mi->second->IsValid(BLOCK_VALID_SCRIPTS) && (pindexBestHeader != NULL) &&
-                            (pindexBestHeader->GetBlockTime() - mi->second->GetBlockTime() < nOneMonth) &&
-                            (GetBlockProofEquivalentTime(*pindexBestHeader, *mi->second, *pindexBestHeader, consensusParams) < nOneMonth);
-                        if (!send) {
-                            LogPrintf("%s: ignoring request from peer=%i for old block that isn't in the main chain\n", __func__, pfrom->GetId());
-                        }
-                    }
-                }
-                // disconnect node in case we have reached the outbound limit for serving historical blocks
-                // never disconnect whitelisted nodes
-                static const int nOneWeek = 7 * 24 * 60 * 60; // assume > 1 week = historical
-                if (send && connman.OutboundTargetReached(true) && ( ((pindexBestHeader != NULL) && (pindexBestHeader->GetBlockTime() - mi->second->GetBlockTime() > nOneWeek)) || inv.type == MSG_FILTERED_BLOCK) && !pfrom->fWhitelisted)
-                {
-                    LogPrint("net", "historical block serving limit reached, disconnect peer=%d\n", pfrom->GetId());
-
-                    //disconnect node
-                    pfrom->fDisconnect = true;
-                    send = false;
-                }
-                // Pruned nodes may have deleted the block, so check whether
-                // it's available before trying to send.
-                if (send && (mi->second->nStatus & BLOCK_HAVE_DATA)) {
-                    // Send block from disk
-                    CBlock block;
-                    if (!ReadBlockFromDisk(block, (*mi).second, consensusParams))
-                        assert(!"cannot load block from disk");
-                    if (inv.type == MSG_BLOCK)
-                        connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::BLOCK, block));
-                    else if (inv.type == MSG_FILTERED_BLOCK)
-                    {
-                        bool sendMerkleBlock = false;
-                        CMerkleBlock merkleBlock;
-                        {
-                            LOCK(pfrom->cs_filter);
-                            if (pfrom->pfilter) {
-                                sendMerkleBlock = true;
-                                merkleBlock = CMerkleBlock(block, *pfrom->pfilter);
-                            }
-                        }
-                        if (sendMerkleBlock) {
-                            connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::MERKLEBLOCK, merkleBlock));
-                            // CMerkleBlock just contains hashes, so also push any transactions in the block the client did not see
-                            // This avoids hurting performance by pointlessly requiring a round-trip
-                            // Note that there is currently no way for a node to request any single transactions we didn't send here -
-                            // they must either disconnect and retry or request the full block.
-                            // Thus, the protocol spec specified allows for us to provide duplicate txn here,
-                            // however we MUST always provide at least what the remote peer needs
-                            typedef std::pair<unsigned int, uint256> PairType;
-                            BOOST_FOREACH(PairType& pair, merkleBlock.vMatchedTxn)
-                                connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::TX, *block.vtx[pair.first]));
-                        }
-                        // else
-                            // no response
-                    }
-                    else if (inv.type == MSG_CMPCT_BLOCK)
-                    {
-                        // If a peer is asking for old blocks, we're almost guaranteed
-                        // they won't have a useful mempool to match against a compact block,
-                        // and we don't feel like constructing the object for them, so
-                        // instead we respond with the full, non-compact block.
-                         if (CanDirectFetch(consensusParams) && mi->second->nHeight >= chainActive.Height() - MAX_CMPCTBLOCK_DEPTH) {
-                            CBlockHeaderAndShortTxIDs cmpctblock(block);
-                            connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::CMPCTBLOCK, cmpctblock));
-                        } else
-                            connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::BLOCK, block));
-                    }
-
-                    // Trigger the peer node to send a getblocks request for the next batch of inventory
-                    if (inv.hash == pfrom->hashContinue)
-                    {
-                        // Bypass PushInventory, this must send even if redundant,
-                        // and we want it right after the last block so they don't
-                        // wait for other stuff first.
-                        std::vector<CInv> vInv;
-                        vInv.push_back(CInv(MSG_BLOCK, chainActive.Tip()->GetBlockHash()));
-                        connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::INV, vInv));
-                        pfrom->hashContinue.SetNull();
+            // Send stream from relay memory
+            bool push = false;
+            // Only serve MSG_TX from mapRelay.
+            // Otherwise we may send out a normal TX instead of a IX
+            if (inv.type == MSG_TX) {
+                auto mi = mapRelay.find(inv.hash);
+                if (mi != mapRelay.end()) {
+                    connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::TX, *mi->second));
+                    push = true;
+                } else if (pfrom->timeLastMempoolReq) {
+                    auto txinfo = mempool.info(inv.hash);
+                    // To protect privacy, do not answer getdata using the mempool when
+                    // that TX couldn't have been INVed in reply to a MEMPOOL request.
+                    if (txinfo.tx && txinfo.nTime <= pfrom->timeLastMempoolReq) {
+                        connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::TX, *txinfo.tx));
+                        push = true;
                     }
                 }
             }
-            else if (inv.IsKnownType())
-            {
-                // Send stream from relay memory
-                bool push = false;
-                // Only serve MSG_TX from mapRelay.
-                // Otherwise we may send out a normal TX instead of a IX
-                if (inv.type == MSG_TX) {
-                    auto mi = mapRelay.find(inv.hash);
-                    if (mi != mapRelay.end()) {
-                        connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::TX, *mi->second));
-                        push = true;
-                    } else if (pfrom->timeLastMempoolReq) {
-                        auto txinfo = mempool.info(inv.hash);
-                        // To protect privacy, do not answer getdata using the mempool when
-                        // that TX couldn't have been INVed in reply to a MEMPOOL request.
-                        if (txinfo.tx && txinfo.nTime <= pfrom->timeLastMempoolReq) {
-                            connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::TX, *txinfo.tx));
-                            push = true;
-                        }
-                    }
+
+            if (!push && inv.type == MSG_TXLOCK_REQUEST) {
+                CTxLockRequest txLockRequest;
+                if(instantsend.GetTxLockRequest(inv.hash, txLockRequest)) {
+                    connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::TXLOCKREQUEST, txLockRequest));
+                    push = true;
                 }
-
-                if (!push && inv.type == MSG_TXLOCK_REQUEST) {
-                    CTxLockRequest txLockRequest;
-                    if(instantsend.GetTxLockRequest(inv.hash, txLockRequest)) {
-                        connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::TXLOCKREQUEST, txLockRequest));
-                        push = true;
-                    }
-                }
-
-                if (!push && inv.type == MSG_TXLOCK_VOTE) {
-                    CTxLockVote vote;
-                    if(instantsend.GetTxLockVote(inv.hash, vote)) {
-                        connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::TXLOCKVOTE, vote));
-                        push = true;
-                    }
-                }
-
-                if (!push && inv.type == MSG_SPORK) {
-                    CSporkMessage spork;
-                    if(sporkManager.GetSporkByHash(inv.hash, spork)) {
-                        connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::SPORK, spork));
-                        push = true;
-                    }
-                }
-
-                if (!push && inv.type == MSG_MASTERNODE_PAYMENT_VOTE) {
-                    if (!deterministicMNManager->IsDeterministicMNsSporkActive()) {
-                        if (mnpayments.HasVerifiedPaymentVote(inv.hash)) {
-                            connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::MASTERNODEPAYMENTVOTE, mnpayments.mapMasternodePaymentVotes[inv.hash]));
-                            push = true;
-                        }
-                    }
-                }
-
-                if (!push && inv.type == MSG_MASTERNODE_PAYMENT_BLOCK) {
-                    if (!deterministicMNManager->IsDeterministicMNsSporkActive()) {
-                        BlockMap::iterator mi = mapBlockIndex.find(inv.hash);
-                        LOCK(cs_mapMasternodeBlocks);
-                        if (mi != mapBlockIndex.end() && mnpayments.mapMasternodeBlocks.count(mi->second->nHeight)) {
-                            BOOST_FOREACH(CMasternodePayee& payee, mnpayments.mapMasternodeBlocks[mi->second->nHeight].vecPayees) {
-                                std::vector<uint256> vecVoteHashes = payee.GetVoteHashes();
-                                BOOST_FOREACH(uint256& hash, vecVoteHashes) {
-                                    if(mnpayments.HasVerifiedPaymentVote(hash)) {
-                                        connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::MASTERNODEPAYMENTVOTE, mnpayments.mapMasternodePaymentVotes[hash]));
-                                    }
-                                }
-                            }
-                            push = true;
-                        }
-                    }
-                }
-
-                if (!push && inv.type == MSG_MASTERNODE_ANNOUNCE) {
-                    if (!deterministicMNManager->IsDeterministicMNsSporkActive()) {
-                        if (mnodeman.mapSeenMasternodeBroadcast.count(inv.hash)) {
-                            connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::MNANNOUNCE, mnodeman.mapSeenMasternodeBroadcast[inv.hash].second));
-                            push = true;
-                        }
-                    }
-                }
-
-                if (!push && inv.type == MSG_MASTERNODE_PING) {
-                    if (!deterministicMNManager->IsDeterministicMNsSporkActive()) {
-                        if (mnodeman.mapSeenMasternodePing.count(inv.hash)) {
-                            connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::MNPING, mnodeman.mapSeenMasternodePing[inv.hash]));
-                            push = true;
-                        }
-                    }
-                }
-
-                if (!push && inv.type == MSG_DSTX) {
-                    CPrivateSendBroadcastTx dstx = CPrivateSend::GetDSTX(inv.hash);
-                    if(dstx) {
-                        connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::DSTX, dstx));
-                        push = true;
-                    }
-                }
-
-                if (!push && inv.type == MSG_GOVERNANCE_OBJECT) 
-				{
-					if (fDebugSpam)
-						LogPrint("net", "ProcessGetData -- MSG_GOVERNANCE_OBJECT: inv = %s\n", inv.ToString());
-                    CDataStream ss(SER_NETWORK, pfrom->GetSendVersion());
-                    bool topush = false;
-                    {
-                        if(governance.HaveObjectForHash(inv.hash)) {
-                            ss.reserve(1000);
-                            if(governance.SerializeObjectForHash(inv.hash, ss)) {
-                                topush = true;
-                            }
-                        }
-                    }
-					if (fDebugSpam)
-						LogPrint("net", "ProcessGetData -- MSG_GOVERNANCE_OBJECT: topush = %d, inv = %s\n", topush, inv.ToString());
-                    if(topush) {
-                        connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::MNGOVERNANCEOBJECT, ss));
-                        push = true;
-                    }
-                }
-
-                if (!push && inv.type == MSG_GOVERNANCE_OBJECT_VOTE) {
-                    CDataStream ss(SER_NETWORK, pfrom->GetSendVersion());
-                    bool topush = false;
-                    {
-						// R Andrews - ToDo:  Verify that we don't push invalid votes here:
-						if (governance.HaveVoteForHash(inv.hash)) 
-						{
-							ss.reserve(1000);
-							if (governance.SerializeVoteForHash(inv.hash, ss)) 
-							{
-								topush = true;
-						    }
-                        }
-                    }
-                    if(topush) {
-                        if (fDebugSpam)
-							LogPrint("net", "ProcessGetData -- pushing: inv = %s\n", inv.ToString());
-                        connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::MNGOVERNANCEOBJECTVOTE, ss));
-                        push = true;
-                    }
-                }
-
-                if (!push && inv.type == MSG_MASTERNODE_VERIFY) {
-                    if(mnodeman.mapSeenMasternodeVerification.count(inv.hash)) {
-                        connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::MNVERIFY, mnodeman.mapSeenMasternodeVerification[inv.hash]));
-                        push = true;
-                    }
-                }
-
-                if (!push && (inv.type == MSG_QUORUM_FINAL_COMMITMENT)) {
-                    llmq::CFinalCommitment o;
-                    if (llmq::quorumBlockProcessor->GetMinableCommitmentByHash(inv.hash, o)) {
-                        connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::QFCOMMITMENT, o));
-                        push = true;
-                    }
-                }
-
-                if (!push && (inv.type == MSG_QUORUM_DUMMY_CONTRIBUTION)) {
-                    llmq::CDummyContribution o;
-                    if (llmq::quorumDummyDKG->GetDummyContribution(inv.hash, o)) {
-                        connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::QCONTRIB, o));
-                        push = true;
-                    }
-                }
-
-                if (!push && (inv.type == MSG_QUORUM_DUMMY_COMMITMENT)) {
-                    if (!consensusParams.fLLMQAllowDummyCommitments) {
-                        Misbehaving(pfrom->id, 100);
-                        pfrom->fDisconnect = true;
-                        return;
-                    }
-
-                    llmq::CDummyCommitment o;
-                    if (llmq::quorumDummyDKG->GetDummyCommitment(inv.hash, o)) {
-                        connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::QDCOMMITMENT, o));
-                        push = true;
-                    }
-                }
-
-                if (!push)
-                    vNotFound.push_back(inv);
             }
+
+            if (!push && inv.type == MSG_TXLOCK_VOTE) {
+                CTxLockVote vote;
+                if(instantsend.GetTxLockVote(inv.hash, vote)) {
+                    connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::TXLOCKVOTE, vote));
+                    push = true;
+                }
+            }
+
+            if (!push && inv.type == MSG_SPORK) {
+                CSporkMessage spork;
+                if(sporkManager.GetSporkByHash(inv.hash, spork)) {
+                    connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::SPORK, spork));
+                    push = true;
+                }
+            }
+
+            if (!push && inv.type == MSG_DSTX) {
+                CPrivateSendBroadcastTx dstx = CPrivateSend::GetDSTX(inv.hash);
+                if(dstx) {
+                    connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::DSTX, dstx));
+                    push = true;
+                }
+            }
+
+            if (!push && inv.type == MSG_GOVERNANCE_OBJECT) {
+                LogPrint("net", "ProcessGetData -- MSG_GOVERNANCE_OBJECT: inv = %s\n", inv.ToString());
+                CDataStream ss(SER_NETWORK, pfrom->GetSendVersion());
+                bool topush = false;
+                {
+                    if(governance.HaveObjectForHash(inv.hash)) {
+                        ss.reserve(1000);
+                        if(governance.SerializeObjectForHash(inv.hash, ss)) {
+                            topush = true;
+                        }
+                    }
+                }
+                LogPrint("net", "ProcessGetData -- MSG_GOVERNANCE_OBJECT: topush = %d, inv = %s\n", topush, inv.ToString());
+                if(topush) {
+                    connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::MNGOVERNANCEOBJECT, ss));
+                    push = true;
+                }
+            }
+
+            if (!push && inv.type == MSG_GOVERNANCE_OBJECT_VOTE) {
+                CDataStream ss(SER_NETWORK, pfrom->GetSendVersion());
+                bool topush = false;
+                {
+                    if(governance.HaveVoteForHash(inv.hash)) {
+                        ss.reserve(1000);
+                        if(governance.SerializeVoteForHash(inv.hash, ss)) {
+                            topush = true;
+                        }
+                    }
+                }
+                if(topush) {
+                    LogPrint("net", "ProcessGetData -- pushing: inv = %s\n", inv.ToString());
+                    connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::MNGOVERNANCEOBJECTVOTE, ss));
+                    push = true;
+                }
+            }
+
+            if (!push && (inv.type == MSG_QUORUM_FINAL_COMMITMENT)) {
+                llmq::CFinalCommitment o;
+                if (llmq::quorumBlockProcessor->GetMinableCommitmentByHash(inv.hash, o)) {
+                    connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::QFCOMMITMENT, o));
+                    push = true;
+                }
+            }
+
+            if (!push && (inv.type == MSG_QUORUM_CONTRIB)) {
+                llmq::CDKGContribution o;
+                if (llmq::quorumDKGSessionManager->GetContribution(inv.hash, o)) {
+                    connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::QCONTRIB, o));
+                    push = true;
+                }
+            }
+            if (!push && (inv.type == MSG_QUORUM_COMPLAINT)) {
+                llmq::CDKGComplaint o;
+                if (llmq::quorumDKGSessionManager->GetComplaint(inv.hash, o)) {
+                    connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::QCOMPLAINT, o));
+                    push = true;
+                }
+            }
+            if (!push && (inv.type == MSG_QUORUM_JUSTIFICATION)) {
+                llmq::CDKGJustification o;
+                if (llmq::quorumDKGSessionManager->GetJustification(inv.hash, o)) {
+                    connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::QJUSTIFICATION, o));
+                    push = true;
+                }
+            }
+            if (!push && (inv.type == MSG_QUORUM_PREMATURE_COMMITMENT)) {
+                llmq::CDKGPrematureCommitment o;
+                if (llmq::quorumDKGSessionManager->GetPrematureCommitment(inv.hash, o)) {
+                    connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::QPCOMMITMENT, o));
+                    push = true;
+                }
+            }
+            if (!push && (inv.type == MSG_QUORUM_RECOVERED_SIG)) {
+                llmq::CRecoveredSig o;
+                if (llmq::quorumSigningManager->GetRecoveredSigForGetData(inv.hash, o)) {
+                    connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::QSIGREC, o));
+                    push = true;
+                }
+            }
+
+            if (!push && (inv.type == MSG_CLSIG)) {
+                llmq::CChainLockSig o;
+                if (llmq::chainLocksHandler->GetChainLockByHash(inv.hash, o)) {
+                    connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::CLSIG, o));
+                    push = true;
+                }
+            }
+
+            if (!push && (inv.type == MSG_ISLOCK)) {
+                llmq::CInstantSendLock o;
+                if (llmq::quorumInstantSendManager->GetInstantSendLockByHash(inv.hash, o)) {
+                    connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::ISLOCK, o));
+                    push = true;
+                }
+            }
+
+            if (!push)
+                vNotFound.push_back(inv);
 
             // Track requests for our stuff.
             GetMainSignals().Inventory(inv.hash);
+        }
+    } // release cs_main
 
-            if (inv.type == MSG_BLOCK || inv.type == MSG_FILTERED_BLOCK || inv.type == MSG_CMPCT_BLOCK)
-                break;
+    if (it != pfrom->vRecvGetData.end()) {
+        const CInv &inv = *it;
+        it++;
+        if (inv.type == MSG_BLOCK || inv.type == MSG_FILTERED_BLOCK || inv.type == MSG_CMPCT_BLOCK) {
+            ProcessGetBlockData(pfrom, consensusParams, inv, connman, interruptMsgProc);
         }
     }
 
@@ -1387,35 +1443,17 @@ double GetPeerVersion(std::string sVersion)
 	return dVersion;
 }
 	
-
 bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv, int64_t nTimeReceived, const CChainParams& chainparams, CConnman& connman, const std::atomic<bool>& interruptMsgProc)
 {
     if (fDebugSpam)
 		LogPrint("net", "received: %s (%u bytes) peer=%d\n", SanitizeString(strCommand), vRecv.size(), pfrom->id);
 
-	if (fNetworkMonitor)
-	{
-		mvNetworkMonitor[strCommand] += vRecv.size();
-	}
-
+	
     if (IsArgSet("-dropmessagestest") && GetRand(GetArg("-dropmessagestest", 0)) == 0)
     {
         LogPrintf("dropmessagestest DROPPING RECV MESSAGE\n");
         return true;
     }
-
-    // BEGIN TEMPORARY CODE
-    bool fDIP0003Active;
-    {
-        LOCK(cs_main);
-        fDIP0003Active = VersionBitsState(chainActive.Tip(), chainparams.GetConsensus(), Consensus::DEPLOYMENT_DIP0003, versionbitscache) == THRESHOLD_ACTIVE;
-    }
-    // TODO delete this in next release after v13
-    int nMinPeerProtoVersion = MIN_PEER_PROTO_VERSION;
-    if (fDIP0003Active) {
-        nMinPeerProtoVersion = MIN_PEER_PROTO_VERSION_DIP3;
-    }
-    // END TEMPORARY CODE
 
     if (!(pfrom->GetLocalServices() & NODE_BLOOM) &&
               (strCommand == NetMsgType::FILTERLOAD ||
@@ -1503,8 +1541,18 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             pfrom->fDisconnect = true;
             return false;
         }
-			
-	    if (nVersion == 10300)
+
+        if (nVersion < MIN_PEER_PROTO_VERSION)
+        {
+            // disconnect from peers older than this proto version
+            LogPrintf("peer=%d using obsolete version %i; disconnecting\n", pfrom->id, nVersion);
+            connman.PushMessage(pfrom, CNetMsgMaker(INIT_PROTO_VERSION).Make(NetMsgType::REJECT, strCommand, REJECT_OBSOLETE,
+                               strprintf("Version must be %d or greater", MIN_PEER_PROTO_VERSION)));
+            pfrom->fDisconnect = true;
+            return false;
+        }
+
+        if (nVersion == 10300)
             nVersion = 300;
         if (!vRecv.empty())
             vRecv >> addrFrom >> nNonce;
@@ -1518,29 +1566,23 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         if (!vRecv.empty())
             vRecv >> fRelay;
 
-		double nMinPeerProdVersion = GetSporkDouble("min_peer_prod_version", 0);
-		if (fProd && nMinPeerProdVersion > 1000 && nVersion < nMinPeerProdVersion)
-		{
-			if (fDebug)
-				LogPrintf("peer=%d using obsolete version %i; disconnecting\n", pfrom->id, nVersion);
-            connman.PushMessage(pfrom, CNetMsgMaker(INIT_PROTO_VERSION).Make(NetMsgType::REJECT, strCommand, REJECT_OBSOLETE,
-                               strprintf("Version must be %d or greater", nMinPeerProtoVersion)));
-            pfrom->fDisconnect = true;
-            return false;
+        if (!vRecv.empty()) {
+            LOCK(pfrom->cs_mnauth);
+            vRecv >> pfrom->receivedMNAuthChallenge;
         }
-
-        if ((fProd && nVersion < nMinPeerProtoVersion) || (!fProd && nVersion < MIN_PEER_TESTNET_PROTO_VERSION))
-        {
-            // disconnect from peers older than this proto version
-			if (fDebug)
-				LogPrintf("peer=%d using obsolete version %i; disconnecting\n", pfrom->id, nVersion);
-            connman.PushMessage(pfrom, CNetMsgMaker(INIT_PROTO_VERSION).Make(NetMsgType::REJECT, strCommand, REJECT_OBSOLETE,
-                               strprintf("Version must be %d or greater", nMinPeerProtoVersion)));
-            pfrom->fDisconnect = true;
-            return false;
-        }
-
         // Disconnect if we connected to ourself
+
+	    if ((nVersion < MIN_PEER_PROTO_VERSION_DIP3) || (!fProd && nVersion < MIN_PEER_TESTNET_PROTO_VERSION))
+        {
+			// disconnect from peers older than this proto version	            vRecv >> pfrom->receivedMNAuthChallenge;
+			if (fDebugSpam)	
+				LogPrintf("peer=%d using obsolete version %i; disconnecting\n", pfrom->id, nVersion);	
+            connman.PushMessage(pfrom, CNetMsgMaker(INIT_PROTO_VERSION).Make(NetMsgType::REJECT, strCommand, REJECT_OBSOLETE,	
+                               strprintf("Version must be %d or greater", MIN_PEER_PROTO_VERSION_DIP3)));	
+            pfrom->fDisconnect = true;	
+            return false;	
+        }	
+		
         if (pfrom->fInbound && !connman.CheckIncomingNonce(nNonce))
         {
             LogPrintf("connected to self at %s, disconnecting\n", pfrom->addr.ToString());
@@ -1588,7 +1630,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
 
 		// BIBLEPAY
 		double dPeerVersion = GetPeerVersion(pfrom->cleanSubVer);
-		if (!fProd && dPeerVersion < 1428 && dPeerVersion > 1000)
+		if (dPeerVersion < 1428 && !fProd && dPeerVersion > 1000)
 		{
 		    LogPrint("net", "Disconnecting unauthorized peer in TestNet using old version %f\r\n", (double)dPeerVersion);
 			Misbehaving(pfrom->GetId(), 1);
@@ -1596,15 +1638,6 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
 			return false;
 		}
 
-		double nMinPeerVersionProd = GetSporkDouble("min_peer_version", 1447);
-		if (fProd && dPeerVersion < nMinPeerVersionProd && dPeerVersion > 1000)
-		{
-		    LogPrint("net", "Disconnecting unauthorized peer in Prod using old version %f\r\n", (double)dPeerVersion);
-			Misbehaving(pfrom->GetId(), 1);
-        	pfrom->fDisconnect = true;
-			return false;
-		}
-		
 		int64_t nTimeDrift = std::abs(GetAdjustedTime() - nTime);
         if (nTimeDrift > (5 * 60))
         {
@@ -1695,17 +1728,6 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
     // At this point, the outgoing message serialization version can't change.
     const CNetMsgMaker msgMaker(pfrom->GetSendVersion());
 
-    // BEGIN TEMPORARY CODE
-    if (pfrom->nVersion < nMinPeerProtoVersion) {
-        // disconnect from peers with version < 70213 after DIP3 has activated through the BIP9 deployment
-        LogPrintf("peer=%d using obsolete version %i after DIP3 activation; disconnecting\n", pfrom->id, pfrom->GetSendVersion());
-        connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::REJECT, strCommand, REJECT_OBSOLETE,
-                strprintf("Version must be %d or greater", nMinPeerProtoVersion)));
-        pfrom->fDisconnect = true;
-        return false;
-    }
-    // END TEMPORARY CODE
-
     if (strCommand == NetMsgType::VERACK)
     {
         pfrom->SetRecvVersion(std::min(pfrom->nVersion.load(), PROTOCOL_VERSION));
@@ -1714,6 +1736,10 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             // Mark this node as currently connected, so we update its timestamp later.
             LOCK(cs_main);
             State(pfrom->GetId())->fCurrentlyConnected = true;
+        }
+
+        if (pfrom->nVersion >= LLMQS_PROTO_VERSION) {
+            CMNAuth::PushMNAUTH(pfrom, connman);
         }
 
         if (pfrom->nVersion >= SENDHEADERS_VERSION) {
@@ -1733,6 +1759,27 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             bool fAnnounceUsingCMPCTBLOCK = false;
             uint64_t nCMPCTBLOCKVersion = 1;
             connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::SENDCMPCT, fAnnounceUsingCMPCTBLOCK, nCMPCTBLOCKVersion));
+        }
+
+        if (pfrom->nVersion >= SENDDSQUEUE_PROTO_VERSION) {
+            // Tell our peer that he should send us PrivateSend queue messages
+            connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::SENDDSQUEUE, true));
+        } else {
+            // older nodes do not support SENDDSQUEUE and expect us to always send PrivateSend queue messages
+            // TODO we can remove this compatibility code in 0.15.0
+            pfrom->fSendDSQueue = true;
+        }
+
+        if (pfrom->nVersion >= LLMQS_PROTO_VERSION) {
+            // Tell our peer that we're interested in plain LLMQ recovered signatures.
+            // Otherwise the peer would only announce/send messages resulting from QRECSIG,
+            // e.g. InstantSend locks or ChainLocks. SPV nodes should not send this message
+            // as they are usually only interested in the higher level messages
+            connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::QSENDRECSIGS, true));
+        }
+
+        if (GetBoolArg("-watchquorums", llmq::DEFAULT_WATCH_QUORUMS)) {
+            connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::QWATCH));
         }
 
         pfrom->fSuccessfullyConnected = true;
@@ -1757,7 +1804,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         if (vAddr.size() > 1000)
         {
             LOCK(cs_main);
-            Misbehaving(pfrom->GetId(), 20);
+            Misbehaving(pfrom->GetId(), 23);
             return error("message addr size() = %u", vAddr.size());
         }
 
@@ -1813,6 +1860,21 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
     }
 
 
+    else if (strCommand == NetMsgType::SENDDSQUEUE)
+    {
+        bool b;
+        vRecv >> b;
+        pfrom->fSendDSQueue = b;
+    }
+
+
+    else if (strCommand == NetMsgType::QSENDRECSIGS) {
+        bool b;
+        vRecv >> b;
+        pfrom->fSendRecSigs = b;
+    }
+
+
     else if (strCommand == NetMsgType::INV)
     {
         std::vector<CInv> vInv;
@@ -1820,7 +1882,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         if (vInv.size() > MAX_INV_SZ)
         {
             LOCK(cs_main);
-            Misbehaving(pfrom->GetId(), 20);
+            Misbehaving(pfrom->GetId(), 24);
             return error("message inv size() = %u", vInv.size());
         }
 
@@ -1880,20 +1942,9 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             }
             else
             {
-                static std::set<int> legacyMNObjs = {
-                        MSG_MASTERNODE_PAYMENT_VOTE,
-                        MSG_MASTERNODE_PAYMENT_BLOCK,
-                        MSG_MASTERNODE_ANNOUNCE,
-                        MSG_MASTERNODE_PING,
-                        MSG_MASTERNODE_VERIFY,
-                };
                 static std::set<int> allowWhileInIBDObjs = {
                         MSG_SPORK
                 };
-                if (legacyMNObjs.count(inv.type) && deterministicMNManager->IsDeterministicMNsSporkActive()) {
-                    LogPrint("net", "ignoring (%s) inv of legacy type %d peer=%d\n", inv.hash.ToString(), inv.type, pfrom->id);
-                    continue;
-                }
 
                 pfrom->AddInventoryKnown(inv);
                 if (fBlocksOnly) {
@@ -1902,7 +1953,20 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                 } else if (!fAlreadyHave) {
                     bool allowWhileInIBD = allowWhileInIBDObjs.count(inv.type);
                     if (allowWhileInIBD || (!fImporting && !fReindex && !IsInitialBlockDownload())) {
-                        pfrom->AskFor(inv);
+                        int64_t doubleRequestDelay = 2 * 60 * 1000000;
+                        // some messages need to be re-requested faster when the first announcing peer did not answer to GETDATA
+                        switch (inv.type) {
+                            case MSG_QUORUM_RECOVERED_SIG:
+                                doubleRequestDelay = 15 * 1000000;
+                                break;
+                            case MSG_CLSIG:
+                                doubleRequestDelay = 5 * 1000000;
+                                break;
+                            case MSG_ISLOCK:
+                                doubleRequestDelay = 10 * 1000000;
+                                break;
+                        }
+                        pfrom->AskFor(inv, doubleRequestDelay);
                     }
                 }
             }
@@ -1920,7 +1984,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         if (vInv.size() > MAX_INV_SZ)
         {
             LOCK(cs_main);
-            Misbehaving(pfrom->GetId(), 20);
+            Misbehaving(pfrom->GetId(), 19);
             return error("message getdata size() = %u", vInv.size());
         }
 
@@ -2040,7 +2104,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             inv.type = MSG_BLOCK;
             inv.hash = req.blockhash;
             pfrom->vRecvGetData.push_back(inv);
-            ProcessGetData(pfrom, chainparams.GetConsensus(), connman, interruptMsgProc);
+            // The message processing loop will go around again (without pausing) and we'll respond then (without cs_main)
             return true;
         }
 
@@ -2075,6 +2139,11 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             if (mi == mapBlockIndex.end())
                 return true;
             pindex = (*mi).second;
+
+            if (!BlockRequestAllowed(pindex, chainparams.GetConsensus())) {
+                LogPrintf("%s: ignoring request from peer=%i for old block header that isn't in the main chain\n", __func__, pfrom->GetId());
+                return true;
+            }
         }
         else
         {
@@ -2134,11 +2203,16 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         if(strCommand == NetMsgType::TX) {
             vRecv >> ptx;
             txLockRequest = CTxLockRequest(ptx);
-            fCanAutoLock = CInstantSend::CanAutoLock() && txLockRequest.IsSimple();
+            fCanAutoLock = llmq::IsOldInstantSendEnabled() && CInstantSend::CanAutoLock() && txLockRequest.IsSimple();
         } else if(strCommand == NetMsgType::TXLOCKREQUEST) {
             vRecv >> txLockRequest;
             ptx = txLockRequest.tx;
             nInvType = MSG_TXLOCK_REQUEST;
+            if (llmq::IsNewInstantSendEnabled()) {
+                // the new system does not require explicit lock requests
+                // changing the inv type to MSG_TX also results in re-broadcasting the TX as normal TX
+                nInvType = MSG_TX;
+            }
         } else if (strCommand == NetMsgType::DSTX) {
             vRecv >> dstx;
             ptx = dstx.tx;
@@ -2154,7 +2228,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         }
 
         // Process custom logic, no matter if tx will be accepted to mempool later or not
-        if (strCommand == NetMsgType::TXLOCKREQUEST || fCanAutoLock) {
+        if (nInvType == MSG_TXLOCK_REQUEST || fCanAutoLock) {
             if(!instantsend.ProcessTxLockRequest(txLockRequest, connman)) {
                 LogPrint("instantsend", "TXLOCKREQUEST -- failed %s\n", txLockRequest.GetHash().ToString());
                 // Should not really happen for "fCanAutoLock == true" but just in case:
@@ -2165,49 +2239,48 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                 // Fallback for normal txes to process as usual
                 fCanAutoLock = false;
             }
-        } else if (strCommand == NetMsgType::DSTX) {
+        } else if (nInvType == MSG_DSTX) {
             uint256 hashTx = tx.GetHash();
             if(CPrivateSend::GetDSTX(hashTx)) {
                 LogPrint("privatesend", "DSTX -- Already have %s, skipping...\n", hashTx.ToString());
                 return true; // not an error
             }
 
-            CMasternode mn;
-
-            if(!mnodeman.Get(dstx.masternodeOutpoint, mn)) {
+            auto dmn = deterministicMNManager->GetListAtChainTip().GetMNByCollateral(dstx.masternodeOutpoint);
+            if(!dmn) {
                 LogPrint("privatesend", "DSTX -- Can't find masternode %s to verify %s\n", dstx.masternodeOutpoint.ToStringShort(), hashTx.ToString());
                 return false;
             }
 
-            if(!mn.IsValidForMixingTxes()) {
+            if (!mmetaman.GetMetaInfo(dmn->proTxHash)->IsValidForMixingTxes()) {
                 LogPrint("privatesend", "DSTX -- Masternode %s is sending too many transactions %s\n", dstx.masternodeOutpoint.ToStringShort(), hashTx.ToString());
                 return true;
                 // TODO: Not an error? Could it be that someone is relaying old DSTXes
                 // we have no idea about (e.g we were offline)? How to handle them?
             }
 
-            if (!dstx.CheckSignature(mn.legacyKeyIDOperator, mn.blsPubKeyOperator)) {
+            if (!dstx.CheckSignature(dmn->pdmnState->pubKeyOperator.Get())) {
                 LogPrint("privatesend", "DSTX -- CheckSignature() failed for %s\n", hashTx.ToString());
                 return false;
             }
 
             LogPrintf("DSTX -- Got Masternode transaction %s\n", hashTx.ToString());
-            mempool.PrioritiseTransaction(hashTx, hashTx.ToString(), 1000, 0.1*COIN);
-            mnodeman.DisallowMixing(dstx.masternodeOutpoint);
+            mempool.PrioritiseTransaction(hashTx, 0.1*COIN);
+            mmetaman.DisallowMixing(dmn->proTxHash);
         }
 
-        LOCK(cs_main);
+        LOCK2(cs_main, g_cs_orphans);
 
         bool fMissingInputs = false;
         CValidationState state;
 
         if (!AlreadyHave(inv) && AcceptToMemoryPool(mempool, state, ptx, true, &fMissingInputs)) {
             // Process custom txes, this changes AlreadyHave to "true"
-            if (strCommand == NetMsgType::DSTX) {
+            if (nInvType == MSG_DSTX) {
                 LogPrintf("DSTX -- Masternode transaction accepted, txid=%s, peer=%d\n",
                         tx.GetHash().ToString(), pfrom->id);
                 CPrivateSend::AddDSTX(dstx);
-            } else if (strCommand == NetMsgType::TXLOCKREQUEST || fCanAutoLock) {
+            } else if (nInvType == MSG_TXLOCK_REQUEST || fCanAutoLock) {
                 LogPrintf("TXLOCKREQUEST -- Transaction Lock Request accepted, txid=%s, peer=%d\n",
                         tx.GetHash().ToString(), pfrom->id);
                 instantsend.AcceptLockRequest(txLockRequest);
@@ -2270,7 +2343,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                             LogPrint("mempool", "   invalid orphan tx %s\n", orphanHash.ToString());
                         }
                         // Has inputs but not accepted to mempool
-                        // Probably non-standard or insufficient fee/priority
+                        // Probably non-standard or insufficient fee
                         LogPrint("mempool", "   removed orphan tx %s\n", orphanHash.ToString());
                         vEraseQueue.push_back(orphanHash);
                         if (!stateDummy.CorruptionPossible()) {
@@ -2303,8 +2376,8 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                 AddOrphanTx(ptx, pfrom->GetId());
 
                 // DoS prevention: do not allow mapOrphanTransactions to grow unbounded
-                unsigned int nMaxOrphanTx = (unsigned int)std::max((int64_t)0, GetArg("-maxorphantx", DEFAULT_MAX_ORPHAN_TRANSACTIONS));
-                unsigned int nEvicted = LimitOrphanTxSize(nMaxOrphanTx);
+                unsigned int nMaxOrphanTxSize = (unsigned int)std::max((int64_t)0, GetArg("-maxorphantxsize", DEFAULT_MAX_ORPHAN_TRANSACTIONS_SIZE)) * 1000000;
+                unsigned int nEvicted = LimitOrphanTxSize(nMaxOrphanTxSize);
                 if (nEvicted > 0)
                     LogPrint("mempool", "mapOrphan overflow, removed %u tx\n", nEvicted);
             } else {
@@ -2322,7 +2395,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                 }
             }
 
-            if (strCommand == NetMsgType::TXLOCKREQUEST && !AlreadyHave(inv)) {
+            if (nInvType == MSG_TXLOCK_REQUEST && !AlreadyHave(inv)) {
                 // i.e. AcceptToMemoryPool failed, probably because it's conflicting
                 // with existing normal tx or tx lock for another tx. For the same tx lock
                 // AlreadyHave would have return "true" already.
@@ -2393,6 +2466,8 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                 if (nDoS > 0) {
                     LOCK(cs_main);
                     Misbehaving(pfrom->GetId(), nDoS);
+					if (GetAdjustedTime() % 5 == 0) 
+						pfrom->fDisconnect = true;
                 }
                 LogPrintf("Peer %d sent us invalid header via cmpctblock\n", pfrom->id);
                 return true;
@@ -2417,7 +2492,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         bool fBlockReconstructed = false;
 
         {
-        LOCK(cs_main);
+        LOCK2(cs_main, g_cs_orphans);
         // If AcceptBlockHeader returned true, it set pindex
         assert(pindex);
         UpdateBlockAvailability(pfrom->GetId(), pindex->GetBlockHash());
@@ -2635,7 +2710,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         unsigned int nCount = ReadCompactSize(vRecv);
         if (nCount > MAX_HEADERS_RESULTS) {
             LOCK(cs_main);
-            Misbehaving(pfrom->GetId(), 20);
+            Misbehaving(pfrom->GetId(), 18);
             return error("headers message size = %u", nCount);
         }
         headers.resize(nCount);
@@ -2676,7 +2751,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             UpdateBlockAvailability(pfrom->GetId(), headers.back().GetHash());
 
             if (nodestate->nUnconnectingHeaders % MAX_UNCONNECTING_HEADERS == 0) {
-                Misbehaving(pfrom->GetId(), 20);
+                Misbehaving(pfrom->GetId(), 17);
             }
             return true;
         }
@@ -2684,7 +2759,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         uint256 hashLastBlock;
         for (const CBlockHeader& header : headers) {
             if (!hashLastBlock.IsNull() && header.hashPrevBlock != hashLastBlock) {
-                Misbehaving(pfrom->GetId(), 20);
+                Misbehaving(pfrom->GetId(), 21);
                 return error("non-continuous headers sequence");
             }
             hashLastBlock = header.GetHash();
@@ -2698,8 +2773,6 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                 if (nDoS > 0) {
                     LOCK(cs_main);
                     Misbehaving(pfrom->GetId(), nDoS);
-					if (GetAdjustedTime() % 5 == 0) 
-						pfrom->fDisconnect = true;
                 }
                 return error("invalid header received");
             }
@@ -3070,14 +3143,17 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             privateSendClient.ProcessMessage(pfrom, strCommand, vRecv, connman);
 #endif // ENABLE_WALLET
             privateSendServer.ProcessMessage(pfrom, strCommand, vRecv, connman);
-            mnodeman.ProcessMessage(pfrom, strCommand, vRecv, connman);
-            mnpayments.ProcessMessage(pfrom, strCommand, vRecv, connman);
             instantsend.ProcessMessage(pfrom, strCommand, vRecv, connman);
             sporkManager.ProcessSpork(pfrom, strCommand, vRecv, connman);
             masternodeSync.ProcessMessage(pfrom, strCommand, vRecv);
             governance.ProcessMessage(pfrom, strCommand, vRecv, connman);
+            CMNAuth::ProcessMessage(pfrom, strCommand, vRecv, connman);
             llmq::quorumBlockProcessor->ProcessMessage(pfrom, strCommand, vRecv, connman);
-            llmq::quorumDummyDKG->ProcessMessage(pfrom, strCommand, vRecv, connman);
+            llmq::quorumDKGSessionManager->ProcessMessage(pfrom, strCommand, vRecv, connman);
+            llmq::quorumSigSharesManager->ProcessMessage(pfrom, strCommand, vRecv, connman);
+            llmq::quorumSigningManager->ProcessMessage(pfrom, strCommand, vRecv, connman);
+            llmq::chainLocksHandler->ProcessMessage(pfrom, strCommand, vRecv, connman);
+            llmq::quorumInstantSendManager->ProcessMessage(pfrom, strCommand, vRecv, connman);
         }
         else
         {
@@ -3206,9 +3282,8 @@ bool ProcessMessages(CNode* pfrom, CConnman& connman, const std::atomic<bool>& i
             if (strstr(e.what(), "end of data"))
             {
                 // Allow exceptions from under-length message on vRecv
-				if (true)
-					LogPrintf("\nios_base::failure::eod::%s(%s, %u bytes): Exception '%s' caught, normally caused by a message being shorter than its stated length\n", 
-					__func__, SanitizeString(strCommand), nMessageSize, e.what());
+				if (fDebugSpam)
+					LogPrintf("%s(%s, %u bytes): Exception '%s' caught, normally caused by a message being shorter than its stated length\n", __func__, SanitizeString(strCommand), nMessageSize, e.what());
 				// R Andrews - We have two messages in classic (mnp, 147 bytes) && (govobjvote, 155 bytes) throwing this error; we can remove the debug master after the supermajority upgrades
             }
             else if (strstr(e.what(), "size too large"))
@@ -3218,11 +3293,10 @@ bool ProcessMessages(CNode* pfrom, CConnman& connman, const std::atomic<bool>& i
 				{
 					// This placeholder is reserved for a Log Message.  We must wait until all biblepay-classic sanctuaries are retired (as they are still sending this oversized message).
 					// We have confirmed the deterministic nodes can cope with this temporary spam.
-					LogPrintf("\nios_base::failure::mnw::caught::%s(%s, %u bytes): Exception '%s' caught\n", __func__, SanitizeString(strCommand), nMessageSize, e.what());
 				}
 				else
 				{
-					LogPrintf("\nios_base::failure::size_too_large::%s(%s, %u bytes): Exception '%s' caught\n", __func__, SanitizeString(strCommand), nMessageSize, e.what());
+					LogPrintf("%s(%s, %u bytes): Exception '%s' caught\n", __func__, SanitizeString(strCommand), nMessageSize, e.what());
 				}
             }
             else if (strstr(e.what(), "non-canonical ReadCompactSize()"))
@@ -3232,22 +3306,18 @@ bool ProcessMessages(CNode* pfrom, CConnman& connman, const std::atomic<bool>& i
             }
             else
             {
-                PrintExceptionContinue(&e, "ProcessMessages()");
+                PrintExceptionContinue(std::current_exception(), "ProcessMessages()");
             }
-        }
-        catch (const std::exception& e) {
-            PrintExceptionContinue(&e, "ProcessMessages()");
         } catch (...) {
-            PrintExceptionContinue(NULL, "ProcessMessages()");
+            PrintExceptionContinue(std::current_exception(), "ProcessMessages()");
         }
 
         if (!fRet) 
 		{
-			if ((true) || (strCommand != "mnw" && strCommand != "govobjvote"))
+			if (strCommand != "mnw" && strCommand != "govobjvote")
 			{				
-				LogPrintf("\nios_base_failure::mesg_fail::%s(%s, %u bytes) FAILED peer=%d\n", __func__, SanitizeString(strCommand), nMessageSize, pfrom->id);
-			    Misbehaving(pfrom->id, 1);
-            }
+				LogPrintf("%s(%s, %u bytes) FAILED peer=%d\n", __func__, SanitizeString(strCommand), nMessageSize, pfrom->id);
+			}
         }
 
         LOCK(cs_main);
@@ -3478,8 +3548,7 @@ bool SendMessages(CNode* pto, CConnman& connman, const std::atomic<bool>& interr
                     {
                         LOCK(cs_most_recent_block);
                         if (most_recent_block_hash == pBestIndex->GetBlockHash()) {
-                            CBlockHeaderAndShortTxIDs cmpctblock(*most_recent_block);
-                            connman.PushMessage(pto, msgMaker.Make(NetMsgType::CMPCTBLOCK, cmpctblock));
+                            connman.PushMessage(pto, msgMaker.Make(NetMsgType::CMPCTBLOCK, *most_recent_compact_block));
                             fGotBlockFromCache = true;
                         }
                     }
@@ -3765,9 +3834,11 @@ bool SendMessages(CNode* pto, CConnman& connman, const std::atomic<bool>& interr
         //
         // Message: getdata (non-blocks)
         //
-        while (!pto->mapAskFor.empty() && (*pto->mapAskFor.begin()).first <= nNow)
+        std::sort(pto->vecAskFor.begin(), pto->vecAskFor.end());
+        auto it = pto->vecAskFor.begin();
+        while (it != pto->vecAskFor.end() && it->first <= nNow)
         {
-            const CInv& inv = (*pto->mapAskFor.begin()).second;
+            const CInv& inv = it->second;
             if (!AlreadyHave(inv))
             {
                 if (fDebugSpam)
@@ -3786,8 +3857,9 @@ bool SendMessages(CNode* pto, CConnman& connman, const std::atomic<bool>& interr
 					LogPrint("net", "SendMessages -- GETDATA -- already have inv = %s peer=%d\n", inv.ToString(), pto->id);
                 pto->setAskFor.erase(inv.hash);
             }
-            pto->mapAskFor.erase(pto->mapAskFor.begin());
+            ++it;
         }
+        pto->vecAskFor.erase(pto->vecAskFor.begin(), it);
         if (!vGetData.empty()) {
             connman.PushMessage(pto, msgMaker.Make(NetMsgType::GETDATA, vGetData));
             if (fDebugSpam)
@@ -3806,5 +3878,6 @@ public:
         // orphan transactions
         mapOrphanTransactions.clear();
         mapOrphanTransactionsByPrev.clear();
+        nMapOrphanTransactionsSize = 0;
     }
 } instance_of_cnetprocessingcleanup;

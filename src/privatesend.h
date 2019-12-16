@@ -1,4 +1,5 @@
-// Copyright (c) 2014-2018 The BiblePay Core developers
+// Copyright (c) 2014-2019 The Dash Core developers
+// Copyright (c) 2017-2019 The BiblePay Core developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -18,10 +19,10 @@ class CPrivateSend;
 class CConnman;
 
 // timeouts
-static const int PRIVATESEND_AUTO_TIMEOUT_MIN = 5;
-static const int PRIVATESEND_AUTO_TIMEOUT_MAX = 15;
-static const int PRIVATESEND_QUEUE_TIMEOUT = 30;
-static const int PRIVATESEND_SIGNING_TIMEOUT = 15;
+static const int PRIVATESEND_AUTO_TIMEOUT_MIN = 15;
+static const int PRIVATESEND_AUTO_TIMEOUT_MAX = 30;
+static const int PRIVATESEND_QUEUE_TIMEOUT = 120;
+static const int PRIVATESEND_SIGNING_TIMEOUT = 60;
 
 //! minimum peer version accepted by mixing pool
 static const int MIN_PRIVATESEND_PEER_PROTO_VERSION = 70213;
@@ -225,12 +226,12 @@ public:
      */
     bool Sign();
     /// Check if we have a valid Masternode address
-    bool CheckSignature(const CKeyID& keyIDOperator, const CBLSPublicKey& blsPubKey) const;
+    bool CheckSignature(const CBLSPublicKey& blsPubKey) const;
 
     bool Relay(CConnman& connman);
 
-    /// Is this queue expired?
-    bool IsExpired() { return GetAdjustedTime() - nTime > PRIVATESEND_QUEUE_TIMEOUT; }
+    /// Check if a queue is too old or too far into the future
+    bool IsTimeOutOfBounds() const;
 
     std::string ToString() const
     {
@@ -306,7 +307,7 @@ public:
     uint256 GetSignatureHash() const;
 
     bool Sign();
-    bool CheckSignature(const CKeyID& keyIDOperator, const CBLSPublicKey& blsPubKey) const;
+    bool CheckSignature(const CBLSPublicKey& blsPubKey) const;
 
     void SetConfirmedHeight(int nConfirmedHeightIn) { nConfirmedHeight = nConfirmedHeightIn; }
     bool IsExpired(int nHeight);
@@ -403,8 +404,9 @@ public:
 
     static std::string GetMessageByID(PoolMessage nMessageID);
 
-    /// Get the maximum number of transactions for the pool
-    static int GetMaxPoolTransactions() { return Params().PoolMaxTransactions(); }
+    /// Get the minimum/maximum number of participants for the pool
+    static int GetMinPoolParticipants() { return Params().PoolMinParticipants(); }
+    static int GetMaxPoolParticipants() { return Params().PoolMaxParticipants(); }
 
     static CAmount GetMaxPoolAmount() { return vecStandardDenominations.empty() ? 0 : PRIVATESEND_ENTRY_MAX_SIZE * vecStandardDenominations.front(); }
 

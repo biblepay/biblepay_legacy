@@ -1,4 +1,4 @@
-BiblePay Core 0.13.0
+BiblePay Core 0.14.0
 =====================
 
 Intro

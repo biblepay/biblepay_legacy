@@ -255,6 +255,8 @@ public:
     bool IsUpdateRequired() const { return nActiveState == MASTERNODE_UPDATE_REQUIRED; }
     bool IsSentinelPingExpired() const { return nActiveState == MASTERNODE_SENTINEL_PING_EXPIRED; }
     bool IsNewStartRequired() const { return nActiveState == MASTERNODE_NEW_START_REQUIRED; }
+	const static double POSE_BAN_THRESHHOLD = .49;
+	const static int POSE_BAN_MIN_TRIES = 3;
 
     static bool IsValidStateForAutoStart(int nActiveStateIn)
     {
@@ -278,15 +280,11 @@ public:
 			}
 		}
 
-        if(nActiveState == MASTERNODE_ENABLED) {
+	    if(nActiveState == MASTERNODE_ENABLED) 
+		{
             return true;
         }
 
-        if(!sporkManager.IsSporkActive(SPORK_14_REQUIRE_SENTINEL_FLAG) &&
-           (nActiveState == MASTERNODE_SENTINEL_PING_EXPIRED)) {
-            return true;
-        }
-	
         return false;
     }
 

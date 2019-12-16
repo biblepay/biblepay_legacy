@@ -1,10 +1,8 @@
-// Copyright (c) 2014-2018 The BiblePay Core developers
+// Copyright (c) 2014-2018 The Dash Core developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 #ifndef GOVERNANCE_CLASSES_H
 #define GOVERNANCE_CLASSES_H
-
-//#define ENABLE_BIBLEPAY_DEBUG
 
 #include "base58.h"
 #include "governance.h"
@@ -146,11 +144,11 @@ public:
     CSuperblock(uint256& nHash);
 
     static bool IsValidBlockHeight(int nBlockHeight);
-    static bool IsDCCSuperblock(int nHeight);
+	static bool IsDCCSuperblock(int nHeight);	
 	static bool IsSmartContract(int nHeight);
 
     static void GetNearestSuperblocksHeights(int nBlockHeight, int& nLastSuperblockRet, int& nNextSuperblockRet);
-    static CAmount GetPaymentsLimit(int nBlockHeight);
+    static CAmount GetPaymentsLimit(int nBlockHeight, bool fIncludeWhaleStakes);
 
     int GetStatus() { return nStatus; }
     void SetStatus(int nStatusIn) { nStatus = nStatusIn; }

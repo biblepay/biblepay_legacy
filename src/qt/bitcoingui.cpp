@@ -1,5 +1,6 @@
 // Copyright (c) 2011-2015 The Bitcoin Core developers
-// Copyright (c) 2014-2017 The BiblePay Core developers
+// Copyright (c) 2014-2019 The Dash Core developers
+// Copyright (c) 2017-2019 The BiblePay Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -26,6 +27,7 @@
 #include "businessobjectlist.h"
 
 #ifdef ENABLE_WALLET
+#include "privatesend-client.h"
 #include "walletframe.h"
 #include "walletmodel.h"
 #endif // ENABLE_WALLET
@@ -109,6 +111,7 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *_platformStyle, const NetworkStyle *
     verifyMessageAction(0),
     aboutAction(0),
 	orphanAction(0),
+	webAction(0),
 	proposalListAction(0),
 	proposalAddMenuAction(0),
 	OneClickMiningAction(0),
@@ -280,6 +283,10 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *_platformStyle, const NetworkStyle *
         connect(progressBar, SIGNAL(clicked(QPoint)), this, SLOT(showModalOverlay()));
     }
 #endif
+
+#ifdef Q_OS_MAC
+    m_app_nap_inhibitor = new CAppNapInhibitor;
+#endif
 }
 
 BitcoinGUI::~BitcoinGUI()
@@ -291,6 +298,7 @@ BitcoinGUI::~BitcoinGUI()
     if(trayIcon) // Hide tray icon, as deleting will let it linger until quit (on Ubuntu)
         trayIcon->hide();
 #ifdef Q_OS_MAC
+    delete m_app_nap_inhibitor;
     delete appMenuBar;
     MacDockIconHandler::cleanup();
 #endif
@@ -381,8 +389,6 @@ void BitcoinGUI::createActions()
         tabGroup->addAction(masternodeAction);
         connect(masternodeAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
         connect(masternodeAction, SIGNAL(triggered()), this, SLOT(gotoMasternodePage()));
-		
-
     }
 
 	orphanAction = new QAction(QIcon(":/icons/" + theme + "/edit"), tr("Show &Accountability"), this);
@@ -392,6 +398,12 @@ void BitcoinGUI::createActions()
 	tabGroup->addAction(orphanAction);
 	connect(orphanAction, SIGNAL(triggered()), this, SLOT(showAccountability()));
 
+	webAction = new QAction(QIcon(":/icons/" + theme + "/account32"), tr("Decentralized &Web"), this);
+	webAction->setStatusTip(tr("Navigate BiblePay Decentralized Web"));
+	webAction->setToolTip(webAction->statusTip());
+	webAction->setCheckable(true);
+	tabGroup->addAction(webAction);
+	connect(webAction, SIGNAL(triggered()), this, SLOT(showDecentralizedWeb()));
 
     // These showNormalIfMinimized are needed because Send Coins and Receive Coins
     // can be triggered from the tray menu, and need to show the GUI to be useful.
@@ -484,8 +496,6 @@ void BitcoinGUI::createActions()
     openRepairAction->setStatusTip(tr("Show wallet repair options"));
     openConfEditorAction = new QAction(QIcon(":/icons/" + theme + "/edit"), tr("Open Wallet &Configuration File"), this);
     openConfEditorAction->setStatusTip(tr("Open configuration file"));
-    openMNConfEditorAction = new QAction(QIcon(":/icons/" + theme + "/edit"), tr("Open &Masternode Configuration File"), this);
-    openMNConfEditorAction->setStatusTip(tr("Open Masternode configuration file"));    
     showBackupsAction = new QAction(QIcon(":/icons/" + theme + "/browse"), tr("Show Automatic &Backups"), this);
     showBackupsAction->setStatusTip(tr("Show automatically created wallet backups"));
 
@@ -554,7 +564,6 @@ void BitcoinGUI::createActions()
 
     // Open configs and backup folder from menu
     connect(openConfEditorAction, SIGNAL(triggered()), this, SLOT(showConfEditor()));
-    connect(openMNConfEditorAction, SIGNAL(triggered()), this, SLOT(showMNConfEditor()));
     connect(showBackupsAction, SIGNAL(triggered()), this, SLOT(showBackups()));
 
     // Get restart command-line parameters and handle restart
@@ -633,7 +642,6 @@ void BitcoinGUI::createMenuBar()
         tools->addAction(openRepairAction);
         tools->addSeparator();
         tools->addAction(openConfEditorAction);
-        tools->addAction(openMNConfEditorAction);
         tools->addAction(showBackupsAction);
         tools->addAction(OneClickMiningAction);
     }
@@ -686,7 +694,7 @@ void BitcoinGUI::createToolBars()
 		toolbar->addAction(proposalListAction);
 		toolbar->addAction(businessObjectListMenuAction);
 		toolbar->addAction(orphanAction);
-		
+		toolbar->addAction(webAction);
 
 		toolbar->setOrientation(Qt::Vertical);
         toolbar->setMovable(false); // remove unused icon in upper left corner
@@ -892,7 +900,6 @@ void BitcoinGUI::createIconMenu(QMenu *pmenu)
     pmenu->addAction(openRepairAction);
     pmenu->addSeparator();
     pmenu->addAction(openConfEditorAction);
-    pmenu->addAction(openMNConfEditorAction);
     pmenu->addAction(showBackupsAction);
 #ifndef Q_OS_MAC // This is built-in on Mac
     pmenu->addSeparator();
@@ -999,6 +1006,12 @@ void BitcoinGUI::OneClickMiningClicked()
     }
 }
 
+void BitcoinGUI::showDecentralizedWeb()
+{
+	BBPResult b = GetDecentralizedURL();
+	QDesktopServices::openUrl(QUrl(GUIUtil::TOQS(b.Response)));
+}
+
 void BitcoinGUI::showAccountability()
 {
 	QDesktopServices::openUrl(QUrl("http://accountability.biblepay.org/"));
@@ -1076,11 +1089,6 @@ void BitcoinGUI::showRepair()
 void BitcoinGUI::showConfEditor()
 {
     GUIUtil::openConfigfile();
-}
-
-void BitcoinGUI::showMNConfEditor()
-{
-    GUIUtil::openMNConfigfile();
 }
 
 void BitcoinGUI::showBackups()
@@ -1201,6 +1209,19 @@ void BitcoinGUI::updateHeadersSyncProgressLabel()
 
 void BitcoinGUI::setNumBlocks(int count, const QDateTime& blockDate, double nVerificationProgress, bool header)
 {
+#ifdef Q_OS_MAC
+    // Disabling macOS App Nap on initial sync, disk, reindex operations and mixing.
+    bool disableAppNap = !masternodeSync.IsSynced();
+#ifdef ENABLE_WALLET
+    disableAppNap |= privateSendClient.fEnablePrivateSend;
+#endif // ENABLE_WALLET
+    if (disableAppNap) {
+        m_app_nap_inhibitor->disableAppNap();
+    } else {
+        m_app_nap_inhibitor->enableAppNap();
+    }
+#endif // Q_OS_MAC
+
     if (modalOverlay)
     {
         if (header)

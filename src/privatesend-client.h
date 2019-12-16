@@ -1,31 +1,36 @@
-// Copyright (c) 2014-2018 The BiblePay Core developers
+// Copyright (c) 2014-2019 The Dash Core developers
+// Copyright (c) 2017-2019 The BiblePay Core developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #ifndef PRIVATESENDCLIENT_H
 #define PRIVATESENDCLIENT_H
 
-#include "masternode.h"
 #include "privatesend-util.h"
 #include "privatesend.h"
 #include "wallet/wallet.h"
 
+#include "evo/deterministicmns.h"
+
 class CPrivateSendClientManager;
 class CConnman;
+class CNode;
 
-static const int DENOMS_COUNT_MAX = 100;
 
 static const int MIN_PRIVATESEND_SESSIONS = 1;
 static const int MIN_PRIVATESEND_ROUNDS = 2;
 static const int MIN_PRIVATESEND_AMOUNT = 2;
+static const int MIN_PRIVATESEND_DENOMS = 10;
 static const int MIN_PRIVATESEND_LIQUIDITY = 0;
 static const int MAX_PRIVATESEND_SESSIONS = 10;
 static const int MAX_PRIVATESEND_ROUNDS = 16;
-static const int MAX_PRIVATESEND_AMOUNT = 500000;
-static const int MAX_PRIVATESEND_LIQUIDITY = 100;
+static const int MAX_PRIVATESEND_DENOMS = 100000;
+static const int MAX_PRIVATESEND_AMOUNT = 2000000;
+static const int MAX_PRIVATESEND_LIQUIDITY = 1000000;
 static const int DEFAULT_PRIVATESEND_SESSIONS = 4;
 static const int DEFAULT_PRIVATESEND_ROUNDS = 4;
-static const int DEFAULT_PRIVATESEND_AMOUNT = 10000;
+static const int DEFAULT_PRIVATESEND_AMOUNT = 100000;
+static const int DEFAULT_PRIVATESEND_DENOMS = 3000;
 static const int DEFAULT_PRIVATESEND_LIQUIDITY = 0;
 
 static const bool DEFAULT_PRIVATESEND_MULTISESSION = false;
@@ -92,22 +97,22 @@ private:
     std::string strLastMessage;
     std::string strAutoDenomResult;
 
-    masternode_info_t infoMixingMasternode;
+    CDeterministicMNCPtr mixingMasternode;
     CMutableTransaction txMyCollateral; // client side collateral
     CPendingDsaRequest pendingDsaRequest;
 
     CKeyHolderStorage keyHolderStorage; // storage for keys used in PrepareDenominate
 
     /// Create denominations
-    bool CreateDenominated(CConnman& connman);
-    bool CreateDenominated(const CompactTallyItem& tallyItem, bool fCreateMixingCollaterals, CConnman& connman);
+    bool CreateDenominated(CAmount nBalanceToDenominate, CConnman& connman);
+    bool CreateDenominated(CAmount nBalanceToDenominate, const CompactTallyItem& tallyItem, bool fCreateMixingCollaterals, CConnman& connman);
 
     /// Split up large inputs or make fee sized inputs
     bool MakeCollateralAmounts(CConnman& connman);
     bool MakeCollateralAmounts(const CompactTallyItem& tallyItem, bool fTryDenominated, CConnman& connman);
 
     bool JoinExistingQueue(CAmount nBalanceNeedsAnonymized, CConnman& connman);
-    bool StartNewQueue(CAmount nValueMin, CAmount nBalanceNeedsAnonymized, CConnman& connman);
+    bool StartNewQueue(CAmount nBalanceNeedsAnonymized, CConnman& connman);
 
     /// step 0: select denominated inputs and txouts
     bool SelectDenominate(std::string& strErrorRet, std::vector<std::pair<CTxDSIn, CTxOut> >& vecPSInOutPairsRet);
@@ -139,7 +144,7 @@ public:
         fLastEntryAccepted(false),
         strLastMessage(),
         strAutoDenomResult(),
-        infoMixingMasternode(),
+        mixingMasternode(),
         txMyCollateral(),
         pendingDsaRequest(),
         keyHolderStorage()
@@ -154,7 +159,7 @@ public:
 
     std::string GetStatus(bool fWaitForBlock);
 
-    bool GetMixingMasternodeInfo(masternode_info_t& mnInfoRet) const;
+    bool GetMixingMasternodeInfo(CDeterministicMNCPtr& ret) const;
 
     /// Passively run mixing in the background according to the configuration in settings
     bool DoAutomaticDenominating(CConnman& connman, bool fDryRun = false);
@@ -197,6 +202,7 @@ public:
     int nPrivateSendSessions;
     int nPrivateSendRounds;
     int nPrivateSendAmount;
+    int nPrivateSendDenoms;
     int nLiquidityProvider;
     bool fEnablePrivateSend;
     bool fPrivateSendMultiSession;
@@ -214,6 +220,7 @@ public:
         nCachedBlockHeight(0),
         nPrivateSendRounds(DEFAULT_PRIVATESEND_ROUNDS),
         nPrivateSendAmount(DEFAULT_PRIVATESEND_AMOUNT),
+        nPrivateSendDenoms(DEFAULT_PRIVATESEND_DENOMS),
         nLiquidityProvider(DEFAULT_PRIVATESEND_LIQUIDITY),
         fEnablePrivateSend(false),
         fPrivateSendMultiSession(DEFAULT_PRIVATESEND_MULTISESSION),
@@ -226,7 +233,7 @@ public:
 
     bool IsDenomSkipped(const CAmount& nDenomValue);
     void AddSkippedDenom(const CAmount& nDenomValue);
-    void ClearSkippedDenominations() { vecDenominationsSkipped.clear(); }
+    void RemoveSkippedDenom(const CAmount& nDenomValue);
 
     void SetMinBlocksToWait(int nMinBlocksToWaitIn) { nMinBlocksToWait = nMinBlocksToWaitIn; }
 
@@ -235,7 +242,7 @@ public:
     std::string GetStatuses();
     std::string GetSessionDenoms();
 
-    bool GetMixingMasternodesInfo(std::vector<masternode_info_t>& vecMnInfoRet) const;
+    bool GetMixingMasternodesInfo(std::vector<CDeterministicMNCPtr>& vecDmnsRet) const;
 
     /// Passively run mixing in the background according to the configuration in settings
     bool DoAutomaticDenominating(CConnman& connman, bool fDryRun = false);
@@ -245,7 +252,7 @@ public:
     void ProcessPendingDsaRequest(CConnman& connman);
 
     void AddUsedMasternode(const COutPoint& outpointMn);
-    masternode_info_t GetNotUsedMasternode();
+    CDeterministicMNCPtr GetRandomNotUsedMasternode();
 
     void UpdatedSuccessBlock();
 

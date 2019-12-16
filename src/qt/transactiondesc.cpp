@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2011-2015 The Bitcoin Core developers
+// Copyright (c) 2011-2015 The Bitcoin Core developers
 // Copyright (c) 2014-2017 The BiblePay Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
@@ -43,15 +43,25 @@ QString TransactionDesc::FormatTxStatus(const CWalletTx& wtx)
 
         QString strTxStatus;
         bool fOffline = (GetAdjustedTime() - wtx.nTimeReceived > 2 * 60) && (wtx.GetRequestCount() == 0);
+        bool fChainLocked = wtx.IsChainLocked();
 
         if (fOffline) {
             strTxStatus = tr("%1/offline").arg(nDepth);
         } else if (nDepth == 0) {
             strTxStatus = tr("0/unconfirmed, %1").arg((wtx.InMempool() ? tr("in memory pool") : tr("not in memory pool"))) + (wtx.isAbandoned() ? ", "+tr("abandoned") : "");
-        } else if (nDepth < 6) {
+        } else if (!fChainLocked && nDepth < 6) {
             strTxStatus = tr("%1/unconfirmed").arg(nDepth);
         } else {
             strTxStatus = tr("%1 confirmations").arg(nDepth);
+            if (fChainLocked) {
+                strTxStatus += " (" + tr("locked via LLMQ based ChainLocks") + ")";
+                return strTxStatus;
+            }
+        }
+
+        if (wtx.IsLockedByLLMQInstantSend()) {
+            strTxStatus += " (" + tr("verified via LLMQ based InstantSend") + ")";
+            return strTxStatus;
         }
 
         if(!instantsend.HasTxLockRequest(wtx.GetHash())) return strTxStatus; // regular tx
@@ -140,6 +150,10 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionReco
 	else if (wtx.tx->IsSuperblockPayment())
 	{
 	     strHTML += "<b>" + tr("Source") + ":</b> " + tr("Superblock-Payment") + "<br>";
+	}
+	else if (wtx.tx->IsWhaleReward())
+	{
+	     strHTML += "<b>" + tr("Source") + ":</b> " + tr("Dynamic-Whale-Reward") + "<br>";
 	}
 	else if (wtx.tx->IsGSCPayment())
 	{

@@ -10,6 +10,7 @@
 #include "script/script.h"
 #include "serialize.h"
 #include "uint256.h"
+#include <math.h>   // For floor
 
 /** Transaction types */
 enum {
@@ -290,12 +291,6 @@ public:
     // GetValueIn() is a method on CCoinsViewCache, because
     // inputs must be known to compute value in.
 
-    // Compute priority, given priority of inputs and (optionally) tx size
-    double ComputePriority(double dPriorityInputs, unsigned int nTxSize=0) const;
-
-    // Compute modified tx size for priority calculation (optionally given tx size)
-    unsigned int CalculateModifiedSize(unsigned int nTxSize=0) const;
-
     /**
      * Get the total transaction size in bytes, including witness data.
      * "Total Size" defined in BIP141 and BIP144.
@@ -320,6 +315,14 @@ public:
 		}
 		return false;
     }
+
+	bool IsWhaleReward() const
+	{
+		double nWhaleReward = (double)GetValueOut()/COIN;
+		double nWholePart = floor(nWhaleReward);
+		double nDecPart = nWhaleReward - nWholePart;
+		return (nDecPart == 1527);
+	}
 
 	bool IsSuperblockPayment() const
 	{
@@ -350,7 +353,7 @@ public:
 		std::string sMyData = GetTxMessage();
 		return (sMyData.find("<MT>GSCTransmission") != std::string::npos);
 	}
-	
+
 	std::string GetCampaignName() const
 	{
 		std::string sData = GetTxMessage();
@@ -365,6 +368,12 @@ public:
 		// Is this a Christian Public Keypair association tx?
 		std::string sMyData = GetTxMessage();
 		return (sMyData.find("<MT>CPK") != std::string::npos);
+	}
+
+	bool IsWhaleStake() const
+	{
+		std::string sMyData = GetTxMessage();
+		return (sMyData.find("<MT>DWS") != std::string::npos);
 	}
 
 	bool IsABN() const

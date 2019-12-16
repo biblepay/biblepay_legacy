@@ -32,7 +32,7 @@ sudo apt-get install libdb4.8-dev libdb4.8++-dev
 git clone http://github.com/biblepay/biblepay-evolution
 prefix=x86_64-pc-linux-gnu
 cd biblepay-evolution/depends
-make -j4 # Choose a good -j value, depending on the number of CPU cores available
+make -j 4 # Choose a good -j value, depending on the number of CPU cores available
 cd ..
 ./autogen.sh
 #Note: if echo `pwd` does not return your current working directory, replace it with your working directory such as /biblepay-evolution/

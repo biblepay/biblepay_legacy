@@ -12,7 +12,6 @@
 #include "rpcpog.h"
 #include "smartcontract-server.h"
 #include <boost/algorithm/string.hpp>
-#include "masternodeman.h"
 
 #include <univalue.h>
 
@@ -153,7 +152,7 @@ bool CGovernanceTriggerManager::AddNewTrigger(uint256 nHash)
 void CGovernanceTriggerManager::CleanAndRemove()
 {
     if (fDebugSpam)
-		LogPrintf("CGovernanceTriggerManager::CleanAndRemove -- Start\n");
+		LogPrint("gobject", "CGovernanceTriggerManager::CleanAndRemove -- Start\n");
 
 	if (fDebugSpam)
 		DBG(std::cout << "CGovernanceTriggerManager::CleanAndRemove: Start" << std::endl;);
@@ -166,63 +165,25 @@ void CGovernanceTriggerManager::CleanAndRemove()
 	if (fDebugSpam)
 		LogPrint("gobject", "CGovernanceTriggerManager::CleanAndRemove -- mapTrigger.size() = %d\n", mapTrigger.size());
 
-	int nMnCount = mnodeman.CountMasternodes();
-	
-	int nAbsVoteReq = std::max(Params().GetConsensus().nGovernanceMinQuorum, nMnCount / 10);
-    
     trigger_m_it it = mapTrigger.begin();
-    while (it != mapTrigger.end()) 
-	{
+    while (it != mapTrigger.end()) {
         bool remove = false;
-		CGovernanceObject* pObj = nullptr;
+        CGovernanceObject* pObj = nullptr;
         CSuperblock_sptr& pSuperblock = it->second;
-		
-        if (!pSuperblock) 
-		{
+        if (!pSuperblock) {
             DBG(std::cout << "CGovernanceTriggerManager::CleanAndRemove: NULL superblock marked for removal" << std::endl;);
             if (fDebugSpam)
 				LogPrint("gobject", "CGovernanceTriggerManager::CleanAndRemove -- NULL superblock marked for removal\n");
             remove = true;
-        }
-		else 
-		{
+        } else {
             pObj = governance.FindGovernanceObject(it->first);
-            if (!pObj || pObj->GetObjectType() != GOVERNANCE_OBJECT_TRIGGER) 
-			{
+            if (!pObj || pObj->GetObjectType() != GOVERNANCE_OBJECT_TRIGGER) {
                 DBG(std::cout << "CGovernanceTriggerManager::CleanAndRemove: Unknown or non-trigger superblock" << std::endl;);
                 if (fDebugSpam)
 					LogPrint("gobject", "CGovernanceTriggerManager::CleanAndRemove -- Unknown or non-trigger superblock\n");
                 pSuperblock->SetStatus(SEEN_OBJECT_ERROR_INVALID);
-			}
-			else if (pObj && pSuperblock && pObj->GetObjectType() == GOVERNANCE_OBJECT_TRIGGER)
-			{
-				// Gobject CleanUp - Type I
-				try
-				{
-					int nHeight = pSuperblock->GetBlockHeight();
-					int64_t nAge = GetAdjustedTime() - pObj->GetCreationTime();
-					int nYesCount = pObj->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING);
-					bool fGSC = CSuperblock::IsSmartContract(nHeight);
-					if (fGSC && nAge > (60 * 60 * 12))
-					{
-						if (nYesCount < (nAbsVoteReq * .10))
-						{
-							if (fDebug)
-								LogPrintf("\nDOT %s  Height %f", pSuperblock->GetHash().GetHex(), (double)nHeight);
-							remove = true;
-						}
-					}
-				}
-		        catch (const std::exception& e) 
-				{
-					LogPrintf("\nClean&Remove::StdError%f", 1);
-				}
-				catch(...)
-				{
-					LogPrintf("\nClean&Remove::Error%f", 1);
-				}
-			}
-		
+            }
+
             DBG(std::cout << "CGovernanceTriggerManager::CleanAndRemove: superblock status = " << pSuperblock->GetStatus() << std::endl;);
             if (fDebugSpam)
 				LogPrint("gobject", "CGovernanceTriggerManager::CleanAndRemove -- superblock status = %d\n", pSuperblock->GetStatus());
@@ -243,7 +204,7 @@ void CGovernanceTriggerManager::CleanAndRemove()
         if (fDebugSpam)
 			LogPrint("gobject", "CGovernanceTriggerManager::CleanAndRemove -- %smarked for removal\n", remove ? "" : "NOT ");
 
-		if (remove) {
+        if (remove) {
             DBG(
                 std::string strDataAsPlainString = "NULL";
                 if (pObj) {
@@ -694,7 +655,7 @@ int Get24HourAvgBits(const CBlockIndex* pindexSource, int nPrevBits)
 	return (int)nAvg;
 }
 
-CAmount CSuperblock::GetPaymentsLimit(int nBlockHeight)
+CAmount CSuperblock::GetPaymentsLimit(int nBlockHeight, bool fIncludeWhaleStakes)
 {
 	if (nBlockHeight < 1) return 0;
 
@@ -754,6 +715,7 @@ CAmount CSuperblock::GetPaymentsLimit(int nBlockHeight)
     CAmount nPaymentsLimit = nSuperblockPartOfSubsidy * nSuperblockCycle * nBudgetFactor;
 	CAmount nAbsoluteMaxMonthlyBudget = MAX_BLOCK_SUBSIDY * BLOCKS_PER_DAY * 30 * .20 * COIN; // Ensure monthly budget is never > 20% of avg monthly total block emission regardless of low difficulty in PODC
 	if (nPaymentsLimit > nAbsoluteMaxMonthlyBudget) nPaymentsLimit = nAbsoluteMaxMonthlyBudget;
+	
 	if (Params().NetworkIDString() == "main")
 	{
 		if (nType == 0 && nBlockHeight > (consensusParams.EVOLUTION_CUTOVER_HEIGHT - 6150) && nPaymentsLimit > nMaxMonthlyBudget)
@@ -765,7 +727,20 @@ CAmount CSuperblock::GetPaymentsLimit(int nBlockHeight)
 			nPaymentsLimit = nMaxDailyBudget;
 		}
 	}
-
+	// Dynamic Whale Staking - R Andrews - 11/11/2019
+	if (nType == 2 && fIncludeWhaleStakes)
+	{
+		/*
+		double dTotalWhalePayments = 0;
+		std::vector<WhaleStake> dws = GetPayableWhaleStakes(nBlockHeight, dTotalWhalePayments);
+		CAmount nTotalWhalePayments = dTotalWhalePayments * COIN;
+		LogPrintf("\nGetPaymentsLimit::Whale Payments=%f over %f recs.", dTotalWhalePayments, dws.size());
+		nPaymentsLimit += nTotalWhalePayments;
+		*/
+		nPaymentsLimit += (MAX_DAILY_WHALE_COMMITMENTS * COIN);
+	}
+	// End of Dynamic Whale Staking
+	
     LogPrint("net", "CSuperblock::GetPaymentsLimit -- Valid superblock height %d, payments max %d \n", (double)nBlockHeight, (double)nPaymentsLimit/COIN);
 	
     return nPaymentsLimit;
@@ -914,7 +889,7 @@ bool CSuperblock::IsValid(const CTransaction& txNew, int nBlockHeight, CAmount b
 
     // payments should not exceed limit
     CAmount nPaymentsTotalAmount = GetPaymentsTotalAmount();
-    CAmount nPaymentsLimit = GetPaymentsLimit(nBlockHeight);
+    CAmount nPaymentsLimit = GetPaymentsLimit(nBlockHeight, true);
     if (nPaymentsTotalAmount > nPaymentsLimit) {
         LogPrintf("CSuperblock::IsValid -- ERROR: Block invalid, payments limit exceeded: payments %lld, limit %lld\n", nPaymentsTotalAmount, nPaymentsLimit);
         return false;
@@ -975,7 +950,7 @@ bool CSuperblock::IsExpired()
         nExpirationBlocks = Params().GetConsensus().nSuperblockCycle;
         break;
     case SEEN_OBJECT_IS_VALID:
-        nExpirationBlocks = BLOCKS_PER_DAY;
+        nExpirationBlocks = 576;
         break;
     default:
         nExpirationBlocks = 24;
