@@ -139,16 +139,10 @@ std::string SendBlockchainMessage(std::string sType, std::string sPrimaryKey, st
 
 std::string GetGithubVersion()
 {
-	std::string sURL = "https://" + GetSporkValue("pool");
-	std::string sRestfulURL = "SAN/LastMandatoryVersion.htm";
-	std::string sResponse = BiblepayHTTPSPost(false, 0, "", "", "", sURL, sRestfulURL, 443, "", 25, 10000, 1);
-	if (sResponse.length() > 11)
-	{
-		sResponse = sResponse.substr(sResponse.length() - 11, 11);
-		sResponse = strReplace(sResponse, "\n", "");
-		sResponse = strReplace(sResponse, "\r", "");
-    }
-	return sResponse;
+	std::string sURL = "https://" + GetSporkValue("bms");
+	std::string sRestfulURL = "BMS/LAST_MANDATORY_VERSION";
+	std::string sV = ExtractXML(BiblepayHTTPSPost(false, 0, "", "", "", sURL, sRestfulURL, 443, "", 25, 10000, 1), "<VERSION>", "</VERSION>");
+	return sV;
 }
 
 double GetCryptoPrice(std::string sSymbol)
@@ -157,7 +151,8 @@ double GetCryptoPrice(std::string sSymbol)
 	int CONNECTION_TIMEOUT = 15;
 	int TRANSMISSION_TIMEOUT = 15000;
 	int TERM_TYPE = 1;
-	std::string sC1 = BiblepayHTTPSPost(false, 0, "", "", "api", GetSporkValue("pool"), GetSporkValue("getcryptoprice" + sSymbol), SSL_PORT, "", CONNECTION_TIMEOUT, TRANSMISSION_TIMEOUT, TERM_TYPE);
+	std::string sC1 = BiblepayHTTPSPost(false, 0, "", "", "api", GetSporkValue("bms"), GetSporkValue("getbmscryptoprice" + sSymbol), 
+		SSL_PORT, "", CONNECTION_TIMEOUT, TRANSMISSION_TIMEOUT, TERM_TYPE);
 	double dDebugLevel = cdbl(GetArg("-debuglevel", "0"), 0);
 	if (dDebugLevel == 1)
 		LogPrintf("CryptoPrice %s", sC1);

@@ -2697,38 +2697,13 @@ UniValue exec(const JSONRPCRequest& request)
 	}
 	else if (sItem == "price")
 	{
-		bool fEnabled = sporkManager.IsSporkActive(SPORK_30_QUANTITATIVE_TIGHTENING_ENABLED);
-		double nMaxPerc = GetSporkDouble("qtmaxpercentage", 0);
-	
-		if (fEnabled && nMaxPerc > 0)
-		{
-			double dPriorPrice = 0;
-			double dPriorPhase = 0;
-			double dCurPhase = GetQTPhase(false, -1, chainActive.Tip()->nHeight, dPriorPrice, dPriorPhase);
-			results.push_back(Pair("consensus_price", dPriorPrice));
-			results.push_back(Pair("qt_phase", dCurPhase));
-			results.push_back(Pair("qt_prior_phase", dPriorPhase));
-			double out_BTC = 0;
-			double dPrice = GetPBase(out_BTC);
-			double dFuturePhase = GetQTPhase(true, dPrice, chainActive.Tip()->nHeight, dPriorPrice, dPriorPhase);
-			results.push_back(Pair("qt_future_phase", dFuturePhase));
-			results.push_back(Pair("qt_enabled", fEnabled));
-			results.push_back(Pair("cur_price", RoundToString(dPrice, 12)));
-			double dBBP = GetCryptoPrice("bbp");
-			double dBTC = GetCryptoPrice("btc");
-			results.push_back(Pair("BBP/BTC", RoundToString(dBBP, 12)));
-			results.push_back(Pair("BTC/USD", dBTC));
-		}
-		else
-		{
-			double dBBP = GetCryptoPrice("bbp");
-			double dBTC = GetCryptoPrice("btc");
-			results.push_back(Pair("QT", "Disabled"));
-			results.push_back(Pair("BBP/BTC", RoundToString(dBBP, 12)));
-			results.push_back(Pair("BTC/USD", dBTC));
-			double nPrice = GetBBPPrice();
-			results.push_back(Pair("BBP/USD", nPrice));
-		}
+		double dBBP = GetCryptoPrice("bbp");
+		double dBTC = GetCryptoPrice("btc");
+		results.push_back(Pair("QT", "Disabled"));
+		results.push_back(Pair("BBP/BTC", RoundToString(dBBP, 12)));
+		results.push_back(Pair("BTC/USD", dBTC));
+		double nPrice = GetBBPPrice();
+		results.push_back(Pair("BBP/USD", nPrice));
 	}
 	else if (sItem == "paysponsorship")
 	{
@@ -3190,8 +3165,8 @@ UniValue exec(const JSONRPCRequest& request)
 	}
 	else if (sItem == "testhttps")
 	{
-		std::string sURL = "https://" + GetSporkValue("pool");
-		std::string sRestfulURL = "SAN/LastMandatoryVersion.htm";
+		std::string sURL = "https://" + GetSporkValue("bms");
+		std::string sRestfulURL = "BMS/LAST_MANDATORY_VERSION";
 		std::string sResponse = BiblepayHTTPSPost(false, 0, "", "", "", sURL, sRestfulURL, 443, "", 25, 10000, 1);
 		results.push_back(Pair(sRestfulURL, sResponse));
 	}

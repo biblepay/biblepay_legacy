@@ -2338,7 +2338,6 @@ bool InstantiateOneClickMiningEntries()
 	WriteKey("genproclimit", "1");
 	// WriteKey("poolport","80");
 	// WriteKey("workerid","");
-	// WriteKey("pool","https://pool.biblepay.org");
 	WriteKey("gen","1");
 	return true;
 }
@@ -3086,13 +3085,8 @@ void UpdateHealthInformation(int iType)
 	int TRANSMISSION_TIMEOUT = 30000;
 	int CONNECTION_TIMEOUT = 15;
 	std::string sResponse;
-	std::string sHealthPage = "Action.aspx?action=health-post";
-	std::string sHost = "https://" + GetSporkValue("pool");
-	if (iType == 1)
-	{
-		sHost = "https://web.biblepay.org";
-		sHealthPage = "BMS/SANCTUARY_HEALTH_REQUEST?solution=" + sXML;
-	}
+	std::string sHost = "https://web.biblepay.org";
+	std::string sHealthPage = "BMS/SANCTUARY_HEALTH_REQUEST?solution=" + sXML;
 	sResponse = BiblepayHTTPSPost(true, 0, "POST", "", "", sHost, sHealthPage, SSL_PORT, sXML, CONNECTION_TIMEOUT, TRANSMISSION_TIMEOUT, 0);
 	std::string sError = ExtractXML(sResponse,"<ERROR>","</ERROR>");
 	std::string sResponseInner = ExtractXML(sResponse,"<RESPONSE>","</RESPONSE>");
@@ -3609,6 +3603,7 @@ WhaleMetric GetWhaleMetrics(int nHeight, bool fIncludeMemoryPool)
 
 std::vector<WhaleStake> GetPayableWhaleStakes(int nHeight, double& nOwed)
 {
+	const Consensus::Params& consensusParams = Params().GetConsensus();
 	std::vector<WhaleStake> wStakes = GetDWS(false);
 	std::vector<WhaleStake> wReturnStakes;
 	int nStartHeight = nHeight - BLOCKS_PER_DAY + 1;
@@ -3620,8 +3615,11 @@ std::vector<WhaleStake> GetPayableWhaleStakes(int nHeight, double& nOwed)
 		{
 			if (w.MaturityHeight >= nStartHeight && w.MaturityHeight <= nEndHeight)
 			{
-				wReturnStakes.push_back(w);
-				nOwed += w.TotalOwed;
+				if (w.BurnHeight > consensusParams.PODC2_CUTOVER_HEIGHT)
+				{
+					wReturnStakes.push_back(w);
+					nOwed += w.TotalOwed;
+				}
 			}
 		}
 	}
