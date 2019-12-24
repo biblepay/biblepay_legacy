@@ -3031,6 +3031,16 @@ BBPResult DSQL_ReadOnlyQuery(std::string sXMLSource)
 	return b;
 }
 
+BBPResult DSQL_ReadOnlyQuery(std::string sEndpoint, std::string sXML)
+{
+	std::string sDomain = "https://web.biblepay.org";
+	int iTimeout = 30;
+	int iSize = 24000000;
+	BBPResult b;
+	b.Response = BiblepayHTTPSPost(true, 0, "", "", sXML, sDomain, sEndpoint, 443, "", iTimeout, iSize, 4);
+	return b;
+}
+
 std::string Path_Combine(std::string sPath, std::string sFileName)
 {
 	if (sFileName.empty())
@@ -3845,3 +3855,46 @@ BBPVin GetBBPVIN(COutPoint o, int64_t nTxTime)
 	return b;
 }
 	
+std::string SearchChain(int nBlocks, std::string sDest)
+{
+	if (!chainActive.Tip()) 
+		return std::string();
+	int nMaxDepth = chainActive.Tip()->nHeight;
+	int nMinDepth = nMaxDepth - nBlocks;
+	if (nMinDepth < 1) 
+		nMinDepth = 1;
+	const Consensus::Params& consensusParams = Params().GetConsensus();
+	std::string sData;
+	CBlockIndex* pindex = FindBlockByHeight(nMinDepth);
+	while (pindex && pindex->nHeight < nMaxDepth)
+	{
+		if (pindex->nHeight < chainActive.Tip()->nHeight) 
+			pindex = chainActive.Next(pindex);
+		CBlock block;
+		if (ReadBlockFromDisk(block, pindex, consensusParams)) 
+		{
+			for (unsigned int n = 0; n < block.vtx.size(); n++)
+			{
+				std::string sMsg = GetTransactionMessage(block.vtx[n]);
+				std::string sCPK = ExtractXML(sMsg, "<cpk>", "</cpk>");
+				std::string sUSD = ExtractXML(sMsg, "<amount_usd>", "</amount_usd>");
+				std::string sChildID = ExtractXML(sMsg, "<childid>", "</childid>");
+				boost::trim(sChildID);
+
+				for (int i = 0; i < block.vtx[n]->vout.size(); i++)
+				{
+					double dAmount = block.vtx[n]->vout[i].nValue / COIN;
+					std::string sPK = PubKeyToAddress(block.vtx[n]->vout[i].scriptPubKey);
+					if (sPK == sDest && dAmount > 0 && !sChildID.empty())
+					{
+						std::string sRow = "<row><block>" + RoundToString(pindex->nHeight, 0) + "</block><destination>" + sPK + "</destination><cpk>" + sCPK + "</cpk><childid>" 
+							+ sChildID + "</childid><amount>" + RoundToString(dAmount, 2) + "</amount><amount_usd>" 
+							+ sUSD + "</amount_usd><txid>" + block.vtx[n]->GetHash().GetHex() + "</txid></row>";
+						sData += sRow;
+					}
+				}
+			}
+		}
+	}
+	return sData;
+}

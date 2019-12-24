@@ -300,6 +300,7 @@ void UpdateHealthInformation(int iType);
 BBPResult GetDecentralizedURL();
 std::string BIPFS_Payment(CAmount nAmount, std::string sTXID, std::string sXML);
 BBPResult DSQL_ReadOnlyQuery(std::string sXMLSource);
+BBPResult DSQL_ReadOnlyQuery(std::string sEndpoint, std::string sXML);
 int LoadResearchers();
 std::string TeamToName(int iTeamID);
 std::string GetResearcherCPID(std::string sSearch);
@@ -318,5 +319,6 @@ double GetWhaleStakesInMemoryPool(std::string sCPK);
 std::string GetCPKByCPID(std::string sCPID);
 int GetNextPODCTransmissionHeight(int height);
 int GetWhaleStakeSuperblockHeight(int nHeight);
+std::string SearchChain(int nBlocks, std::string sDest);
 
 #endif

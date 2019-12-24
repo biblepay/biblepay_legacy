@@ -1873,6 +1873,47 @@ UniValue exec(const JSONRPCRequest& request)
 		results.push_back(Pair("pinfo", nMN));
 		results.push_back(Pair("elapsed", nElapsed));
 	}
+	else if (sItem == "poom_payments")
+	{
+		if (request.params.size() != 3)
+			throw std::runtime_error("You must specify poom_payments charity_name type [XML/Auto].");
+		std::string sCharity = request.params[1].get_str();
+		std::string sType = request.params[2].get_str();
+		std::string sDest = GetSporkValue(sCharity + "-RECEIVE-ADDRESS");
+		if (sDest.empty())
+			throw std::runtime_error("Unable to find charity " + sCharity);
+
+		std::string CP = SearchChain(BLOCKS_PER_DAY * 31, sDest);
+		int payment_id = 0;
+		if (sType == "XML")
+		{
+			results.push_back(Pair("payments", CP));
+		}
+		else
+		{
+			std::vector<std::string> vRows = Split(CP.c_str(), "<row>");
+			for (int i = 0; i < vRows.size(); i++)
+			{
+				std::string sCPK = ExtractXML(vRows[i], "<cpk>", "</cpk>");
+				std::string sChildID = ExtractXML(vRows[i], "<childid>", "</childid>");
+				std::string sAmount = ExtractXML(vRows[i], "<amount>", "</amount>");
+				std::string sUSD = ExtractXML(vRows[i], "<amount_usd>", "</amount_usd>");
+				std::string sBlock = ExtractXML(vRows[i], "<block>", "</block>");
+				std::string sTXID = ExtractXML(vRows[i], "<txid>", "</txid>");
+				if (!sChildID.empty())
+				{
+					payment_id++;
+					results.push_back(Pair("Payment #", payment_id));
+					results.push_back(Pair("CPK", sCPK));
+					results.push_back(Pair("childid", sChildID));
+					results.push_back(Pair("Amount", sAmount));
+					results.push_back(Pair("Amount_USD", sUSD));
+					results.push_back(Pair("Block #", sBlock));
+					results.push_back(Pair("TXID", sTXID));
+				}
+			}
+		}
+	}
 	else if (sItem == "versioncheck")
 	{
 		std::string sNarr = GetVersionAlert();
@@ -2699,10 +2740,13 @@ UniValue exec(const JSONRPCRequest& request)
 	{
 		double dBBP = GetCryptoPrice("bbp");
 		double dBTC = GetCryptoPrice("btc");
-		results.push_back(Pair("QT", "Disabled"));
+		double dDASH = GetCryptoPrice("dash");
 		results.push_back(Pair("BBP/BTC", RoundToString(dBBP, 12)));
+		results.push_back(Pair("DASH/BTC", RoundToString(dDASH, 12)));
 		results.push_back(Pair("BTC/USD", dBTC));
 		double nPrice = GetBBPPrice();
+		double nDashPriceUSD = dBTC * dDASH;
+		results.push_back(Pair("DASH/USD", nDashPriceUSD));
 		results.push_back(Pair("BBP/USD", nPrice));
 	}
 	else if (sItem == "paysponsorship")

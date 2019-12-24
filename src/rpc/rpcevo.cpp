@@ -30,6 +30,7 @@
 #include "evo/cbtx.h"
 #include "smartcontract-client.h"
 #include "smartcontract-server.h"
+#include "rpcpodc.h"
 
 #include "bls/bls.h"
 
@@ -1272,6 +1273,160 @@ UniValue createnonfinancialtransaction(const JSONRPCRequest& request)
 	return SignAndSendSpecialTx(tx);
 }
 
+UniValue trackdashpay(const JSONRPCRequest& request)
+{
+	if (request.fHelp)
+		throw std::runtime_error(
+		"trackdashpay txid"
+		"\nThis command displays the status of a dashpay transaction that is still in process. "
+		"\nExample: trackdashpay txid");
+
+	if (request.params.size() != 1)
+			throw std::runtime_error("You must specify the txid.");
+	std::string sError;
+	std::string sTXID = request.params[0].get_str();
+	UniValue results(UniValue::VOBJ);
+	std::string sXML = "<txid>" + sTXID + "</txid>";
+	BBPResult b = DSQL_ReadOnlyQuery("BMS/TrackDashPay", sXML);
+	std::string sResponse = ExtractXML(b.Response, "<response>", "</response>");
+	std::string sUpdated = ExtractXML(b.Response, "<updated>", "</updated>");
+	std::string sDashTXID = ExtractXML(b.Response, "<dashtxid>", "</dashtxid>");
+	results.push_back(Pair("Response", sResponse));
+	if (!sUpdated.empty())
+		results.push_back(Pair("Updated", sUpdated));
+	if (!sDashTXID.empty())
+		results.push_back(Pair("dash-txid", sDashTXID));
+
+	return results;	
+}
+
+UniValue dashpay(const JSONRPCRequest& request)
+{
+	if (request.fHelp)
+		throw std::runtime_error(
+		"dashpay address amount_in_DASH [0=test/1=authorize]"
+		"\nThis command sends an amount denominated in DASH to the DASH receive address via InstantSend. "
+		"\nNOTE: You can expiriment to find the right amount by executing this command in test mode. "
+		"\nExample:  dashpay dash_recv_address 1.23 0");
+
+	if (request.params.size() != 3)
+			throw std::runtime_error("You must specify dashpay dash_recv_address Dash_Amount 0=test/1=authorize. ");
+	std::string sError;
+	UniValue results(UniValue::VOBJ);
+	
+	std::string sCPK = DefaultRecAddress("Christian-Public-Key");  // We use this address to send the refund if the IX is rejected
+
+	std::string sDashAddress = request.params[0].get_str();
+	double nDashAmount = cdbl(request.params[1].get_str(), 4);
+	double nMode = cdbl(request.params[2].get_str(), 0);
+	if (nMode != 0 && nMode != 1)
+	{
+		throw std::runtime_error("Sorry, the mode must be 0 or 1.  0=Test.  1=Authorize.");
+	}
+
+	double nBBPUSDPrice = GetBBPPrice();
+	double dDASH = GetCryptoPrice("dash"); // Dash->BTC price
+	double dBTC = GetCryptoPrice("btc");
+		
+	double nDashPriceUSD = dBTC * dDASH;  // Dash price in USD
+
+	if (nBBPUSDPrice < .00001 || nDashPriceUSD < 1)
+	{
+		sError = "BBP Price too low to use feature.  Price must be above .00001USD/BBP.  Dash price must be above 1.0/USD. ";
+		nBBPUSDPrice = .00001;
+	}
+
+	double nAmountUSD = nDashPriceUSD * nDashAmount;
+	results.push_back(Pair("DASH/USD_Price", nDashPriceUSD));
+	
+	if (nAmountUSD < .99)
+	{
+		sError += "You must enter a USD value greater than or equal to $1.00 to use this feature. ";
+		nAmountUSD = .01;
+	}
+
+	if (nDashAmount < .0001)
+	{
+		sError += "Dash amount must be >= .0001";
+	}
+
+	if (nMode == 0)
+	{
+		sError += "Running in test mode. ";
+	}
+
+	double nBBPAmount = cdbl(RoundToString(nAmountUSD / nBBPUSDPrice, 2), 2);
+	results.push_back(Pair("BBP/USD_Price", nBBPUSDPrice));
+	results.push_back(Pair("USD Amount Required", nAmountUSD));
+
+	std::string sXML = "<cpk>" + sCPK + "</cpk><dashaddress>" + sDashAddress 
+		+ "</dashaddress><dashamount>" + RoundToString(nDashAmount, 8) + "</dashamount><bbpamount>" + RoundToString(nBBPAmount, 8) + "</bbpamount>";
+	
+	// Verify this transaction will not fail first
+	
+	BBPResult b = DSQL_ReadOnlyQuery("BMS/DashPay", sXML);
+	std::string sHealth = ExtractXML(b.Response, "<health>", "</health>");
+	if (!sHealth.empty() && sHealth != "UP")
+		results.push_back(Pair("health", sHealth));
+	if (Contains(sHealth, "DOWN"))
+	{
+		nMode = 0;
+		sError += sHealth;
+	}
+	// Verify dry run results
+	std::string sErrorDryRun = ExtractXML(b.Response, "<error>", "</error>");
+	if (!sErrorDryRun.empty())
+	{
+		results.push_back(Pair("Error", sErrorDryRun));
+	}
+	std::string sWarning = ExtractXML(b.Response, "<warning>", "</warning>");
+	if (!sWarning.empty())
+		results.push_back(Pair("Warning", sWarning));
+
+	std::string sDashPayAddress = GetSporkValue("DashPayAddress");
+	const CChainParams& chainparams = Params();
+
+	CBitcoinAddress baDest(sDashPayAddress);
+	if (sDashAddress.empty())
+		throw std::runtime_error("Dash Destination address must be populated.");
+
+	if (!baDest.IsValid() || sDashAddress.length() != 34 || sDashAddress.substr(0,1) != "X")
+		throw std::runtime_error("Sorry, DashPay destination address is invalid for this IX transaction.");
+	
+	bool fSubtractFee = false;
+	bool fInstantSend = true;
+	CWalletTx wtx;
+	bool fSent = false;
+	if (sErrorDryRun.empty() && sError.empty() && nMode == 1)
+	{
+		// Set up an atomic transaction here
+		fSent = RPCSendMoney(sError, baDest.Get(), nBBPAmount * COIN, fSubtractFee, wtx, fInstantSend, sXML);
+		if (fSent)
+		{
+			sXML += "<txid>" + wtx.GetHash().GetHex() + "</txid>";
+			b = DSQL_ReadOnlyQuery("BMS/DashPay", sXML);
+			std::string sDashPayResponse = ExtractXML(b.Response,"<response>", "</response>");
+			std::string sWarnings = ExtractXML(b.Response, "<warning>", "</warning>");
+			if (!sWarnings.empty())
+				results.push_back(Pair("Warning_1", sWarnings));
+			std::string sDashPayError = ExtractXML(b.Response, "<error>", "</error>");
+			if (!sDashPayError.empty())
+				results.push_back(Pair("Error_1", sDashPayError));
+			results.push_back(Pair("dashpay-txid", sDashPayResponse));
+		}
+	}
+	
+	results.push_back(Pair("BBP Amount being spent", nBBPAmount));
+	if (!sError.empty())
+		results.push_back(Pair("Errors", sError));
+
+	if (fSent && nMode == 0)
+	{
+		results.push_back(Pair("bbp-txid", wtx.GetHash().GetHex()));
+	}
+	return results;
+}
+
 UniValue sponsorchild(const JSONRPCRequest& request)
 {
 	// Sponsor a Child
@@ -1711,6 +1866,7 @@ static const CRPCCommand commands[] =
 	{ "evo",                "bookname",                     &bookname,                      false, {}  },
 	{ "evo",                "books",                        &books,                         false, {}  },
 	{ "evo",                "datalist",                     &datalist,                      false, {}  },
+	{ "evo",                "dashpay",                      &dashpay,                       false, {}  },
 	{ "evo",                "getchildbalance",              &getchildbalance,               false, {}  },
 	{ "evo",                "hexblocktocoinbase",           &hexblocktocoinbase,            false, {}  },
 	{ "evo",                "getpobhhash",                  &getpobhhash,                   false, {}  },
@@ -1720,6 +1876,7 @@ static const CRPCCommand commands[] =
 	{ "evo",                "nonfinancialtxtojson",         &nonfinancialtxtojson,          false, {}  },
 	{ "evo",                "sponsorchild",                 &sponsorchild,                  false, {}  },
 	{ "evo",                "listchildren",                 &listchildren,                  false, {}  },
+	{ "evo",                "trackdashpay",                 &trackdashpay,                  false, {}  },
 	{ "evo",                "sendgscc",                     &sendgscc,                      false, {}  },
 	{ "evo",                "versionreport",                &versionreport,                 false, {}  },
 };
