@@ -149,7 +149,7 @@ void Proposals::ProcessVote(std::string gobject, std::string signal, std::string
 		else
 		{
 			sVoteNarr = "Voting Failed!  Failed to vote " + RoundToString(nFailed, 0) + " time(s).  ";
-			if (sError.empty()) sVoteNarr += " (Check that sanctuaries are DIP3?  Also you must wait 3 minutes in-between re-votes due to network rules.)";
+			if (sError.empty()) sVoteNarr += " (Note: You must wait 3 minutes in-between re-votes due to network rules.  Please ensure your wallet is unlocked also.  )";
 			if (!sError.empty()) sVoteNarr += " [" + sError + "]";
 		}
 		QMessageBox msgOutcome;

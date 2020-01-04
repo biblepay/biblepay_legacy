@@ -2435,7 +2435,7 @@ bool AdvertiseChristianPublicKeypair(std::string sProjectId, std::string sNickNa
 	}
 	else
 	{
-		sError = "Unable to sign CPK " + sCPK + " (" + sError + ").  Error 837.";
+		sError = "Unable to sign CPK " + sCPK + " (" + sError + ").  Error 837.  Please ensure wallet is unlocked.";
 		return false;
 	}
 
@@ -3234,7 +3234,16 @@ int LoadResearchers()
 	if (fDebug)
 		LogPrintf("LoadResearchers Start %f", GetAdjustedTime());
 
-	BBPResult b = DSQL_ReadOnlyQuery("wwwroot/certs/wcgrac.xml");
+	BBPResult b;
+	for (int j = 0; j < 4; j++)
+	{
+		b = DSQL_ReadOnlyQuery("wwwroot/certs/wcgrac.xml");
+		std::string sHash = ExtractXML(b.Response, "<boinchash>", "</boinchash>");
+		if (!sHash.empty()) 
+			break;
+		MilliSleep(2000);
+		LogPrintf("LoadResearchers::ERROR Failed to receive boinchash, trying again - attempt #%f\n", j);
+	}
 
 	if (fDebug)
 		LogPrintf("LoadResearchers End %f", GetAdjustedTime());

@@ -2501,12 +2501,12 @@ UniValue exec(const JSONRPCRequest& request)
 		results.push_back(Pair("wcg_member_id", nID));
 		results.push_back(Pair("wcg_points", nPoints));
 		Researcher r = GetResearcherByID(nID);
-		if (!r.found && !fForce && nID > 0)
+		if (!r.found && nID > 0)
 		{
 			std::string sErr = "Sorry, we found you as a researcher in WCG, but we were unable to locate you on the team.  "
-				 "Please join team BiblePay to proceed.  Please type 'exec rac' to see more helpful hints.  "
-                 "NOTE:  You may check back again once every 12 hours to see if you are on the team. ";
-			throw std::runtime_error(sErr.c_str());
+				 "You may still participate but the daily escrow requirements are higher for non BiblePay researchers. "
+				 "NOTE:  Your RAC must be > 256 if you are not on team biblepay.  Please navigate to web.biblepay.org, click PODC research, and type in your CPID in the search box.  If your rac < 256 please build up your RAC first, then re-associate.  ";
+         	throw std::runtime_error(sErr.c_str());
 		}
 		results.push_back(Pair("cpid", r.cpid));
 		results.push_back(Pair("rac", r.rac));
@@ -2749,82 +2749,6 @@ UniValue exec(const JSONRPCRequest& request)
 		results.push_back(Pair("DASH/USD", nDashPriceUSD));
 		results.push_back(Pair("BBP/USD", nPrice));
 	}
-	else if (sItem == "paysponsorship")
-	{
-		if (request.params.size() != 5)
-			throw std::runtime_error("You must specify charity_name childid amount_in_USD send_mode.  IE: exec paysponsorship cameroon-one childID 40 [test/authorize].  Or: exec paysponsorship kairos childID 25 [test/authorize].");
-		std::string sError;
-	   	std::string sCPK = DefaultRecAddress("Christian-Public-Key");
-		
-		std::string sCharity = request.params[1].get_str();
-		std::string sChildID = request.params[2].get_str();
-		double nAmountUSD = cdbl(request.params[3].get_str(), 2);
-		std::string sSendMode = request.params[4].get_str();
-
-		if (sCharity != "cameroon-one" && sCharity != "kairos")
-		{
-			throw std::runtime_error("Sorry, the charity name does not match any POOM charities.  [cameroon-one || kairos]. ");
-		}
-
-		double nPrice = GetBBPPrice();
-		
-		if (nPrice < .00001)
-		{
-			sError = "BBP Price too low to use feature.  Price must be above .00001USD/BBP ";
-			nPrice = .00001;
-		}
-
-		if (nAmountUSD < 1)
-		{
-			sError += "You must enter a USD value greater than $1.00 to use this feature. ";
-			nAmountUSD = .01;
-		}
-
-		bool fGood = VerifyChild(sChildID, sCharity);
-		if (!fGood || sChildID.empty())
-			sError += "Invalid Child ID. (Not sponsored). ";
-
-		if (sSendMode != "authorize")
-		{
-			sError += "Running in dry run mode. ";
-		}
-
-		double nAmount = cdbl(RoundToString(nAmountUSD / nPrice, 2), 2);
-
-		results.push_back(Pair("BBP/USD_Price", nPrice));
-
-		std::string sXML = "<cpk>" + sCPK + "</cpk><childid> " + sChildID + "</childid><amount_usd>" + RoundToString(nAmountUSD, 2) 
-			+ "</amount_usd><amount>" + RoundToString(nAmount, 2) + "</amount><charity>" + sCharity + "</charity>";
-		
-		// This handles Charity and Chain Type:
-		std::string sDest = GetSporkValue(sCharity + "-receive-address");
-		CBitcoinAddress baDest(sDest);
-		if (!baDest.IsValid())
-			throw std::runtime_error("Sorry, destination address is invalid for charity " + sCharity + ".");
-	
-		bool fSubtractFee = false;
-		bool fInstantSend = false;
-		CWalletTx wtx;
-		bool fSent = false;
-		if (sError.empty() && sSendMode == "authorize")
-		{
-			fSent = RPCSendMoney(sError, baDest.Get(), nAmount * COIN, fSubtractFee, wtx, fInstantSend, sXML);
-		}
-
-		if (!fSent)
-		{
-			results.push_back(Pair("Error", sError));
-			results.push_back(Pair("BBPAmount", nAmount));
-			results.push_back(Pair("USDAmount", nAmountUSD));
-		}
-		else
-		{
-			results.push_back(Pair("txid", wtx.GetHash().GetHex()));
-			results.push_back(Pair("childid", sChildID));
-			results.push_back(Pair("BBPAmount", nAmount));
-			results.push_back(Pair("USDAmount", nAmountUSD));
-		}
-	}
 	else if (sItem == "sentgsc")
 	{
 		if (request.params.size() > 3)
@@ -3005,6 +2929,12 @@ UniValue exec(const JSONRPCRequest& request)
 		if (request.params.size() > 1)
 			sSearch = request.params[1].get_str();
 		
+		if (!sSearch.empty() && sSearch.length() != 32)
+		{	
+			BoincHelpfulHint(results);
+		    return results;
+		}
+
 		// First verify the user has a CPK...
 		CPK myCPK = GetMyCPK("cpk");
 		if (myCPK.sAddress.empty() && sSearch.empty()) 

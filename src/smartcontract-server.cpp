@@ -299,7 +299,7 @@ std::string WatchmanOnTheWall(bool fForce, std::string& sContract)
 		return "WATCHMAN_CHAIN_NOT_SYNCED";
 
 	const Consensus::Params& consensusParams = Params().GetConsensus();
-	int MIN_EPOCH_BLOCKS = consensusParams.nSuperblockCycle * .10; // TestNet Weekly superblocks (1435=144), Prod Monthly superblocks (6150=615), this means a 144 block warning in TestNet, and a 615 block warning in Prod
+	int MIN_EPOCH_BLOCKS = consensusParams.nSuperblockCycle * .07; // TestNet Weekly superblocks (1435), Prod Monthly superblocks (6150), this means a 75 block warning in TestNet, and a 210 block warning in Prod
 
 	int nLastSuperblock = 0;
 	int nNextSuperblock = 0;
@@ -721,7 +721,18 @@ std::string AssessBlocks(int nHeight, bool fCreatingContract)
 			if (nCoinAgeRequired > r.second.CoinAge && nCoinAgeRequired != N_MAX)
 			{
 				// Reduce the researchers RAC to the applicable coinAge staked:
-				r.second.rac = pow(r.second.rac - 1, 1/1.3);
+				double nPODCConfig = GetSporkDouble("mandatory1485", 0);
+				if (nPODCConfig == 1)
+				{
+					// Maintain PODC consensus compatibility until 1.4.8.5 cutover height for sanctuaries is announced (TBD)
+					double nExponent = (r.second.teamid == 35006) ? 1.3 : 1.6;
+					r.second.rac = pow(r.second.CoinAge - 1, 1/nExponent);
+				}
+				else
+				{
+					r.second.rac = pow(r.second.rac - 1, 1/1.3);
+				}
+
 				nCoinAgeRequired = GetRequiredCoinAgeForPODC(r.second.rac, r.second.teamid);
 			}
 
@@ -1507,7 +1518,6 @@ void SendOutGSCs()
 	// Note that the GSCs are now funded with coin-age from the external purse address (Christian-Public-Key).
 	// As of November 2nd, 2019:  We have the campaigns:  WCG (PODC), HEALING, CAMEROON-ONE, and KAIROS.
 	std::string sError;
-	LoadResearchers();
 	LogPrintf("\nSending out GSC Transmissions...%f\n", GetAdjustedTime());
 	bool fCreated = CreateAllGSCTransmissions(sError);
 	if (!fCreated)
@@ -1523,13 +1533,23 @@ std::string ExecuteGenericSmartContractQuorumProcess()
 		return "CHAIN_NOT_SYNCED";
 	
 	int nFreq = (int)cdbl(GetArg("-dailygscfrequency", RoundToString(BLOCKS_PER_DAY, 0)), 0);
+	if (nFreq < 50)
+		nFreq = 50; 
 	// Send out GSCs at midpoint of each day:
 	bool fGSCTime = (chainActive.Tip()->nHeight % nFreq == (BLOCKS_PER_DAY/2));
+
+	// UI Glitch in 1.4.8.5 fix (we normally have about 21,000 researchers in prod). 
+	bool fReload = false;
+	if (mvResearchers.size() < 500 && fProd && chainActive.Tip()->nHeight % 10 == 0)
+		fReload = true;
+
+	if (chainActive.Tip()->nHeight % 128 == 0 || fReload)
+	{
+		LoadResearchers();
+	}
+
 	if (fGSCTime)
 		SendOutGSCs();
-
-	if (chainActive.Tip()->nHeight % 14 == 0)
-		LoadResearchers();
 
 	if (!fMasternodeMode)   
 		return "NOT_A_SANCTUARY";

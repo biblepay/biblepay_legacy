@@ -1427,6 +1427,63 @@ UniValue dashpay(const JSONRPCRequest& request)
 	return results;
 }
 
+UniValue cancelsponsorship(const JSONRPCRequest& request)
+{
+	// Cancel a sponsorship
+	if (request.fHelp)
+		throw std::runtime_error(
+		"cancelsponsorship charityname childid authorize"
+		"\nCancels an existing sponsorship. \n "
+		"You must specify true to authorize the cancellation.  Example:  cancelsponsorship kairos childid authorize.");
+
+	if (request.params.size() != 3)
+			throw std::runtime_error("You must specify cancelsponsorship charityname childid 'authorize'.  ");
+
+	std::string sCharity = request.params[0].get_str();
+	std::string sChildID = request.params[1].get_str();
+	std::string sAuthorize = request.params[2].get_str();
+	if (sAuthorize != "authorize")
+		throw std::runtime_error("Request cancelled, child still active.");
+	if (sCharity != "cameroon-one" && sCharity != "kairos")
+		throw std::runtime_error("Charity name is not recognized.");
+
+	bool fGood = VerifyChild(sChildID, sCharity);
+	if (!fGood || sChildID.empty())
+		throw std::runtime_error("Invalid Child ID. (Not sponsored). ");
+
+	std::string sError;
+
+	if (!Enrolled(sCharity, sError))
+	{
+		sError = "Sorry, CPK is not enrolled in project. [" + sError + "].  Error 795.  To continue, please type 'exec join campaign_name', then wait 3 blocks, then continue. ";
+		throw std::runtime_error(sError);
+	}
+
+	std::string sProject = "cpk|" + sCharity;
+    EnsureWalletIsUnlocked(pwalletMain);
+
+	CAmount nFee = 1 * COIN;
+	std::string sKey = sProject + "|" + sChildID;
+
+	bool fForce = true;
+	std::string sNewId = "";
+	std::string sOptData = "";
+	
+	bool fAdv = AdvertiseChristianPublicKeypair(sKey,          "", sOptData,     "", true, true, nFee, sNewId, sError);
+	
+    UniValue results(UniValue::VOBJ);
+	if (!fAdv)
+	{
+		results.push_back(Pair("Error", sError));
+	}
+	else
+	{
+		results.push_back(Pair("Results", "Sponsorship cancelled.  Please wait 3 blocks to see if the child is removed from listchildren. "));
+	}
+	return results;
+}
+
+
 UniValue sponsorchild(const JSONRPCRequest& request)
 {
 	// Sponsor a Child
@@ -1482,7 +1539,6 @@ UniValue sponsorchild(const JSONRPCRequest& request)
 			"\nIt can take 7-14 days to provision a new child, receive and post your payment, so please, be patient. "
 			"\nTo check the status of your child, type 'listchildren' into the RPC."
 			"\nPlease read this wiki page to know how to make a payment for your child:  https://wiki.biblepay.org/Paying_For_a_POOM_Sponsored_Child"
-			"\nAlternatively, you can pay by typing 'exec paysponsorship'."
 			"\n";
 
 		std::vector<std::string> vNarr = Split(sNarr.c_str(), "\n");
@@ -1865,6 +1921,7 @@ static const CRPCCommand commands[] =
   //  --------------------- ------------------------  -----------------------  ----------
 	{ "evo",                "bookname",                     &bookname,                      false, {}  },
 	{ "evo",                "books",                        &books,                         false, {}  },
+	{ "evo",                "cancelsponsorship",            &cancelsponsorship,             false, {}  },
 	{ "evo",                "datalist",                     &datalist,                      false, {}  },
 	{ "evo",                "dashpay",                      &dashpay,                       false, {}  },
 	{ "evo",                "getchildbalance",              &getchildbalance,               false, {}  },
