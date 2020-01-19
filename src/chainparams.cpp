@@ -210,6 +210,7 @@ public:
 		consensus.F11000_CUTOVER_HEIGHT = 33440;
 		consensus.F12000_CUTOVER_HEIGHT = 35110;
 		consensus.F13000_CUTOVER_HEIGHT = 57700; 
+		consensus.ANTI_GPU_HEIGHT = 170830;
 		consensus.LAST_TITHE_BLOCK = 21565;
 		consensus.ABNHeight = 127000;
 		consensus.nSubsidyHalvingInterval = BLOCKS_PER_DAY * 365; // We produce approx 74,825 blocks per year (205 per day)
@@ -397,10 +398,10 @@ public:
 
 		consensus.PODC_LAST_BLOCK = 100; // March 13th, 2019
 		consensus.PODC2_CUTOVER_HEIGHT = 21000;  // Go live height for PODC 2.0, DWS (Christmas 2019)
-	
 		consensus.F7000_CUTOVER_HEIGHT = 100;
 		consensus.F12000_CUTOVER_HEIGHT = 100;
 		consensus.F13000_CUTOVER_HEIGHT = 100; 
+		consensus.ANTI_GPU_HEIGHT = 30000;
 		consensus.ABNHeight = 5000;
 		int BLOCKS_PER_DAY = 205;
 		consensus.F9000_CUTOVER_HEIGHT= 100;

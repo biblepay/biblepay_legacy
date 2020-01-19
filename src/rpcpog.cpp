@@ -1065,12 +1065,14 @@ int64_t GetFileSize(std::string sPath)
 
 bool CheckNonce(bool f9000, unsigned int nNonce, int nPrevHeight, int64_t nPrevBlockTime, int64_t nBlockTime, const Consensus::Params& params)
 {
-	if (!f9000 || nPrevHeight > params.EVOLUTION_CUTOVER_HEIGHT) return true;
+	if (!f9000 || nPrevHeight > params.EVOLUTION_CUTOVER_HEIGHT && nPrevHeight <= params.ANTI_GPU_HEIGHT) 
+		return true;
 	int64_t MAX_AGE = 30 * 60;
 	int NONCE_FACTOR = 256;
 	int MAX_NONCE = 512;
 	int64_t nElapsed = nBlockTime - nPrevBlockTime;
-	if (nElapsed > MAX_AGE) return true;
+	if (nElapsed > MAX_AGE) 
+		return true;
 	int64_t nMaxNonce = nElapsed * NONCE_FACTOR;
 	if (nMaxNonce < MAX_NONCE) nMaxNonce = MAX_NONCE;
 	return (nNonce > nMaxNonce) ? false : true;
@@ -2571,12 +2573,6 @@ static std::string msABNError;
 static bool mfABNSpent = false;
 static std::mutex cs_abn;
 
-void SpendABN()
-{
-	mfABNSpent = true;
-	miABNTime = 0;
-}
-
 CWalletTx CreateAntiBotNetTx(CBlockIndex* pindexLast, double nMinCoinAge, CReserveKey& reservekey, std::string& sXML, std::string sPoolMiningPublicKey, std::string& sError)
 {
 		CWalletTx wtx;
@@ -3324,6 +3320,8 @@ std::string TeamToName(int iTeamID)
 
 std::string GetResElement(std::string data, int iElement)
 {
+	if (data.empty())
+		return "";
 	std::vector<std::string> vEle = Split(data.c_str(), "|");
 	if (iElement+1 > vEle.size())
 		return std::string();
@@ -3337,8 +3335,6 @@ std::string GetResDataBySearch(std::string sSearch)
 		if (ii.first.first == "CPK-WCG")
 		{
 			std::pair<std::string, int64_t> v = mvApplicationCache[std::make_pair(ii.first.first, ii.first.second)];
-			int64_t nTimestamp = v.second;
-			std::string sTXID = ii.first.second;
 			std::string sValue = v.first;
 			std::string sCPID = GetResElement(sValue, 8);
 			std::string sNickName = GetResElement(sValue, 5);
@@ -3348,6 +3344,22 @@ std::string GetResDataBySearch(std::string sSearch)
 			}
 		}
 	}
+	return "";
+}
+
+int GetWCGIdByCPID(std::string sSearch)
+{
+	std::string sResData = GetResDataBySearch(sSearch);
+    std::vector<std::string> vEle = Split(sResData.c_str(), "|");
+	if (vEle.size() < 9)
+		return 0;
+	std::string sCPID = vEle[8];
+	std::string sVerCode0 = vEle[6];
+	std::string sUN = vEle[5];
+	std::string sEle = DecryptAES256(sVerCode0, sCPID);
+	double nPoints = 0;
+	int nID = GetWCGMemberID(sUN, sEle, nPoints);
+	return nID;
 }
 
 int GetNextPODCTransmissionHeight(int height)
@@ -3543,9 +3555,20 @@ CAmount GetAnnualDWSReward(int nHeight)
 
     CAmount blockReward = GetBlockSubsidy(1, nHeight, consensusParams, false);
 	CAmount nTotal = BLOCKS_PER_DAY * blockReward * 30 * 12;
-	CAmount nDWS = nTotal * .10;
+	CAmount nDWS = 0;
+
+	if (nHeight < consensusParams.ANTI_GPU_HEIGHT)
+	{
+		nDWS = nTotal * .10;
+	}
+	else if (nHeight >= consensusParams.ANTI_GPU_HEIGHT)
+	{
+		// Per https://wiki.biblepay.org/Emission_Schedule, DWS should emit 4.3MM per month in the first year, deflating at 20.04% per year
+		nDWS = nTotal * .325;
+	}
 	if (fDebugSpam)
 		LogPrintf("Annual Emission %f, DWS %f", (double)nTotal/COIN, (double)nDWS/COIN);
+
 	return nDWS;
 }
 
@@ -3565,6 +3588,23 @@ int GetWhaleStakeSuperblockHeight(int nHeight)
 	}
 	*/
 	return nSBHeight;
+}
+
+double GetMaxWhaleDWU(int nBurnHeight)
+{
+	const Consensus::Params& consensusParams = Params().GetConsensus();
+	if (nBurnHeight < consensusParams.ANTI_GPU_HEIGHT)
+	{
+		return MAX_WHALE_DWU;
+	}
+	else if (nBurnHeight >= consensusParams.ANTI_GPU_HEIGHT)
+	{
+		return MAX_WHALE_DWU * .35;
+	}
+	else
+	{
+		return MAX_WHALE_DWU;
+	}
 }
 
 WhaleMetric GetWhaleMetrics(int nHeight, bool fIncludeMemoryPool)
@@ -3608,12 +3648,29 @@ WhaleMetric GetWhaleMetrics(int nHeight, bool fIncludeMemoryPool)
 		m.nTotalAnnualReward = 1;
 	// Calculate % taken out in last 30 days
 	m.nSaturationPercentMonthly = m.nTotalMonthlyCommitments / (m.nTotalAnnualReward / 12);
-	double nAvailable = 1 - (m.nSaturationPercentMonthly);
+	m.nSaturationPercentAnnual = m.nTotalFutureCommitments / m.nTotalAnnualReward;
+
+	double nAvailable = 0;
+	const Consensus::Params& consensusParams = Params().GetConsensus();
+
+	if (nHeight < consensusParams.ANTI_GPU_HEIGHT)
+	{
+		nAvailable = 1 - (m.nSaturationPercentMonthly);
+	}
+	else if (nHeight >= consensusParams.ANTI_GPU_HEIGHT)
+	{
+		// Increase the sensitivity
+		double nAvailableMonthly = 1 - (m.nSaturationPercentMonthly);
+		double nAvailableAnnual = 1 - (m.nSaturationPercentAnnual); 
+		nAvailable = std::min(nAvailableMonthly, nAvailableAnnual);
+	}
+
 	if (nAvailable > 1) nAvailable = 1;
 	if (nAvailable < 0) nAvailable = 0;
-	m.DWU = MAX_WHALE_DWU * nAvailable;
+	double nMaxWhaleDWU = GetMaxWhaleDWU(nHeight);
 
-	m.nSaturationPercentAnnual = m.nTotalFutureCommitments / m.nTotalAnnualReward;
+	m.DWU = nMaxWhaleDWU * nAvailable;
+
 	if (m.nSaturationPercentAnnual > .99)
 		m.DWU = 0;
 

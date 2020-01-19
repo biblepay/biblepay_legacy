@@ -2808,10 +2808,24 @@ UniValue exec(const JSONRPCRequest& request)
 		results.push_back(Pair("Results", "Sent sanctuary revival pro-tx successfully.  Please wait for the sanctuary list to be updated to ensure the sanctuary is revived.  This usually takes one to fifteen minutes."));
 
 	}
+	else if (sItem == "diagnosewcgpoints")
+	{
+		// This diagnosis command simply checks the cpid's WCG point level from the WCG API for debug purposes
+		std::string sSearch = request.params[1].get_str();
+		if (sSearch.empty())
+			throw std::runtime_error("empty cpid");
+
+		int nID = GetWCGIdByCPID(sSearch);
+		if (nID == 0)
+			throw std::runtime_error("unknown cpid");
+
+		results.push_back(Pair("wcg_id", nID));
+		results.push_back(Pair("cpid", sSearch));
+	}
 	else if (sItem == "upgradesanc")
 	{
 		if (request.params.size() != 3)
-			throw std::runtime_error("You must specify exec upgradesanc sanctuary_name (where the sanctuary_name matches the name in the masternode.conf file) 0/1 (where 0=dry-run, 1=real).");
+			throw std::runtime_error("You must specify exec upgradesanc sanctuary_name (where the sanctuary_name matches the name in the masternode.conf file) 0/1 (where 0=dry-run, 1=real).   NOTE:  Please be sure your masternode.conf has a carriage return after the end of every sanctuary entry (otherwise we can't parse each entry correctly). ");
 
 		std::string sSearch = request.params[1].get_str();
 		int iDryRun = cdbl(request.params[2].get_str(), 0);
@@ -2829,6 +2843,11 @@ UniValue exec(const JSONRPCRequest& request)
 		std::string sMNP = vSanc[2];
 		std::string sCollateralTXID = vSanc[3];
 		std::string sCollateralTXIDOrdinal = vSanc[4];
+		double dColOrdinal = cdbl(sCollateralTXIDOrdinal, 0);
+		if (sCollateralTXIDOrdinal.length() != 1 || dColOrdinal > 9 || sCollateralTXID.length() < 16)
+		{
+			throw std::runtime_error("Sanctuary entry in masternode.conf corrupted (collateral txid missing, or there is no newline at the end of the entry in the masternode.conf file.)");
+		}
 		std::string sSummary = "Creating protx_register command for Sanctuary " + sSancName + " with IP " + sSancIP + " with TXID " + sCollateralTXID;
 		// Step 1: Fund the protx fee
 		// 1a. Create the new deterministic-sanctuary reward address
@@ -2921,9 +2940,9 @@ UniValue exec(const JSONRPCRequest& request)
 		// This command should also confirm the CPID link status
 		// So:  Display WCG Rac in team BBP, Link Status, and external-purse weight need to be shown.
 		// This command can knock out most troubleshooting issues all in one swoop.
-
+		
 		if (request.params.size() > 2)
-			throw std::runtime_error("You must specify exec rac [optional=someone elses cpid or nickname].");
+			throw std::runtime_error("Rac v1.1: You must specify exec rac [optional=someone elses cpid or nickname].");
 
 		std::string sSearch;
 		if (request.params.size() > 1)
@@ -2946,6 +2965,8 @@ UniValue exec(const JSONRPCRequest& request)
 
 		// Next check the link status (of the exec join wcg->cpid)...
 		std::string sCPID = GetResearcherCPID(sSearch);
+		LogPrintf("\nFound researcher cpid %s", sCPID);
+
 		UniValue e(UniValue::VOBJ);
 
 		if (sCPID.empty())
@@ -2957,7 +2978,13 @@ UniValue exec(const JSONRPCRequest& request)
 
 		results.push_back(Pair("cpid", sCPID));
 		Researcher r = mvResearchers[sCPID];
-		if (!r.found && sCPID.length() == 32)
+		if (!r.found && sCPID.length() != 32)
+		{
+			results.push_back(Pair("Error", "Not Linked.  First, you must link your researcher CPID in the chain using 'exec associate'."));
+			BoincHelpfulHint(results);
+			return results;
+		}
+		else if (!r.found && sCPID.length() == 32)
 		{
 			results.push_back(Pair("temporary_cpid", sCPID));
 			results.push_back(Pair("Error", "Your CPID is linked to your CPK, but we are unable to find your research records in WCG; most likely because you are not in team BiblePay yet."));
@@ -3186,31 +3213,33 @@ UniValue exec(const JSONRPCRequest& request)
 		nLastSuperblock += 20;
 		CBlockIndex* pindex = FindBlockByHeight(nLastSuperblock);
 		CBlock block;
-		results.push_back(Pair("GetGovLimit", "Report v1.1"));
-		for (int nHeight = nLastSuperblock; nHeight > 0; nHeight -= BLOCKS_PER_DAY)
+		// Todo: Move this report to a dedicated area
+		if (false)
 		{
-
-			CBlockIndex* pindex = FindBlockByHeight(nHeight);
-			if (pindex) 
+			results.push_back(Pair("GetGovLimit", "Report v1.1"));
+			for (int nHeight = nLastSuperblock; nHeight > 0; nHeight -= BLOCKS_PER_DAY)
 			{
-				CAmount nTotal = 0;
-		
-				if (ReadBlockFromDisk(block, pindex, consensusParams)) 
+
+				CBlockIndex* pindex = FindBlockByHeight(nHeight);
+				if (pindex) 
 				{
-					for (unsigned int i = 0; i < block.vtx[0]->vout.size(); i++)
-    				{
-						nTotal += block.vtx[0]->vout[i].nValue;
-					}
-					if (nTotal/COIN > MAX_BLOCK_SUBSIDY && block.vtx[0]->vout.size() < 7)
+					CAmount nTotal = 0;
+		
+					if (ReadBlockFromDisk(block, pindex, consensusParams)) 
 					{
-						std::string sRow = "Total: " + RoundToString(nTotal/COIN, 2) + ", Size: " + RoundToString(block.vtx.size(), 0);
-						results.push_back(Pair(RoundToString(nHeight, 0), sRow));
+						for (unsigned int i = 0; i < block.vtx[0]->vout.size(); i++)
+    					{
+							nTotal += block.vtx[0]->vout[i].nValue;
+						}
+						if (nTotal/COIN > MAX_BLOCK_SUBSIDY && block.vtx[0]->vout.size() < 7)
+						{
+							std::string sRow = "Total: " + RoundToString(nTotal/COIN, 2) + ", Size: " + RoundToString(block.vtx.size(), 0);
+							results.push_back(Pair(RoundToString(nHeight, 0), sRow));
+						}
 					}
 				}
 			}
-
 		}
-
 	}
 	else if (sItem == "hexblocktojson")
 	{
@@ -3532,6 +3561,14 @@ UniValue exec(const JSONRPCRequest& request)
 		results.push_back(Pair("in-hash", hSource.GetHex()));
 		results.push_back(Pair("out-hash", h.GetHex()));
 	}
+	else if (sItem == "xnonce")
+	{
+		const Consensus::Params& consensusParams = Params().GetConsensus();
+		int nHeight = consensusParams.ANTI_GPU_HEIGHT + 1;
+		double dNonce = cdbl(request.params[1].get_str(), 0);
+		bool fNonce =  CheckNonce(true, (int)dNonce, nHeight, 1, 301, consensusParams);
+		results.push_back(Pair("result", fNonce));
+	}
 	else if (sItem == "XBBP")
 	{
 		std::string smd1 = "BiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePayBiblePay";
@@ -3551,7 +3588,7 @@ UniValue exec(const JSONRPCRequest& request)
 	    std::string smd2="biblepay";
 		std::vector<unsigned char> vch2 = std::vector<unsigned char>(smd2.begin(), smd2.end());
 		uint256 hSMD10 = Sha256001(1,170001,smd2);
-	    uint256 h1 = SerializeHash(vch1); 
+	    uint256 h1 = SerializeHash(vch1);
 		uint256 hSMD2 = SerializeHash(vch2);
 		uint256 h2 = HashBiblePay(vch1.begin(),vch1.end());
 		uint256 h3 = HashBiblePay(h2.begin(),h2.end());

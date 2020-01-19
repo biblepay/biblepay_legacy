@@ -296,6 +296,13 @@ bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params&
 	}
 	else
 	{
+		// Anti-GPU check:
+		bool fNonce = CheckNonce(true, nNonce, nPrevHeight, nPrevBlockTime, nBlockTime, params);
+		if (!fNonce)
+		{
+			return error("CheckProofOfWork: ERROR: High Nonce, PrevTime %f, Time %f, Nonce %f ", (double)nPrevBlockTime, (double)nBlockTime, (double)nNonce);
+		}
+
 		uint256 uBibleHash = BibleHashV2(hash, nBlockTime, nPrevBlockTime, true, nPrevHeight);
 		if (UintToArith256(uBibleHash) > bnTarget && nPrevBlockTime > 0) 
 		{

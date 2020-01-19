@@ -1301,9 +1301,14 @@ CAmount GetBlockSubsidy(int nPrevBits, int nPrevHeight, const Consensus::Params&
 	{
         nSubsidy -= (nSubsidy * iDeflationRate);
 		// Starting at height 166000, we increased our deflation rate to 20.04% (from 19.5%) to free extra BBP to pay for DWS Rewards (Dynamic-Whale-Staking):
-		if (i > consensusParams.PODC2_CUTOVER_HEIGHT)
+		if (i > consensusParams.PODC2_CUTOVER_HEIGHT && i < consensusParams.ANTI_GPU_HEIGHT)
 		{
 			iDeflationRate = .0167; // 1.67% per month, 20.04% annual
+		}
+		else if (i >= consensusParams.ANTI_GPU_HEIGHT)
+		{
+			// As of Jan 18th, 2020, we have emitted 187 million too many coins for the current date, so we need to pull the horns in - with a target of meeting 2,334,900,554 emitted coins as of 12-9-2020 (see our schedule here: http://wiki.biblepay.org/Emission_Schedule)
+			iDeflationRate = .0216; // 25.92% annually
 		}
     }
 
@@ -3683,55 +3688,6 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
 	//                               Additional Checks for GSC (Generic-Smart-Contracts) and for ABN (Anti-Bot-Net) rules                        //
 	//                                                                                                                                           //
 
-	/*
-	double dDiff = GetDifficulty(pindexPrev);
-	double dDiffThreshhold = fProd ? 1000 : 1;
-	bool fActivateAdvancedFeatures = dDiff > dDiffThreshhold;
-
-	if (fActivateAdvancedFeatures)
-	{
-		double nMinRequiredABNWeight = GetSporkDouble("requiredabnweight", 0);
-		double nABNHeight = GetSporkDouble("abnheight", 0);
-		if (nABNHeight > 0 && nHeight > consensusParams.ABNHeight && nHeight > nABNHeight && nMinRequiredABNWeight > 0 && !LateBlock(block, pindexPrev, 60) && !LateBlockIndex(pindexPrev, 60))
-		{
-			double nABNWeight = GetABNWeight(block, false);
-			if (nABNWeight < nMinRequiredABNWeight)
-			{
-				if (fMining)
-				{
-					WriteCache("gsc", "errors", "low abn weight " + RoundToString(nABNWeight, 0), GetAdjustedTime());
-					return false;
-				}
-				else
-				{
-					LogPrintf("\nContextualCheckBlock::ABN ERROR!  Block %f does not meet anti-bot-net-minimum required guidelines: ReqABNHeight %f, BlockWeight %f, RequiredWeight %f", 
-							(double)nHeight, (double)nABNHeight, (double)nABNWeight, nMinRequiredABNWeight);
-					double nEnforce = GetSporkDouble("enforceabnweight", 0);
-					if (nEnforce == 1)
-						return false;
-				}
-			}
-		}
-
-		double nAntiGPUHeight = GetSporkDouble("antigpuheight", 0);
-		if (nAntiGPUHeight > 0 && nHeight > consensusParams.ABNHeight && nHeight > nABNHeight && nHeight > nAntiGPUHeight && !LateBlock(block, pindexPrev, 60) && !LateBlockIndex(pindexPrev, 60))
-		{
-			bool fAntiGPU = AntiGPU(block, pindexPrev);
-			if (fAntiGPU)
-			{
-				if (fMining)
-				{
-					WriteCache("gsc", "errors", "anti-gpu triggered on my CPK", GetAdjustedTime());
-					return false;
-				}
-				LogPrintf("\nContextualCheckBlock::AntiGPU ERROR!  Block %f does not meet anti-gpu guidelines for this CPK. ", (double)nHeight);
-				return false;
-			}
-		}
-	}
-
-	*/
-
 	if (pindexPrev)
 	{
 		bool bGSCSuperblock = CSuperblock::IsSmartContract(nHeight);
@@ -3740,7 +3696,7 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
 			&& bGSCSuperblock && nPayments < ((MAX_BLOCK_SUBSIDY + 1) * COIN) && !LateBlock(block, pindexPrev, 60 * 8))
 		{
 			LogPrintf("\nContextualCheckBlock::CheckGSCSuperblock, Block Height %f, This superblock has no recipients!", (double)nHeight);
-			return false; // return state.DoS(1, false, REJECT_INVALID, "invalid-gsc-recipient-count", false, "Invalid GSC recipient count");
+			return false; 
 		}
 
 		// Extra Safety Layer for Dynamic Whale Staking (This routine is designed to remove the danger of any hacker slipping a whale payment in via createBlock, then brute force mining it with > 51% hashpower, and it being non-approved by a Sanctuary in our GSC (meaning that blocks > the base governance limit should be as safe as any other block, as we are specifically checking the DWS burn(ed) amounts and recipients here):

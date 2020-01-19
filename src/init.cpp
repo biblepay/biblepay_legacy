@@ -240,7 +240,7 @@ void PrepareShutdown()
     StopRPC();
 
     // BIBLEPAY - Stop Miner Gracefully
-    GenerateBiblecoins(false, 0, Params());
+    GenerateBBP(false, 0, Params());
 
     StopHTTPServer();
     llmq::StopLLMQSystem();
@@ -2240,7 +2240,7 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
     uiInterface.InitMessage(_("Starting Miner..."));
     
     // Generate coins - Proof-of-Bible-Hash (POBH) - in the background
-    GenerateBiblecoins(GetBoolArg("-gen", true), GetArg("-genproclimit", 1), chainparams);
+    GenerateBBP(GetBoolArg("-gen", true), GetArg("-genproclimit", 1), chainparams);
 
     SetRPCWarmupFinished();
     uiInterface.InitMessage(_("Done loading"));

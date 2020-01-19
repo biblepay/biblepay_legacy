@@ -123,9 +123,8 @@ UniValue generateBlocks(boost::shared_ptr<CReserveScript> coinbaseScript, int nG
     while (nHeight < nHeightEnd)
     {
 		std::string sPMPK;
-		std::string sMinerGuid;
 		int iThreadID = 0;
-        std::unique_ptr<CBlockTemplate> pblocktemplate(BlockAssembler(Params()).CreateNewBlock(coinbaseScript->reserveScript, sPMPK, sMinerGuid, iThreadID));
+        std::unique_ptr<CBlockTemplate> pblocktemplate(BlockAssembler(Params()).CreateNewBlock(coinbaseScript->reserveScript, sPMPK, "", iThreadID));
         if (!pblocktemplate.get())
             throw JSONRPCError(RPC_INTERNAL_ERROR, "Couldn't create new block");
         CBlock *pblock = &pblocktemplate->block;
@@ -299,15 +298,6 @@ UniValue getmininginfo(const JSONRPCRequest& request)
 	obj.push_back(Pair("pooledtx",         (uint64_t)mempool.size()));
 	obj.push_back(Pair("chain",            Params().NetworkIDString()));
 	obj.push_back(Pair("biblepay-generate",getgenerate(request)));
-	// obj.push_back(Pair("poolinfo1",        ConcatenatePoolHealth("poolinfo1")));
-	// obj.push_back(Pair("poolinfo2",        ConcatenatePoolHealth("poolinfo2")));
-	// obj.push_back(Pair("poolinfo3",        ConcatenatePoolHealth("poolinfo3")));
-	// obj.push_back(Pair("abninfo",          ConcatenatePoolHealth("poolinfo4")));
-	// obj.push_back(Pair("poolinfo5",        ConcatenatePoolHealth("poolinfo5")));
-	// obj.push_back(Pair("gsc_errors",       ReadCache("gsc", "errors")));
-	// obj.push_back(Pair("poolmining",       fPoolMiningMode));
-	// obj.push_back(Pair("pool_url",         sGlobalPoolURL));
-	obj.push_back(Pair("required_abn_weight", GetSporkDouble("requiredabnweight", 0)));
 	return obj;
 }
 
@@ -1018,7 +1008,7 @@ UniValue setgenerate(const JSONRPCRequest& request)
     }
     mapArgs["-gen"] = (fGenerate ? "1" : "0");
     mapArgs ["-genproclimit"] = itostr(nGenProcLimit);
-    GenerateBiblecoins(fGenerate, nGenProcLimit, Params());
+    GenerateBBP(fGenerate, nGenProcLimit, Params());
     return NullUniValue;
 }
 

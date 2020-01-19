@@ -1697,19 +1697,6 @@ UniValue hexblocktocoinbase(const JSONRPCRequest& request)
 	{
 		sMsg += block.vtx[0]->vout[i].sTxOutMessage;
 	}
-	// Include abn weight in the reply
-	double nABNWeight = GetABNWeight(block, false);
-	double nMinRequiredABNWeight = GetSporkDouble("requiredabnweight", 0);
-	double nABNHeight = GetSporkDouble("abnheight", 0);
-	bool fABNPassed = true;
-	if (nABNHeight > consensusParams.ABNHeight && pindexPrev->nHeight > nABNHeight && nMinRequiredABNWeight > 0 && !LateBlock(block, pindexPrev, 60) && !LateBlockIndex(pindexPrev, 60))
-	{
-	    if (nABNWeight < nMinRequiredABNWeight) 
-			fABNPassed = false;
-	} 
-	results.push_back(Pair("requiredabnweight", nMinRequiredABNWeight));
-	results.push_back(Pair("block_abn_weight", nABNWeight));
-	results.push_back(Pair("abn_passed", fABNPassed));
 	results.push_back(Pair("blockmessage", sMsg));
 	results.push_back(Pair("height", pindexPrev->nHeight + 1));
 	arith_uint256 hashTarget = arith_uint256().SetCompact(block.nBits);
@@ -1748,7 +1735,6 @@ void EmitChild(CPK c, std::string sCharity, bool fAll, std::string sMyCPK, UniVa
 		}
 	}
 }
-
 
 UniValue listchildren(const JSONRPCRequest& request)
 {
