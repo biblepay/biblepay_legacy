@@ -391,6 +391,17 @@ UniValue getblockforstratum(const JSONRPCRequest& request)
 	results.push_back(Pair("target", sHexDifficulty));
 	results.push_back(Pair("height", chainActive.Tip()->nHeight + 1));
 	results.push_back(Pair("curtime", GetAdjustedTime()));
+	// POBH v2.0
+	if (chainActive.Tip())
+	{
+		CBlockIndex* const pindexPrev = chainActive.Tip();
+		if (pindexPrev)
+		{
+			if (blockX.hashPrevBlock != pindexPrev->GetBlockHash())
+				results.push_back(Pair("warning", "inconclusive-prevblk"));  
+			results.push_back(Pair("prevblocktime", pindexPrev->GetBlockTime()));
+		}
+	}
 	results.push_back(Pair("bits", strprintf("%08x", blockX.nBits)));
    	results.push_back(Pair("merkleroot", blockX.hashMerkleRoot.GetHex()));
 	results.push_back(Pair("error1", sError));
