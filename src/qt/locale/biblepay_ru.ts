@@ -1,4 +1,6 @@
-<TS language="ru" version="2.1">
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE TS>
+<TS version="2.1" language="ru">
 <context>
     <name>AddressBookPage</name>
     <message>
@@ -290,6 +292,14 @@
         <translation>Отправить монеты на указанный адрес Biblepay</translation>
     </message>
     <message>
+        <source>&amp;Proposals</source>
+        <translation>&amp;Предложения</translation>
+    </message>
+    <message>
+        <source>List Proposals</source>
+        <translation>Список предложений</translation>
+    </message>
+    <message>
         <source>&amp;Receive</source>
         <translation>&amp;Получить</translation>
     </message>
@@ -314,6 +324,22 @@
         <translation>Посмотреть мастерноды</translation>
     </message>
     <message>
+        <source>Show &amp;Accountability</source>
+        <translation>Показать &amp;Отчёт</translation>
+    </message>
+    <message>
+        <source>Show Accountability Page</source>
+        <translation>Показать Страницу Отчётов</translation>
+    </message>
+    <message>
+        <source>Decentralized &amp;Web</source>
+        <translation>Распредел. &amp;Web</translation>
+    </message>
+    <message>
+        <source>Navigate BiblePay Decentralized Web</source>
+        <translation>Навигация по Децентрализованному BiblePay Web</translation>
+    </message>
+    <message>
         <source>E&amp;xit</source>
         <translation>В&amp;ыход</translation>
     </message>
@@ -322,8 +348,65 @@
         <translation>Закрыть приложение</translation>
     </message>
     <message>
-        <source>Show information about Biblepay Core</source>
-        <translation>Показать информацию о Biblepay Core</translation>
+        <source>The Sinners Prayer</source>
+        <translation>Молитва Грешников</translation>
+    </message>
+    <message>
+        <source>Show the Sinners Prayer</source>
+        <translation>Показать Молитву Грешников</translation>
+    </message>
+    <message>
+        <source>The Lords Prayer</source>
+        <translation>Молитва Господня</translation>
+    </message>
+    <message>
+        <source>Show the Lords Prayer</source>
+        <translation>Показать Молитву Господню</translation>
+    </message>
+    <message>
+        <source>The Apostles Creed</source>
+        <translation>Апостольский Символ Веры</translation>
+    </message>
+    <message>
+        <source>The Nicene Creed</source>
+        <translation>Никейский Символ Веры</translation>
+    </message>
+    <message>
+        <source>Show the Nicene Creed</source>
+        <translation>Показать Никейский Символ Веры</translation>
+    </message>
+    <message>
+        <source>The Ten Commandments</source>
+        <translation>Десять Заповедей</translation>
+    </message>
+    <message>
+        <source>Show the Ten Commandments</source>
+        <translation>Показать Десять Заповедей</translation>
+    </message>
+    <message>
+        <source>Jesus Concise Commandments</source>
+        <translation>Краткие Заповеди Иисуса</translation>
+    </message>
+    <message>
+        <source>Show Jesus Concise Commandments</source>
+        <translation>Показать Краткие Заповеди Иисуса</translation>
+    </message>
+    <message>
+        <source>Read Bible</source>
+        <translation>Читать Библию</translation>
+    </message>
+    <message>
+        <source>One Click Mining Configuration</source>
+        <translation>Настройка майнинга в один клик</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>&amp;About %1</source>
+        <translation>&amp;О %1</translation>
+    </message>
+    <message>
+        <source>Show information about BiblePay Core</source>
+        <translation>Показать информацию Biblepay Core</translation>
     </message>
     <message>
         <source>About &amp;Qt</source>
@@ -462,6 +545,22 @@
         <translation>Показать автоматически созданные резервные копии кошелька</translation>
     </message>
     <message>
+        <source>Leaderboa&amp;rd</source>
+        <translation>Список ли&amp;деров</translation>
+    </message>
+    <message>
+        <source>Leaderboard</source>
+        <translation>Лидеры</translation>
+    </message>
+    <message>
+        <source>Proposal &amp;Add</source>
+        <translation>Внести &amp;Предложение</translation>
+    </message>
+    <message>
+        <source>Add Proposal</source>
+        <translation>Добавить Предложение</translation>
+    </message>
+    <message>
         <source>&amp;Sending addresses...</source>
         <translation>Адреса &amp;отправки...</translation>
     </message>
@@ -518,6 +617,14 @@
         <translation>&amp;Инструменты</translation>
     </message>
     <message>
+        <source>&amp;Bible</source>
+        <translation>&amp;Библия</translation>
+    </message>
+    <message>
+        <source>&amp;Leaderboard</source>
+        <translation>&amp;Лидеры</translation>
+    </message>
+    <message>
         <source>&amp;Help</source>
         <translation>&amp;Помощь</translation>
     </message>
@@ -525,9 +632,17 @@
         <source>Tabs toolbar</source>
         <translation>Панель вкладок</translation>
     </message>
+    <message>
+        <source>Modify Biblepay Configuration File for Mining?</source>
+        <translation>Изменить файл для конфигурации майнинга Biblepay?</translation>
+    </message>
     <message numerus="yes">
         <source>%n active connection(s) to Biblepay network</source>
-        <translation><numerusform>%n активное соединение с сетью Biblepay</numerusform><numerusform>%n активных соединения с сетью Biblepay</numerusform><numerusform>%n активных соединений с сетью Biblepay</numerusform><numerusform>%n активных соединений с сетью Biblepay</numerusform></translation>
+        <translation>
+            <numerusform>%n активное соединение с сетью Biblepay</numerusform>
+            <numerusform>%n активных соединения с сетью Biblepay</numerusform>
+            <numerusform>%n активных соединений с сетью Biblepay</numerusform>
+        </translation>
     </message>
     <message>
         <source>Network activity disabled</source>
@@ -559,7 +674,11 @@
     </message>
     <message numerus="yes">
         <source>Processed %n block(s) of transaction history.</source>
-        <translation><numerusform>Обработан 1 блок из истории транзакций.</numerusform><numerusform>Обработано %n блока из истории транзакций.</numerusform><numerusform>Обработано %n блоков из истории транзакций.</numerusform><numerusform>Обработано %n блоков из истории транзакций.</numerusform></translation>
+        <translation>
+            <numerusform>Обработан %n блок из истории транзакций.</numerusform>
+            <numerusform>Обработано %n блока из истории транзакций.</numerusform>
+            <numerusform>Обработано %n блоков из истории транзакций.</numerusform>
+        </translation>
     </message>
     <message>
         <source>%1 behind</source>
@@ -584,6 +703,10 @@
     <message>
         <source>Synchronizing additional data: %p%</source>
         <translation>Синхронизация дополнительных данных: %p%</translation>
+    </message>
+    <message>
+        <source>BiblePay Core</source>
+        <translation>BiblePay Core</translation>
     </message>
     <message>
         <source>Error</source>
@@ -655,6 +778,33 @@
         <source>Wallet is &lt;b&gt;encrypted&lt;/b&gt; and currently &lt;b&gt;locked&lt;/b&gt;</source>
         <translation>Кошелёк &lt;b&gt;зашифрован&lt;/b&gt; и в настоящее время &lt;b&gt;заблокирован&lt;/b&gt;</translation>
     </message>
+    <message>
+        <source>A fatal error occurred. BiblePay Core can no longer continue safely and will quit.</source>
+        <translation>Произошла фатальная ошибка. BiblePay Core больше не может безопасно функционировать и завершает работу.</translation>
+    </message>
+</context>
+<context>
+    <name>BusinessObjectList</name>
+    <message>
+        <source>Form</source>
+        <translation>Форма</translation>
+    </message>
+    <message>
+        <source>Debug label</source>
+        <translation>Отладочная метка</translation>
+    </message>
+    <message>
+        <source>Details View</source>
+        <translation>Просмотр сведений</translation>
+    </message>
+    <message>
+        <source>Summary View</source>
+        <translation>Общие сведения</translation>
+    </message>
+    <message>
+        <source>Leaderboard 1.0</source>
+        <translation>Список лидеров 1.0</translation>
+    </message>
 </context>
 <context>
     <name>ClientModel</name>
@@ -700,6 +850,10 @@
     <message>
         <source>(un)select all</source>
         <translation>Выбрать все/ничего</translation>
+    </message>
+    <message>
+        <source>select some</source>
+        <translation>выберите несколько</translation>
     </message>
     <message>
         <source>toggle lock state</source>
@@ -794,7 +948,7 @@
         <translation>Копировать сдачу</translation>
     </message>
     <message>
-        <source>Please switch to "List mode" to use this function.</source>
+        <source>Please switch to &quot;List mode&quot; to use this function.</source>
         <translation>Пожалуйста, переключитесь в режим списка для использования этой функции.</translation>
     </message>
     <message>
@@ -815,7 +969,7 @@
     </message>
     <message>
         <source>This label turns red if any recipient receives an amount smaller than the current dust threshold.</source>
-        <translation>Эта метка становится красной, если какой-либо из адресатов получает сумму меньше, чем "пыль".</translation>
+        <translation>Эта метка становится красной, если какой-либо из адресатов получает сумму меньше, чем &quot;пыль&quot;.</translation>
     </message>
     <message>
         <source>Can vary +/- %1 duff(s) per input.</source>
@@ -877,12 +1031,12 @@
         <translation>Изменение адреса для отправки</translation>
     </message>
     <message>
-        <source>The entered address "%1" is not a valid Biblepay address.</source>
-        <translation>Введённый адрес "%1" не является правильным адресом Biblepay.</translation>
+        <source>The entered address &quot;%1&quot; is not a valid Biblepay address.</source>
+        <translation>Введённый адрес &quot;%1&quot; не является правильным адресом Biblepay.</translation>
     </message>
     <message>
-        <source>The entered address "%1" is already in the address book.</source>
-        <translation>Введённый адрес "%1" уже находится в адресной книге.</translation>
+        <source>The entered address &quot;%1&quot; is already in the address book.</source>
+        <translation>Введённый адрес &quot;%1&quot; уже находится в адресной книге.</translation>
     </message>
     <message>
         <source>Could not unlock wallet.</source>
@@ -919,6 +1073,50 @@
 <context>
     <name>HelpMessageDialog</name>
     <message>
+        <source>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
+&lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
+p, li { white-space: pre-wrap; }
+&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:&apos;MS Shell Dlg 2&apos;; font-size:7.8pt; font-weight:400; font-style:normal;&quot;&gt;
+&lt;p style=&quot;-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; font-size:8pt;&quot;&gt;&lt;br /&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
+        <translation>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
+&lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
+p, li { white-space: pre-wrap; }
+&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:&apos;MS Shell Dlg 2&apos;; font-size:7.8pt; font-weight:400; font-style:normal;&quot;&gt;
+&lt;p style=&quot;-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; font-size:8pt;&quot;&gt;&lt;br /&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
+    </message>
+    <message>
+        <source>Language:</source>
+        <translation>Язык:</translation>
+    </message>
+    <message>
+        <source>Choose Language</source>
+        <translation>Выберите Язык</translation>
+    </message>
+    <message>
+        <source>Book:</source>
+        <translation>Книга:</translation>
+    </message>
+    <message>
+        <source>Choose Bible Book</source>
+        <translation>Выберите Книгу из Библии</translation>
+    </message>
+    <message>
+        <source>Chapter:</source>
+        <translation>Глава:</translation>
+    </message>
+    <message>
+        <source>Choose Bible Chapter</source>
+        <translation>Выберите Главу из Библии</translation>
+    </message>
+    <message>
+        <source>Preview</source>
+        <translation>Превью</translation>
+    </message>
+    <message>
+        <source>Publish</source>
+        <translation>Опубликовать</translation>
+    </message>
+    <message>
         <source>version</source>
         <translation>версия</translation>
     </message>
@@ -951,8 +1149,8 @@
         <translation>Выбрать каталог данных при запуске (по умолчанию: %u)</translation>
     </message>
     <message>
-        <source>Set language, for example "de_DE" (default: system locale)</source>
-        <translation>Выберите язык, например "de_DE" (по умолчанию: как в системе)</translation>
+        <source>Set language, for example &quot;de_DE&quot; (default: system locale)</source>
+        <translation>Выберите язык, например &quot;de_DE&quot; (по умолчанию: как в системе)</translation>
     </message>
     <message>
         <source>Start minimized</source>
@@ -975,8 +1173,8 @@
         <translation>Информация о PrivateSend</translation>
     </message>
     <message>
-        <source>&lt;h3&gt;PrivateSend Basics&lt;/h3&gt; PrivateSend gives you true financial privacy by obscuring the origins of your funds. All the Biblepay in your wallet is comprised of different "inputs" which you can think of as separate, discrete coins.&lt;br&gt; PrivateSend uses an innovative process to mix your inputs with the inputs of two other people, without having your coins ever leave your wallet. You retain control of your money at all times.&lt;hr&gt; &lt;b&gt;The PrivateSend process works like this:&lt;/b&gt;&lt;ol type="1"&gt; &lt;li&gt;PrivateSend begins by breaking your transaction inputs down into standard denominations. These denominations are 0.001 BIBLEPAY, 0.01 BIBLEPAY, 0.1 BIBLEPAY, 1 BIBLEPAY and 10 BIBLEPAY -- sort of like the paper money you use every day.&lt;/li&gt; &lt;li&gt;Your wallet then sends requests to specially configured software nodes on the network, called "masternodes." These masternodes are informed then that you are interested in mixing a certain denomination. No identifiable information is sent to the masternodes, so they never know "who" you are.&lt;/li&gt; &lt;li&gt;When two other people send similar messages, indicating that they wish to mix the same denomination, a mixing session begins. The masternode mixes up the inputs and instructs all three users' wallets to pay the now-transformed input back to themselves. Your wallet pays that denomination directly to itself, but in a different address (called a change address).&lt;/li&gt; &lt;li&gt;In order to fully obscure your funds, your wallet must repeat this process a number of times with each denomination. Each time the process is completed, it's called a "round." Each round of PrivateSend makes it exponentially more difficult to determine where your funds originated.&lt;/li&gt; &lt;li&gt;This mixing process happens in the background without any intervention on your part. When you wish to make a transaction, your funds will already be anonymized. No additional waiting is required.&lt;/li&gt; &lt;/ol&gt; &lt;hr&gt;&lt;b&gt;IMPORTANT:&lt;/b&gt; Your wallet only contains 1000 of these "change addresses." Every time a mixing event happens, up to 9 of your addresses are used up. This means those 1000 addresses last for about 100 mixing events. When 900 of them are used, your wallet must create more addresses. It can only do this, however, if you have automatic backups enabled.&lt;br&gt; Consequently, users who have backups disabled will also have PrivateSend disabled. &lt;hr&gt;For more information, see the &lt;a href="https://docs.biblepay.org/en/latest/wallets/biblepaycore/privatesend-instantsend.html"&gt;PrivateSend documentation&lt;/a&gt;.</source>
-        <translation>&lt;h3&gt;Основы PrivateSend&lt;/h3&gt;PrivateSend позволяет Вам получить настоящую финансовую конфиденциальность за счет скрытия источников Ваших средств. Все Biblepay в  Вашем кошельке состоят из различных "входов", Вы можете думать о них как об отдельных монетах.&lt;br&gt;PrivateSend использует инновационный процесс для перемешивания Ваших входов со входами еще двоих человек, но при этом Ваши монеты никогда не покидают Ваш кошелек. Вы сохраняете контроль над Вашими деньгами на протяжении всего времени.&lt;hr&gt; &lt;b&gt;PrivateSend работает так:&lt;/b&gt;&lt;ol type="1"&gt; &lt;li&gt;PrivateSend начинается с разбиения Ваших входов транзакций на стандартные номиналы. Такими номиналами являются 0.001 BIBLEPAY, 0.01 BIBLEPAY, 0.1 BIBLEPAY, 1 BIBLEPAY и 10 BIBLEPAY -- что-то вроде купюр, которыми вы пользуетесь каждый день.&lt;/li&gt; &lt;li&gt;Ваш кошелек затем отправляет запросы к особым образом настроенным сетевым узлам, называемым "мастернодами". Эти мастерноды знают только то, что Вы хотите перемешать определенные номиналы. Никакой идентифицирующей информации мастернодам не отправляется, так что они не знают "кто" Вы конкретно.&lt;/li&gt; &lt;li&gt;Сессия перемешивания начинается тогда, когда еще двое человек отправляют схожее сообщение, подтверждающее, что они хотят перемешать точно такой же номинал. Мастернода перемешивает входы и просит кошельки всех пользователей осуществить платежи по ним. Ваш кошелек осуществляет выплату самому себе, но на другой адрес (тоже из вашего кошелька).&lt;/li&gt; &lt;li&gt;Для скрытия Ваших средств кошелек должен повторить этот процесс несколько раз с каждым номиналом. Каждый раз, когда такой процесс завершается, называется "раундом". С каждым раундом PrivateSend становится экспоненциально сложнее определить откуда поступили средства.&lt;/li&gt; &lt;li&gt;Процесс перемешивания выполняется в фоне, без участия пользователя. Когда Вы захотите провести транзакцию, средства уже будут анонимизированы. Дополнительно ждать не требуется.&lt;/li&gt; &lt;/ol&gt; &lt;hr&gt;&lt;b&gt;ВАЖНО:&lt;/b&gt; Ваш кошелек содержит 1000 адресов. Каждое перемешивание использует до 9 из этих адресов. Это означает, что 1000 адресов хватит примерно на 100 перемешиваний. Когда 900 адресов будут уже использованы, Ваш кошелек должен создать новые адреса. Однако, он может сделать это, только если у Вас включены автоматические резервные копии.&lt;br&gt;Соответственно, пользователям с отключенным резервным копированием PrivateSend не доступен. &lt;hr&gt;Дополнительная информация доступна в &lt;a href="https://biblepaypay.atlassian.net/wiki/display/DOC/PrivateSend"&gt;документации по PrivateSend&lt;/a&gt;         </translation>
+        <source>&lt;h3&gt;PrivateSend Basics&lt;/h3&gt; PrivateSend gives you true financial privacy by obscuring the origins of your funds. All the Biblepay in your wallet is comprised of different &quot;inputs&quot; which you can think of as separate, discrete coins.&lt;br&gt; PrivateSend uses an innovative process to mix your inputs with the inputs of two other people, without having your coins ever leave your wallet. You retain control of your money at all times.&lt;hr&gt; &lt;b&gt;The PrivateSend process works like this:&lt;/b&gt;&lt;ol type=&quot;1&quot;&gt; &lt;li&gt;PrivateSend begins by breaking your transaction inputs down into standard denominations. These denominations are 0.001 BIBLEPAY, 0.01 BIBLEPAY, 0.1 BIBLEPAY, 1 BIBLEPAY and 10 BIBLEPAY -- sort of like the paper money you use every day.&lt;/li&gt; &lt;li&gt;Your wallet then sends requests to specially configured software nodes on the network, called &quot;masternodes.&quot; These masternodes are informed then that you are interested in mixing a certain denomination. No identifiable information is sent to the masternodes, so they never know &quot;who&quot; you are.&lt;/li&gt; &lt;li&gt;When two other people send similar messages, indicating that they wish to mix the same denomination, a mixing session begins. The masternode mixes up the inputs and instructs all three users&apos; wallets to pay the now-transformed input back to themselves. Your wallet pays that denomination directly to itself, but in a different address (called a change address).&lt;/li&gt; &lt;li&gt;In order to fully obscure your funds, your wallet must repeat this process a number of times with each denomination. Each time the process is completed, it&apos;s called a &quot;round.&quot; Each round of PrivateSend makes it exponentially more difficult to determine where your funds originated.&lt;/li&gt; &lt;li&gt;This mixing process happens in the background without any intervention on your part. When you wish to make a transaction, your funds will already be anonymized. No additional waiting is required.&lt;/li&gt; &lt;/ol&gt; &lt;hr&gt;&lt;b&gt;IMPORTANT:&lt;/b&gt; Your wallet only contains 1000 of these &quot;change addresses.&quot; Every time a mixing event happens, up to 9 of your addresses are used up. This means those 1000 addresses last for about 100 mixing events. When 900 of them are used, your wallet must create more addresses. It can only do this, however, if you have automatic backups enabled.&lt;br&gt; Consequently, users who have backups disabled will also have PrivateSend disabled. &lt;hr&gt;For more information, see the &lt;a href=&quot;https://docs.biblepay.org/en/latest/wallets/biblepaycore/privatesend-instantsend.html&quot;&gt;PrivateSend documentation&lt;/a&gt;.</source>
+        <translation>&lt;h3&gt;Основы PrivateSend&lt;/h3&gt;PrivateSend позволяет Вам получить настоящую финансовую конфиденциальность за счет скрытия источников Ваших средств. Все Biblepay в  Вашем кошельке состоят из различных &quot;входов&quot;, Вы можете думать о них как об отдельных монетах.&lt;br&gt;PrivateSend использует инновационный процесс для перемешивания Ваших входов со входами еще двоих человек, но при этом Ваши монеты никогда не покидают Ваш кошелек. Вы сохраняете контроль над Вашими деньгами на протяжении всего времени.&lt;hr&gt; &lt;b&gt;PrivateSend работает так:&lt;/b&gt;&lt;ol type=&quot;1&quot;&gt; &lt;li&gt;PrivateSend начинается с разбиения Ваших входов транзакций на стандартные номиналы. Такими номиналами являются 0.001 BIBLEPAY, 0.01 BIBLEPAY, 0.1 BIBLEPAY, 1 BIBLEPAY и 10 BIBLEPAY -- что-то вроде купюр, которыми вы пользуетесь каждый день.&lt;/li&gt; &lt;li&gt;Ваш кошелек затем отправляет запросы к особым образом настроенным сетевым узлам, называемым &quot;мастернодами&quot;. Эти мастерноды знают только то, что Вы хотите перемешать определенные номиналы. Никакой идентифицирующей информации мастернодам не отправляется, так что они не знают &quot;кто&quot; Вы конкретно.&lt;/li&gt; &lt;li&gt;Сессия перемешивания начинается тогда, когда еще двое человек отправляют схожее сообщение, подтверждающее, что они хотят перемешать точно такой же номинал. Мастернода перемешивает входы и просит кошельки всех пользователей осуществить платежи по ним. Ваш кошелек осуществляет выплату самому себе, но на другой адрес (тоже из вашего кошелька).&lt;/li&gt; &lt;li&gt;Для скрытия Ваших средств кошелек должен повторить этот процесс несколько раз с каждым номиналом. Каждый раз, когда такой процесс завершается, называется &quot;раундом&quot;. С каждым раундом PrivateSend становится экспоненциально сложнее определить откуда поступили средства.&lt;/li&gt; &lt;li&gt;Процесс перемешивания выполняется в фоне, без участия пользователя. Когда Вы захотите провести транзакцию, средства уже будут анонимизированы. Дополнительно ждать не требуется.&lt;/li&gt; &lt;/ol&gt; &lt;hr&gt;&lt;b&gt;ВАЖНО:&lt;/b&gt; Ваш кошелек содержит 1000 адресов. Каждое перемешивание использует до 9 из этих адресов. Это означает, что 1000 адресов хватит примерно на 100 перемешиваний. Когда 900 адресов будут уже использованы, Ваш кошелек должен создать новые адреса. Однако, он может сделать это, только если у Вас включены автоматические резервные копии.&lt;br&gt;Соответственно, пользователям с отключенным резервным копированием PrivateSend не доступен. &lt;hr&gt;Дополнительная информация доступна в &lt;a href=&quot;https://biblepaypay.atlassian.net/wiki/display/DOC/PrivateSend&quot;&gt;документации по PrivateSend&lt;/a&gt;.</translation>
     </message>
 </context>
 <context>
@@ -994,6 +1192,18 @@
         <translation>Так как вы впервые запустили программу, вы можете выбрать, где %1 будет хранить данные.</translation>
     </message>
     <message>
+        <source>%1 will download and store a copy of the Biblepay block chain. At least %2GB of data will be stored in this directory, and it will grow over time. The wallet will also be stored in this directory.</source>
+        <translation>%1 загрузит и сохранит копию цепочки блоков Biblepay. Как минимум %2GB будет загруженов этот каталог, и этот объём вырастет со временем. Кошелек также будет храниться в этом каталоге.</translation>
+    </message>
+    <message>
+        <source>Use the default data directory</source>
+        <translation>Использовать каталог по умолчанию</translation>
+    </message>
+    <message>
+        <source>Use a custom data directory:</source>
+        <translation>Использовать другой каталог:</translation>
+    </message>
+    <message>
         <source>When you click OK, %1 will begin to download and process the full %4 block chain (%2GB) starting with the earliest transactions in %3 when %4 initially launched.</source>
         <translation>После нажатия OK, %1 начнет скачивать и проверять всю цепочку блоков %4 (%2GB), начиная с самых ранних транзакций %3, т.е. со времени запуска проекта %4.</translation>
     </message>
@@ -1004,14 +1214,6 @@
     <message>
         <source>If you have chosen to limit block chain storage (pruning), the historical data must still be downloaded and processed, but will be deleted afterward to keep your disk usage low.</source>
         <translation>Если Вы выбрали ограниченное хранение цепочки блоков (удаление старых блоков), исторические данные все равно будут скачаны и проверены, после чего они будут удалены для уменьшения размера хранимых данных.</translation>
-    </message>
-    <message>
-        <source>Use the default data directory</source>
-        <translation>Использовать каталог данных по умолчанию</translation>
-    </message>
-    <message>
-        <source>Use a custom data directory:</source>
-        <translation>Использовать другой каталог данных:</translation>
     </message>
     <message>
         <source>At least %1 GB of data will be stored in this directory, and it will grow over time.</source>
@@ -1030,8 +1232,8 @@
         <translation>Ваш кошелек будет сохранен в этой же папке.</translation>
     </message>
     <message>
-        <source>Error: Specified data directory "%1" cannot be created.</source>
-        <translation>Ошибка: не удалось создать указанный каталог данных "%1".</translation>
+        <source>Error: Specified data directory &quot;%1&quot; cannot be created.</source>
+        <translation>Ошибка: не удалось создать указанный каталог данных &quot;%1&quot;.</translation>
     </message>
     <message>
         <source>Error</source>
@@ -1053,44 +1255,40 @@
         <translation>Форма</translation>
     </message>
     <message>
-        <source>Address</source>
-        <translation>Адрес</translation>
-    </message>
-    <message>
-        <source>Status</source>
-        <translation>Статус</translation>
-    </message>
-    <message>
-        <source>Payee</source>
-        <translation>Получатель</translation>
-    </message>
-    <message>
-        <source>0</source>
-        <translation>0</translation>
+        <source>DIP3 Sanctuaries</source>
+        <translation>DIP3 мастерноды</translation>
     </message>
     <message>
         <source>Filter List:</source>
         <translation>Фильтровать список:</translation>
     </message>
     <message>
-        <source>Filter masternode list</source>
+        <source>Filter Sanctuary list</source>
         <translation>Фильтровать список мастернод</translation>
+    </message>
+    <message>
+        <source>Show only Sanctuaries this wallet has keys for.</source>
+        <translation>Показывать только мастерноды, ключи от которых есть в этом кошельке.</translation>
+    </message>
+    <message>
+        <source>My Sanctuaries only</source>
+        <translation>Только мои мастерноды</translation>
     </message>
     <message>
         <source>Node Count:</source>
         <translation>Количество узлов:</translation>
     </message>
     <message>
-        <source>DIP3 Masternodes</source>
-        <translation>DIP3 мастерноды</translation>
+        <source>0</source>
+        <translation>0</translation>
     </message>
     <message>
-        <source>Show only masternodes this wallet has keys for.</source>
-        <translation>Показывать только мастерноды, ключи от которых есть в этом кошельке.</translation>
+        <source>Address</source>
+        <translation>Адрес</translation>
     </message>
     <message>
-        <source>My masternodes only</source>
-        <translation>Только мои мастерноды</translation>
+        <source>Status</source>
+        <translation>Статус</translation>
     </message>
     <message>
         <source>PoSe Score</source>
@@ -1107,6 +1305,10 @@
     <message>
         <source>Next Payment</source>
         <translation>Следующий платеж</translation>
+    </message>
+    <message>
+        <source>Payee</source>
+        <translation>Получатель</translation>
     </message>
     <message>
         <source>Operator Reward</source>
@@ -1160,7 +1362,7 @@
         <translation>Форма</translation>
     </message>
     <message>
-        <source>Recent transactions may not yet be visible, and therefore your wallet's balance might be incorrect. This information will be correct once your wallet has finished synchronizing with the Biblepay network, as detailed below.</source>
+        <source>Recent transactions may not yet be visible, and therefore your wallet&apos;s balance might be incorrect. This information will be correct once your wallet has finished synchronizing with the Biblepay network, as detailed below.</source>
         <translation>Последние транзакции пока что могут быть не видны и поэтому ваш баланс может отображаться некорректно. Информация будет корректироваться по мере синхронизации с сетью Biblepay, подробности о ходе синхронизации представлены ниже.</translation>
     </message>
     <message>
@@ -1238,6 +1440,14 @@
         <translation>&amp;Главная</translation>
     </message>
     <message>
+        <source>Automatically start %1 after logging in to the system.</source>
+        <translation>Automatically start %1 after logging in to the system.</translation>
+    </message>
+    <message>
+        <source>&amp;Start %1 on system login</source>
+        <translation>&amp;Запускать %1 при входе в систему</translation>
+    </message>
+    <message>
         <source>Size of &amp;database cache</source>
         <translation>Размер кэша &amp;БД</translation>
     </message>
@@ -1302,7 +1512,7 @@
         <translation>Количество раундов PrivateSend</translation>
     </message>
     <message>
-        <source>This amount acts as a threshold to turn off PrivateSend once it's reached.</source>
+        <source>This amount acts as a threshold to turn off PrivateSend once it&apos;s reached.</source>
         <translation>Это пороговое значение, при достижении которого PrivateSend отключается.</translation>
     </message>
     <message>
@@ -1346,14 +1556,6 @@
         <translation>Показывать ли функции контроля монет или нет.</translation>
     </message>
     <message>
-        <source>Automatically start %1 after logging in to the system.</source>
-        <translation>Автоматически запускать %1 после входа в систему.</translation>
-    </message>
-    <message>
-        <source>&amp;Start %1 on system login</source>
-        <translation>&amp;Запускать %1 при входе в систему</translation>
-    </message>
-    <message>
         <source>Enable coin &amp;control features</source>
         <translation>Включить функции &amp;контроля монет</translation>
     </message>
@@ -1379,7 +1581,7 @@
     </message>
     <message>
         <source>Proxy &amp;IP:</source>
-        <translation>&amp;IP Прокси: </translation>
+        <translation>&amp;IP Прокси:</translation>
     </message>
     <message>
         <source>IP address of the proxy (e.g. IPv4: 127.0.0.1 / IPv6: ::1)</source>
@@ -1387,7 +1589,7 @@
     </message>
     <message>
         <source>&amp;Port:</source>
-        <translation>По&amp;рт: </translation>
+        <translation>По&amp;рт:</translation>
     </message>
     <message>
         <source>Port of the proxy (e.g. 9050)</source>
@@ -1399,7 +1601,7 @@
     </message>
     <message>
         <source>Shows, if the supplied default SOCKS5 proxy is used to reach peers via this network type.</source>
-        <translation>Если указано, то показывает прокси SOCKS5, используемый по умолчанию для подключения к пирам этого типа сети</translation>
+        <translation>Если указано, то показывает прокси SOCKS5, используемый по умолчанию для подключения к пирам этого типа сети.</translation>
     </message>
     <message>
         <source>IPv4</source>
@@ -1469,7 +1671,7 @@ https://www.transifex.com/projects/p/biblepay/</translation>
     </message>
     <message>
         <source>&amp;Unit to show amounts in:</source>
-        <translation>&amp;Отображать суммы в единицах: </translation>
+        <translation>&amp;Отображать суммы в единицах:</translation>
     </message>
     <message>
         <source>Choose the default subdivision unit to show in the interface and when sending coins.</source>
@@ -1623,7 +1825,7 @@ https://www.transifex.com/projects/p/biblepay/</translation>
         <translation>Попробовать отправить запрос PrivateSend вручную.</translation>
     </message>
     <message>
-        <source>Reset the current status of PrivateSend (can interrupt PrivateSend if it's in the process of Mixing, which can cost you money!)</source>
+        <source>Reset the current status of PrivateSend (can interrupt PrivateSend if it&apos;s in the process of Mixing, which can cost you money!)</source>
         <translation>Сбросить текущий статус PrivateSend (можно прервать процесс перемешивания PrivateSend, но это может стоить Вам немного денег!)</translation>
     </message>
     <message>
@@ -1679,6 +1881,18 @@ https://www.transifex.com/projects/p/biblepay/</translation>
         <translation>Сбросить</translation>
     </message>
     <message>
+        <source>.</source>
+        <translation>.</translation>
+    </message>
+    <message>
+        <source>..</source>
+        <translation>..</translation>
+    </message>
+    <message>
+        <source>                                                                                            .</source>
+        <translation>                                                                                            .</translation>
+    </message>
+    <message>
         <source>out of sync</source>
         <translation>несинхронизировано</translation>
     </message>
@@ -1700,15 +1914,19 @@ https://www.transifex.com/projects/p/biblepay/</translation>
     </message>
     <message numerus="yes">
         <source>%n Rounds</source>
-        <translation><numerusform>%n раунд</numerusform><numerusform>%n  раунда</numerusform><numerusform>%n раундов</numerusform><numerusform>%n раундов</numerusform></translation>
+        <translation>
+            <numerusform>%n раунд</numerusform>
+            <numerusform>%n  раунда</numerusform>
+            <numerusform>%n раундов</numerusform>
+        </translation>
     </message>
     <message>
         <source>Found enough compatible inputs to anonymize %1</source>
         <translation>Найдено достаточно совместимых средств для анонимизации %1</translation>
     </message>
     <message>
-        <source>Not enough compatible inputs to anonymize &lt;span style='color:red;'&gt;%1&lt;/span&gt;,&lt;br&gt;will anonymize &lt;span style='color:red;'&gt;%2&lt;/span&gt; instead</source>
-        <translation>Не достаточно совместимых средств для анонимизации &lt;span style='color:red;'&gt;%1&lt;/span&gt;,&lt;br/&gt;будет анонимизировано только &lt;span style='color:red;'&gt;%2&lt;/span&gt;</translation>
+        <source>Not enough compatible inputs to anonymize &lt;span style=&apos;color:red;&apos;&gt;%1&lt;/span&gt;,&lt;br&gt;will anonymize &lt;span style=&apos;color:red;&apos;&gt;%2&lt;/span&gt; instead</source>
+        <translation>Не достаточно совместимых средств для анонимизации &lt;span style=&apos;color:red;&apos;&gt;%1&lt;/span&gt;,&lt;br/&gt;будет анонимизировано только &lt;span style=&apos;color:red;&apos;&gt;%2&lt;/span&gt;</translation>
     </message>
     <message>
         <source>Overall progress</source>
@@ -1728,7 +1946,11 @@ https://www.transifex.com/projects/p/biblepay/</translation>
     </message>
     <message numerus="yes">
         <source>Denominated inputs have %5 of %n rounds on average</source>
-        <translation><numerusform>Номиналы прошли в среднем %5 из %n раундов</numerusform><numerusform>Номиналы прошли в среднем %5 из %n раундов</numerusform><numerusform>Номиналы прошли в среднем %5 из %n раундов</numerusform><numerusform>Номиналы прошли в среднем %5 из %n раундов</numerusform></translation>
+        <translation>
+            <numerusform>Номиналы прошли в среднем %5 из %n раундов</numerusform>
+            <numerusform>Номиналы прошли в среднем %5 из %n раундов</numerusform>
+            <numerusform>Номиналы прошли в среднем %5 из %n раундов</numerusform>
+        </translation>
     </message>
     <message>
         <source>keys left: %1</source>
@@ -1743,8 +1965,8 @@ https://www.transifex.com/projects/p/biblepay/</translation>
         <translation>Очень мало ключей с момента последнего автоматического бэкапа!</translation>
     </message>
     <message>
-        <source>We are about to create a new automatic backup for you, however &lt;span style='color:red;'&gt; you should always make sure you have backups saved in some safe place&lt;/span&gt;!</source>
-        <translation>Мы собираемся создать автоматический бэкап, однако &lt;span style='color:red;'&gt; всегда проверяйте, что вы сохраняете их в безопасном месте&lt;/span&gt;!</translation>
+        <source>We are about to create a new automatic backup for you, however &lt;span style=&apos;color:red;&apos;&gt; you should always make sure you have backups saved in some safe place&lt;/span&gt;!</source>
+        <translation>Мы собираемся создать автоматический бэкап, однако &lt;span style=&apos;color:red;&apos;&gt; всегда проверяйте, что вы сохраняете их в безопасном месте&lt;/span&gt;!</translation>
     </message>
     <message>
         <source>Note: You can turn this message off in options.</source>
@@ -1785,8 +2007,8 @@ https://www.transifex.com/projects/p/biblepay/</translation>
         <translation>PrivateSend был успешно прерван.</translation>
     </message>
     <message>
-        <source>If you don't want to see internal PrivateSend fees/transactions select "Most Common" as Type on the "Transactions" tab.</source>
-        <translation>Если Вы не хотите видеть внутренние транзакции/комиссии от работы PrivateSend, выберите Тип "Наиболее общие" на закладке "Транзакции".</translation>
+        <source>If you don&apos;t want to see internal PrivateSend fees/transactions select &quot;Most Common&quot; as Type on the &quot;Transactions&quot; tab.</source>
+        <translation>Если Вы не хотите видеть внутренние транзакции/комиссии от работы PrivateSend, выберите Тип &quot;Наиболее общие&quot; на закладке &quot;Транзакции&quot;.</translation>
     </message>
     <message>
         <source>PrivateSend requires at least %1 to use.</source>
@@ -1836,7 +2058,7 @@ https://www.transifex.com/projects/p/biblepay/</translation>
         <translation>Запрос платежа отклонен</translation>
     </message>
     <message>
-        <source>Payment request network doesn't match client network.</source>
+        <source>Payment request network doesn&apos;t match client network.</source>
         <translation>Сеть запроса платежа не соответствует сети клиента.</translation>
     </message>
     <message>
@@ -1857,7 +2079,7 @@ https://www.transifex.com/projects/p/biblepay/</translation>
     </message>
     <message>
         <source>Requested payment amount of %1 is too small (considered dust).</source>
-        <translation>Запрошенная сумма платежа %1 слишком мала (считается "пылью").</translation>
+        <translation>Запрошенная сумма платежа %1 слишком мала (считается &quot;пылью&quot;).</translation>
     </message>
     <message>
         <source>Refund from %1</source>
@@ -1900,7 +2122,7 @@ https://www.transifex.com/projects/p/biblepay/</translation>
     </message>
     <message>
         <source>User Agent</source>
-        <translation>User Agent</translation>
+        <translation>Юзер Агент</translation>
     </message>
     <message>
         <source>Ping</source>
@@ -1908,11 +2130,154 @@ https://www.transifex.com/projects/p/biblepay/</translation>
     </message>
 </context>
 <context>
-    <name>QObject</name>
+    <name>ProposalAddDialog</name>
     <message>
-        <source>%1 didn't yet exit safely...</source>
+        <source>Proposal Amount</source>
+        <translation>Сумма предложения</translation>
+    </message>
+    <message>
+        <source>%1 didn&apos;t yet exit safely...</source>
         <translation>%1 еще не завершил работу...</translation>
     </message>
+    <message>
+        <source>Enter Proposal Amount</source>
+        <translation>Введите сумму предложения</translation>
+    </message>
+    <message>
+        <source>&amp;Proposal Amount:</source>
+        <translation>&amp;Сумма Предложения:</translation>
+    </message>
+    <message>
+        <source>Discussion URL</source>
+        <translation>Ссылка на дискуссию</translation>
+    </message>
+    <message>
+        <source>&amp;Discussion URL:</source>
+        <translation>&amp;Ссылка на дискуссию:</translation>
+    </message>
+    <message>
+        <source>Enter Proposal Name</source>
+        <translation>Введите Название Предложения</translation>
+    </message>
+    <message>
+        <source>Biblepay - Add New Proposal - v1.1&lt;br&gt;</source>
+        <translation>Biblepay - Новое предложение - v1.1&lt;br&gt;</translation>
+    </message>
+    <message>
+        <source>&amp;Proposal Name:</source>
+        <translation>&amp;Название предложения:</translation>
+    </message>
+    <message>
+        <source>&amp;Submit Proposal</source>
+        <translation>&amp;Отправить Предложение</translation>
+    </message>
+    <message>
+        <source>Expense Type</source>
+        <translation>Тип расходов</translation>
+    </message>
+    <message>
+        <source>Expense Type:</source>
+        <translation>Тип расходов:</translation>
+    </message>
+    <message>
+        <source>Address</source>
+        <translation>Адрес</translation>
+    </message>
+    <message>
+        <source>Receiving Address</source>
+        <translation>Адрес Получателя</translation>
+    </message>
+    <message>
+        <source>Funding Receiving Address:</source>
+        <translation>Адрес получателя финансирования:</translation>
+    </message>
+    <message>
+        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p align=&quot;center&quot;&gt;&lt;span style=&quot; font-size:12pt; font-style:italic;&quot;&gt;Biblepay Governance System&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
+        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p align=&quot;center&quot;&gt;&lt;span style=&quot; font-size:12pt; font-style:italic;&quot;&gt;Система Управления Biblepay&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
+    </message>
+    <message>
+        <source>...</source>
+        <translation>...</translation>
+    </message>
+    <message>
+        <source>Proposal Add Result</source>
+        <translation>Результат предложения</translation>
+    </message>
+</context>
+<context>
+    <name>Proposals</name>
+    <message>
+        <source>Form</source>
+        <translation>Форма</translation>
+    </message>
+    <message>
+        <source>Proposal ID</source>
+        <translation>ID Предложения</translation>
+    </message>
+    <message>
+        <source>Proposal Name</source>
+        <translation>Название Предложения</translation>
+    </message>
+    <message>
+        <source>Amount</source>
+        <translation>Количество</translation>
+    </message>
+    <message>
+        <source>Expense Type</source>
+        <translation>Тип Расходов</translation>
+    </message>
+    <message>
+        <source>Created</source>
+        <translation>Создано</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Yes Ct</source>
+        <translation>За Ct</translation>
+    </message>
+    <message>
+        <source>No Ct</source>
+        <translation>Против Ct</translation>
+    </message>
+    <message>
+        <source>Abstain Ct</source>
+        <translation>Воздержаться Ct</translation>
+    </message>
+    <message>
+        <source>Url</source>
+        <translation>Url</translation>
+    </message>
+    <message>
+        <source>Vote For</source>
+        <translation>Голосовать За</translation>
+    </message>
+    <message>
+        <source>Vote Against</source>
+        <translation>Голосовать Против</translation>
+    </message>
+    <message>
+        <source>Vote Abstain</source>
+        <translation>Голосовать Воздержаться</translation>
+    </message>
+    <message>
+        <source>Chart Proposal</source>
+        <translation>Список Предложений</translation>
+    </message>
+    <message>
+        <source>View Proposal</source>
+        <translation>Показать Предложения</translation>
+    </message>
+    <message>
+        <source>Voting Outcome</source>
+        <translation>Итоги Голосования</translation>
+    </message>
+    <message>
+        <source>Proposal</source>
+        <translation>Предложения</translation>
+    </message>
+</context>
+<context>
+    <name>QObject</name>
     <message>
         <source>Amount</source>
         <translation>Сумма</translation>
@@ -1951,27 +2316,51 @@ https://www.transifex.com/projects/p/biblepay/</translation>
     </message>
     <message numerus="yes">
         <source>%n second(s)</source>
-        <translation><numerusform>%n секунда</numerusform><numerusform>%n секунды</numerusform><numerusform>%n секунд</numerusform><numerusform>%n секунд</numerusform></translation>
+        <translation>
+            <numerusform>%n секунда</numerusform>
+            <numerusform>%n секунды</numerusform>
+            <numerusform>%n секунд</numerusform>
+        </translation>
     </message>
     <message numerus="yes">
         <source>%n minute(s)</source>
-        <translation><numerusform>%n минута</numerusform><numerusform>%n минуты</numerusform><numerusform>%n минут</numerusform><numerusform>%n минут</numerusform></translation>
+        <translation>
+            <numerusform>%n минута</numerusform>
+            <numerusform>%n минуты</numerusform>
+            <numerusform>%n минут</numerusform>
+        </translation>
     </message>
     <message numerus="yes">
         <source>%n hour(s)</source>
-        <translation><numerusform>%n час</numerusform><numerusform>%n часа</numerusform><numerusform>%n часов</numerusform><numerusform>%n часов</numerusform></translation>
+        <translation>
+            <numerusform>%n час</numerusform>
+            <numerusform>%n часа</numerusform>
+            <numerusform>%n часов</numerusform>
+        </translation>
     </message>
     <message numerus="yes">
         <source>%n day(s)</source>
-        <translation><numerusform>%n день</numerusform><numerusform>%n дня</numerusform><numerusform>%n дней</numerusform><numerusform>%n дней</numerusform></translation>
+        <translation>
+            <numerusform>%n день</numerusform>
+            <numerusform>%n дня</numerusform>
+            <numerusform>%n дней</numerusform>
+        </translation>
     </message>
     <message numerus="yes">
         <source>%n week(s)</source>
-        <translation><numerusform>%n неделя</numerusform><numerusform>%n недели</numerusform><numerusform>%n недель</numerusform><numerusform>%n недель</numerusform></translation>
+        <translation>
+            <numerusform>%n неделя</numerusform>
+            <numerusform>%n недели</numerusform>
+            <numerusform>%n недель</numerusform>
+        </translation>
     </message>
     <message numerus="yes">
         <source>%n year(s)</source>
-        <translation><numerusform>%n год</numerusform><numerusform>%n года</numerusform><numerusform>%n лет</numerusform><numerusform>%n лет</numerusform></translation>
+        <translation>
+            <numerusform>%n год</numerusform>
+            <numerusform>%n года</numerusform>
+            <numerusform>%n лет</numerusform>
+        </translation>
     </message>
     <message>
         <source>%1 and %2</source>
@@ -1983,10 +2372,81 @@ https://www.transifex.com/projects/p/biblepay/</translation>
     </message>
 </context>
 <context>
+    <name>Proposals</name>
+    <message>
+        <source>Form</source>
+        <translation>Форма</translation>
+    </message>
+    <message>
+        <source>Proposal ID</source>
+        <translation>ID Предложения</translation>
+    </message>
+    <message>
+        <source>Proposal Name</source>
+        <translation>Название предложения</translation>
+    </message>
+    <message>
+        <source>Amount</source>
+        <translation>Сумма</translation>
+    </message>
+    <message>
+        <source>Expense Type</source>
+        <translation>Тип расходов</translation>
+    </message>
+    <message>
+        <source>Created</source>
+        <translation>Создано</translation>
+    </message>
+    <message>
+        <source>Yes Ct</source>
+        <translation>За Ct</translation>
+    </message>
+    <message>
+        <source>No Ct</source>
+        <translation>Против Ct</translation>
+    </message>
+    <message>
+        <source>Abstain Ct</source>
+        <translation>Воздержаться Ct</translation>
+    </message>
+    <message>
+        <source>Url</source>
+        <translation>Url</translation>
+    </message>
+    <message>
+        <source>Vote For</source>
+        <translation>Голосовать За</translation>
+    </message>
+    <message>
+        <source>Vote Against</source>
+        <translation>Голосовать Против</translation>
+    </message>
+    <message>
+        <source>Vote Abstain</source>
+        <translation>Голосовать Воздержаться</translation>
+    </message>
+    <message>
+        <source>Chart Proposal</source>
+        <translation>Перечень Предложений</translation>
+    </message>
+    <message>
+        <source>View Proposal</source>
+        <translation>Посмотреть Предложение</translation>
+    </message>
+    <message>
+        <source>Voting Outcome</source>
+        <translation>Итог Голосования</translation>
+    </message>
+    <message>
+        <source>Proposal</source>
+        <translation>Предложение</translation>
+    </message>
+</context>
+<context>
     <name>QObject::QObject</name>
     <message>
-        <source>Error: Specified data directory "%1" does not exist.</source>
-        <translation>Ошибка: Указанная папка данных "%1" не существует.</translation>
+        <source>Error: Specified data directory &quot;%1&quot; does not exist.</source>
+        <translation>Ошибка: Указанная папка данных &quot;%1&quot; не существует.</translation>
     </message>
     <message>
         <source>Error: Cannot parse configuration file: %1. Only use key=value syntax.</source>
@@ -2013,7 +2473,7 @@ https://www.transifex.com/projects/p/biblepay/</translation>
     </message>
     <message>
         <source>Error creating QR Code.</source>
-        <translation>Ошибка создания QR-кода</translation>
+        <translation>Ошибка создания QR-кода.</translation>
     </message>
 </context>
 <context>
@@ -2113,6 +2573,10 @@ https://www.transifex.com/projects/p/biblepay/</translation>
         <translation>Используется версия BerkeleyDB</translation>
     </message>
     <message>
+        <source>Number of Sanctuaries</source>
+        <translation>Номер Мастернод</translation>
+    </message>
+    <message>
         <source>Block chain</source>
         <translation>Цепочка блоков</translation>
     </message>
@@ -2131,6 +2595,10 @@ https://www.transifex.com/projects/p/biblepay/</translation>
     <message>
         <source>Memory usage</source>
         <translation>Использование памяти</translation>
+    </message>
+    <message>
+        <source>InstantSend locks</source>
+        <translation>Блокировки InstantSend</translation>
     </message>
     <message>
         <source>&amp;Console</source>
@@ -2202,7 +2670,7 @@ https://www.transifex.com/projects/p/biblepay/</translation>
     </message>
     <message>
         <source>User Agent</source>
-        <translation>User Agent</translation>
+        <translation>Юзер Агент</translation>
     </message>
     <message>
         <source>Datadir</source>
@@ -2623,6 +3091,17 @@ https://www.transifex.com/projects/p/biblepay/</translation>
     </message>
 </context>
 <context>
+    <name>SecDialog</name>
+    <message>
+        <source>Dialog</source>
+        <translation>Диалог</translation>
+    </message>
+    <message>
+        <source>Close</source>
+        <translation>Закрыть</translation>
+    </message>
+</context>
+<context>
     <name>SendCoinsDialog</name>
     <message>
         <source>Send Coins</source>
@@ -2713,12 +3192,12 @@ https://www.transifex.com/projects/p/biblepay/</translation>
         <translation>InstantSend</translation>
     </message>
     <message>
-        <source>If the custom fee is set to 1000 duffs and the transaction is only 250 bytes, then "per kilobyte" only pays 250 duffs in fee,&lt;br /&gt;while "at least" pays 1000 duffs. For transactions bigger than a kilobyte both pay by kilobyte.</source>
-        <translation>Если ручная комиссия  установлена в 1000 duff, а транзакция по размеру только 250 байт, то плата "за килобайт" составит лишь 250 duff,&lt;br&gt;в то время как "минимум" будет равна 1000 duff. Для транзакций больше килобайта в любом случае идет расчет "за килобайт".</translation>
+        <source>If the custom fee is set to 1000 duffs and the transaction is only 250 bytes, then &quot;per kilobyte&quot; only pays 250 duffs in fee,&lt;br /&gt;while &quot;at least&quot; pays 1000 duffs. For transactions bigger than a kilobyte both pay by kilobyte.</source>
+        <translation>Если ручная комиссия  установлена в 1000 duff, а транзакция по размеру только 250 байт, то плата &quot;за килобайт&quot; составит лишь 250 duff,&lt;br&gt;в то время как &quot;минимум&quot; будет равна 1000 duff. Для транзакций больше килобайта в любом случае идет расчет &quot;за килобайт&quot;.</translation>
     </message>
     <message>
-        <source>If the custom fee is set to 1000 duffs and the transaction is only 250 bytes, then "per kilobyte" only pays 250 duffs in fee,&lt;br /&gt;while "total at least" pays 1000 duffs. For transactions bigger than a kilobyte both pay by kilobyte.</source>
-        <translation>Если ручная комиссия  установлена в 1000 duff, а транзакция по размеру только 250 байт, то плата "за килобайт" составит лишь 250 duff,&lt;br&gt;в то время как "итого минимум" будет равна 1000 duff. Для тразакций больше килобайта в любом случае идет расчет "за килобайт".</translation>
+        <source>If the custom fee is set to 1000 duffs and the transaction is only 250 bytes, then &quot;per kilobyte&quot; only pays 250 duffs in fee,&lt;br /&gt;while &quot;total at least&quot; pays 1000 duffs. For transactions bigger than a kilobyte both pay by kilobyte.</source>
+        <translation>Если ручная комиссия  установлена в 1000 duff, а транзакция по размеру только 250 байт, то плата &quot;за килобайт&quot; составит лишь 250 duff,&lt;br&gt;в то время как &quot;итого минимум&quot; будет равна 1000 duff. Для тразакций больше килобайта в любом случае идет расчет &quot;за килобайт&quot;.</translation>
     </message>
     <message>
         <source>Paying only the minimum fee is just fine as long as there is less transaction volume than space in the blocks.&lt;br /&gt;But be aware that this can end up in a never confirming transaction once there is more demand for biblepay transactions than the network can process.</source>
@@ -2750,7 +3229,7 @@ https://www.transifex.com/projects/p/biblepay/</translation>
     </message>
     <message>
         <source>(Smart fee not initialized yet. This usually takes a few blocks...)</source>
-        <translation>(Расчет "умной" комиссии еще не доступен. Обычно требуется подождать несколько блоков...)</translation>
+        <translation>(Расчет &quot;умной&quot; комиссии еще не доступен. Обычно требуется подождать несколько блоков...)</translation>
     </message>
     <message>
         <source>normal</source>
@@ -2849,6 +3328,10 @@ https://www.transifex.com/projects/p/biblepay/</translation>
         <translation>добавлено в качестве комиссии транзакции</translation>
     </message>
     <message>
+        <source> added as a Foundation Tithe</source>
+        <translation> добавлено как Десятина</translation>
+    </message>
+    <message>
         <source>Total Amount = &lt;b&gt;%1&lt;/b&gt;&lt;br /&gt;= %2</source>
         <translation>Общая сумма = &lt;b&gt;%1&lt;/b&gt;&lt;br /&gt;= %2</translation>
     </message>
@@ -2890,7 +3373,7 @@ https://www.transifex.com/projects/p/biblepay/</translation>
     </message>
     <message>
         <source>A fee higher than %1 is considered an absurdly high fee.</source>
-        <translation>Комиссия выше чем %1 считается "безумно высокой".</translation>
+        <translation>Комиссия выше чем %1 считается &quot;безумно высокой&quot;.</translation>
     </message>
     <message>
         <source>Payment request expired.</source>
@@ -2898,7 +3381,11 @@ https://www.transifex.com/projects/p/biblepay/</translation>
     </message>
     <message numerus="yes">
         <source>%n block(s)</source>
-        <translation><numerusform>%n блок</numerusform><numerusform>%n блока</numerusform><numerusform>%n блоков</numerusform><numerusform>%n блоков</numerusform></translation>
+        <translation>
+            <numerusform>%n блок</numerusform>
+            <numerusform>%n блока</numerusform>
+            <numerusform>%n блоков</numerusform>
+        </translation>
     </message>
     <message>
         <source>Pay only the required fee of %1</source>
@@ -2906,7 +3393,11 @@ https://www.transifex.com/projects/p/biblepay/</translation>
     </message>
     <message numerus="yes">
         <source>Estimated to begin confirmation within %n block(s).</source>
-        <translation><numerusform>Будет подтверждено приблизительно в течение %n блока.</numerusform><numerusform>Будет подтверждено приблизительно в течение %n блоков.</numerusform><numerusform>Будет подтверждено приблизительно в течение %n блоков.</numerusform><numerusform>Будет подтверждено приблизительно в течение %n блоков.</numerusform></translation>
+        <translation>
+            <numerusform>Будет подтверждено приблизительно в течение %n блока.</numerusform>
+            <numerusform>Будет подтверждено приблизительно в течение %n блоков.</numerusform>
+            <numerusform>Будет подтверждено приблизительно в течение %n блоков.</numerusform>
+        </translation>
     </message>
     <message>
         <source>Warning: Invalid Biblepay address</source>
@@ -2977,7 +3468,24 @@ https://www.transifex.com/projects/p/biblepay/</translation>
     </message>
     <message>
         <source>The fee will be deducted from the amount being sent. The recipient will receive a lower amount of Biblepay than you enter in the amount field. If multiple recipients are selected, the fee is split equally.</source>
-        <translation>Комиссия будет вычтена из отправляемой суммы. Получателю придет меньше Biblepay, сем указано в поле "Сумма". Если указано несколько получателей, то комиссия будет разделена между ними поровну.</translation>
+        <translation>Комиссия будет вычтена из отправляемой суммы. Получателю придет меньше Biblepay, сем указано в поле &quot;Сумма&quot;. Если указано несколько получателей, то комиссия будет разделена между ними поровну.</translation>
+    </message>
+    <message>
+        <source>S&amp;ubtract fee from amount?</source>
+        <translation>В&amp;ычесть плату из суммы?</translation>
+    </message>
+    <message>
+        <source>Prayers&lt;br&gt;or Diary Entry:</source>
+        <translation>Молитвы&lt;br&gt;или Запись в Дневнике:</translation>
+    </message>
+    <message>
+        <source>Send Custom Message to Recipient </source>
+        <translation>Отправить сообщение получателю </translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>Internal Message:</source>
+        <translation>Вложенное Сообщение:</translation>
     </message>
     <message>
         <source>S&amp;ubtract fee from amount</source>
@@ -2990,6 +3498,30 @@ https://www.transifex.com/projects/p/biblepay/</translation>
     <message>
         <source>A message that was attached to the biblepay: URI which will be stored with the transaction for your reference. Note: This message will not be sent over the Biblepay network.</source>
         <translation>К biblepay: URI было прикреплено сообщение, которое будет сохранено вместе с транзакцией для вашего сведения. Обратите внимание: сообщение не будет отправлено через сеть Biblepay.</translation>
+    </message>
+ <message>
+        <source>Send Coins to Orphan Foundation to Support Orphans?</source>
+        <translation>Отправить средства в Фонд Поддержки Сирот?</translation>
+    </message>
+    <message>
+        <source>Donate to Foundation?</source>
+        <translation>Пожертвовать Фонду?</translation>
+    </message>
+    <message>
+        <source>Add an additional 10% to the transaction to be sent to Support Orphans?</source>
+        <translation>Добавить дополнительные 10% к транзакции, которые буду отправлены на поддержание сирот?</translation>
+    </message>
+    <message>
+        <source>Add Tithe for Foundation?</source>
+        <translation>Добавить десятину в Фонд?</translation>
+    </message>
+    <message>
+        <source>Prayer Request</source>
+        <translation>Молитвенная просьба</translation>
+    </message>
+    <message>
+        <source>Add Diary Entry?</source>
+        <translation>Добавить запись в дневнике?</translation>
     </message>
     <message>
         <source>This is an unauthenticated payment request.</source>
@@ -3097,8 +3629,8 @@ https://www.transifex.com/projects/p/biblepay/</translation>
         <translation>&amp;Проверить сообщение</translation>
     </message>
     <message>
-        <source>Enter the receiver's address, message (ensure you copy line breaks, spaces, tabs, etc. exactly) and signature below to verify the message. Be careful not to read more into the signature than what is in the signed message itself, to avoid being tricked by a man-in-the-middle attack. Note that this only proves the signing party receives with the address, it cannot prove sendership of any transaction!</source>
-        <translation>Введите ниже адрес для подписи, сообщение (убедитесь, что переводы строк, пробелы, табы и т.п. в точности скопированы) и подпись, чтобы проверить сообщение. Убедитесь, что не скопировали лишнего в подпись, кроме самого подписываемого сообщения, чтобы не стать жертвой атаки "man-in-the-middle". Обратите внимание, что это лишь подтверждает, что подписывающий может получить средства на этот адрес, это не подтверждает, что он является отправителем какой-либо транзакции!</translation>
+        <source>Enter the receiver&apos;s address, message (ensure you copy line breaks, spaces, tabs, etc. exactly) and signature below to verify the message. Be careful not to read more into the signature than what is in the signed message itself, to avoid being tricked by a man-in-the-middle attack. Note that this only proves the signing party receives with the address, it cannot prove sendership of any transaction!</source>
+        <translation>Введите ниже адрес для подписи, сообщение (убедитесь, что переводы строк, пробелы, табы и т.п. в точности скопированы) и подпись, чтобы проверить сообщение. Убедитесь, что не скопировали лишнего в подпись, кроме самого подписываемого сообщения, чтобы не стать жертвой атаки &quot;man-in-the-middle&quot;. Обратите внимание, что это лишь подтверждает, что подписывающий может получить средства на этот адрес, это не подтверждает, что он является отправителем какой-либо транзакции!</translation>
     </message>
     <message>
         <source>The Biblepay address the message was signed with</source>
@@ -3117,8 +3649,8 @@ https://www.transifex.com/projects/p/biblepay/</translation>
         <translation>Сбросить все поля формы проверки сообщения</translation>
     </message>
     <message>
-        <source>Click "Sign Message" to generate signature</source>
-        <translation>Нажмите "Подписать сообщение" для создания подписи</translation>
+        <source>Click &quot;Sign Message&quot; to generate signature</source>
+        <translation>Нажмите &quot;Подписать сообщение&quot; для создания подписи</translation>
     </message>
     <message>
         <source>The entered address is invalid.</source>
@@ -3191,7 +3723,11 @@ https://www.transifex.com/projects/p/biblepay/</translation>
     <name>TransactionDesc</name>
     <message numerus="yes">
         <source>Open for %n more block(s)</source>
-        <translation><numerusform>Будет открыто ещё %n блок</numerusform><numerusform>Будет открыто ещё %n блока</numerusform><numerusform>Будет открыто ещё %n блоков</numerusform><numerusform>Будет открыто ещё %n блоков</numerusform></translation>
+        <translation>
+            <numerusform>Будет открыто ещё %n блок</numerusform>
+            <numerusform>Будет открыто ещё %n блока</numerusform>
+            <numerusform>Будет открыто ещё %n блоков</numerusform>
+        </translation>
     </message>
     <message>
         <source>Open until %1</source>
@@ -3259,7 +3795,11 @@ https://www.transifex.com/projects/p/biblepay/</translation>
     </message>
     <message numerus="yes">
         <source>, broadcast through %n node(s)</source>
-        <translation><numerusform>, разослано через %n узел</numerusform><numerusform>, разослано через %n узла</numerusform><numerusform>, разослано через %n узлов</numerusform><numerusform>, разослано через %n узлов</numerusform></translation>
+        <translation>
+            <numerusform>, разослано через %n узел</numerusform>
+            <numerusform>, разослано через %n узла</numerusform>
+            <numerusform>, разослано через %n узлов</numerusform>
+        </translation>
     </message>
     <message>
         <source>Date</source>
@@ -3270,6 +3810,31 @@ https://www.transifex.com/projects/p/biblepay/</translation>
         <translation>Источник</translation>
     </message>
     <message>
+        <source>GSC-Transmission</source>
+        <translation>GSC-Передача</translation>
+    </message>
+    <message>
+        <source>Christian-Keypair-Association</source>
+        <translation>Христианская-Связка-Ключей</translation>
+    </message>
+    <message>
+        <source>Anti-BotNet-Transaction</source>
+        <translation>Анти-Ботнет-Транзакция</translation>
+    </message>
+    <message>
+        <source>Superblock-Payment</source>
+        <translation>Вознаграждение-За-Суперблок</translation>
+    </message>
+    <message>
+        <source>Dynamic-Whale-Reward</source>
+        <translation>Динамическое-Вознаграждение-Китов</translation>
+    </message>
+    <message>
+        <source>Smart-Contract-Payment</source>
+        <translation>Вознаграждение-За-Смарт-Контракт</translation>
+    </message>
+    <message>
+        <location line="+4"/>
         <source>Generated</source>
         <translation>Сгенерированно</translation>
     </message>
@@ -3303,7 +3868,11 @@ https://www.transifex.com/projects/p/biblepay/</translation>
     </message>
     <message numerus="yes">
         <source>matures in %n more block(s)</source>
-        <translation><numerusform>будет доступно через %n блок</numerusform><numerusform>будет доступно через %n блока</numerusform><numerusform>будет доступно через %n блоков</numerusform><numerusform>будет доступно через %n блоков</numerusform></translation>
+        <translation>
+            <numerusform>будет доступно через %n блок</numerusform>
+            <numerusform>будет доступно через %n блока</numerusform>
+            <numerusform>будет доступно через %n блоков</numerusform>
+        </translation>
     </message>
     <message>
         <source>not accepted</source>
@@ -3354,8 +3923,8 @@ https://www.transifex.com/projects/p/biblepay/</translation>
         <translation>Продавец</translation>
     </message>
     <message>
-        <source>Generated coins must mature %1 blocks before they can be spent. When you generated this block, it was broadcast to the network to be added to the block chain. If it fails to get into the chain, its state will change to "not accepted" and it won't be spendable. This may occasionally happen if another node generates a block within a few seconds of yours.</source>
-        <translation>Сгенерированные монеты должны подождать %1 блоков, прежде чем они могут быть потрачены. Когда Вы сгенерировали этот блок, он был отправлен в сеть для добавления в цепочку блоков. Если он не попадёт в цепочку, его статус изменится на "не принят", и монеты будут недействительны. Это иногда происходит в случае, если другой узел сгенерирует блок на несколько секунд раньше вас.</translation>
+        <source>Generated coins must mature %1 blocks before they can be spent. When you generated this block, it was broadcast to the network to be added to the block chain. If it fails to get into the chain, its state will change to &quot;not accepted&quot; and it won&apos;t be spendable. This may occasionally happen if another node generates a block within a few seconds of yours.</source>
+        <translation>Сгенерированные монеты должны подождать %1 блоков, прежде чем они могут быть потрачены. Когда Вы сгенерировали этот блок, он был отправлен в сеть для добавления в цепочку блоков. Если он не попадёт в цепочку, его статус изменится на &quot;не принят&quot;, и монеты будут недействительны. Это иногда происходит в случае, если другой узел сгенерирует блок на несколько секунд раньше вас.</translation>
     </message>
     <message>
         <source>Debug information</source>
@@ -3409,7 +3978,11 @@ https://www.transifex.com/projects/p/biblepay/</translation>
     </message>
     <message numerus="yes">
         <source>Open for %n more block(s)</source>
-        <translation><numerusform>Будет открыто ещё %n блок</numerusform><numerusform>Будет открыто ещё %n блока</numerusform><numerusform>Будет открыто ещё %n блоков</numerusform><numerusform>Будет открыто ещё %n блоков</numerusform></translation>
+        <translation>
+            <numerusform>Будет открыто ещё %n блок</numerusform>
+            <numerusform>Будет открыто ещё %n блока</numerusform>
+            <numerusform>Будет открыто ещё %n блоков</numerusform>
+        </translation>
     </message>
     <message>
         <source>Open until %1</source>
@@ -3464,12 +4037,37 @@ https://www.transifex.com/projects/p/biblepay/</translation>
         <translation>Получено через PrivateSend</translation>
     </message>
     <message>
+        <source>Dynamic Whale Stake</source>
+        <translation>Динамическая доля китов</translation>
+    </message>
+    <message>
+        <source>Dynamic Whale Reward</source>
+        <translation>Динамическая награда китов</translation>
+    </message>
+    <message>
+        <source>GSC Transmission</source>
+        <translation>GSC Передача</translation>
+    </message>
+    <message>
+        <location line="+3"/>
         <source>Sent to</source>
         <translation>Отправлено</translation>
     </message>
     <message>
         <source>Payment to yourself</source>
         <translation>Отправлено себе</translation>
+    </message>
+    <message>
+        <source>Christian Public Keypair Association</source>
+        <translation>Христианская Связка Публичных Ключей</translation>
+    </message>
+    <message>
+        <source>Superblock Payment</source>
+        <translation>Вознаграждение за Суперблок</translation>
+    </message>
+    <message>
+        <source>Smart-Contract Reward</source>
+        <translation>Вознаграждение Смарт-Контракта</translation>
     </message>
     <message>
         <source>Mined</source>
@@ -3748,11 +4346,15 @@ https://www.transifex.com/projects/p/biblepay/</translation>
 <context>
     <name>WalletModel</name>
     <message>
+        <source>Create Diary Entry</source>
+        <translation>Создать запись в дневнике</translation>
+    </message>
+    <message>
         <source>Send Coins</source>
         <translation>Отправка</translation>
     </message>
     <message>
-        <source>InstantSend doesn't support sending values that high yet. Transactions are currently limited to %1 BIBLEPAY.</source>
+        <source>InstantSend doesn&apos;t support sending values that high yet. Transactions are currently limited to %1 BIBLEPAY.</source>
         <translation>InstantSend пока что не поддерживает такие большие суммы. На данный момент транзакции ограничены суммами до %1 BIBLEPAY.</translation>
     </message>
     <message>
@@ -3820,6 +4422,10 @@ https://www.transifex.com/projects/p/biblepay/</translation>
     <message>
         <source>Execute command when the best block changes (%s in cmd is replaced by block hash)</source>
         <translation>Выполнить команду при появлении нового блока (%s в команде заменяется на хэш блока)</translation>
+    </message>
+    <message>
+        <source>A CPK was advertised less then 4 blocks ago. Please wait for your CPK to enter the chain.</source>
+        <translation>CPK был объявлен менее 4 блоков назад. Пожалуйста, подождите, пока ваш CPK не войдет в цепочку.</translation>
     </message>
     <message>
         <source>Name to construct url for KeePass entry that stores the wallet passphrase</source>
@@ -3910,6 +4516,10 @@ https://www.transifex.com/projects/p/biblepay/</translation>
         <translation>Очередь переполнена.</translation>
     </message>
     <message>
+        <source>Error reading %s! All keys read correctly, but transaction data or address book entries might be missing or incorrect.  Please rerun once with -upgradewallet if you are migrating from BiblePay Classic. </source>
+        <translation>Ошибка чтения% s! Все ключи читаются правильно, но данные транзакции или записи адресной книги могут отсутствовать или быть неправильными. Пожалуйста, перезапустите кошелёк с ключом -upgradewallet, если вы переходите с BiblePay Classic.</translation>
+    </message>
+    <message>
         <source>Error initializing block database</source>
         <translation>Ошибка инициализации базы данных блоков</translation>
     </message>
@@ -3982,7 +4592,7 @@ https://www.transifex.com/projects/p/biblepay/</translation>
         <translation>Включить публикацию хэша транзакции при попытке двойной траты другой транзакции, заблокированной через InstantSend, на &lt;address&gt;</translation>
     </message>
     <message>
-        <source>Error loading %s: You can't enable HD on a already existing non-HD wallet</source>
+        <source>Error loading %s: You can&apos;t enable HD on a already existing non-HD wallet</source>
         <translation>Ошибка загрузки %s: Вы не можете включить HD режим для существующего не-HD кошелька</translation>
     </message>
     <message>
@@ -4002,8 +4612,8 @@ https://www.transifex.com/projects/p/biblepay/</translation>
         <translation>Если этот блок есть в цепочке, то предположить, что он и все предшествующие блоки валидны, и пропустить проверку их скриптов (0 - проверять все, по умолчанию: %s, testnet: %s)</translation>
     </message>
     <message>
-        <source>Invalid amount for -maxtxfee=&lt;amount&gt;: '%s' (must be at least the minrelay fee of %s to prevent stuck transactions)</source>
-        <translation>Некорректная сумма для -maxtxfee=&lt;amount&gt;: '%s' (должна быть минимум как комиссия minrelay - %s, чтобы предотвратить застревание транзакций)</translation>
+        <source>Invalid amount for -maxtxfee=&lt;amount&gt;: &apos;%s&apos; (must be at least the minrelay fee of %s to prevent stuck transactions)</source>
+        <translation>Некорректная сумма для -maxtxfee=&lt;amount&gt;: &apos;%s&apos; (должна быть минимум как комиссия minrelay - %s, чтобы предотвратить застревание транзакций)</translation>
     </message>
     <message>
         <source>Maintain a full transaction index, used by the getrawtransaction rpc call (default: %u)</source>
@@ -4014,8 +4624,20 @@ https://www.transifex.com/projects/p/biblepay/</translation>
         <translation>Не забудьте зашифровать кошелек и удалить все незашифрованные резервные копии после того как убедитесь, что кошелек работает!</translation>
     </message>
     <message>
+        <source>Maximum allowed median peer time offset adjustment. Local perspective of time may be influenced by peers forward or backward by this amount. (default: %u seconds)</source>
+        <translation>Максимально допустимая корректировка смещения медианного времени. Эта сумма может повлиять на местную перспективу времени со стороны пиров вперед или назад. (по умолчанию: %u секунд)</translation>
+    </message>
+    <message>
         <source>Maximum size of data in data carrier transactions we relay and mine (default: %u)</source>
         <translation>Максимальный размер данных в транзакциях передачи данных, который мы ретранслируем и добываем (по умолчанию: %u)</translation>
+    </message>
+    <message>
+        <source>Maximum total fees (in %s) to use in a single wallet transaction or raw transaction; setting this too low may abort large transactions (default: %s)</source>
+        <translation>Максимальная плата (в %s) за одиночную транзакцию или необработанную транзакцию.Установка слишком низкого значения может прервать большие транзакции(по умолчанию: %s)</translation>
+    </message>
+    <message>
+        <source>Maximum total size of all orphan transactions in megabytes (default: %u)</source>
+        <translation>Максимальный общий размер всех потерянных транзакций в мегабайтах (по умолчанию: %u)</translation>
     </message>
     <message>
         <source>Number of seconds to keep misbehaving peers from reconnecting (default: %u)</source>
@@ -4074,7 +4696,7 @@ https://www.transifex.com/projects/p/biblepay/</translation>
         <translation>Всегда запрашивать адреса участников через DNS (по умолчанию: %u)</translation>
     </message>
     <message>
-        <source>Can't mix: no compatible inputs found!</source>
+        <source>Can&apos;t mix: no compatible inputs found!</source>
         <translation>Перемешивание невозможно: подходящие монеты не найдены!</translation>
     </message>
     <message>
@@ -4098,7 +4720,7 @@ https://www.transifex.com/projects/p/biblepay/</translation>
         <translation>Запись превышает максимально допустимый размер.</translation>
     </message>
     <message>
-        <source>Error loading %s: You can't disable HD on a already existing HD wallet</source>
+        <source>Error loading %s: You can&apos;t disable HD on a already existing HD wallet</source>
         <translation>Ошибка загрузки %s: Вы не можете отключить HD режим для существующего HD кошелька</translation>
     </message>
     <message>
@@ -4158,8 +4780,8 @@ https://www.transifex.com/projects/p/biblepay/</translation>
         <translation>Недостаточно средств.</translation>
     </message>
     <message>
-        <source>Invalid amount for -paytxfee=&lt;amount&gt;: '%s' (must be at least %s)</source>
-        <translation>Неверная сумма в параметре -paytxfee=&lt;amount&gt;: '%s' (должна быть минимум %s)</translation>
+        <source>Invalid amount for -paytxfee=&lt;amount&gt;: &apos;%s&apos; (must be at least %s)</source>
+        <translation>Неверная сумма в параметре -paytxfee=&lt;amount&gt;: &apos;%s&apos; (должна быть минимум %s)</translation>
     </message>
     <message>
         <source>Invalid masternodeblsprivkey. Please see documenation.</source>
@@ -4214,8 +4836,8 @@ https://www.transifex.com/projects/p/biblepay/</translation>
         <translation>Парольная фраза мнемоники слишком длинная, она не должна превышать 256 символов</translation>
     </message>
     <message>
-        <source>Need to specify a port with -whitebind: '%s'</source>
-        <translation>Для параметра -whitebind нужно указать порт: '%s'</translation>
+        <source>Need to specify a port with -whitebind: &apos;%s&apos;</source>
+        <translation>Для параметра -whitebind нужно указать порт: &apos;%s&apos;</translation>
     </message>
     <message>
         <source>No Masternodes detected.</source>
@@ -4228,6 +4850,10 @@ https://www.transifex.com/projects/p/biblepay/</translation>
     <message>
         <source>Not in the Masternode list.</source>
         <translation>Отсутствует в списке мастернод.</translation>
+    </message>
+    <message>
+        <source>(Create Transaction) Insufficient funds.</source>
+        <translation>(Создание транзакции) Недостаточно средств.</translation>
     </message>
     <message>
         <source>Only connect to nodes in network &lt;net&gt; (ipv4, ipv6 or onion)</source>
@@ -4362,20 +4988,24 @@ https://www.transifex.com/projects/p/biblepay/</translation>
         <translation>Попробуем еще раз...</translation>
     </message>
     <message>
-        <source>Can't find random Masternode.</source>
+        <source>Can&apos;t find random Masternode.</source>
         <translation>Не получилось выбрать случайную Мастерноду.</translation>
     </message>
     <message>
-        <source>Can't mix while sync in progress.</source>
+        <source>Can&apos;t mix while sync in progress.</source>
         <translation>Перемешивание до завершения синхронизации невозможно.</translation>
     </message>
     <message>
-        <source>Invalid netmask specified in -whitelist: '%s'</source>
-        <translation>В параметре -whitelist указана некорректная маска: '%s'</translation>
+        <source>Invalid netmask specified in -whitelist: &apos;%s&apos;</source>
+        <translation>В параметре -whitelist указана некорректная маска: &apos;%s&apos;</translation>
     </message>
     <message>
         <source>Invalid script detected.</source>
         <translation>Обнаружен некорректный скрипт.</translation>
+    </message>
+    <message>
+        <source>Create up to N inputs of each denominated amount (%u-%u, default: %u)</source>
+        <translation>Создайте до N входов каждой номинированной суммы (%u-%u, по умолчанию: %u)</translation>
     </message>
     <message>
         <source>KeePassHttp id for the established association</source>
@@ -4384,6 +5014,10 @@ https://www.transifex.com/projects/p/biblepay/</translation>
     <message>
         <source>KeePassHttp key for AES encrypted communication with KeePass</source>
         <translation>Ключ KeePassHttp для зашифрованной коммуникации с KeePass</translation>
+    </message>
+    <message>
+        <source>Discovering Peers...</source>
+        <translation>Обнаружение Пиров...</translation>
     </message>
     <message>
         <source>Keep at most &lt;n&gt; unconnectable transactions in memory (default: %u)</source>
@@ -4446,7 +5080,7 @@ https://www.transifex.com/projects/p/biblepay/</translation>
         <translation>Если &lt;category&gt; не указана или &lt;category&gt; = 1, выводит всю отладочную информацию.</translation>
     </message>
     <message>
-        <source>InstantSend doesn't support sending values that high yet. Transactions are currently limited to %1 BIBLEPAY.</source>
+        <source>InstantSend doesn&apos;t support sending values that high yet. Transactions are currently limited to %1 BIBLEPAY.</source>
         <translation>InstantSend пока что не поддерживает такие большие суммы. На данный момент транзакции ограничены суммами до %1 BIBLEPAY.</translation>
     </message>
     <message>
@@ -4498,7 +5132,7 @@ https://www.transifex.com/projects/p/biblepay/</translation>
         <translation>Поддерживать фильтрацию блоков и транзакций с помощью фильтров Блума (по умолчанию: %u)</translation>
     </message>
     <message>
-        <source>The block database contains a block which appears to be from the future. This may be due to your computer's date and time being set incorrectly. Only rebuild the block database if you are sure that your computer's date and time are correct</source>
+        <source>The block database contains a block which appears to be from the future. This may be due to your computer&apos;s date and time being set incorrectly. Only rebuild the block database if you are sure that your computer&apos;s date and time are correct</source>
         <translation>База данных блоков содержит блок, созданный в будущем. Такое может случиться из-за некорректно установленных даты и времени на Вашем компьютере. Перестройте базу блоков, только если вы уверены, что дата и время корректны.</translation>
     </message>
     <message>
@@ -4510,7 +5144,7 @@ https://www.transifex.com/projects/p/biblepay/</translation>
         <translation>Длина строки сетевой версии (%i) превышает максимально допустимую (%i). Уменьшите количество или размер строк uacomment.</translation>
     </message>
     <message>
-        <source>Transaction index can't be disabled in full mode. Either start with -litemode command line switch or enable transaction index.</source>
+        <source>Transaction index can&apos;t be disabled in full mode. Either start with -litemode command line switch or enable transaction index.</source>
         <translation>Индексирование транзакций нельзя отключить в полном режиме. Либо запустите кошелек с опцией -litemode, либо включите индексирование транзакций.</translation>
     </message>
     <message>
@@ -4522,7 +5156,7 @@ https://www.transifex.com/projects/p/biblepay/</translation>
         <translation>Не удалось обнаружить достаточных для выполнения этой транзакции номиналов PrivateSend.</translation>
     </message>
     <message>
-        <source>Unsupported argument -socks found. Setting SOCKS version isn't possible anymore, only SOCKS5 proxies are supported.</source>
+        <source>Unsupported argument -socks found. Setting SOCKS version isn&apos;t possible anymore, only SOCKS5 proxies are supported.</source>
         <translation>Обнаружен неподдерживаемый аргумент -socks. Выбор версии SOCKS больше невозможен, поддерживаются только прокси версии SOCKS5.</translation>
     </message>
     <message>
@@ -4538,11 +5172,11 @@ https://www.transifex.com/projects/p/biblepay/</translation>
         <translation>ВНИМАНИЕ! Ну удалось обновить пул ключей, пожалуйста, разблокируйте кошелек.</translation>
     </message>
     <message>
-        <source>Wallet is locked, can't replenish keypool! Automatic backups and mixing are disabled, please unlock your wallet to replenish keypool.</source>
+        <source>Wallet is locked, can&apos;t replenish keypool! Automatic backups and mixing are disabled, please unlock your wallet to replenish keypool.</source>
         <translation>Кошелек заблокирован, невозможно пополнить пул ключей! Автоматические резервные копии и перемешивание отключены. Пожалуйста, разблокируйте кошелек для пополнения пула ключей.</translation>
     </message>
     <message>
-        <source>Warning: Unknown block versions being mined! It's possible unknown rules are in effect</source>
+        <source>Warning: Unknown block versions being mined! It&apos;s possible unknown rules are in effect</source>
         <translation>Внимание: создаются блоки неизвестной версии! Возможно активированы неизвестные правила</translation>
     </message>
     <message>
@@ -4626,6 +5260,10 @@ https://www.transifex.com/projects/p/biblepay/</translation>
         <translation>Не удалось создать резервную копию, ошибка: %s</translation>
     </message>
     <message>
+        <source>Invalid masternodeblsprivkey. Please see documentation.</source>
+        <translation>Неправильный masternodeblsprivkey. Пожалуйста, обратитесь к документации.</translation>
+    </message>
+    <message>
         <source>Failed to delete backup, error: %s</source>
         <translation>Не удалось удалить резервную копию, ошибка: %s</translation>
     </message>
@@ -4650,8 +5288,12 @@ https://www.transifex.com/projects/p/biblepay/</translation>
         <translation>Параметры InstantSend:</translation>
     </message>
     <message>
-        <source>Invalid amount for -fallbackfee=&lt;amount&gt;: '%s'</source>
-        <translation>Неверная сумма в параметре -fallbackfee=&lt;amount&gt;: '%s'</translation>
+        <source>Invalid amount for -fallbackfee=&lt;amount&gt;: &apos;%s&apos;</source>
+        <translation>Неверная сумма в параметре -fallbackfee=&lt;amount&gt;: &apos;%s&apos;</translation>
+    </message>
+    <message>
+        <source>Keep N DASH anonymized (%u-%u, default: %u)</source>
+        <translation>Держать N DASH анонимизированными (%u-%u, по умолчан: %u)</translation>
     </message>
     <message>
         <source>Keep the transaction memory pool below &lt;n&gt; megabytes (default: %u)</source>
@@ -4682,12 +5324,24 @@ https://www.transifex.com/projects/p/biblepay/</translation>
         <translation>Загрузка кэша спорков...</translation>
     </message>
     <message>
+        <source>Loading Chinese (CNV) Bible...</source>
+        <translation>Загрузка Китайской (CNV) Библии...</translation>
+    </message>
+    <message>
+        <source>Loading English (KJV) Bible...</source>
+        <translation>Загрузка Английской (KJV) Библии...</translation>
+    </message>
+    <message>
         <source>Loading wallet... (%3.2f %%)</source>
         <translation>Загрузка кошелька... (%3.2f %%)</translation>
     </message>
     <message>
         <source>Loading wallet...</source>
         <translation>Загрузка кошелька...</translation>
+    </message>
+    <message>
+        <source>Loading PODC Researchers...</source>
+        <translation>Загрузка Исследователей PODC...</translation>
     </message>
     <message>
         <source>Location of the auth cookie (default: data dir)</source>
@@ -4708,6 +5362,10 @@ https://www.transifex.com/projects/p/biblepay/</translation>
     <message>
         <source>Masternode:</source>
         <translation>Мастернода:</translation>
+    </message>
+    <message>
+        <source>Memorizing Prayers...</source>
+        <translation>Запоминание молитв ...</translation>
     </message>
     <message>
         <source>Minimum bytes per sigop in transactions we relay and mine (default: %u)</source>
@@ -4866,7 +5524,7 @@ https://www.transifex.com/projects/p/biblepay/</translation>
         <translation>Внимание: вступили в силу неизвестные правила (versionbit %i)</translation>
     </message>
     <message>
-        <source>Wasn't able to create wallet backup folder %s!</source>
+        <source>Wasn&apos;t able to create wallet backup folder %s!</source>
         <translation>Не удалось создать папку для резервной копии кошелька %s!</translation>
     </message>
     <message>
@@ -4915,7 +5573,7 @@ https://www.transifex.com/projects/p/biblepay/</translation>
     </message>
     <message>
         <source>Distributed under the MIT software license, see the accompanying file %s or %s</source>
-        <translation>Распространяется под лицензией на программное обеспечение MIT, смотрите прилагаемый файл %s или %s.</translation>
+        <translation>Распространяется под лицензией на программное обеспечение MIT, смотрите прилагаемый файл %s или %s</translation>
     </message>
     <message>
         <source>Error reading %s! All keys read correctly, but transaction data or address book entries might be missing or incorrect.</source>
@@ -4930,19 +5588,11 @@ https://www.transifex.com/projects/p/biblepay/</translation>
         <translation>Неверный или отсутствующий начальный блок devnet. Неправильный каталог данных для devnet?</translation>
     </message>
     <message>
-        <source>Maximum allowed median peer time offset adjustment. Local perspective of time may be influenced by peers forward or backward by this amount. (default: %u seconds)</source>
-        <translation>Максимально допустимое отклонение медианного времени узлов. Локальное время может отклоняться узлами на эту величину как вперед, так и назад. (по умолчанию: %u секунд)</translation>
-    </message>
-    <message>
-        <source>Maximum total fees (in %s) to use in a single wallet transaction or raw transaction; setting this too low may abort large transactions (default: %s)</source>
-        <translation>Максимальная сумма комиссии (в %s), допустимая в одной транзакции. Установка слишком низкого значения может привести к невозможности отправить большие транзакции (по умолчанию: %s)</translation>
-    </message>
-    <message>
         <source>Override spork address. Only useful for regtest and devnet. Using this on mainnet or testnet will ban you.</source>
         <translation>Задать spork-адрес. Полезно только для regtest или devnet. Использование этого в главной либо тестовой сети приведет к бану Вашего узла.</translation>
     </message>
     <message>
-        <source>Please check that your computer's date and time are correct! If your clock is wrong, %s will not work properly.</source>
+        <source>Please check that your computer&apos;s date and time are correct! If your clock is wrong, %s will not work properly.</source>
         <translation>Пожалуйста, убедитесь что дата и время на Вашем компьютере выставлены правильно! %s не сможет работать корректно, если часы настроены неверно.</translation>
     </message>
     <message>
@@ -5006,6 +5656,10 @@ https://www.transifex.com/projects/p/biblepay/</translation>
         <translation>Внести пиров, соединяющихся с IP адреса (например, 1.2.3.4) или с адресов, подходящих по маске в CIDR нотации (например, 1.2.3.0/24), в белый список. Опция может быть указана несколько раз.</translation>
     </message>
     <message>
+        <source>Starting Miner...</source>
+        <translation>Запуск Майнера...</translation>
+    </message>
+    <message>
         <source>%s corrupt, salvage failed</source>
         <translation>%s повреждён, спасение данных не удалось</translation>
     </message>
@@ -5042,8 +5696,8 @@ https://www.transifex.com/projects/p/biblepay/</translation>
         <translation>Попытаться восстановить закрытые ключи из повреждённого кошелька на старте</translation>
     </message>
     <message>
-        <source>Cannot resolve -%s address: '%s'</source>
-        <translation>Не удаётся разрешить адрес в параметре -%s: '%s'</translation>
+        <source>Cannot resolve -%s address: &apos;%s&apos;</source>
+        <translation>Не удаётся разрешить адрес в параметре -%s: &apos;%s&apos;</translation>
     </message>
     <message>
         <source>Change index out of range</source>
@@ -5082,16 +5736,16 @@ https://www.transifex.com/projects/p/biblepay/</translation>
         <translation>Проверка на непротиворечивость закончилась неудачно. %s выключается.</translation>
     </message>
     <message>
-        <source>Invalid -onion address or hostname: '%s'</source>
-        <translation>Неверный адрес или имя хоста -onion: '%s'</translation>
+        <source>Invalid -onion address or hostname: &apos;%s&apos;</source>
+        <translation>Неверный адрес или имя хоста -onion: &apos;%s&apos;</translation>
     </message>
     <message>
-        <source>Invalid -proxy address or hostname: '%s'</source>
-        <translation>Неверный адрес или имя хоста -proxy: '%s'</translation>
+        <source>Invalid -proxy address or hostname: &apos;%s&apos;</source>
+        <translation>Неверный адрес или имя хоста -proxy: &apos;%s&apos;</translation>
     </message>
     <message>
-        <source>Invalid amount for -%s=&lt;amount&gt;: '%s'</source>
-        <translation>Некорректное значение в параметре -%s=&lt;amount&gt;: '%s'</translation>
+        <source>Invalid amount for -%s=&lt;amount&gt;: &apos;%s&apos;</source>
+        <translation>Некорректное значение в параметре -%s=&lt;amount&gt;: &apos;%s&apos;</translation>
     </message>
     <message>
         <source>Invalid characters in -wallet filename</source>
@@ -5234,8 +5888,8 @@ https://www.transifex.com/projects/p/biblepay/</translation>
         <translation>Не удалось подписать spork-сообщение. Неправильный ключ?</translation>
     </message>
     <message>
-        <source>Unknown network specified in -onlynet: '%s'</source>
-        <translation>В параметре -onlynet указана неизвестная сеть: '%s'</translation>
+        <source>Unknown network specified in -onlynet: &apos;%s&apos;</source>
+        <translation>В параметре -onlynet указана неизвестная сеть: &apos;%s&apos;</translation>
     </message>
     <message>
         <source>Unknown state: id = %u</source>

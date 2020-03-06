@@ -3338,7 +3338,6 @@ UniValue exec(const JSONRPCRequest& request)
 		// Expirimental Feature:  Dynamic Whale Stake
 		// exec dws amount duration_in_days 0=test/1=authorize
 		const Consensus::Params& consensusParams = Params().GetConsensus();
-
 		std::string sHowey = "By typing I_AGREE in uppercase, you agree to the following conditions:"
 			"\n1.  I AM MAKING A SELF DIRECTED DECISION TO BURN THIS BIBLEPAY, AND DO NOT EXPECT AN INCREASE IN VALUE."
 			"\n2.  I HAVE NOT BEEN PROMISED A PROFIT, AND BIBLEPAY IS NOT PROMISING ME ANY HOPES OF PROFIT IN ANY WAY."
@@ -3360,8 +3359,8 @@ UniValue exec(const JSONRPCRequest& request)
 		CBitcoinAddress returnAddress(sReturnAddress);
 		if (request.params.size() == 5)
 		{
-			sReturnAddress = request.params[4].get_str();
-			CBitcoinAddress address(sReturnAddress);
+			sReturnAddress = request.params[4].get_str();	
+			returnAddress = CBitcoinAddress(sReturnAddress);
 		}
 		if (!returnAddress.IsValid())
 			throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, std::string("Invalid Biblepay return address: ") + sReturnAddress);
@@ -3568,6 +3567,26 @@ UniValue exec(const JSONRPCRequest& request)
 		double dNonce = cdbl(request.params[1].get_str(), 0);
 		bool fNonce =  CheckNonce(true, (int)dNonce, nHeight, 1, 301, consensusParams);
 		results.push_back(Pair("result", fNonce));
+	}
+	else if (sItem == "xbbp")
+	{
+		std::string p1 = request.params[1].get_str();
+		uint256 h1 = uint256S("0x" + p1);
+		results.push_back(Pair("uint256_h1", h1.GetHex()));
+		bool f7000 = false;
+		bool f8000 = false;
+		bool f9000 = false;
+		bool fTitheBlocksActive = false;
+		int nHeight = 1;
+		GetMiningParams(nHeight, f7000, f8000, f9000, fTitheBlocksActive);
+		int64_t nTime = 10;
+		int64_t nPrevTime = 1;
+		int64_t nPrevHeight = 1;
+		int64_t nNonce = 10;
+		bool bMining = true;
+		const Consensus::Params& consensusParams = Params().GetConsensus();
+		uint256 uh1_out = BibleHashClassic(h1, nTime, nPrevTime, bMining, nPrevHeight, NULL, false, f7000, f8000, f9000, fTitheBlocksActive, nNonce, consensusParams);
+		results.push_back(Pair("h1_out", uh1_out.GetHex()));
 	}
 	else if (sItem == "XBBP")
 	{
